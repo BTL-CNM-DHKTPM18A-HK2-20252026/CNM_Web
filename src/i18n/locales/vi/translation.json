@@ -4,7 +4,8 @@
     "subheading": "Đăng nhập tài khoản Fruvia Chat để kết nối với ứng dụng Fruvia Web",
     "tabs": {
       "qr": "VỚI MÃ QR",
-      "phone": "VỚI SỐ ĐIỆN THOẠI"
+      "phone": "VỚI SỐ ĐIỆN THOẠI",
+      "register": "ĐĂNG KÝ"
     },
     "qr": {
       "expired": "Mã QR hết hạn, nhấn để lấy mã mới",
@@ -24,5 +25,26 @@
       "desc": "Gửi file 1GB, gọi video HD, đồng bộ tin nhắn cực nhanh",
       "download": "Tải ngay"
     }
+  },
+  "sidebar": {
+    "account_info": "Thông tin tài khoản",
+    "settings": "Cài đặt",
+    "data": "Dữ liệu",
+    "language": "Ngôn ngữ",
+    "support": "Hỗ trợ",
+    "logout": "Đăng xuất"
+  },
+  "chat": {
+    "search": "Tìm kiếm",
+    "tabs": {
+      "all": "Tất cả",
+      "unread": "Chưa đọc"
+    },
+    "self_cloud": "Cloud của tôi",
+    "cloud_subheading": "Truyền file giữa các thiết bị của bạn",
+    "input_placeholder": "Nhập @, tin nhắn tới Cloud của tôi",
+    "you": "Bạn",
+    "time_unit": "phút",
+    "today": "Hôm nay"
   }
 }

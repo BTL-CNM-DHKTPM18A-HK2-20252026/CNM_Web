@@ -46,5 +46,46 @@ export const authService = {
       return localStorage.getItem('accessToken');
     }
     return null;
+  },
+
+  /**
+   * Check if a phone number exists in the system
+   * @param phoneNumber - phone number to check
+   */
+  async checkPhoneNumber(phoneNumber: string) {
+    try {
+      const result = await apiClient.post('/auth/check-phone-number', { phoneNumber });
+      return result.data; // boolean
+    } catch (error) {
+      console.error('Check Phone Error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Register a new user
+   * @param data - registration data
+   */
+  async register(data: { phoneNumber: string; email: string; password: string; displayName: string }) {
+    try {
+      const result = await apiClient.post('/users', data);
+      return result.data;
+    } catch (error) {
+      console.error('Registration Error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * introspect token
+   */
+  async introspect(token: string) {
+    try {
+      const result = await apiClient.post('/auth/introspect', { token });
+      return result.data; // IntrospectResponse { valid: boolean }
+    } catch (error) {
+      console.error('Introspect Error:', error);
+      throw error;
+    }
   }
 };

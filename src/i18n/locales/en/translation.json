@@ -4,7 +4,8 @@
     "subheading": "Log in to Fruvia Chat to connect with Fruvia Web",
     "tabs": {
       "qr": "WITH QR CODE",
-      "phone": "WITH PHONE NUMBER"
+      "phone": "WITH PHONE NUMBER",
+      "register": "REGISTER"
     },
     "qr": {
       "expired": "QR code expired, click to refresh",
@@ -24,5 +25,26 @@
       "desc": "Send 1GB files, HD video calls, lightning fast sync",
       "download": "Download Now"
     }
+  },
+  "sidebar": {
+    "account_info": "Account Info",
+    "settings": "Settings",
+    "data": "Data",
+    "language": "Language",
+    "support": "Support",
+    "logout": "Logout"
+  },
+  "chat": {
+    "search": "Search",
+    "tabs": {
+      "all": "All",
+      "unread": "Unread"
+    },
+    "self_cloud": "My Cloud",
+    "cloud_subheading": "Transfer files across your devices",
+    "input_placeholder": "Enter @, message to My Cloud",
+    "you": "You",
+    "time_unit": "min",
+    "today": "Today"
   }
 }
