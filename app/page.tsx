@@ -1,24 +1,40 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { useTranslation } from 'react-i18next';
+import '../i18n/config'; // Import the i18n config
 
 export default function Home() {
+  const { t, i18n } = useTranslation();
   const [loginMethod, setLoginMethod] = useState<'qr' | 'phone'>('qr');
+  const [isClient, setIsClient] = useState(false);
+
+  // Avoid hydration mismatch
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const changeLanguage = (lng: string) => {
+    i18n.changeLanguage(lng);
+  };
+
+  if (!isClient) {
+    return null; // Or a loading spinner
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#E6F0F8] p-4 font-sans text-[#1e293b]">
       {/* Fruvia Logo and Name */}
       <div className="mb-2 flex flex-col items-center gap-2">
         <h1 className="text-5xl font-black tracking-tight text-[#0068FF]">
-          Fruvia Chat
+          {t('login.title')}
         </h1>
       </div>
       
       {/* Subheading */}
       <p className="mb-8 max-w-xs text-center text-lg font-medium leading-tight text-gray-700">
-        Đăng nhập tài khoản Fruvia Chat<br />
-        để kết nối với ứng dụng Fruvia Web
+        {t('login.subheading')}
       </p>
 
       {/* Main Login Card */}
@@ -33,7 +49,7 @@ export default function Home() {
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            VỚI MÃ QR
+            {t('login.tabs.qr')}
           </button>
           <button 
             onClick={() => setLoginMethod('phone')}
@@ -43,7 +59,7 @@ export default function Home() {
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            VỚI SỐ ĐIỆN THOẠI
+            {t('login.tabs.phone')}
           </button>
         </div>
 
@@ -60,22 +76,21 @@ export default function Home() {
                     ))}
                   </div>
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90">
-                    <p className="mb-4 text-xs text-center text-gray-600 font-medium px-8">Mã QR hết hạn, nhấn để lấy mã mới</p>
+                    <p className="mb-4 text-xs text-center text-gray-600 font-medium px-8">{t('login.qr.expired')}</p>
                     <button className="cursor-pointer rounded-md bg-[#0068FF] px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-blue-600 shadow-md">
-                      Lấy mã mới
+                      {t('login.qr.refresh')}
                     </button>
                   </div>
                 </div>
               </div>
               <div className="text-center">
-                <p className="mb-1 text-sm font-bold text-[#0068FF]">Chỉ dùng để đăng nhập</p>
-                <p className="mb-4 text-sm font-medium text-gray-600">Fruvia trên máy tính</p>
+                <p className="mb-4 text-sm font-medium text-gray-600">{t('login.qr.hint')}</p>
               </div>
             </>
           ) : (
             /* Phone Number / Password Section */
             <div className="w-full px-2">
-              <h3 className="mb-8 text-center text-sm font-bold text-gray-800">Đăng nhập với mật khẩu</h3>
+              <h3 className="mb-8 text-center text-sm font-bold text-gray-800">{t('login.phone.header')}</h3>
               
               {/* Phone Input */}
               <div className="mb-6 flex items-center border-b border-gray-300 py-2 transition-colors focus-within:border-[#0068FF]">
@@ -86,7 +101,7 @@ export default function Home() {
                 <span className="mr-3 scale-75 text-gray-400">▼</span>
                 <input 
                   type="text" 
-                  placeholder="Số điện thoại" 
+                  placeholder={t('login.phone.phone_placeholder')}
                   className="w-full text-sm outline-none placeholder:text-gray-400"
                 />
               </div>
@@ -98,22 +113,22 @@ export default function Home() {
                 </span>
                 <input 
                   type="password" 
-                  placeholder="Mật khẩu" 
+                  placeholder={t('login.phone.password_placeholder')}
                   className="w-full text-sm outline-none placeholder:text-gray-400"
                 />
               </div>
 
               <button className="mb-4 w-full cursor-pointer rounded-md bg-[#0068FF] py-3 text-sm font-bold text-white transition-colors hover:bg-blue-600">
-                Đăng nhập với mật khẩu
+                {t('login.phone.submit')}
               </button>
 
               <div className="flex flex-col gap-3 text-center">
-                <button className="cursor-pointer text-sm font-medium text-gray-500 hover:text-gray-700">Quên mật khẩu?</button>
+                <button className="cursor-pointer text-sm font-medium text-gray-500 hover:text-gray-700">{t('login.phone.forgot_password')}</button>
                 <button 
                   onClick={() => setLoginMethod('qr')}
                   className="cursor-pointer text-sm font-bold text-[#0068FF] hover:underline"
                 >
-                  Đăng nhập qua mã QR
+                  {t('login.phone.qr_back')}
                 </button>
               </div>
             </div>
@@ -126,21 +141,31 @@ export default function Home() {
              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9"/><rect width="20" height="3" x="2" y="16" rx="1"/></svg>
           </div>
           <div className="flex-1">
-            <h4 className="text-[11px] font-bold text-gray-800 leading-tight">Trải nghiệm Fruvia PC tốt nhất</h4>
+            <h4 className="text-[11px] font-bold text-gray-800 leading-tight">{t('login.promo.title')}</h4>
             <p className="text-[10px] text-gray-500 leading-tight mt-0.5">
-              Gửi file 1GB, gọi video HD, đồng bộ tin nhắn cực nhanh
+              {t('login.promo.desc')}
             </p>
           </div>
-          <button className="cursor-pointer rounded bg-[#0068FF] px-3 py-1.5 text-[10px] font-bold text-white hover:bg-blue-600 shrink-0 capitalize">
-            Tải ngay
+          <button className="cursor-pointer rounded bg-[#0068FF] px-3 py-1.5 text-[10px] font-bold text-white hover:bg-blue-600 shrink-0">
+            {t('login.promo.download')}
           </button>
         </div>
       </div>
 
       {/* Language Footer */}
       <div className="mt-8 flex gap-6 text-[13px] font-medium text-[#0068FF]">
-        <button className="cursor-pointer hover:underline">Tiếng Việt</button>
-        <button className="cursor-pointer text-gray-400 hover:underline">English</button>
+        <button 
+          onClick={() => changeLanguage('vi')}
+          className={`cursor-pointer hover:underline ${i18n.language === 'vi' ? 'font-bold underline' : 'text-gray-400'}`}
+        >
+          Tiếng Việt
+        </button>
+        <button 
+          onClick={() => changeLanguage('en')}
+          className={`cursor-pointer hover:underline ${i18n.language === 'en' ? 'font-bold underline' : 'text-gray-400'}`}
+        >
+          English
+        </button>
       </div>
     </div>
   );

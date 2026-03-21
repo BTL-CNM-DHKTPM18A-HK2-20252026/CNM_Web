@@ -1,0 +1,28 @@
+{
+  "login": {
+    "title": "Fruvia Chat",
+    "subheading": "Đăng nhập tài khoản Fruvia Chat để kết nối với ứng dụng Fruvia Web",
+    "tabs": {
+      "qr": "VỚI MÃ QR",
+      "phone": "VỚI SỐ ĐIỆN THOẠI"
+    },
+    "qr": {
+      "expired": "Mã QR hết hạn, nhấn để lấy mã mới",
+      "refresh": "Lấy mã mới",
+      "hint": "Chỉ dùng để đăng nhập Fruvia trên máy tính"
+    },
+    "phone": {
+      "header": "Đăng nhập với mật khẩu",
+      "phone_placeholder": "Số điện thoại",
+      "password_placeholder": "Mật khẩu",
+      "submit": "Đăng nhập với mật khẩu",
+      "forgot_password": "Quên mật khẩu?",
+      "qr_back": "Đăng nhập qua mã QR"
+    },
+    "promo": {
+      "title": "Trải nghiệm Fruvia PC tốt nhất",
+      "desc": "Gửi file 1GB, gọi video HD, đồng bộ tin nhắn cực nhanh",
+      "download": "Tải ngay"
+    }
+  }
+}

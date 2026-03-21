@@ -1,0 +1,28 @@
+{
+  "login": {
+    "title": "Fruvia Chat",
+    "subheading": "Log in to Fruvia Chat to connect with Fruvia Web",
+    "tabs": {
+      "qr": "WITH QR CODE",
+      "phone": "WITH PHONE NUMBER"
+    },
+    "qr": {
+      "expired": "QR code expired, click to refresh",
+      "refresh": "Refresh QR",
+      "hint": "Only for logging in to Fruvia on computer"
+    },
+    "phone": {
+      "header": "Login with password",
+      "phone_placeholder": "Phone Number",
+      "password_placeholder": "Password",
+      "submit": "Login with password",
+      "forgot_password": "Forgot password?",
+      "qr_back": "Login via QR code"
+    },
+    "promo": {
+      "title": "Best Fruvia PC experience",
+      "desc": "Send 1GB files, HD video calls, lightning fast sync",
+      "download": "Download Now"
+    }
+  }
+}
