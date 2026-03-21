@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
         hostname: 'avatar.talk.vtalk.ai',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'picsum.photos',
+        pathname: '/**',
+      },
     ],
   },
 };

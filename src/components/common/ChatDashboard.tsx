@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar';
 import { ConversationList } from './ConversationList';
 import { ChatWindow } from './ChatWindow';
 import { SettingsModal } from './SettingsModal';
+import { ProfileModal } from './ProfileModal';
 
 interface ChatDashboardProps {
   onLogout: () => void;
@@ -14,24 +15,30 @@ export function ChatDashboard({ onLogout }: ChatDashboardProps) {
   const [activeTab, setActiveTab] = useState('chat');
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   
   const conversations = [
     { 
       id: 5, 
       name: t('chat.self_cloud'), 
-      lastMsg: `${t('chat.you')}: ngrok http 8080`, 
-      time: `3 ${t('chat.time_unit')}`, 
+      lastMsg: 'Bạn: [Hình ảnh]', 
+      time: '19 phút', 
       active: true, 
       pinned: true 
     },
   ];
 
   return (
-    <div className="flex h-screen w-full bg-white overflow-hidden text-[#1e293b]">
-      {/* Settings Modal */}
+    <div className="flex h-screen w-full bg-[var(--card-bg)] overflow-hidden text-[var(--text)] transition-colors duration-200">
+      {/* Modals */}
       <SettingsModal 
         isOpen={isSettingsModalOpen} 
         onClose={() => setIsSettingsModalOpen(false)} 
+      />
+      
+      <ProfileModal 
+        isOpen={isProfileModalOpen} 
+        onClose={() => setIsProfileModalOpen(false)} 
       />
 
       {/* 1. LEFT SIDEBAR */}
@@ -41,6 +48,7 @@ export function ChatDashboard({ onLogout }: ChatDashboardProps) {
         showSettingsMenu={showSettingsMenu}
         setShowSettingsMenu={setShowSettingsMenu}
         setIsSettingsModalOpen={setIsSettingsModalOpen}
+        setIsProfileModalOpen={setIsProfileModalOpen}
         onLogout={onLogout}
       />
 

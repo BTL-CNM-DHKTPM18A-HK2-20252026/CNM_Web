@@ -17,12 +17,12 @@ import { ChatDashboard } from '@/components/common/ChatDashboard';
 export default function Home() {
   const { t } = useTranslation();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [loginMethod, setLoginMethod] = useState<'qr' | 'phone' | 'register'>('qr');
+  const [loginMethod, setLoginMethod] = useState<'qr' | 'phone' | 'register'>('phone');
   const [isClient, setIsClient] = useState(false);
 
   // Form states
-  const [username, setUsername] = useState(''); // phoneNumber
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('0399614016'); // phoneNumber
+  const [password, setPassword] = useState('TestUser123@');
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);

@@ -40,11 +40,63 @@
       "all": "Tất cả",
       "unread": "Chưa đọc"
     },
+    "classify": "Phân loại",
+    "more": "Thêm",
     "self_cloud": "Cloud của tôi",
     "cloud_subheading": "Truyền file giữa các thiết bị của bạn",
     "input_placeholder": "Nhập @, tin nhắn tới Cloud của tôi",
     "you": "Bạn",
     "time_unit": "phút",
     "today": "Hôm nay"
+  },
+  "profile": {
+    "title": "Trang cá nhân",
+    "personal_info": "Thông tin cá nhân",
+    "gender": "Giới tính",
+    "birthday": "Ngày sinh",
+    "phone": "Điện thoại",
+    "gender_male": "Nam",
+    "gender_female": "Nữ",
+    "update": "Cập nhật",
+    "privacy_note": "Chỉ bạn bè có lưu số của bạn trong danh bạ máy xem được số này"
+  },
+  "settings": {
+    "title": "Cài đặt",
+    "tabs": {
+      "general": "Cài đặt chung",
+      "privacy": "Quyền riêng tư",
+      "sync": "Đồng bộ tin nhắn",
+      "interface": "Giao diện",
+      "notifications": "Thông báo",
+      "messages": "Tin nhắn",
+      "utils": "Tiện ích"
+    },
+    "general": {
+      "contacts": {
+        "title": "Danh bạ",
+        "desc": "Danh sách bạn bè được hiển thị trong danh bạ",
+        "show_all": "Hiển thị tất cả bạn bè",
+        "zalo_only": "Chỉ hiển thị bạn bè đang sử dụng Zalo"
+      },
+      "language": {
+        "title": "Ngôn ngữ",
+        "change": "Thay đổi ngôn ngữ",
+        "vi": "Tiếng Việt",
+        "en": "English"
+      }
+    },
+    "appearance": {
+      "title": "Cài đặt giao diện",
+      "theme": {
+        "light": "Sáng",
+        "dark": "Tối",
+        "system": "Hệ thống"
+      },
+      "wallpaper": {
+        "title": "Hình nền chat",
+        "use_avatar": "Sử dụng Avatar làm hình nền"
+      }
+    },
+    "development": "Tính năng {{name}} đang được phát triển"
   }
 }

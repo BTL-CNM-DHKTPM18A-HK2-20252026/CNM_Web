@@ -40,11 +40,91 @@
       "all": "All",
       "unread": "Unread"
     },
-    "self_cloud": "My Cloud",
+    "classify": "Filter",
+    "more": "More",
+    "self_cloud": "My Documents",
     "cloud_subheading": "Transfer files across your devices",
-    "input_placeholder": "Enter @, message to My Cloud",
+    "input_placeholder": "Enter @, message to My Documents",
     "you": "You",
     "time_unit": "min",
     "today": "Today"
+  },
+  "profile": {
+    "title": "Profile",
+    "personal_info": "Personal Info",
+    "gender": "Gender",
+    "birthday": "Birthday",
+    "phone": "Phone",
+    "gender_male": "Male",
+    "gender_female": "Female",
+    "update": "Update",
+    "privacy_note": "Only friends with your phone number saved can see this"
+  },
+  "info": {
+    "title": "Conversation Info",
+    "cloud": {
+      "desc": "Store and access your most important content on Zalo",
+      "storage": {
+        "title": "Storage",
+        "clean_up": "View and clean up My Documents"
+      },
+      "upgrade": {
+        "title": "Upgrade My Documents Storage",
+        "desc": "Expand your storage up to 100GB and automatically secure your Zalo data with zCloud.",
+        "add": "Add Storage"
+      }
+    },
+    "sections": {
+      "reminders": "Reminder board",
+      "media": "Photos/Videos",
+      "files": "Files",
+      "links": "Links",
+      "view_all": "View all"
+    },
+    "legend": {
+      "photos": "Photos",
+      "videos": "Videos",
+      "files": "Files",
+      "other": "Other"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "tabs": {
+      "general": "General Settings",
+      "privacy": "Privacy",
+      "sync": "Message Sync",
+      "interface": "Appearance",
+      "notifications": "Notifications",
+      "messages": "Messages",
+      "utils": "Utilities"
+    },
+    "general": {
+      "contacts": {
+        "title": "Contacts",
+        "desc": "Friend list displayed in contacts",
+        "show_all": "Display all friends",
+        "zalo_only": "Only display friends using Zalo"
+      },
+      "language": {
+        "title": "Language",
+        "change": "Change language",
+        "vi": "Vietnamese",
+        "en": "English"
+      }
+    },
+    "appearance": {
+      "title": "Appearance Settings",
+      "theme": {
+        "light": "Light",
+        "dark": "Dark",
+        "system": "System"
+      },
+      "wallpaper": {
+        "title": "Chat Wallpaper",
+        "use_avatar": "Use Avatar as wallpaper"
+      }
+    },
+    "development": "Feature {{name}} is under development"
   }
 }
