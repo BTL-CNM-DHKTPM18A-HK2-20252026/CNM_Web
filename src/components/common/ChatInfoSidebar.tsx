@@ -14,9 +14,40 @@ interface ChatInfoSidebarProps {
 
 export function ChatInfoSidebar({ onClose }: ChatInfoSidebarProps) {
   const { t } = useTranslation();
+  const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
+  const [showMedia, setShowMedia] = React.useState(true);
 
   return (
     <div className="w-[350px] bg-[var(--card-bg)] border-l border-[var(--border)] flex flex-col h-full animate-in slide-in-from-right duration-300 transition-colors duration-200">
+      {/* Lightbox / Image Zoom */}
+      {selectedImage && (
+        <div 
+          className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center animate-in fade-in duration-200"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div className="absolute top-6 right-6 flex gap-4">
+             <button 
+               onClick={(e) => { e.stopPropagation(); setSelectedImage(null); }}
+               className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+             >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+             </button>
+          </div>
+          <div 
+            className="relative w-[90vw] h-[90vh] flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Image 
+              src={selectedImage} 
+              alt="Zoomed Media" 
+              width={1200}
+              height={1200}
+              className="object-contain max-w-full max-h-full transition-all duration-300 animate-in zoom-in-95"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="h-[64px] border-b border-[var(--border)] flex items-center justify-center relative flex-shrink-0 transition-colors duration-200">
         <h2 className="text-[17px] font-bold text-[var(--text)]">{t('info.title')}</h2>
@@ -82,21 +113,38 @@ export function ChatInfoSidebar({ onClose }: ChatInfoSidebarProps) {
         <div className="divide-y divide-[var(--border)] transition-colors duration-200">
           <SectionItem icon={<ClockIcon size={18} />} title={t('info.sections.reminders')} />
           
-          <div className="p-4 space-y-4">
-             <div className="flex items-center justify-between">
+          <div className="flex flex-col">
+             <div 
+               onClick={() => setShowMedia(!showMedia)}
+               className="p-4 flex items-center justify-between hover:bg-[var(--hover-bg)] cursor-pointer transition-colors group"
+             >
                 <span className="text-[14px] font-bold text-[var(--text)]">{t('info.sections.media')}</span>
-                <span className="text-[var(--sub-text)]"><ChevronDownIcon size={16} /></span>
+                <span className={`text-[var(--sub-text)] transition-transform duration-200 ${!showMedia ? '-rotate-90' : ''}`}>
+                  <ChevronDownIcon size={16} />
+                </span>
              </div>
-             <div className="grid grid-cols-4 gap-1">
-                {[1,2,3,4,5,6,7,8].map(i => (
-                  <div key={i} className="aspect-square bg-[var(--hover-bg)] rounded overflow-hidden relative group cursor-pointer">
-                    <Image src={`https://picsum.photos/id/${10+i}/100/100`} alt="Media" fill className="object-cover group-hover:scale-110 transition-transform" />
-                  </div>
-                ))}
-             </div>
-             <button className="w-full py-2 bg-[var(--hover-bg)] hover:bg-[var(--border)] rounded flex items-center justify-center text-[13px] font-bold text-[var(--text)] transition-colors cursor-pointer">
-                {t('info.sections.view_all')}
-             </button>
+
+             {showMedia && (
+               <div className="px-4 pb-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                 <div className="grid grid-cols-4 gap-1 mb-4">
+                    {[1,2,3,4,5,6,7,8].map(i => {
+                      const imgSrc = `https://picsum.photos/id/${10+i}/800/800`;
+                      return (
+                        <div 
+                          key={i} 
+                          onClick={() => setSelectedImage(imgSrc)}
+                          className="aspect-square bg-[var(--hover-bg)] rounded overflow-hidden relative group cursor-pointer"
+                        >
+                          <Image src={`https://picsum.photos/id/${10+i}/100/100`} alt="Media" fill className="object-cover group-hover:scale-110 transition-transform" />
+                        </div>
+                      );
+                    })}
+                 </div>
+                 <button className="w-full py-2 bg-[var(--hover-bg)] hover:bg-[var(--border)] rounded flex items-center justify-center text-[13px] font-bold text-[var(--text)] transition-colors cursor-pointer">
+                    {t('info.sections.view_all')}
+                 </button>
+               </div>
+             )}
           </div>
 
           <SectionItem icon={null} title={t('info.sections.files')} hasChevron />

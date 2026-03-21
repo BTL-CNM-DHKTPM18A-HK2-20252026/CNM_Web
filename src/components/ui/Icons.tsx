@@ -126,7 +126,13 @@ export const EmojiIcon = ({ size = 22 }: { size?: number }) => (
 
 export const LikeIcon = ({ size = 24 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+    <path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.21 7.97 7 8.48 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z" />
+  </svg>
+);
+
+export const SendIcon = ({ size = 24 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
   </svg>
 );
 export const LogOutIcon = ({ size = 18 }: { size?: number }) => (
@@ -192,5 +198,52 @@ export const InfoIcon = ({ size = 18 }: { size?: number }) => (
 export const FolderIcon = ({ size = 18 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+  </svg>
+);
+
+// Zalo Sidebar Specific Icons
+export const ZaloChatIcon = ({ size = 26, active = false }: { size?: number; active?: boolean }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M50 15C31.2 15 16 28.4 16 45c0 5.4 1.6 10.4 4.4 14.6L16 75l15.4-4.4c4.2 2.8 9.2 4.4 14.6 4.4 18.8 0 34-13.4 34-30s-15.2-30-34-30z" fill={active ? "white" : "none"} stroke={active ? "none" : "currentColor"} />
+    <path d="M35 38h30M35 48h30M35 58h15" stroke={active ? "#0068FF" : "currentColor"} />
+  </svg>
+);
+
+export const ZaloContactIcon = ({ size = 26, active = false }: { size?: number; active?: boolean }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
+     <rect x="25" y="15" width="50" height="70" rx="6" />
+     <path d="M25 30h-10M25 45h-10M25 60h-10" />
+     <circle cx="50" cy="45" r="8" />
+     <path d="M38 65c0-6 5-10 12-10s12 4 12 10" />
+  </svg>
+);
+
+export const ZaloCloudIcon = ({ size = 26 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M75 75a18 18 0 0 0 0-36h-2.5c-1.5-12-11-21-22.5-21-10 0-18.5 6.5-22 15.5-10 2-18 11-18 21.5 0 12 10 21.5 22 21.5h43" />
+    <text x="36" y="65" fontSize="26" fontWeight="900" fill="currentColor" stroke="none" fontFamily="Arial">Z</text>
+  </svg>
+);
+
+export const ZaloFileIcon = ({ size = 26 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 30h30l5 5h30a5 5 0 0 1 5 5v30a5 5 0 0 1-5 5H20a5 5 0 0 1-5-5V35a5 5 0 0 1 5-5z" />
+    <path d="M60 55a8 8 0 0 0 0-16h-1c-1-6-6-10-12-10-5 0-9 4-10 8-5 1-9 5-9 10 0 6 5 10 11 10h21" strokeWidth="4" />
+  </svg>
+);
+
+export const ZaloBusinessIcon = ({ size = 26 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="20" y="30" width="60" height="45" rx="4" />
+    <path d="M40 30V20a5 5 0 0 1 5-5h10a5 5 0 0 1 5 5v10" />
+    <rect x="44" y="50" width="12" height="8" rx="1" />
+  </svg>
+);
+
+export const ZaloSettingsIcon = ({ size = 26 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="50" cy="50" r="10" />
+    <path d="M50 15v10M50 75v10M15 50h10M75 50h10M25 25l7 7M68 68l7 7M25 75l7-7M68 32l7-7" />
+    <circle cx="50" cy="50" r="35" strokeDasharray="15 12" />
   </svg>
 );

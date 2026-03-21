@@ -47,7 +47,27 @@
     "input_placeholder": "Enter @, message to My Documents",
     "you": "You",
     "time_unit": "min",
-    "today": "Today"
+    "today": "Today",
+    "search_overlay": {
+      "close": "Close",
+      "recent": "Recent searches",
+      "filters": {
+        "title": "Message filters",
+        "mention": "Mention you",
+        "reactions": "Reactions"
+      }
+    },
+    "classify_menu": {
+      "title": "By classification tag",
+      "customer": "Customer",
+      "family": "Family",
+      "work": "Work",
+      "friends": "Friends",
+      "reply_later": "Reply later",
+      "colleagues": "Colleagues",
+      "strangers": "Messages from strangers",
+      "manage": "Manage classification tags"
+    }
   },
   "profile": {
     "title": "Profile",

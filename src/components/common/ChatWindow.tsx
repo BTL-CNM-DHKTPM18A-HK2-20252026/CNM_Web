@@ -8,7 +8,8 @@ import {
   BusinessCardIcon,
   LightningIcon,
   EmojiIcon,
-  LikeIcon
+  LikeIcon,
+  SendIcon
 } from '@/components/ui/Icons';
 import { useTranslation } from 'react-i18next';
 
@@ -19,6 +20,14 @@ interface ChatWindowProps {
 
 export function ChatWindow({ onToggleInfo, showInfo }: ChatWindowProps) {
   const { t } = useTranslation();
+  const [message, setMessage] = React.useState("");
+
+  const handleSendMessage = () => {
+    if (message.trim()) {
+      setMessage(""); // Reset input
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-[var(--background)] transition-colors duration-200">
       {/* HEADER */}
@@ -68,13 +77,29 @@ export function ChatWindow({ onToggleInfo, showInfo }: ChatWindowProps) {
           <div className="flex-1 relative">
             <input
               type="text"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSendMessage();
+              }}
               placeholder={t('chat.input_placeholder')}
               className="w-full bg-transparent outline-none text-[15px] placeholder:text-[var(--sub-text)] placeholder:opacity-50 py-1 text-[var(--text)]"
             />
           </div>
           <div className="flex items-center gap-2 pr-1 shrink-0">
             <button className="cursor-pointer text-[var(--sub-text)] hover:text-[#0068FF] transition-colors"><EmojiIcon size={22} /></button>
-            <button className="cursor-pointer text-[#fbbf24] transition-transform hover:scale-110 active:scale-90"><LikeIcon size={24} /></button>
+            {message.trim() ? (
+              <button 
+                onClick={handleSendMessage}
+                className="cursor-pointer text-[#0068FF] transition-all animate-in fade-in zoom-in-50 duration-200 flex items-center justify-center transform translate-y-[-1px]"
+              >
+                <SendIcon size={24} />
+              </button>
+            ) : (
+              <button className="cursor-pointer text-[#0068FF] transition-transform hover:scale-110 active:scale-90 animate-in fade-in zoom-in-50 duration-200 flex items-center justify-center transform translate-y-[-1.5px]">
+                <LikeIcon size={24} />
+              </button>
+            )}
           </div>
         </div>
       </div>

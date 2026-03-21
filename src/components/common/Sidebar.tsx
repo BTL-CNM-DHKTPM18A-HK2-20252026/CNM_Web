@@ -3,7 +3,13 @@ import Image from 'next/image';
 import { useTranslation } from 'react-i18next';
 import { SettingsIcon, UserCircleIcon, DatabaseIcon,  GlobeIcon,
   HelpIcon,
-  LogOutIcon 
+  LogOutIcon,
+  ZaloChatIcon,
+  ZaloContactIcon,
+  ZaloCloudIcon,
+  ZaloFileIcon,
+  ZaloBusinessIcon,
+  ZaloSettingsIcon
 } from '@/components/ui/Icons';
 
 interface SidebarProps {
@@ -35,53 +41,47 @@ export function Sidebar({
   };
 
   return (
-    <div className="w-[64px] bg-[var(--sidebar-bg)] flex flex-col items-center py-4 gap-3 text-[var(--sidebar-text)] shadow-inner relative z-[60] transition-colors duration-200 border-r border-[var(--border)]">
+    <div className="w-[64px] bg-[#0068FF] flex flex-col items-center py-4 gap-2 text-white/70 shadow-inner relative z-[60] transition-colors duration-200 shrink-0">
       {/* Avatar */}
       <div className="h-11 w-11 rounded-full overflow-hidden border-2 border-white/20 cursor-pointer mb-2 shrink-0">
-        <Image src="https://avatar.talk.vtalk.ai/avatar/default" width={44} height={44} alt="User" className="bg-gray-200" />
+        <Image src="https://avatar.talk.vtalk.ai/avatar/default" width={44} height={44} alt="User" className="bg-white/10" />
       </div>
 
       {/* Navigation Tabs */}
-      <div className="w-full flex flex-col items-center gap-3 relative">
+      <div className="w-full flex flex-col items-center gap-1.5 relative">
         <button
           onClick={() => setActiveTab('chat')}
-          className={`w-[48px] h-[48px] flex items-center justify-center rounded-xl transition-all cursor-pointer relative ${activeTab === 'chat' ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'hover:bg-[var(--sidebar-hover-bg)] text-[var(--sidebar-text)]'}`}
+          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer relative ${activeTab === 'chat' ? 'bg-[#005AE0] text-white' : 'hover:bg-black/10 text-white/80'}`}
         >
-          {/* Indicator Bar for Black interface */}
-          {activeTab === 'chat' && <div className="absolute left-[-8px] w-1 h-6 bg-[var(--sidebar-indicator)] rounded-r-full"></div>}
-          <svg width="26" height="26" viewBox="0 0 24 24" fill={activeTab === 'chat' ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            {activeTab === 'chat' ? (
-              <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 1.821.487 3.53 1.338 5L2 22l5-1.338c1.47.851 3.179 1.338 5 1.338 5.523 0 10-4.477 10-10S17.523 2 12 2zm3.5 11h-7v-1.5h7V13zm0-3.5h-7V8h7v1.5z"/>
-            ) : (
-              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-11.3 8.38 8.38 0 0 1 3.8.9L21 3.5Z"/>
-            )}
-          </svg>
+          <ZaloChatIcon size={30} active={activeTab === 'chat'} />
         </button>
 
         <button
           onClick={() => setActiveTab('contacts')}
-          className={`w-[48px] h-[48px] flex items-center justify-center rounded-xl transition-all cursor-pointer relative ${activeTab === 'contacts' ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'hover:bg-[var(--sidebar-hover-bg)] text-[var(--sidebar-text)]'}`}
+          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer relative ${activeTab === 'contacts' ? 'bg-[#005AE0] text-white' : 'hover:bg-black/10 text-white/80'}`}
         >
-          {/* Indicator Bar for Black interface */}
-          {activeTab === 'contacts' && <div className="absolute left-[-8px] w-1 h-6 bg-[var(--sidebar-indicator)] rounded-r-full"></div>}
-          <svg width="26" height="26" viewBox="0 0 24 24" fill={activeTab === 'contacts' ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            {activeTab === 'contacts' ? (
-              <path fillRule="evenodd" clipRule="evenodd" d="M19 2H7c-1.1 0-2 .89-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.11-.9-2-2-2zm-2 15H9V5h8v12zM13 8.5c-.828 0-1.5.672-1.5 1.5s.672 1.5 1.5 1.5 1.5-.672 1.5-1.5-.672-1.5-1.5-1.5zm0 4.5c-1.381 0-2.5.5-2.5 1.5V15h5v-.5c0-1-1.119-1.5-2.5-1.5zM3 7h2v2H3V7zm0 4h2v2H3v-2zm0 4h2v2H3v-2z"/>
-            ) : (
-              <>
-                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><rect x="3" y="2" width="18" height="20" rx="2" ry="2"/>
-              </>
-            )}
-          </svg>
+          <ZaloContactIcon size={28} active={activeTab === 'contacts'} />
         </button>
 
         <button
           onClick={() => setActiveTab('cloud')}
-          className={`w-[48px] h-[48px] flex items-center justify-center rounded-xl transition-all cursor-pointer relative ${activeTab === 'cloud' ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'hover:bg-[var(--sidebar-hover-bg)] text-[var(--sidebar-text)]'}`}
+          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer relative ${activeTab === 'cloud' ? 'bg-[#005AE0] text-white' : 'hover:bg-black/10 text-white/80'}`}
         >
-          {/* Indicator Bar for Black interface */}
-          {activeTab === 'cloud' && <div className="absolute left-[-8px] w-1 h-6 bg-[var(--sidebar-indicator)] rounded-r-full"></div>}
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19c2.21 0 4-1.79 4-4s-1.79-4-4-4h-0.5c-0.34-3.15-2.82-5.5-5.75-5.5-2.26 0-4.22 1.39-4.99 3.39-2.31 0.47-4.01 2.5-4.01 4.93 0 2.76 2.24 5 5 5h10.25Z"/><text x="9" y="16" fontSize="8" fontWeight="bold" fill="currentColor" stroke="none">Z</text></svg>
+          <ZaloCloudIcon size={28} />
+        </button>
+
+        <button
+          onClick={() => setActiveTab('files')}
+          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer relative ${activeTab === 'files' ? 'bg-[#005AE0] text-white' : 'hover:bg-black/10 text-white/80'}`}
+        >
+          <ZaloFileIcon size={28} />
+        </button>
+
+        <button
+          onClick={() => setActiveTab('business')}
+          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer relative ${activeTab === 'business' ? 'bg-[#005AE0] text-white' : 'hover:bg-black/10 text-white/80'}`}
+        >
+          <ZaloBusinessIcon size={28} />
         </button>
       </div>
 
@@ -190,16 +190,16 @@ export function Sidebar({
         )}
 
         <button
-          className="w-10 h-10 flex items-center justify-center rounded-xl text-inherit opacity-70 hover:bg-[var(--sidebar-hover-bg)] transition-colors cursor-pointer"
+          className="w-10 h-10 flex items-center justify-center rounded-xl text-white/70 hover:bg-black/10 transition-colors cursor-pointer"
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         </button>
 
         <button
           onClick={() => setShowSettingsMenu(!showSettingsMenu)}
-          className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all cursor-pointer ${showSettingsMenu ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'text-inherit opacity-70 hover:bg-[var(--sidebar-hover-bg)]'}`}
+          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${showSettingsMenu ? 'bg-[#005AE0] text-white' : 'text-white/70 hover:bg-black/10'}`}
         >
-          <SettingsIcon size={24} />
+          <ZaloSettingsIcon size={28} />
         </button>
       </div>
     </div>

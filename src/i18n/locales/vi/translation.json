@@ -47,7 +47,27 @@
     "input_placeholder": "Nhập @, tin nhắn tới Cloud của tôi",
     "you": "Bạn",
     "time_unit": "phút",
-    "today": "Hôm nay"
+    "today": "Hôm nay",
+    "search_overlay": {
+      "close": "Đóng",
+      "recent": "Tìm gần đây",
+      "filters": {
+        "title": "Lọc tin nhắn",
+        "mention": "Nhắc bạn",
+        "reactions": "Biểu cảm"
+      }
+    },
+    "classify_menu": {
+      "title": "Theo thẻ phân loại",
+      "customer": "Khách hàng",
+      "family": "Gia đình",
+      "work": "Công việc",
+      "friends": "Bạn bè",
+      "reply_later": "Trả lời sau",
+      "colleagues": "Đồng nghiệp",
+      "strangers": "Tin nhắn từ người lạ",
+      "manage": "Quản lý thẻ phân loại"
+    }
   },
   "profile": {
     "title": "Trang cá nhân",
