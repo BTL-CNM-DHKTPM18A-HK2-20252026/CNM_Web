@@ -60,6 +60,34 @@
     "update": "Cập nhật",
     "privacy_note": "Chỉ bạn bè có lưu số của bạn trong danh bạ máy xem được số này"
   },
+  "info": {
+    "title": "Thông tin hội thoại",
+    "cloud": {
+      "desc": "Lưu trữ và truy cập những nội dung quan trọng nhất trên Fruvia Chat",
+      "storage": {
+        "title": "Dung lượng",
+        "clean_up": "Xem và dọn dẹp Cloud của tôi"
+      },
+      "upgrade": {
+        "title": "Nâng cấp dung lượng Cloud",
+        "desc": "Mở rộng bộ nhớ lên tới 100GB và tự động bảo vệ dữ liệu Zalo của bạn với zCloud.",
+        "add": "Thêm dung lượng"
+      }
+    },
+    "sections": {
+      "reminders": "Bảng nhắc hẹn",
+      "media": "Ảnh/Video",
+      "files": "File",
+      "links": "Link",
+      "view_all": "Xem tất cả"
+    },
+    "legend": {
+      "photos": "Ảnh",
+      "videos": "Video",
+      "files": "File",
+      "other": "Khác"
+    }
+  },
   "settings": {
     "title": "Cài đặt",
     "tabs": {

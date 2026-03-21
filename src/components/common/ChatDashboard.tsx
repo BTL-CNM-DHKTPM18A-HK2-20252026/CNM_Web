@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Sidebar } from './Sidebar';
 import { ConversationList } from './ConversationList';
 import { ChatWindow } from './ChatWindow';
+import { ChatInfoSidebar } from './ChatInfoSidebar';
 import { SettingsModal } from './SettingsModal';
 import { ProfileModal } from './ProfileModal';
 
@@ -16,6 +17,7 @@ export function ChatDashboard({ onLogout }: ChatDashboardProps) {
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [showInfoSidebar, setShowInfoSidebar] = useState(true);
   
   const conversations = [
     { 
@@ -56,7 +58,16 @@ export function ChatDashboard({ onLogout }: ChatDashboardProps) {
       <ConversationList conversations={conversations} />
 
       {/* 3. CHAT CONTENT */}
-      <ChatWindow />
+      <div className="flex-1 flex overflow-hidden">
+        <ChatWindow 
+          onToggleInfo={() => setShowInfoSidebar(!showInfoSidebar)} 
+          showInfo={showInfoSidebar} 
+        />
+        
+        {showInfoSidebar && (
+          <ChatInfoSidebar onClose={() => setShowInfoSidebar(false)} />
+        )}
+      </div>
     </div>
   );
 }
