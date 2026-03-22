@@ -8,14 +8,14 @@ export default {
   border: '#E5E7EB',
   chatBg: '#F4F5F7',
   buttonText: '#FFFFFF',
-  hoverBg: '#F3F4F6', 
+  hoverBg: '#F3F4F6',
   searchBg: '#EAEDF0',
-  searchPlaceholder: '#7589A3',  
+  searchPlaceholder: '#7589A3',
   // Sidebar (Màu xanh Zalo)
   sidebarBg: '#0068FF',
   sidebarText: 'rgba(255, 255, 255, 0.7)',
   sidebarActiveBg: '#005AE0',
-  sidebarHoverBg: 'rgba(0, 0, 0, 0.2)', 
+  sidebarHoverBg: 'rgba(0, 0, 0, 0.2)',
   sidebarActiveText: '#FFFFFF',
   sidebarIndicator: 'transparent',
 

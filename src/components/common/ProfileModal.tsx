@@ -297,8 +297,8 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           <div className="relative px-4 pb-4 border-b-8 border-gray-50">
             <div className="flex items-center gap-4">
                <div className="relative -mt-8 mb-2">
-                 <div className="w-[80px] h-[80px] rounded-full border-[3px] border-white overflow-hidden bg-white shadow-md">
-                    <Image src="https://avatar.talk.vtalk.ai/avatar/default" width={80} height={80} alt="Avatar" className="w-full h-full object-cover" />
+                 <div className="w-[80px] h-[80px] rounded-full border-[3px] border-white overflow-hidden bg-white shadow-md relative">
+                    <Image src="/avatar.jpg" fill alt="Avatar" className="object-cover" />
                  </div>
                  <button className="absolute bottom-0 right-0 w-[30px] h-[30px] bg-[#f1f2f4] rounded-full flex items-center justify-center text-[#5c7089] border border-white hover:bg-gray-200 transition-colors cursor-pointer shadow-sm">
                    <CameraIcon size={16} />

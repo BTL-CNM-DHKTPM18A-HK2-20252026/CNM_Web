@@ -325,21 +325,25 @@ export function ConversationList({ conversations }: ConversationListProps) {
                   </div>
                 )}
               </div>
-
-              {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-center mb-0.5">
-                  <h4 className={`text-[15px] font-medium truncate text-[var(--text)]`}>{conv.name}</h4>
+                  <h4 className={`text-[15px] ${conv.id === 1 || conv.id === 2 ? 'font-bold' : 'font-medium'} truncate text-[var(--text)]`}>{conv.name}</h4>
                   <div className="flex items-center gap-1">
-                    <span className="text-[12px] text-[#708090] font-medium mr-1.5">{conv.id === 5 ? '19 phút' : conv.time}</span>
-                    <button className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-black/5 rounded transition-all text-gray-500">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
-                    </button>
+                    <span className="text-[12px] text-[#708090] font-medium mr-1">{conv.id === 5 ? '19 phút' : conv.time}</span>
+                    {conv.pinned && (
+                      <div className="text-[#708090] opacity-80 shrink-0 transform rotate-45 mr-1">
+                        <PinIcon size={12} />
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex justify-between items-center h-5">
-                  <div className={`text-[13px] flex items-center gap-1.5 truncate text-[#708090] font-medium`}>
-                    {conv.id === 5 ? (
+                  <div className={`text-[13px] flex items-center gap-1.5 truncate ${conv.id === 1 || conv.id === 2 ? 'text-[var(--text)] font-semibold' : 'text-[#708090] font-medium'}`}>
+                    {conv.id === 1 ? (
+                      <span className="truncate">Nguyễn Thị Thái Hòa: Dạ thưa cô ...</span>
+                    ) : conv.id === 2 ? (
+                      <span className="truncate">Thanh Trúc: @ TTDN_NguyenTha...</span>
+                    ) : conv.id === 5 ? (
                       <>
                           <span className="shrink-0">Bạn:</span>
                           <div className="shrink-0"><ImagePickerIcon size={16} /></div>
@@ -349,11 +353,17 @@ export function ConversationList({ conversations }: ConversationListProps) {
                       <span className="truncate">{conv.lastMsg}</span>
                     )}
                   </div>
-                  {conv.pinned && (
-                    <div className="text-[#708090] opacity-80 shrink-0 ml-2">
-                      <PinIcon size={14} />
+                  
+                  {/* Unread Badge (Mocking values from image) */}
+                  {(conv.id === 1 || conv.id === 2 || conv.id === 4 || conv.id === 7) && (
+                    <div className={`min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-sm shrink-0 ${conv.id === 1 || conv.id === 4 ? 'bg-[#717273]' : 'bg-[#EF4444]'}`}>
+                      {conv.id === 1 ? '69' : conv.id === 2 ? '7' : conv.id === 4 ? '81' : '99+'}
                     </div>
                   )}
+                  
+                  <button className="hidden group-hover:flex opacity-60 hover:opacity-100 p-0.5 hover:bg-black/5 rounded transition-all text-gray-500 absolute right-4">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                  </button>
                 </div>
               </div>
             </div>
