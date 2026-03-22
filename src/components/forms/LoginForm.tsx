@@ -10,8 +10,10 @@ interface LoginFormProps {
   setUsername: (val: string) => void;
   password: string;
   setPassword: (val: string) => void;
-  displayName: string;
-  setDisplayName: (val: string) => void;
+  firstName: string;
+  setFirstName: (val: string) => void;
+  lastName: string;
+  setLastName: (val: string) => void;
   email: string;
   setEmail: (val: string) => void;
   loading: boolean;
@@ -19,6 +21,10 @@ interface LoginFormProps {
   successMsg: string | null;
   showPassword: boolean;
   setShowPassword: (show: boolean) => void;
+  confirmPassword?: string;
+  setConfirmPassword?: (val: string) => void;
+  showConfirmPassword?: boolean;
+  setShowConfirmPassword?: (show: boolean) => void;
   onSubmit: (e?: React.FormEvent) => void;
   setError: (err: string | null) => void;
   setSuccessMsg: (msg: string | null) => void;
@@ -31,8 +37,10 @@ export function LoginForm({
   setUsername,
   password,
   setPassword,
-  displayName,
-  setDisplayName,
+  firstName,
+  setFirstName,
+  lastName,
+  setLastName,
   email,
   setEmail,
   loading,
@@ -40,6 +48,10 @@ export function LoginForm({
   successMsg,
   showPassword,
   setShowPassword,
+  confirmPassword,
+  setConfirmPassword,
+  showConfirmPassword,
+  setShowConfirmPassword,
   onSubmit,
   setError,
   setSuccessMsg,
@@ -87,9 +99,15 @@ export function LoginForm({
             
             {loginMethod === 'register' && (
               <>
-                <div className="mb-6 flex items-center border-b border-[var(--border)] py-2.5 focus-within:border-[#0068FF] transition-colors">
-                  <span className="mr-3 text-gray-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg></span>
-                  <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Tên hiển thị" className="w-full bg-transparent text-sm outline-none text-[var(--text)]" required />
+                <div className="mb-6 grid grid-cols-2 gap-4">
+                  <div className="flex items-center border-b border-[var(--border)] py-2.5 focus-within:border-[#0068FF] transition-colors">
+                    <span className="mr-3 text-gray-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg></span>
+                    <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Họ" className="w-full bg-transparent text-sm outline-none text-[var(--text)]" required />
+                  </div>
+                  <div className="flex items-center border-b border-[var(--border)] py-2.5 focus-within:border-[#0068FF] transition-colors">
+                    <span className="mr-3 text-gray-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg></span>
+                    <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Tên" className="w-full bg-transparent text-sm outline-none text-[var(--text)]" required />
+                  </div>
                 </div>
                 <div className="mb-6 flex items-center border-b border-[var(--border)] py-2.5 focus-within:border-[#0068FF] transition-colors">
                   <span className="mr-3 text-gray-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>
@@ -123,6 +141,27 @@ export function LoginForm({
               </button>
             </div>
             
+            {loginMethod === 'register' && (
+              <div className="mb-8 flex items-center border-b border-[var(--border)] py-2.5 relative focus-within:border-[#0068FF] transition-colors">
+                <span className="mr-3 text-gray-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></span>
+                <input 
+                  type={showConfirmPassword ? "text" : "password"} 
+                  value={confirmPassword} 
+                  onChange={(e) => setConfirmPassword?.(e.target.value)} 
+                  placeholder="Xác nhận mật khẩu" 
+                  className="w-full bg-transparent text-sm outline-none pr-10 text-[var(--text)]" 
+                  required 
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowConfirmPassword?.(!showConfirmPassword)}
+                  className="absolute right-0 text-gray-400 hover:text-[#0068FF] focus:outline-none cursor-pointer scale-90"
+                >
+                  {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
+                </button>
+              </div>
+            )}
+
             <button type="submit" disabled={loading} className="mb-4 w-full cursor-pointer rounded-md bg-[#0068FF] py-3 text-sm font-bold text-white transition-all hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-500/20 disabled:bg-gray-300">
               {loading ? '...' : (loginMethod === 'phone' ? t('login.phone.submit') : 'Đăng ký tài khoản')}
             </button>

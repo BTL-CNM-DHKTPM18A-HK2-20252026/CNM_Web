@@ -24,14 +24,17 @@ export default function Home() {
   const [isClient, setIsClient] = useState(false);
 
   // Form states
-  const [username, setUsername] = useState('0399614016'); // phoneNumber
+  const [username, setUsername] = useState('0123456789'); // phoneNumber
   const [password, setPassword] = useState('TestUser123@');
-  const [displayName, setDisplayName] = useState('');
-  const [email, setEmail] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('TestUser123@');
+  const [firstName, setFirstName] = useState('Văn A');
+  const [lastName, setLastName] = useState('Nguyễn');
+  const [email, setEmail] = useState('nguyenvana@gmail.com');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -63,11 +66,18 @@ export default function Home() {
         await authService.login(username, password);
         setIsLoggedIn(true);
       } else if (loginMethod === 'register') {
+        if (password !== confirmPassword) {
+          setError('Mật khẩu xác nhận không khớp');
+          setLoading(false);
+          return;
+        }
         await authService.register({ 
           phoneNumber: username, 
-          email, 
+          email: email || '', 
           password, 
-          displayName 
+          displayName: `${lastName} ${firstName}`.trim(),
+          firstName: firstName || '',
+          lastName: lastName || ''
         });
         setSuccessMsg('Đăng ký thành công! Hãy đăng nhập.');
         setLoginMethod('phone');
@@ -122,8 +132,12 @@ export default function Home() {
         setUsername={setUsername}
         password={password}
         setPassword={setPassword}
-        displayName={displayName}
-        setDisplayName={setDisplayName}
+        confirmPassword={confirmPassword}
+        setConfirmPassword={setConfirmPassword}
+        firstName={firstName}
+        setFirstName={setFirstName}
+        lastName={lastName}
+        setLastName={setLastName}
         email={email}
         setEmail={setEmail}
         loading={loading}
@@ -131,6 +145,8 @@ export default function Home() {
         successMsg={successMsg}
         showPassword={showPassword}
         setShowPassword={setShowPassword}
+        showConfirmPassword={showConfirmPassword}
+        setShowConfirmPassword={setShowConfirmPassword}
         onSubmit={handleLogin}
         setError={setError}
         setSuccessMsg={setSuccessMsg}

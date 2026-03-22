@@ -135,7 +135,7 @@ export function ChatInfoSidebar({ onClose }: ChatInfoSidebarProps) {
                           onClick={() => setSelectedImage(imgSrc)}
                           className="aspect-square bg-[var(--hover-bg)] rounded overflow-hidden relative group cursor-pointer"
                         >
-                          <Image src={`https://picsum.photos/id/${10+i}/100/100`} alt="Media" fill className="object-cover group-hover:scale-110 transition-transform" />
+                          <Image src={`https://picsum.photos/id/${10+i}/100/100`} alt="Media" fill className="object-cover group-hover:scale-110 transition-transform" sizes="100px" />
                         </div>
                       );
                     })}

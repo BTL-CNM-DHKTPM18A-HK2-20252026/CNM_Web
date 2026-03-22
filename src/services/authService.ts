@@ -29,7 +29,7 @@ export const authService = {
     const token = this.getToken();
     if (token) {
       try {
-        await apiClient.post('/auth/logout', { token });
+        await apiClient.post('/auth/logout', { accessToken: token });
       } catch (error) {
         console.error('Logout API error:', error);
         // Still clear local even if API fails
@@ -66,7 +66,7 @@ export const authService = {
    * Register a new user
    * @param data - registration data
    */
-  async register(data: { phoneNumber: string; email: string; password: string; displayName: string }) {
+  async register(data: { phoneNumber: string; email: string; password: string; displayName: string; firstName?: string; lastName?: string }) {
     try {
       const result = await apiClient.post('/users', data);
       return result.data;
@@ -81,7 +81,7 @@ export const authService = {
    */
   async introspect(token: string) {
     try {
-      const result = await apiClient.post('/auth/introspect', { token });
+      const result = await apiClient.post('/auth/introspect', { accessToken: token });
       return result.data; // IntrospectResponse { valid: boolean }
     } catch (error) {
       console.error('Introspect Error:', error);

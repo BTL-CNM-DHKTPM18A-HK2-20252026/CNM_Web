@@ -53,7 +53,6 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat }: Cha
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      console.log('Selected image:', file.name);
       import('sonner').then(({ toast }) => {
         toast.success(`Đã chọn ảnh: ${file.name}`);
       });
@@ -64,7 +63,6 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat }: Cha
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      console.log('Selected file:', file.name);
       import('sonner').then(({ toast }) => {
         toast.success(`Đã chọn file: ${file.name}`);
       });
@@ -88,7 +86,6 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat }: Cha
   };
 
   const onSelectSticker = (sticker: any) => {
-    console.log("Selected sticker:", sticker);
     setIsPickerOpen(false);
   };
 
@@ -342,7 +339,6 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat }: Cha
         currentName={selectedChat.name}
         avatar={selectedChat.avatar}
         onConfirm={(newName) => {
-          console.log('Update nickname to:', newName);
           // In a real app, we'd update state/API here.
         }}
       />

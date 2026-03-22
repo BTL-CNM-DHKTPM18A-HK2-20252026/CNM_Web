@@ -51,7 +51,7 @@ export function Sidebar({
         }}
         className="h-11 w-11 rounded-full overflow-hidden border-2 border-white/20 cursor-pointer mb-2 shrink-0 relative transition-transform active:scale-95"
       >
-        <Image src="/avatar.jpg" fill alt="User" className="object-cover" />
+        <Image src="/avatar.jpg" fill alt="User" className="object-cover" sizes="44px" />
       </div>
 
       {/* User Menu Popup */}

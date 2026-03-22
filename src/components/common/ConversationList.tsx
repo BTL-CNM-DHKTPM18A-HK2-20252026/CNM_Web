@@ -277,7 +277,7 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
                       <div className="grid grid-cols-2 w-full h-full bg-gray-100">
                         {item.avatars?.slice(0, 3).map((a, i) => (
                           <div key={i} className="relative w-full h-full border-[0.5px] border-white/50 overflow-hidden">
-                            <Image src={a} alt="av" fill className="object-cover" />
+                            <Image src={a} alt="av" fill className="object-cover" sizes="20px" />
                           </div>
                         ))}
                         {item.more && (
