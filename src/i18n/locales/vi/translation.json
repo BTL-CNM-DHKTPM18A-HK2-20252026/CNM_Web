@@ -28,6 +28,8 @@
   },
   "sidebar": {
     "account_info": "Thông tin tài khoản",
+    "upgrade_account": "Nâng cấp tài khoản",
+    "your_profile": "Hồ sơ của bạn",
     "settings": "Cài đặt",
     "data": "Dữ liệu",
     "language": "Ngôn ngữ",
@@ -67,7 +69,8 @@
       "colleagues": "Đồng nghiệp",
       "strangers": "Tin nhắn từ người lạ",
       "manage": "Quản lý thẻ phân loại"
-    }
+    },
+    "search_panel_title": "Tìm kiếm trong trò chuyện"
   },
   "profile": {
     "title": "Trang cá nhân",

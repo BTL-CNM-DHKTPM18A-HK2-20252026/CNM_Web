@@ -84,7 +84,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const years = Array.from({ length: 100 }, (_, i) => (2024 - i).toString());
 
   const DropdownMenu = ({ options, current, onSelect }: { options: string[], current: string, onSelect: (val: string) => void }) => (
-    <div className="absolute top-[calc(100%+4px)] left-0 w-full bg-white border border-gray-100 rounded-md shadow-lg z-[110] max-h-[220px] overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-100">
+    <div className="absolute top-[calc(100%+4px)] left-0 w-full bg-[var(--card-bg)] border border-[var(--border)] rounded-md shadow-lg z-[110] max-h-[220px] overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-100">
       {options.map((opt) => (
         <div 
           key={opt}
@@ -92,7 +92,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             e.stopPropagation();
             onSelect(opt);
           }}
-          className={`h-[40px] px-3 flex items-center justify-between cursor-pointer transition-colors ${opt === current ? 'bg-[#e5f1ff] text-[#0068FF]' : 'hover:bg-gray-50 text-[#081c36]'}`}
+          className={`h-[40px] px-3 flex items-center justify-between cursor-pointer transition-colors ${opt === current ? 'bg-[var(--active-bg)] text-[var(--active-text)]' : 'hover:bg-[var(--hover-bg)] text-[var(--text)]'}`}
         >
           <span className="text-[15px]">{opt}</span>
           {opt === current && <CheckIcon size={18} />}
@@ -106,21 +106,21 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/45 animate-in fade-in duration-300" onClick={handleClose} />
         
-        <div className="w-full max-w-[400px] bg-white rounded-md shadow-2xl relative z-[101] animate-in zoom-in-95 duration-200 overflow-visible flex flex-col h-auto max-h-[90vh]">
+        <div className="w-full max-w-[400px] bg-[var(--card-bg)] rounded-md shadow-2xl relative z-[101] animate-in zoom-in-95 duration-200 overflow-visible flex flex-col h-auto max-h-[90vh]">
           {/* Header */}
-          <div className="h-[48px] border-b border-gray-100 flex items-center justify-between px-3 bg-white shrink-0 rounded-t-md">
+          <div className="h-[48px] border-b border-[var(--border)] flex items-center justify-between px-3 bg-[var(--card-bg)] shrink-0 rounded-t-md">
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => setIsEditing(false)}
-                className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-full text-[#081c36] transition-colors cursor-pointer"
+                className="w-8 h-8 flex items-center justify-center hover:bg-[var(--hover-bg)] rounded-full text-[var(--text)] transition-colors cursor-pointer"
               >
                 <ChevronLeftIcon size={24} />
               </button>
-              <h2 className="text-[17px] font-bold text-[#081c36]">Cập nhật thông tin cá nhân</h2>
+              <h2 className="text-[17px] font-bold text-[var(--text)]">Cập nhật thông tin cá nhân</h2>
             </div>
             <button 
               onClick={handleClose} 
-              className="text-[#081c36] hover:bg-gray-100 p-1.5 rounded-full transition-all cursor-pointer"
+              className="text-[var(--text)] hover:bg-[var(--hover-bg)] p-1.5 rounded-full transition-all cursor-pointer"
             >
               <XIcon size={24} />
             </button>
@@ -133,44 +133,44 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           >
             {/* Display Name */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[15px] font-bold text-[#081c36]">Tên hiển thị</label>
-              <div className="h-[42px] w-full border border-gray-200 rounded-md px-3 flex items-center focus-within:border-[#0068FF] transition-colors text-sm">
+              <label className="text-[15px] font-bold text-[var(--text)]">Tên hiển thị</label>
+              <div className="h-[42px] w-full border border-[var(--border)] rounded-md px-3 flex items-center focus-within:border-[#0068FF] transition-colors text-sm">
                 <input 
                   type="text" 
                   value={userName}
                   onChange={(e) => setUserName(e.target.value)}
-                  className="w-full bg-transparent outline-none text-[15px] text-[#081c36]"
+                  className="w-full bg-transparent outline-none text-[15px] text-[var(--text)]"
                 />
               </div>
             </div>
 
             {/* Personal Info Section */}
             <div className="flex flex-col gap-3">
-              <h3 className="text-[16px] font-bold text-[#081c36]">Thông tin cá nhân</h3>
+              <h3 className="text-[16px] font-bold text-[var(--text)]">Thông tin cá nhân</h3>
               
               {/* Gender Radio */}
               <div className="flex items-center gap-6">
                 <label className="flex items-center gap-2 cursor-pointer group">
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${gender === 'Nam' ? 'border-[#0068FF]' : 'border-gray-300'}`}>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${gender === 'Nam' ? 'border-[#0068FF]' : 'border-[var(--border)]'}`}>
                     {gender === 'Nam' && <div className="w-2.5 h-2.5 rounded-full bg-[#0068FF]" />}
                   </div>
                   <input type="radio" className="hidden" name="gender" checked={gender === 'Nam'} onChange={() => setGender('Nam')} />
-                  <span className="text-[15px] text-[#081c36]">Nam</span>
+                  <span className="text-[15px] text-[var(--text)]">Nam</span>
                 </label>
                 
                 <label className="flex items-center gap-2 cursor-pointer group">
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${gender === 'Nữ' ? 'border-[#0068FF]' : 'border-gray-300'}`}>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${gender === 'Nữ' ? 'border-[#0068FF]' : 'border-[var(--border)]'}`}>
                     {gender === 'Nữ' && <div className="w-2.5 h-2.5 rounded-full bg-[#0068FF]" />}
                   </div>
                   <input type="radio" className="hidden" name="gender" checked={gender === 'Nữ'} onChange={() => setGender('Nữ')} />
-                  <span className="text-[15px] text-[#081c36]">Nữ</span>
+                  <span className="text-[15px] text-[var(--text)]">Nữ</span>
                 </label>
               </div>
             </div>
 
             {/* Birthday Dropdowns */}
             <div className="flex flex-col gap-1.5 relative mb-4">
-              <label className="text-[15px] font-bold text-[#081c36]">Ngày sinh</label>
+              <label className="text-[15px] font-bold text-[var(--text)]">Ngày sinh</label>
               <div className="grid grid-cols-3 gap-3">
                 {/* DAY */}
                 <div className="relative">
@@ -179,10 +179,10 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                       e.stopPropagation();
                       setOpenDropdown(openDropdown === 'day' ? null : 'day');
                     }}
-                    className={`h-[42px] border rounded-md px-3 flex items-center justify-between cursor-pointer transition-all ${openDropdown === 'day' ? 'border-[#0068FF]' : 'border-gray-200 hover:border-gray-400'}`}
+                    className={`h-[42px] border rounded-md px-3 flex items-center justify-between cursor-pointer transition-all ${openDropdown === 'day' ? 'border-[#0068FF]' : 'border-[var(--border)] hover:border-gray-400'}`}
                   >
-                    <span className="text-[15px] text-[#081c36]">{day}</span>
-                    <ChevronDownIcon size={18} className="text-gray-400" />
+                    <span className="text-[15px] text-[var(--text)]">{day}</span>
+                    <ChevronDownIcon size={18} className="text-[var(--sub-text)]" />
                   </div>
                   {openDropdown === 'day' && (
                     <DropdownMenu 
@@ -203,10 +203,10 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                       e.stopPropagation();
                       setOpenDropdown(openDropdown === 'month' ? null : 'month');
                     }}
-                    className={`h-[42px] border rounded-md px-3 flex items-center justify-between cursor-pointer transition-all ${openDropdown === 'month' ? 'border-[#0068FF]' : 'border-gray-200 hover:border-gray-400'}`}
+                    className={`h-[42px] border rounded-md px-3 flex items-center justify-between cursor-pointer transition-all ${openDropdown === 'month' ? 'border-[#0068FF]' : 'border-[var(--border)] hover:border-gray-400'}`}
                   >
-                    <span className="text-[15px] text-[#081c36]">{month}</span>
-                    <ChevronDownIcon size={18} className="text-gray-400" />
+                    <span className="text-[15px] text-[var(--text)]">{month}</span>
+                    <ChevronDownIcon size={18} className="text-[var(--sub-text)]" />
                   </div>
                   {openDropdown === 'month' && (
                     <DropdownMenu 
@@ -227,10 +227,10 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                       e.stopPropagation();
                       setOpenDropdown(openDropdown === 'year' ? null : 'year');
                     }}
-                    className={`h-[42px] border rounded-md px-3 flex items-center justify-between cursor-pointer transition-all ${openDropdown === 'year' ? 'border-[#0068FF]' : 'border-gray-200 hover:border-gray-400'}`}
+                    className={`h-[42px] border rounded-md px-3 flex items-center justify-between cursor-pointer transition-all ${openDropdown === 'year' ? 'border-[#0068FF]' : 'border-[var(--border)] hover:border-gray-400'}`}
                   >
-                    <span className="text-[15px] text-[#081c36]">{year}</span>
-                    <ChevronDownIcon size={18} className="text-gray-400" />
+                    <span className="text-[15px] text-[var(--text)]">{year}</span>
+                    <ChevronDownIcon size={18} className="text-[var(--sub-text)]" />
                   </div>
                   {openDropdown === 'year' && (
                     <DropdownMenu 
@@ -247,11 +247,10 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             </div>
           </div>
 
-          {/* Footer Buttons */}
-          <div className="p-4 border-t border-gray-100 flex items-center justify-end gap-3 shrink-0 rounded-b-md">
+          <div className="p-4 border-t border-[var(--border)] flex items-center justify-end gap-3 shrink-0 rounded-b-md">
             <button 
               onClick={() => setIsEditing(false)}
-              className="px-6 py-2 bg-[#eaebed] hover:bg-[#dfe0e2] text-[#081c36] font-bold rounded-[4px] transition-all cursor-pointer"
+              className="px-5 py-1.5 bg-[var(--hover-bg)] hover:opacity-80 text-[var(--text)] font-bold rounded-[3px] text-[15px] transition-all cursor-pointer"
             >
               Hủy
             </button>
@@ -262,11 +261,11 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                   setIsEditing(false);
                 }
               }}
-              className={`px-6 py-2 font-bold rounded-[4px] transition-all ${
-                hasChanged 
-                  ? 'bg-[#0068FF] text-white hover:bg-[#0057d1] cursor-pointer' 
-                  : 'bg-[#add2ff] text-white cursor-default'
-              }`}
+              className={`px-5 py-1.5 font-bold rounded-[3px] text-[15px] transition-all ${
+                  hasChanged 
+                    ? 'bg-[#0068FF] text-white hover:bg-[#0057d1] cursor-pointer' 
+                    : 'bg-[#0068FF]/30 text-white/50 cursor-default'
+                }`}
             >
               Cập nhật
             </button>
@@ -280,36 +279,36 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/45 animate-in fade-in duration-300" onClick={handleClose} />
       
-      <div className="w-full max-w-[400px] bg-white rounded-md shadow-2xl relative z-[101] animate-in zoom-in-95 duration-200 overflow-visible flex flex-col">
+      <div className="w-full max-w-[400px] bg-[var(--card-bg)] rounded-md shadow-2xl relative z-[101] animate-in zoom-in-95 duration-200 overflow-visible flex flex-col">
         {/* Header */}
-        <div className="h-[48px] border-b border-gray-100 flex items-center justify-between px-4 bg-white shrink-0 rounded-t-md">
-          <h2 className="text-[17px] font-bold text-[#081c36]">Thông tin tài khoản</h2>
-          <button onClick={handleClose} className="text-[#081c36] hover:bg-gray-100 p-1 rounded-full transition-all cursor-pointer">
+        <div className="h-[48px] border-b border-[var(--border)] flex items-center justify-between px-4 bg-[var(--card-bg)] shrink-0 rounded-t-md">
+          <h2 className="text-[17px] font-bold text-[var(--text)]">Thông tin tài khoản</h2>
+          <button onClick={handleClose} className="text-[var(--text)] hover:bg-[var(--hover-bg)] p-1 rounded-full transition-all cursor-pointer">
             <XIcon size={24} />
           </button>
         </div>
 
-        <div className="overflow-y-auto overflow-x-hidden custom-scrollbar bg-white">
+        <div className="overflow-y-auto overflow-x-hidden custom-scrollbar bg-[var(--card-bg)]">
           <div className="h-[180px] w-full relative">
             <Image src="https://picsum.photos/id/1018/800/400" alt="Cover" fill className="object-cover" />
           </div>
 
-          <div className="relative px-4 pb-4 border-b-8 border-gray-50">
+          <div className="relative px-4 pb-4 border-b-8 border-[var(--background)]">
             <div className="flex items-center gap-4">
                <div className="relative -mt-8 mb-2">
-                 <div className="w-[80px] h-[80px] rounded-full border-[3px] border-white overflow-hidden bg-white shadow-md relative">
+                 <div className="w-[80px] h-[80px] rounded-full border-[3px] border-[var(--card-bg)] overflow-hidden bg-[var(--card-bg)] shadow-md relative">
                     <Image src="/avatar.jpg" fill alt="Avatar" className="object-cover" />
                  </div>
-                 <button className="absolute bottom-0 right-0 w-[30px] h-[30px] bg-[#f1f2f4] rounded-full flex items-center justify-center text-[#5c7089] border border-white hover:bg-gray-200 transition-colors cursor-pointer shadow-sm">
+                 <button className="absolute bottom-0 right-0 w-[30px] h-[30px] bg-[var(--hover-bg)] rounded-full flex items-center justify-center text-[var(--sub-text)] border border-[var(--card-bg)] hover:opacity-80 transition-colors cursor-pointer shadow-sm">
                    <CameraIcon size={16} />
                  </button>
                </div>
                
                <div className="flex items-center gap-1.5 pt-2">
-                 <h1 className="text-[18px] font-bold text-[#081c36]">{userName}</h1>
+                 <h1 className="text-[18px] font-bold text-[var(--text)]">{userName}</h1>
                  <button 
                   onClick={() => setIsEditing(true)}
-                  className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-full text-[#081c36] opacity-70 transition-colors cursor-pointer ml-1"
+                  className="w-8 h-8 flex items-center justify-center hover:bg-[var(--hover-bg)] rounded-full text-[var(--text)] opacity-70 transition-colors cursor-pointer ml-1"
                  >
                     <PencilIcon size={18} />
                  </button>
@@ -318,23 +317,23 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           </div>
 
           <div className="px-4 py-5">
-            <h3 className="text-[16px] font-bold text-[#081c36] mb-5">Thông tin cá nhân</h3>
+            <h3 className="text-[16px] font-bold text-[var(--text)] mb-5">Thông tin cá nhân</h3>
             <div className="space-y-4">
               <div className="flex items-start">
-                <span className="w-[100px] text-[15px] text-[#72808e] shrink-0">Giới tính</span>
-                <span className="text-[15px] text-[#081c36]">{gender}</span>
+                <span className="w-[100px] text-[15px] text-[var(--sub-text)] shrink-0">Giới tính</span>
+                <span className="text-[15px] text-[var(--text)]">{gender}</span>
               </div>
               <div className="flex items-start">
-                <span className="w-[100px] text-[15px] text-[#72808e] shrink-0">Ngày sinh</span>
-                <span className="text-[15px] text-[#081c36]">20 tháng 04, 2004</span>
+                <span className="w-[100px] text-[15px] text-[var(--sub-text)] shrink-0">Ngày sinh</span>
+                <span className="text-[15px] text-[var(--text)]">20 tháng 04, 2004</span>
               </div>
               <div className="flex items-start">
-                <span className="w-[100px] text-[15px] text-[#72808e] shrink-0">Điện thoại</span>
-                <span className="text-[15px] text-[#081c36]">+84 399 614 016</span>
+                <span className="w-[100px] text-[15px] text-[var(--sub-text)] shrink-0">Điện thoại</span>
+                <span className="text-[15px] text-[var(--text)]">+84 399 614 016</span>
               </div>
             </div>
             <div className="mt-8">
-              <p className="text-[13px] text-[#72808e] leading-relaxed">
+              <p className="text-[13px] text-[var(--sub-text)] leading-relaxed">
                 Chỉ bạn bè có lưu số của bạn trong danh bạ máy xem được số này
               </p>
             </div>
@@ -345,7 +344,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             <div className="mt-6 pt-2">
               <button 
                 onClick={() => setIsEditing(true)}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-md transition-all text-[#081c36] font-bold text-[15px] cursor-pointer"
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-[var(--hover-bg)] hover:opacity-80 border border-[var(--border)] rounded-md transition-all text-[var(--text)] font-bold text-[15px] cursor-pointer"
               >
                 <PencilIcon size={18} />
                 Cập nhật thông tin

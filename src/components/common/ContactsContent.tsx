@@ -73,9 +73,9 @@ export function ContactsContent({ category }: ContactsContentProps) {
   const countLabel = isFriends ? `Bạn bè (${contacts.length})` : isGroups ? `Nhóm và cộng đồng (${groups.length})` : '';
 
   return (
-    <div className="flex-1 flex flex-col bg-[#F4F5F7] transition-colors duration-200 overflow-hidden">
+    <div className="flex-1 flex flex-col bg-[var(--background)] transition-colors duration-200 overflow-hidden">
       {/* HEADER */}
-      <div className="h-[64px] bg-white border-b border-[var(--border)] px-6 flex items-center justify-between shadow-sm flex-shrink-0 transition-colors duration-200">
+      <div className="h-[64px] bg-[var(--card-bg)] border-b border-[var(--border)] px-6 flex items-center justify-between shadow-sm flex-shrink-0 transition-colors duration-200">
         <div className="flex items-center gap-3">
           <span className="text-gray-400">
             {category === 'friends' ? (
@@ -88,7 +88,7 @@ export function ContactsContent({ category }: ContactsContentProps) {
               <GroupRequestIcon size={22} />
             )}
           </span>
-          <span className="text-[17px] font-bold text-[#081C36]">{title}</span>
+          <span className="text-[17px] font-bold text-[var(--text)]">{title}</span>
         </div>
       </div>
 
@@ -97,34 +97,34 @@ export function ContactsContent({ category }: ContactsContentProps) {
           <div className="p-4 space-y-6 w-full">
             {/* 1. Lời mời đã nhận */}
             <section>
-              <h3 className="text-[14px] font-bold text-[#081C36] mb-3 px-1 flex items-center gap-1.5 opacity-90">
+              <h3 className="text-[14px] font-bold text-[var(--text)] mb-3 px-1 flex items-center gap-1.5 opacity-90">
                 Lời mời đã nhận ({receivedInvites.length})
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {receivedInvites.map(req => (
-                  <div key={req.id} className="bg-white rounded-lg border border-gray-100 shadow-sm p-4 flex flex-col gap-3">
+                  <div key={req.id} className="bg-[var(--card-bg)] rounded-lg border border-[var(--border)] shadow-sm p-4 flex flex-col gap-3">
                     <div className="flex items-start justify-between">
                       <div className="flex gap-3">
                         <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-black/5">
                            <Image src={req.avatar} alt={req.name} width={48} height={48} className="object-cover" />
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-[15px] font-bold text-[#081C36]">{req.name}</span>
-                          <span className="text-[12px] text-gray-400 mt-0.5">{req.date} - {req.source}</span>
+                          <span className="text-[15px] font-bold text-[var(--text)]">{req.name}</span>
+                          <span className="text-[12px] text-[var(--sub-text)] mt-0.5">{req.date} - {req.source}</span>
                         </div>
                       </div>
-                      <button className="text-gray-400 hover:text-blue-500 p-1"><MoreHorizontalIcon size={18} /></button>
+                      <button className="text-[var(--sub-text)] hover:text-blue-500 p-1"><MoreHorizontalIcon size={18} /></button>
                     </div>
                     
-                    <div className="bg-[#F3F5F6] p-3 rounded-lg text-[13.5px] text-[#081C36] leading-relaxed">
+                    <div className="bg-[var(--hover-bg)] p-3 rounded-lg text-[13.5px] text-[var(--text)] leading-relaxed">
                       {req.message}
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 mt-1">
-                      <button className="py-2 bg-[#EAEDF0] hover:bg-gray-200 text-[#081C36] font-bold rounded-md transition-colors text-[14px] cursor-pointer">
+                      <button className="py-2 bg-[var(--hover-bg)] hover:opacity-80 text-[var(--text)] font-bold rounded-md transition-all text-[14px] cursor-pointer">
                         Từ chối
                       </button>
-                      <button className="py-2 bg-[#E5EFFF] hover:bg-blue-100 text-[#0068FF] font-bold rounded-md transition-colors text-[14px] cursor-pointer">
+                      <button className="py-2 bg-[#0068FF] hover:bg-[#005AE0] text-white font-bold rounded-md transition-all text-[14px] cursor-pointer">
                         Đồng ý
                       </button>
                     </div>
@@ -135,33 +135,33 @@ export function ContactsContent({ category }: ContactsContentProps) {
 
             {/* 2. Lời mời đã gửi */}
             <section>
-              <h3 className="text-[14px] font-bold text-[#081C36] mb-3 px-1 flex items-center gap-1.5 opacity-90">
+              <h3 className="text-[14px] font-bold text-[var(--text)] mb-3 px-1 flex items-center gap-1.5 opacity-90">
                 Lời mời đã gửi (11)
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {sentInvites.map(req => (
-                  <div key={req.id} className="bg-white rounded-lg border border-gray-100 shadow-sm p-4 flex flex-col gap-4">
+                  <div key={req.id} className="bg-[var(--card-bg)] rounded-lg border border-[var(--border)] shadow-sm p-4 flex flex-col gap-4">
                     <div className="flex items-start justify-between">
                       <div className="flex gap-3">
                         <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-black/5">
                            <Image src={req.avatar} alt={req.name} width={48} height={48} className="object-cover" />
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-[15px] font-bold text-[#081C36]">{req.name}</span>
-                          <span className="text-[12px] text-gray-400 mt-0.5">{req.date}</span>
+                          <span className="text-[15px] font-bold text-[var(--text)]">{req.name}</span>
+                          <span className="text-[12px] text-[var(--sub-text)] mt-0.5">{req.date}</span>
                         </div>
                       </div>
-                      <button className="text-gray-400 hover:text-blue-500 p-1"><MoreHorizontalIcon size={18} /></button>
+                      <button className="text-[var(--sub-text)] hover:text-blue-500 p-1"><MoreHorizontalIcon size={18} /></button>
                     </div>
 
-                    <button className="w-full py-2 bg-[#EAEDF0] hover:bg-gray-200 text-[#081C36] font-bold rounded-md transition-colors text-[14px] cursor-pointer">
+                    <button className="w-full py-2 bg-[var(--hover-bg)] hover:opacity-80 text-[var(--text)] font-bold rounded-md transition-all text-[14px] cursor-pointer">
                       Thu hồi lời mời
                     </button>
                   </div>
                 ))}
               </div>
               <div className="flex justify-center mt-6">
-                 <button className="px-6 py-1.5 bg-[#EAEDF0] hover:bg-gray-200 text-[#081C36] font-bold rounded-md transition-colors text-[13px] cursor-pointer">
+                 <button className="px-6 py-1.5 bg-[var(--hover-bg)] hover:opacity-80 text-[var(--text)] font-bold rounded-md transition-all text-[13px] cursor-pointer">
                    Xem thêm
                  </button>
               </div>
@@ -170,8 +170,8 @@ export function ContactsContent({ category }: ContactsContentProps) {
             {/* 3. Gợi ý kết bạn */}
             <section className="pt-4">
                <div className="flex items-center gap-2 px-1 cursor-pointer group">
-                  <h3 className="text-[14px] font-bold text-[#081C36] opacity-90">Gợi ý kết bạn (41)</h3>
-                  <span className="text-gray-400 group-hover:translate-x-1 transition-transform">
+                  <h3 className="text-[14px] font-bold text-[var(--text)] opacity-90">Gợi ý kết bạn (41)</h3>
+                  <span className="text-[var(--sub-text)] group-hover:translate-x-1 transition-transform">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m9 18 6-6-6-6"/></svg>
                   </span>
                </div>
@@ -181,32 +181,32 @@ export function ContactsContent({ category }: ContactsContentProps) {
           /* FRIENDS / GROUPS LIST */
           <div className="flex flex-col h-full">
             {/* SUB-HEADER (Count) */}
-            <div className="bg-[#F4F5F7] py-4 px-6 flex-shrink-0 border-b border-black/5">
-              <span className="text-[#081C36] font-semibold text-[15.5px]">{countLabel}</span>
+            <div className="bg-[var(--background)] py-4 px-6 flex-shrink-0 border-b border-black/5">
+              <span className="text-[var(--text)] font-semibold text-[15.5px]">{countLabel}</span>
             </div>
 
-            <div className="flex-1 flex flex-col bg-white overflow-hidden mx-4 mb-4 rounded-xl border border-[var(--border)] shadow-sm">
+            <div className="flex-1 flex flex-col bg-[var(--card-bg)] overflow-hidden mx-4 mb-4 rounded-xl border border-[var(--border)] shadow-sm">
               {/* FILTERS AREA */}
               <div className="px-6 py-4 flex items-center gap-3">
                 <div className="relative flex-1">
                   <input
                     type="text"
                     placeholder={isFriends ? "Tìm bạn" : "Tìm kiếm..."}
-                    className="w-full bg-white hover:bg-[#F1F2F4] focus:bg-white border border-[var(--border)] rounded-lg py-1.5 pl-9 pr-3 text-[14px] text-[#081C36] outline-none transition-all placeholder:text-[var(--search-placeholder)] focus:border-[#0068FF] shadow-sm"
+                    className="w-full bg-[var(--card-bg)] hover:bg-[var(--hover-bg)] focus:bg-[var(--card-bg)] border border-[var(--border)] rounded-lg py-1.5 pl-9 pr-3 text-[14px] text-[var(--text)] outline-none transition-all placeholder:text-[var(--search-placeholder)] focus:border-[#0068FF] shadow-sm"
                   />
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><SearchIcon size={16} /></div>
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--sub-text)]"><SearchIcon size={16} /></div>
                 </div>
 
-                <button className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-[13px] text-[#081C36] hover:bg-[#F1F2F4] transition-all cursor-pointer shadow-sm min-w-[120px] focus:border-[#0068FF] outline-none">
+                <button className="flex items-center gap-2 px-3 py-1.5 bg-[var(--card-bg)] border border-[var(--border)] rounded-lg text-[13px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-all cursor-pointer shadow-sm min-w-[120px] focus:border-[#0068FF] outline-none">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 16 4 4 4-4" /><path d="M7 20V4" /><path d="m21 8-4-4-4 4" /><path d="M17 4v16" /></svg>
                   <span className="font-medium">{isFriends ? 'Tên (A-Z)' : 'Hoạt động (mới — cũ)'}</span>
-                  <span className="text-gray-400 ml-auto"><ChevronDownIcon size={14} /></span>
+                  <span className="text-[var(--sub-text)] ml-auto"><ChevronDownIcon size={14} /></span>
                 </button>
 
-                <button className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-[13px] text-[#081C36] hover:bg-[#F1F2F4] transition-all cursor-pointer shadow-sm min-w-[100px] focus:border-[#0068FF] outline-none">
+                <button className="flex items-center gap-2 px-3 py-1.5 bg-[var(--card-bg)] border border-[var(--border)] rounded-lg text-[13px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-all cursor-pointer shadow-sm min-w-[100px] focus:border-[#0068FF] outline-none">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
                   <span className="font-medium">Tất cả</span>
-                  <span className="text-gray-400 ml-auto"><ChevronDownIcon size={14} /></span>
+                  <span className="text-[var(--sub-text)] ml-auto"><ChevronDownIcon size={14} /></span>
                 </button>
               </div>
 
@@ -216,22 +216,22 @@ export function ContactsContent({ category }: ContactsContentProps) {
                   return (
                     <React.Fragment key={item.id}>
                       {isFriends && item.initial && (
-                        <div className="px-6 text-[#081C36] font-bold text-[14px] mb-2 mt-4 uppercase tracking-wider opacity-80">
+                        <div className="px-6 text-[var(--text)] font-bold text-[14px] mb-2 mt-4 uppercase tracking-wider opacity-80">
                           {item.initial}
                         </div>
                       )}
 
-                      <div className={`mx-2 my-1 rounded-lg flex items-center group py-4 px-4 transition-all cursor-pointer hover:bg-[#E7F2FF]`}>
+                      <div className={`mx-2 my-1 rounded-lg flex items-center group py-4 px-4 transition-all cursor-pointer hover:bg-[var(--active-bg)]`}>
                         <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 mr-4 border border-black/5 shadow-sm">
                           <Image src={item.avatar} alt={item.name} width={48} height={48} className="object-cover" />
                         </div>
 
                         <div className="flex-1 flex flex-col justify-center min-w-0 pr-4">
-                          <span className={`text-[15.5px] truncate leading-snug text-[#081C36] font-semibold`}>{item.name}</span>
-                          {!isFriends && <span className="text-[12.5px] text-gray-500 font-medium leading-snug">{item.members}</span>}
+                          <span className={`text-[15.5px] truncate leading-snug text-[var(--text)] font-semibold`}>{item.name}</span>
+                          {!isFriends && <span className="text-[12.5px] text-[var(--sub-text)] font-medium leading-snug">{item.members}</span>}
                         </div>
 
-                        <button className="opacity-0 group-hover:opacity-100 p-2 hover:bg-black/5 rounded-full text-gray-400 transition-all cursor-pointer">
+                        <button className="opacity-0 group-hover:opacity-100 p-2 hover:bg-black/5 rounded-full text-[var(--sub-text)] transition-all cursor-pointer">
                           <MoreHorizontalIcon size={20} />
                         </button>
                       </div>

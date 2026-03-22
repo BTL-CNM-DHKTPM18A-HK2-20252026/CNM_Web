@@ -33,6 +33,7 @@ export function Sidebar({
 }: SidebarProps) {
   const { t, i18n } = useTranslation();
   const [showLangSubMenu, setShowLangSubMenu] = React.useState(false);
+  const [showUserMenu, setShowUserMenu] = React.useState(false);
 
   const handleLangChange = (lang: string) => {
     i18n.changeLanguage(lang);
@@ -41,45 +42,90 @@ export function Sidebar({
   };
 
   return (
-    <div className="w-[64px] bg-[#0068FF] flex flex-col items-center py-4 gap-2 relative z-[60] transition-colors duration-200 shrink-0 shadow-[inset_-1px_0_0_rgba(255,255,255,0.1)]">
+    <div className="w-[64px] bg-[var(--sidebar-bg)] flex flex-col items-center py-4 gap-2 relative z-[60] transition-colors duration-200 shrink-0 shadow-[inset_-1px_0_0_rgba(255,255,255,0.1)]">
       {/* Avatar */}
-      <div className="h-11 w-11 rounded-full overflow-hidden border-2 border-white/20 cursor-pointer mb-2 shrink-0 relative">
+      <div 
+        onClick={() => {
+          setShowUserMenu(!showUserMenu);
+          setShowSettingsMenu(false); // Close settings menu if open
+        }}
+        className="h-11 w-11 rounded-full overflow-hidden border-2 border-white/20 cursor-pointer mb-2 shrink-0 relative transition-transform active:scale-95"
+      >
         <Image src="/avatar.jpg" fill alt="User" className="object-cover" />
       </div>
+
+      {/* User Menu Popup */}
+      {showUserMenu && (
+        <div className="absolute left-[70px] top-4 w-[280px] bg-[var(--card-bg)] rounded-xl shadow-2xl border border-[var(--border)] py-1.5 z-[70] animate-in slide-in-from-left-2 fade-in duration-200">
+          <div className="px-4 py-3 border-b border-[var(--border)] mb-1">
+            <h3 className="text-[17px] font-bold text-[var(--text)]">Nguyễn Quang Huy</h3>
+          </div>
+          
+          <button className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--hover-bg)] transition-colors text-[var(--text)] text-[15px] group cursor-pointer">
+            <span className="font-medium">{t('sidebar.upgrade_account')}</span>
+            <span className="text-gray-400 group-hover:text-[#0068FF] transition-colors">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+            </span>
+          </button>
+
+          <button 
+            onClick={() => { setIsProfileModalOpen(true); setShowUserMenu(false); }}
+            className="w-full flex items-center px-4 py-3 hover:bg-[var(--hover-bg)] transition-colors text-[var(--text)] text-[15px] font-medium cursor-pointer"
+          >
+            {t('sidebar.your_profile')}
+          </button>
+
+          <button 
+            onClick={() => { setIsSettingsModalOpen(true); setShowUserMenu(false); }}
+            className="w-full flex items-center px-4 py-3 hover:bg-[var(--hover-bg)] transition-colors text-[var(--text)] text-[15px] font-medium border-b border-[var(--border)] pb-4 cursor-pointer"
+          >
+            {t('sidebar.settings')}
+          </button>
+
+          <div className="pt-1">
+            <button 
+              onClick={() => { onLogout(); setShowUserMenu(false); }}
+              className="w-full flex items-center px-4 py-3 hover:bg-red-500/10 transition-colors text-red-500 text-[15px] font-bold cursor-pointer"
+            >
+              {t('sidebar.logout')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Navigation Tabs */}
       <div className="w-full flex flex-col items-center gap-1.5 relative">
         <button
           onClick={() => setActiveTab('chat')}
-          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${activeTab === 'chat' ? 'bg-[#005AE0] text-white' : 'hover:bg-white/10 text-white/70'}`}
+          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${activeTab === 'chat' ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'hover:bg-[var(--sidebar-hover-bg)] text-[var(--sidebar-text)]'}`}
         >
           <ZaloChatIcon size={28} active={activeTab === 'chat'} />
         </button>
 
         <button
           onClick={() => setActiveTab('contacts')}
-          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${activeTab === 'contacts' ? 'bg-[#005AE0] text-white' : 'hover:bg-white/10 text-white/70'}`}
+          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${activeTab === 'contacts' ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'hover:bg-[var(--sidebar-hover-bg)] text-[var(--sidebar-text)]'}`}
         >
           <ZaloContactIcon size={26} active={activeTab === 'contacts'} />
         </button>
 
         <button
           onClick={() => setActiveTab('cloud')}
-          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${activeTab === 'cloud' ? 'bg-[#005AE0] text-white' : 'hover:bg-white/10 text-white/70'}`}
+          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${activeTab === 'cloud' ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'hover:bg-[var(--sidebar-hover-bg)] text-[var(--sidebar-text)]'}`}
         >
           <ZaloCloudIcon size={26} />
         </button>
 
         <button
           onClick={() => setActiveTab('files')}
-          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${activeTab === 'files' ? 'bg-[#005AE0] text-white' : 'hover:bg-white/10 text-white/70'}`}
+          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${activeTab === 'files' ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'hover:bg-[var(--sidebar-hover-bg)] text-[var(--sidebar-text)]'}`}
         >
           <ZaloFileIcon size={26} />
         </button>
 
         <button
           onClick={() => setActiveTab('business')}
-          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${activeTab === 'business' ? 'bg-[#005AE0] text-white' : 'hover:bg-white/10 text-white/70'}`}
+          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${activeTab === 'business' ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'hover:bg-[var(--sidebar-hover-bg)] text-[var(--sidebar-text)]'}`}
         >
           <ZaloBusinessIcon size={26} />
         </button>
@@ -196,7 +242,10 @@ export function Sidebar({
         </button>
 
         <button
-          onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+          onClick={() => {
+            setShowSettingsMenu(!showSettingsMenu);
+            setShowUserMenu(false); // Close user menu if open
+          }}
           className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${showSettingsMenu ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover-bg)]'}`}
         >
           <ZaloSettingsIcon size={28} />

@@ -28,6 +28,8 @@
   },
   "sidebar": {
     "account_info": "Account Info",
+    "upgrade_account": "Upgrade Account",
+    "your_profile": "Your Profile",
     "settings": "Settings",
     "data": "Data",
     "language": "Language",
@@ -67,7 +69,8 @@
       "colleagues": "Colleagues",
       "strangers": "Messages from strangers",
       "manage": "Manage classification tags"
-    }
+    },
+    "search_panel_title": "Search in Chat"
   },
   "profile": {
     "title": "Profile",

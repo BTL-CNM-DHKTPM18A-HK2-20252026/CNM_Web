@@ -47,23 +47,23 @@ export function LoginForm({
   const { t } = useTranslation();
 
   return (
-    <div className="w-full max-w-[400px] overflow-hidden rounded-lg bg-white shadow-xl animate-in fade-in zoom-in-95 duration-300">
-      <div className="flex border-b border-gray-100 uppercase">
+    <div className="w-full max-w-[400px] overflow-hidden rounded-lg bg-[var(--card-bg)] border border-[var(--border)] shadow-xl animate-in fade-in zoom-in-95 duration-300">
+      <div className="flex border-b border-[var(--border)] uppercase">
         <button 
           onClick={() => { setLoginMethod('qr'); setError(null); setSuccessMsg(null); }} 
-          className={`flex-1 cursor-pointer py-4 text-xs font-bold transition-all ${loginMethod === 'qr' ? 'border-b-[3px] border-[#0068FF] text-[#0068FF]' : 'text-gray-500 hover:text-gray-700'}`}
+          className={`flex-1 cursor-pointer py-4 text-xs font-bold transition-all ${loginMethod === 'qr' ? 'border-b-[3px] border-[#0068FF] text-[#0068FF]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
         >
           {t('login.tabs.qr')}
         </button>
         <button 
           onClick={() => { setLoginMethod('phone'); setError(null); setSuccessMsg(null); }} 
-          className={`flex-1 cursor-pointer py-4 text-xs font-bold transition-all ${loginMethod === 'phone' ? 'border-b-[3px] border-[#0068FF] text-[#0068FF]' : 'text-gray-500 hover:text-gray-700'}`}
+          className={`flex-1 cursor-pointer py-4 text-xs font-bold transition-all ${loginMethod === 'phone' ? 'border-b-[3px] border-[#0068FF] text-[#0068FF]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
         >
           {t('login.tabs.phone')}
         </button>
         <button 
           onClick={() => { setLoginMethod('register'); setError(null); setSuccessMsg(null); }} 
-          className={`flex-1 cursor-pointer py-4 text-xs font-bold transition-all ${loginMethod === 'register' ? 'border-b-[3px] border-[#0068FF] text-[#0068FF]' : 'text-gray-500 hover:text-gray-700'}`}
+          className={`flex-1 cursor-pointer py-4 text-xs font-bold transition-all ${loginMethod === 'register' ? 'border-b-[3px] border-[#0068FF] text-[#0068FF]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
         >
           {t('login.tabs.register')}
         </button>
@@ -72,46 +72,46 @@ export function LoginForm({
       <div className="flex flex-col items-center p-8 pb-4 min-h-[340px]">
         {loginMethod === 'qr' ? (
           <>
-            <div className="relative mb-6 flex h-64 w-64 items-center justify-center rounded-lg border-2 border-gray-100 p-2 cursor-pointer transition-transform hover:scale-102" onClick={() => onSubmit()}>
-              <div className="relative flex h-full w-full items-center justify-center bg-white p-2">
+            <div className="relative mb-6 flex h-64 w-64 items-center justify-center rounded-lg border-2 border-[var(--border)] p-2 cursor-pointer transition-transform hover:scale-102" onClick={() => onSubmit()}>
+              <div className="relative flex h-full w-full items-center justify-center bg-white p-2 rounded">
                 <QRCodeCanvas value="https://fruvia.chat" size={220} />
               </div>
             </div>
-            <p className="mb-4 text-sm font-medium text-gray-600">{t('login.qr.hint')}</p>
+            <p className="mb-4 text-sm font-medium text-[var(--sub-text)]">{t('login.qr.hint')}</p>
           </>
         ) : (
           <form onSubmit={onSubmit} className="w-full px-2">
-            <h3 className="mb-8 text-center text-sm font-bold text-[#1e293b]">
+            <h3 className="mb-8 text-center text-sm font-bold text-[var(--text)]">
               {loginMethod === 'phone' ? t('login.phone.header') : 'Tạo tài khoản mới'}
             </h3>
             
             {loginMethod === 'register' && (
               <>
-                <div className="mb-6 flex items-center border-b border-gray-200 py-2.5 focus-within:border-[#0068FF] transition-colors">
+                <div className="mb-6 flex items-center border-b border-[var(--border)] py-2.5 focus-within:border-[#0068FF] transition-colors">
                   <span className="mr-3 text-gray-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg></span>
-                  <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Tên hiển thị" className="w-full text-sm outline-none text-[#1e293b]" required />
+                  <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Tên hiển thị" className="w-full bg-transparent text-sm outline-none text-[var(--text)]" required />
                 </div>
-                <div className="mb-6 flex items-center border-b border-gray-200 py-2.5 focus-within:border-[#0068FF] transition-colors">
+                <div className="mb-6 flex items-center border-b border-[var(--border)] py-2.5 focus-within:border-[#0068FF] transition-colors">
                   <span className="mr-3 text-gray-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="w-full text-sm outline-none text-[#1e293b]" required />
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="w-full bg-transparent text-sm outline-none text-[var(--text)]" required />
                 </div>
               </>
             )}
 
-            <div className="mb-6 flex items-center border-b border-gray-200 py-2.5 focus-within:border-[#0068FF] transition-colors text-[#1e293b]">
+            <div className="mb-6 flex items-center border-b border-[var(--border)] py-2.5 focus-within:border-[#0068FF] transition-colors text-[var(--text)]">
               <span className="mr-3 text-gray-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="14" height="20" x="5" y="2" rx="2" ry="2" /><path d="M12 18h.01" /></svg></span>
               <span className="mr-2 text-sm font-bold">+84</span>
-              <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder={t('login.phone.phone_placeholder')} className="w-full text-sm outline-none font-medium" required />
+              <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder={t('login.phone.phone_placeholder')} className="w-full bg-transparent text-sm outline-none font-medium" required />
             </div>
             
-            <div className="mb-8 flex items-center border-b border-gray-200 py-2.5 relative focus-within:border-[#0068FF] transition-colors">
+            <div className="mb-8 flex items-center border-b border-[var(--border)] py-2.5 relative focus-within:border-[#0068FF] transition-colors">
               <span className="mr-3 text-gray-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></span>
               <input 
                 type={showPassword ? "text" : "password"} 
                 value={password} 
                 onChange={(e) => setPassword(e.target.value)} 
                 placeholder={t('login.phone.password_placeholder')} 
-                className="w-full text-sm outline-none pr-10 text-[#1e293b]" 
+                className="w-full bg-transparent text-sm outline-none pr-10 text-[var(--text)]" 
                 required 
               />
               <button 
@@ -132,7 +132,7 @@ export function LoginForm({
             
             <div className="flex flex-col gap-3 text-center">
               {loginMethod === 'phone' && (
-                <button type="button" className="cursor-pointer text-[13px] font-medium text-gray-500 hover:text-gray-700">{t('login.phone.forgot_password')}</button>
+                <button type="button" className="cursor-pointer text-[13px] font-medium text-[var(--sub-text)] hover:text-[var(--text)]">{t('login.phone.forgot_password')}</button>
               )}
               <button type="button" onClick={() => setLoginMethod('qr')} className="cursor-pointer text-sm font-bold text-[#0068FF] hover:underline">
                 {t('login.phone.qr_back')}

@@ -22,5 +22,13 @@ export default {
   // Active chung cho nội dung
   activeBg: '#2d3748',
   activeText: '#FFFFFF',
-  activeCardBorder: 'transparent', // Giữ viền trong suốt hoặc rất mờ
+  activeCardBorder: 'transparent',
+  
+  // Message bubbles
+  messageMeBg: '#1e3a5f',
+  messageMeBorder: '#2b4f7a',
+  messageMeText: '#E1EDFF',
+  messageOtherBg: '#1e2329',
+  messageOtherBorder: '#2A333A',
+  messageOtherText: '#FFFFFF',
 };

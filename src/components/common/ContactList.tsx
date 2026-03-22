@@ -42,9 +42,9 @@ export function ContactList({ selectedCategory, onSelectCategory }: ContactListP
             <div
               key={cat.id}
               onClick={() => onSelectCategory(cat.id)}
-              className={`flex items-center px-4 py-3.5 gap-3.5 cursor-pointer transition-colors group ${isActive ? 'bg-[#E5EFFF] text-[#0068FF]' : 'hover:bg-[#E7F2FF] text-[var(--text)]'}`}
+              className={`flex items-center px-4 py-3.5 gap-3.5 cursor-pointer transition-colors group ${isActive ? 'bg-[var(--active-bg)] text-[var(--active-text)]' : 'hover:bg-[var(--hover-bg)] text-[var(--text)]'}`}
             >
-              <div className={`${isActive ? 'text-[#0068FF]' : 'text-gray-400'} group-hover:text-[#0068FF] transition-colors`}>
+              <div className={`${isActive ? 'text-[var(--active-text)]' : 'text-[var(--sub-text)]'} group-hover:text-[var(--active-text)] transition-colors`}>
                 {cat.icon}
               </div>
               <span className={`text-[14.5px] ${isActive ? 'font-bold' : 'font-medium'} truncate`}>

@@ -6,7 +6,7 @@ export default {
   text: '#1e293b',
   subText: '#6b7280',
   border: '#E5E7EB',
-  chatBg: '#F4F5F7',
+  chatBg: '#E9EDF1',
   buttonText: '#FFFFFF',
   hoverBg: '#F3F4F6',
   searchBg: '#EAEDF0',
@@ -22,5 +22,13 @@ export default {
   // Active chung cho nội dung
   activeBg: '#EBF5FF',
   activeText: '#0068FF',
-  activeCardBorder: 'transparent', // Ko cần viền vì nền tương phản tốt rồi
+  activeCardBorder: 'transparent',
+  
+  // Message bubbles
+  messageMeBg: '#E1EDFF',
+  messageMeBorder: '#C5D9F8',
+  messageMeText: '#081C36',
+  messageOtherBg: '#FFFFFF',
+  messageOtherBorder: '#DBDFE6',
+  messageOtherText: '#081C36',
 };
