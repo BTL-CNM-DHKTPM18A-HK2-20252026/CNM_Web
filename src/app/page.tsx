@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { authService } from '@/services/authService';
+import { toast } from 'sonner';
 import '../i18n/config';
 import { useTheme } from '@/themes';
 import { SunIcon, MoonIcon } from '@/components/ui/Icons';
@@ -35,6 +36,9 @@ export default function Home() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [dob, setDob] = useState('2004-04-20');
+  const [gender, setGender] = useState('Nam');
+  const [rememberMe, setRememberMe] = useState(true);
 
   useEffect(() => {
     setIsClient(true);
@@ -52,6 +56,11 @@ export default function Home() {
     checkAuthStatus();
   }, []);
 
+  useEffect(() => {
+    const saved = localStorage.getItem('savedUsername');
+    if (saved) setUsername(saved);
+  }, []);
+
   const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (loginMethod === 'qr') { 
@@ -64,6 +73,11 @@ export default function Home() {
     try {
       if (loginMethod === 'phone') {
         await authService.login(username, password);
+        if (rememberMe) {
+          localStorage.setItem('savedUsername', username);
+        } else {
+          localStorage.removeItem('savedUsername');
+        }
         setIsLoggedIn(true);
       } else if (loginMethod === 'register') {
         if (password !== confirmPassword) {
@@ -77,13 +91,22 @@ export default function Home() {
           password, 
           displayName: `${lastName} ${firstName}`.trim(),
           firstName: firstName || '',
-          lastName: lastName || ''
+          lastName: lastName || '',
+          dob: dob ? new Date(dob) : undefined,
+          gender: gender
         });
-        setSuccessMsg('Đăng ký thành công! Hãy đăng nhập.');
+        toast.success("Đăng ký tài khoản thành công!", {
+          description: "Bây giờ bạn có thể đăng nhập bằng số điện thoại vừa đăng ký.",
+          duration: 5000,
+          className: "bg-white dark:bg-[#1E1E1E] border border-blue-100 dark:border-blue-900 shadow-xl",
+          icon: <div className="h-5 w-5 bg-blue-500 rounded-full flex items-center justify-center text-white"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><polyline points="20 6 9 17 4 12"/></svg></div>
+        });
         setLoginMethod('phone');
       }
     } catch (err: any) {
-      setError(err.message || (loginMethod === 'phone' ? 'Đăng nhập thất bại' : 'Đăng ký thất bại'));
+      const msg = err.message || (loginMethod === 'phone' ? 'Đăng nhập thất bại' : 'Đăng ký thất bại');
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -140,6 +163,10 @@ export default function Home() {
         setLastName={setLastName}
         email={email}
         setEmail={setEmail}
+        dob={dob}
+        setDob={setDob}
+        gender={gender}
+        setGender={setGender}
         loading={loading}
         error={error}
         successMsg={successMsg}
@@ -150,6 +177,8 @@ export default function Home() {
         onSubmit={handleLogin}
         setError={setError}
         setSuccessMsg={setSuccessMsg}
+        rememberMe={rememberMe}
+        setRememberMe={setRememberMe}
       />
       
       <p className="mt-8 text-xs text-gray-400 font-medium">

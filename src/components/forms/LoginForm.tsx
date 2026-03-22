@@ -16,6 +16,10 @@ interface LoginFormProps {
   setLastName: (val: string) => void;
   email: string;
   setEmail: (val: string) => void;
+  dob?: string;
+  setDob?: (val: string) => void;
+  gender?: string;
+  setGender?: (val: string) => void;
   loading: boolean;
   error: string | null;
   successMsg: string | null;
@@ -28,6 +32,8 @@ interface LoginFormProps {
   onSubmit: (e?: React.FormEvent) => void;
   setError: (err: string | null) => void;
   setSuccessMsg: (msg: string | null) => void;
+  rememberMe?: boolean;
+  setRememberMe?: (val: boolean) => void;
 }
 
 export function LoginForm({
@@ -43,6 +49,10 @@ export function LoginForm({
   setLastName,
   email,
   setEmail,
+  dob,
+  setDob,
+  gender,
+  setGender,
   loading,
   error,
   successMsg,
@@ -55,8 +65,11 @@ export function LoginForm({
   onSubmit,
   setError,
   setSuccessMsg,
+  rememberMe,
+  setRememberMe,
 }: LoginFormProps) {
   const { t } = useTranslation();
+  const [isGenderOpen, setIsGenderOpen] = React.useState(false);
 
   return (
     <div className="w-full max-w-[400px] overflow-hidden rounded-lg bg-[var(--card-bg)] border border-[var(--border)] shadow-xl animate-in fade-in zoom-in-95 duration-300">
@@ -100,18 +113,83 @@ export function LoginForm({
             {loginMethod === 'register' && (
               <>
                 <div className="mb-6 grid grid-cols-2 gap-4">
-                  <div className="flex items-center border-b border-[var(--border)] py-2.5 focus-within:border-[#0068FF] transition-colors">
-                    <span className="mr-3 text-gray-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg></span>
-                    <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Họ" className="w-full bg-transparent text-sm outline-none text-[var(--text)]" required />
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">Họ</span>
+                    <div className="flex items-center border-b border-[var(--border)] py-2 focus-within:border-[#0068FF] transition-colors group">
+                      <span className="mr-3 text-gray-400 group-focus-within:text-[#0068FF] transition-colors"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg></span>
+                      <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Nhập họ..." className="w-full bg-transparent text-[13px] font-medium outline-none text-[var(--text)]" required />
+                    </div>
                   </div>
-                  <div className="flex items-center border-b border-[var(--border)] py-2.5 focus-within:border-[#0068FF] transition-colors">
-                    <span className="mr-3 text-gray-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg></span>
-                    <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Tên" className="w-full bg-transparent text-sm outline-none text-[var(--text)]" required />
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">Tên</span>
+                    <div className="flex items-center border-b border-[var(--border)] py-2 focus-within:border-[#0068FF] transition-colors group">
+                      <span className="mr-3 text-gray-400 group-focus-within:text-[#0068FF] transition-colors"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg></span>
+                      <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Nhập tên..." className="w-full bg-transparent text-[13px] font-medium outline-none text-[var(--text)]" required />
+                    </div>
                   </div>
                 </div>
-                <div className="mb-6 flex items-center border-b border-[var(--border)] py-2.5 focus-within:border-[#0068FF] transition-colors">
-                  <span className="mr-3 text-gray-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="w-full bg-transparent text-sm outline-none text-[var(--text)]" required />
+                <div className="mb-6 flex flex-col">
+                  <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">Email</span>
+                  <div className="flex items-center border-b border-[var(--border)] py-2 focus-within:border-[#0068FF] transition-colors group">
+                    <span className="mr-3 text-gray-400 group-focus-within:text-[#0068FF] transition-colors"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>
+                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="example@email.com" className="w-full bg-transparent text-[13px] font-medium outline-none text-[var(--text)]" required />
+                  </div>
+                </div>
+                <div className="mb-6 flex space-x-4 items-center">
+                  <div className="flex-1 flex flex-col">
+                    <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">Ngày sinh</span>
+                    <div className="flex items-center border-b border-[var(--border)] py-2 focus-within:border-[#0068FF] transition-colors group cursor-pointer">
+                      <span className="mr-3 text-gray-400 group-focus-within:text-[#0068FF] transition-colors">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+                      </span>
+                      <input 
+                        type="date" 
+                        value={dob} 
+                        onChange={(e) => setDob?.(e.target.value)} 
+                        className="w-full bg-transparent text-[13px] font-medium outline-none text-[var(--text)] cursor-pointer" 
+                        required 
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1 flex flex-col relative">
+                    <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">Giới tính</span>
+                    <div 
+                      className="flex items-center border-b border-[var(--border)] py-2 cursor-pointer focus-within:border-[#0068FF] transition-colors group"
+                      onClick={() => setIsGenderOpen(!isGenderOpen)}
+                    >
+                      <span className="mr-3 text-gray-400 group-hover:text-[#0068FF] transition-colors transition-colors">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2C9.24 2 7 4.24 7 7s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM12 14c-4.42 0-8 2.24-8 5v3h16v-3c0-2.76-3.58-5-8-5z"/></svg>
+                      </span>
+                      <span className="w-full bg-transparent text-[13px] font-medium text-[var(--text)] select-none">
+                        {gender || 'Nam'}
+                      </span>
+                      <span className={`ml-auto text-gray-400 transition-transform duration-200 ${isGenderOpen ? 'rotate-180' : ''}`}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M6 9l6 6 6-6"/></svg>
+                      </span>
+                    </div>
+
+                    {isGenderOpen && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setIsGenderOpen(false)}></div>
+                        <div className="absolute top-full left-0 right-0 z-20 mt-1 overflow-hidden rounded-md border border-[var(--border)] bg-[var(--card-bg)] shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
+                          {['Nam', 'Nữ', 'Khác'].map((val) => (
+                            <button
+                              key={val}
+                              type="button"
+                              onClick={() => {
+                                setGender?.(val);
+                                setIsGenderOpen(false);
+                              }}
+                              className={`w-full px-4 py-2.5 text-left text-[13px] font-bold transition-all cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-600/10 ${gender === val ? 'text-[#0068FF] bg-blue-50/80 dark:bg-blue-600/20' : 'text-[var(--text)]'}`}
+                            >
+                              {val}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </>
             )}
@@ -140,6 +218,20 @@ export function LoginForm({
                 {showPassword ? <EyeOffIcon /> : <EyeIcon />}
               </button>
             </div>
+
+            {loginMethod === 'phone' && (
+              <div className="mb-6 flex items-center">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <div className={`w-4.5 h-4.5 rounded border flex items-center justify-center transition-all ${rememberMe ? 'bg-[#0068FF] border-[#0068FF]' : 'bg-transparent border-[var(--border)] group-hover:border-[#0068FF]'}`}>
+                    {rememberMe && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><polyline points="20 6 9 17 4 12"/></svg>
+                    )}
+                  </div>
+                  <input type="checkbox" className="hidden" checked={rememberMe} onChange={(e) => setRememberMe?.(e.target.checked)} />
+                  <span className="text-[13px] text-[var(--sub-text)] font-medium group-hover:text-[var(--text)] transition-colors select-none">Ghi nhớ hồ sơ</span>
+                </label>
+              </div>
+            )}
             
             {loginMethod === 'register' && (
               <div className="mb-8 flex items-center border-b border-[var(--border)] py-2.5 relative focus-within:border-[#0068FF] transition-colors">
@@ -167,7 +259,6 @@ export function LoginForm({
             </button>
 
             {error && <p className="mb-4 text-center text-[13px] font-medium text-red-500 animate-in slide-in-from-top-1">{error}</p>}
-            {successMsg && <p className="mb-4 text-center text-[13px] font-medium text-green-600 animate-in slide-in-from-top-1">{successMsg}</p>}
             
             <div className="flex flex-col gap-3 text-center">
               {loginMethod === 'phone' && (

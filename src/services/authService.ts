@@ -66,7 +66,7 @@ export const authService = {
    * Register a new user
    * @param data - registration data
    */
-  async register(data: { phoneNumber: string; email: string; password: string; displayName: string; firstName?: string; lastName?: string }) {
+  async register(data: { phoneNumber: string; email: string; password: string; displayName: string; firstName?: string; lastName?: string; dob?: Date; gender?: string }) {
     try {
       const result = await apiClient.post('/users', data);
       return result.data;

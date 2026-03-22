@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { apiClient } from '@/services/api';
 import { log } from 'console';
+import { useRef } from 'react';
 
 const XIcon = ({ size = 20 }: { size?: number }) => (
 
@@ -43,12 +44,19 @@ const CheckIcon = ({ size = 16 }: { size?: number }) => (
   </svg>
 );
 
+const GlobeIcon = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+  </svg>
+);
+
 interface ProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onUpdate?: () => void;
 }
 
-export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
+export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
   const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [userName, setUserName] = useState("");
@@ -61,8 +69,18 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const [month, setMonth] = useState("");
   const [year, setYear] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [bio, setBio] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [education, setEducation] = useState("");
+  const [workplace, setWorkplace] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [userId, setUserId] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
+  const [isSystemAvatarPickerOpen, setIsSystemAvatarPickerOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [initialUserData, setInitialUserData] = useState<any>(null);
 
   useEffect(() => {
@@ -76,8 +94,15 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             const data = response.data;
             console.log(data)
             setUserName(data.full_name || "");
+            setUserId(data.id || "");
+            setAvatarUrl(data.avatar_url || "");
             setGender(data.gender || "Nam");
             setPhoneNumber(data.phone_number || "");
+            setBio(data.bio || "");
+            setAddress(data.address || "");
+            setCity(data.city || "");
+            setEducation(data.education || "");
+            setWorkplace(data.workplace || "");
 
             if (data.dob) {
               const date = new Date(data.dob);
@@ -92,7 +117,12 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 gender: data.gender || "Nam",
                 day: d,
                 month: m,
-                year: y
+                year: y,
+                bio: data.bio || "",
+                address: data.address || "",
+                city: data.city || "",
+                education: data.education || "",
+                workplace: data.workplace || ""
               });
             } else {
               setDay("01");
@@ -127,7 +157,12 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     gender !== initialUserData.gender ||
     day !== initialUserData.day ||
     month !== initialUserData.month ||
-    year !== initialUserData.year
+    year !== initialUserData.year ||
+    bio !== initialUserData.bio ||
+    address !== initialUserData.address ||
+    city !== initialUserData.city ||
+    education !== initialUserData.education ||
+    workplace !== initialUserData.workplace
   ) : false;
 
   const handleUpdate = async () => {
@@ -141,7 +176,12 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       const response = await apiClient.patch('/users/me', {
         full_name: userName,
         gender: gender,
-        dob: dob.toISOString()
+        dob: dob.toISOString(),
+        bio,
+        address,
+        city,
+        education,
+        workplace
       });
 
       if (response && response.success) {
@@ -151,9 +191,15 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           gender,
           day,
           month,
-          year
+          year,
+          bio,
+          address,
+          city,
+          education,
+          workplace
         });
         setIsEditing(false);
+        onUpdate?.();
       }
     } catch (error) {
       console.error("Failed to update profile:", error);
@@ -161,6 +207,34 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSystemAvatarSelect = async (img: string) => {
+    try {
+      setAvatarUrl(img);
+      await apiClient.patch('/users/me/avatar', { avatar_url: img });
+      toast.success("Đã cập nhật ảnh đại diện");
+      setIsSystemAvatarPickerOpen(false);
+      setIsAvatarMenuOpen(false);
+      onUpdate?.();
+    } catch (error) {
+      console.error("Failed to update system avatar:", error);
+      toast.error("Không thể lưu ảnh đại diện");
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // In a real app, you'd upload to Cloudinary here
+      // For now, we'll use a local preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+    setIsAvatarMenuOpen(false);
   };
 
   const handleClose = () => {
@@ -191,12 +265,23 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     </div>
   );
 
+  // Calculate default avatar based on userId (Case 2 logic)
+  const getDefaultAvatar = (uid: string) => {
+    if (!uid) return "/avatar.jpg";
+    // Sum char codes to handle non-numeric IDs too
+    const charCodeSum = uid.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    const index = (charCodeSum % 8) + 1;
+    return `/default/image${index}.jpg`;
+  };
+
+  const currentAvatar = avatarUrl || getDefaultAvatar(userId);
+
   if (isEditing) {
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/45 animate-in fade-in duration-300" onClick={handleClose} />
 
-        <div className="w-full max-w-[400px] bg-[var(--card-bg)] rounded-md shadow-2xl relative z-[101] animate-in zoom-in-95 duration-200 overflow-visible flex flex-col h-auto max-h-[90vh]">
+        <div className="w-full max-w-[550px] bg-[var(--card-bg)] rounded-md shadow-2xl relative z-[101] animate-in zoom-in-95 duration-200 overflow-visible flex flex-col h-[90vh] max-h-[680px]">
           {/* Header */}
           <div className="h-[48px] border-b border-[var(--border)] flex items-center justify-between px-3 bg-[var(--card-bg)] shrink-0 rounded-t-md">
             <div className="flex items-center gap-2">
@@ -218,7 +303,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
           {/* Form Area */}
           <div
-            className="p-4 flex flex-col gap-5 overflow-visible"
+            className="p-4 flex flex-col gap-5 overflow-y-auto custom-scrollbar flex-1"
             onClick={() => setOpenDropdown(null)}
           >
             {/* Display Name */}
@@ -335,6 +420,75 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 </div>
               </div>
             </div>
+
+            {/* Bio Field */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[15px] font-bold text-[var(--text)]">Giới thiệu</label>
+              <div className="min-h-[80px] w-full border border-[var(--border)] rounded-md px-3 py-2 flex items-start focus-within:border-[#0068FF] transition-colors">
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  placeholder="Thêm giới thiệu về bạn..."
+                  className="w-full bg-transparent outline-none text-[15px] text-[var(--text)] resize-none h-full"
+                />
+              </div>
+            </div>
+
+            {/* Address & City Row */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[15px] font-bold text-[var(--text)]">Địa chỉ</label>
+                <div className="h-[42px] w-full border border-[var(--border)] rounded-md px-3 flex items-center focus-within:border-[#0068FF] transition-colors">
+                  <input
+                    type="text"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Địa chỉ..."
+                    className="w-full bg-transparent outline-none text-[15px] text-[var(--text)]"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[15px] font-bold text-[var(--text)]">Thành phố</label>
+                <div className="h-[42px] w-full border border-[var(--border)] rounded-md px-3 flex items-center focus-within:border-[#0068FF] transition-colors">
+                  <input
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Thành phố..."
+                    className="w-full bg-transparent outline-none text-[15px] text-[var(--text)]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Workplace & Education Row */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[15px] font-bold text-[var(--text)]">Công việc</label>
+                <div className="h-[42px] w-full border border-[var(--border)] rounded-md px-3 flex items-center focus-within:border-[#0068FF] transition-colors">
+                  <input
+                    type="text"
+                    value={workplace}
+                    onChange={(e) => setWorkplace(e.target.value)}
+                    placeholder="Nhà phân tích, bác sĩ..."
+                    className="w-full bg-transparent outline-none text-[15px] text-[var(--text)]"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[15px] font-bold text-[var(--text)]">Học vấn</label>
+                <div className="h-[42px] w-full border border-[var(--border)] rounded-md px-3 flex items-center focus-within:border-[#0068FF] transition-colors">
+                  <input
+                    type="text"
+                    value={education}
+                    onChange={(e) => setEducation(e.target.value)}
+                    placeholder="Đại học Công nghiệp..."
+                    className="w-full bg-transparent outline-none text-[15px] text-[var(--text)]"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="p-4 border-t border-[var(--border)] flex items-center justify-end gap-3 shrink-0 rounded-b-md">
@@ -364,7 +518,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/45 animate-in fade-in duration-300" onClick={handleClose} />
 
-      <div className="w-full max-w-[400px] bg-[var(--card-bg)] rounded-md shadow-2xl relative z-[101] animate-in zoom-in-95 duration-200 overflow-visible flex flex-col">
+      <div className="w-full max-w-[550px] bg-[var(--card-bg)] rounded-md shadow-2xl relative z-[101] animate-in zoom-in-95 duration-200 overflow-visible flex flex-col">
         {/* Header */}
         <div className="h-[48px] border-b border-[var(--border)] flex items-center justify-between px-4 bg-[var(--card-bg)] shrink-0 rounded-t-md">
           <h2 className="text-[17px] font-bold text-[var(--text)]">Thông tin tài khoản</h2>
@@ -382,11 +536,41 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             <div className="flex items-center gap-4">
               <div className="relative -mt-8 mb-2">
                 <div className="w-[80px] h-[80px] rounded-full border-[3px] border-[var(--card-bg)] overflow-hidden bg-[var(--card-bg)] shadow-md relative">
-                  <Image src="/avatar.jpg" fill alt="Avatar" className="object-cover" sizes="80px" />
+                  <Image src={currentAvatar} fill alt="Avatar" className="object-cover" sizes="80px" />
                 </div>
-                <button className="absolute bottom-0 right-0 w-[30px] h-[30px] bg-[var(--hover-bg)] rounded-full flex items-center justify-center text-[var(--sub-text)] border border-[var(--card-bg)] hover:opacity-80 transition-colors cursor-pointer shadow-sm">
+                <button 
+                  onClick={() => setIsAvatarMenuOpen(!isAvatarMenuOpen)}
+                  className="absolute bottom-0 right-0 w-[30px] h-[30px] bg-[var(--hover-bg)] rounded-full flex items-center justify-center text-[var(--sub-text)] border border-[var(--card-bg)] hover:opacity-80 transition-colors cursor-pointer shadow-sm z-10"
+                >
                   <CameraIcon size={16} />
                 </button>
+
+                {/* Avatar Action Menu */}
+                {isAvatarMenuOpen && (
+                  <div className="absolute top-full left-0 mt-2 w-48 bg-[var(--card-bg)] border border-[var(--border)] rounded-lg shadow-xl z-20 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                    <button 
+                      onClick={() => setIsSystemAvatarPickerOpen(true)}
+                      className="w-full px-4 py-2.5 text-left text-[14px] hover:bg-[var(--hover-bg)] transition-colors text-[var(--text)] font-medium flex items-center gap-2 cursor-pointer"
+                    >
+                      <GlobeIcon size={16} />
+                      Avatar hệ thống
+                    </button>
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full px-4 py-2.5 text-left text-[14px] hover:bg-[var(--hover-bg)] transition-colors text-[var(--text)] font-medium flex items-center gap-2 cursor-pointer"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                      Avatar từ máy
+                    </button>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      className="hidden" 
+                      accept="image/*" 
+                      onChange={handleFileChange}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-1.5 pt-2">
@@ -438,6 +622,40 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           </div>
         </div>
       </div>
+      {/* System Avatar Picker Modal */}
+      {isSystemAvatarPickerOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 animate-in fade-in duration-200">
+          <div className="bg-[var(--card-bg)] w-[400px] rounded-xl shadow-2xl overflow-hidden border border-[var(--border)]">
+            <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
+              <h3 className="font-bold text-[var(--text)]">Chọn avatar hệ thống</h3>
+              <button 
+                onClick={() => setIsSystemAvatarPickerOpen(false)}
+                className="p-1 hover:bg-[var(--hover-bg)] rounded-full transition-colors cursor-pointer text-[var(--sub-text)]"
+              >
+                <XIcon size={20} />
+              </button>
+            </div>
+            <div className="p-4 grid grid-cols-4 gap-3 bg-[var(--background)]">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                <button 
+                  key={i}
+                  onClick={() => handleSystemAvatarSelect(`/default/image${i}.jpg`)}
+                  className="relative aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-[#0068FF] transition-all cursor-pointer group shadow-sm bg-white dark:bg-gray-800"
+                >
+                  <Image src={`/default/image${i}.jpg`} fill alt={`Default ${i}`} className="object-cover group-hover:scale-110 transition-transform" />
+                  {currentAvatar === `/default/image${i}.jpg` && (
+                    <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
+                      <div className="bg-white rounded-full p-0.5">
+                        <CheckIcon size={14} />
+                      </div>
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -20,6 +20,7 @@ interface SidebarProps {
   setIsSettingsModalOpen: (open: boolean) => void;
   setIsProfileModalOpen: (open: boolean) => void;
   onLogout: () => void;
+  user?: any;
 }
 
 export function Sidebar({
@@ -30,6 +31,7 @@ export function Sidebar({
   setIsSettingsModalOpen,
   setIsProfileModalOpen,
   onLogout,
+  user,
 }: SidebarProps) {
   const { t, i18n } = useTranslation();
   const [showLangSubMenu, setShowLangSubMenu] = React.useState(false);
@@ -51,14 +53,28 @@ export function Sidebar({
         }}
         className="h-11 w-11 rounded-full overflow-hidden border-2 border-white/20 cursor-pointer mb-2 shrink-0 relative transition-transform active:scale-95"
       >
-        <Image src="/avatar.jpg" fill alt="User" className="object-cover" sizes="44px" />
+        <Image 
+          src={user?.avatar_url || (user?.id ? `/default/image${(user.id.split('').reduce((sum: number, char: string) => sum + char.charCodeAt(0), 0) % 8) + 1}.jpg` : "/avatar.jpg")} 
+          fill 
+          alt="User" 
+          className="object-cover" 
+          sizes="44px" 
+        />
       </div>
 
       {/* User Menu Popup */}
       {showUserMenu && (
         <div className="absolute left-[70px] top-4 w-[280px] bg-[var(--card-bg)] rounded-xl shadow-2xl border border-[var(--border)] py-1.5 z-[70] animate-in slide-in-from-left-2 fade-in duration-200">
-          <div className="px-4 py-3 border-b border-[var(--border)] mb-1">
-            <h3 className="text-[17px] font-bold text-[var(--text)]">Nguyễn Quang Huy</h3>
+          <div className="px-4 py-4 border-b border-[var(--border)] mb-1 flex items-center gap-3">
+            <div className="h-12 w-12 rounded-full overflow-hidden border border-[var(--border)] shrink-0 relative">
+              <Image 
+                src={user?.avatar_url || (user?.id ? `/default/image${(user.id.split('').reduce((sum: number, char: string) => sum + char.charCodeAt(0), 0) % 8) + 1}.jpg` : "/avatar.jpg")} 
+                fill 
+                alt="User" 
+                className="object-cover" 
+              />
+            </div>
+            <h3 className="text-[17px] font-bold text-[var(--text)] line-clamp-1">{user?.full_name || 'Nguyễn Quang Huy'}</h3>
           </div>
           
           <button className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--hover-bg)] transition-colors text-[var(--text)] text-[15px] group cursor-pointer">

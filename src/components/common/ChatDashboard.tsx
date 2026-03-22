@@ -11,6 +11,7 @@ import { ContactList } from './ContactList';
 import { ContactsContent } from './ContactsContent';
 import { AddFriendModal } from './AddFriendModal';
 import { CreateGroupModal } from './CreateGroupModal';
+import { apiClient } from '@/services/api';
 
 interface ChatDashboardProps {
   onLogout: () => void;
@@ -27,7 +28,23 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
   const [isAddFriendModalOpen, setIsAddFriendModalOpen] = useState(false);
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
   const [activeSidebar, setActiveSidebar] = useState<'info' | 'search' | null>('info');
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const hasToasted = React.useRef(false);
+
+  const fetchUserProfile = async () => {
+    try {
+      const response = await apiClient.get('/users/me');
+      if (response && response.success && response.data) {
+        setCurrentUser(response.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch profile in dashboard:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
 
   useEffect(() => {
     if (!hasToasted.current) {
@@ -73,6 +90,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
       <ProfileModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
+        onUpdate={fetchUserProfile}
       />
 
       <AddFriendModal
@@ -94,6 +112,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
         setIsSettingsModalOpen={setIsSettingsModalOpen}
         setIsProfileModalOpen={setIsProfileModalOpen}
         onLogout={onLogout}
+        user={currentUser}
       />
 
       {/* 2. MIDDLE LIST */}
