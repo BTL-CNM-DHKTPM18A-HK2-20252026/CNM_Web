@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   SearchIcon,
   StickerIcon,
@@ -32,6 +32,45 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat }: Cha
   const [isPickerOpen, setIsPickerOpen] = React.useState(false);
   const [pickerTab, setPickerTab] = React.useState<'sticker' | 'emoji' | 'gif'>('sticker');
   const [isNicknameModalOpen, setIsNicknameModalOpen] = React.useState(false);
+  const [isFilePopoverOpen, setIsFilePopoverOpen] = React.useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageClick = () => {
+    imageInputRef.current?.click();
+  };
+
+  const handleFileIconClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsFilePopoverOpen(!isFilePopoverOpen);
+  };
+
+  const handleFileClick = () => {
+    fileInputRef.current?.click();
+    setIsFilePopoverOpen(false);
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      console.log('Selected image:', file.name);
+      import('sonner').then(({ toast }) => {
+        toast.success(`Đã chọn ảnh: ${file.name}`);
+      });
+      // In a real app, you would upload the file here
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      console.log('Selected file:', file.name);
+      import('sonner').then(({ toast }) => {
+        toast.success(`Đã chọn file: ${file.name}`);
+      });
+      // In a real app, you would upload the file here
+    }
+  };
 
   const handleSendMessage = () => {
     if (message.trim()) {
@@ -78,7 +117,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat }: Cha
             <div>
               <h3 className="text-[15px] font-bold leading-none mb-1 text-[var(--text)] truncate flex items-center gap-1.5">
                 {selectedChat.name}
-                <button 
+                <button
                   onClick={() => setIsNicknameModalOpen(true)}
                   className="p-1 hover:bg-[var(--hover-bg)] rounded-md opacity-0 group-hover/info:opacity-100 transition-all text-gray-400 hover:text-[var(--text)]"
                 >
@@ -90,7 +129,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat }: Cha
           </div>
         </div>
         <div className="flex items-center gap-5 text-[var(--sub-text)] pr-2 shrink-0">
-          <button 
+          <button
             onClick={() => onToggleSidebar('search')}
             className={`cursor-pointer transition-all p-1 rounded-md ${activeSidebar === 'search' ? 'text-[#0068FF] bg-[var(--hover-bg)]' : 'hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70'}`}
           >
@@ -200,8 +239,54 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat }: Cha
           >
             <StickerIcon size={20} />
           </button>
-          <button className="w-8 h-8 flex items-center justify-center rounded-md cursor-pointer text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] transition-all"><ImagePickerIcon size={20} /></button>
-          <button className="w-8 h-8 flex items-center justify-center rounded-md cursor-pointer text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] transition-all"><FilePickerIcon size={20} /></button>
+          <button
+            onClick={handleImageClick}
+            className="w-8 h-8 flex items-center justify-center rounded-md cursor-pointer text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] transition-all"
+          >
+            <ImagePickerIcon size={20} />
+          </button>
+          <input
+            type="file"
+            ref={imageInputRef}
+            onChange={handleImageChange}
+            accept="image/*"
+            className="hidden"
+          />
+          <div className="relative">
+            <button
+              onClick={handleFileIconClick}
+              className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer transition-all ${isFilePopoverOpen ? 'bg-[var(--hover-bg)] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}
+            >
+              <FilePickerIcon size={20} />
+            </button>
+            {/* Popover */}
+            {isFilePopoverOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsFilePopoverOpen(false)} />
+                <div className="absolute bottom-[calc(100%+14px)] left-0 bg-[var(--card-bg)] rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.15)] border border-[var(--border)] p-1.5 z-50 animate-in fade-in zoom-in-95 duration-200">
+                  <button
+                    onClick={handleFileClick}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--hover-bg)] rounded-lg transition-colors cursor-pointer whitespace-nowrap min-w-[160px]"
+                  >
+                    <div className="text-[var(--text)]">
+                      <FilePickerIcon size={20} />
+                    </div>
+                    <span className="text-[16px] font-medium text-[var(--text)]">Chọn File</span>
+                  </button>
+                  {/* Arrow */}
+                  <div className="absolute top-[calc(100%-1px)] left-4 w-4 h-4 overflow-hidden">
+                    <div className="w-2.5 h-2.5 bg-[var(--card-bg)] border-b border-r border-[var(--border)] rotate-45 -translate-y-1.5 mx-auto" />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+          />
           <button className="w-8 h-8 flex items-center justify-center rounded-md cursor-pointer text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] transition-all"><ScreenShotIcon size={20} /></button>
           <button className="w-8 h-8 flex items-center justify-center rounded-md cursor-pointer text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] transition-all"><BusinessCardIcon size={20} /></button>
           <button className="w-8 h-8 flex items-center justify-center rounded-md cursor-pointer text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] transition-all"><LightningIcon size={20} /></button>
@@ -251,7 +336,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat }: Cha
         </div>
       </div>
 
-      <NicknameModal 
+      <NicknameModal
         isOpen={isNicknameModalOpen}
         onClose={() => setIsNicknameModalOpen(false)}
         currentName={selectedChat.name}
