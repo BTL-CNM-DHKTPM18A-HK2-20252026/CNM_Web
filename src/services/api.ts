@@ -1,4 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 /**
  * Common API client for handling all network requests
@@ -27,7 +27,7 @@ export const apiClient = {
    */
   async request(endpoint: string, options: RequestInit = {}) {
     const url = `${BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-    
+
     const config = {
       ...options,
       headers: {

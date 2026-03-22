@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { Sidebar } from './Sidebar';
 import { ConversationList } from './ConversationList';
 import { ChatWindow } from './ChatWindow';
@@ -13,9 +14,10 @@ import { CreateGroupModal } from './CreateGroupModal';
 
 interface ChatDashboardProps {
   onLogout: () => void;
+  userName?: string;
 }
 
-export function ChatDashboard({ onLogout }: ChatDashboardProps) {
+export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('chat');
   const [contactCategory, setContactCategory] = useState('friends');
@@ -25,6 +27,18 @@ export function ChatDashboard({ onLogout }: ChatDashboardProps) {
   const [isAddFriendModalOpen, setIsAddFriendModalOpen] = useState(false);
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
   const [activeSidebar, setActiveSidebar] = useState<'info' | 'search' | null>('info');
+  const hasToasted = React.useRef(false);
+
+  useEffect(() => {
+    if (!hasToasted.current) {
+      toast(`Chào mừng bạn trở lại Fruvia Chat${userName ? `, ${userName}` : ''}!`, {
+        description: 'Chúc bạn có một ngày làm việc tuyệt vời. 👋',
+        icon: <span className="text-xl">✨</span>,
+        duration: 5000,
+      });
+      hasToasted.current = true;
+    }
+  }, [userName]);
 
   const conversations = [
     {
@@ -126,9 +140,9 @@ export function ChatDashboard({ onLogout }: ChatDashboardProps) {
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                     </div>
-                    <input 
-                      type="text" 
-                      placeholder="Nhập từ khóa để tìm kiếm" 
+                    <input
+                      type="text"
+                      placeholder="Nhập từ khóa để tìm kiếm"
                       className="w-full bg-[var(--card-bg)] border border-[var(--border)] rounded-md py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-[#0068FF] transition-all"
                     />
                   </div>

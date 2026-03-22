@@ -89,7 +89,7 @@ export default function Home() {
 
   // Show Chat Dashboard if logged in
   if (isLoggedIn) {
-    return <ChatDashboard onLogout={handleLogout} />;
+    return <ChatDashboard onLogout={handleLogout} userName={username} />;
   }
 
   // Show Login Screen

@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/Icons';
 import { useTranslation } from 'react-i18next';
 import { StickerPicker } from '@/components/common/StickerPicker';
+import { NicknameModal } from '@/components/common/NicknameModal';
 
 interface ChatWindowProps {
   onToggleSidebar: (type: 'info' | 'search') => void;
@@ -30,6 +31,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat }: Cha
   const [message, setMessage] = React.useState("");
   const [isPickerOpen, setIsPickerOpen] = React.useState(false);
   const [pickerTab, setPickerTab] = React.useState<'sticker' | 'emoji' | 'gif'>('sticker');
+  const [isNicknameModalOpen, setIsNicknameModalOpen] = React.useState(false);
 
   const handleSendMessage = () => {
     if (message.trim()) {
@@ -72,9 +74,19 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat }: Cha
               <img src={selectedChat.avatar} alt={selectedChat.name} className="w-full h-full object-cover" />
             </div>
           )}
-          <div className="min-w-0">
-            <h3 className="text-[15px] font-bold leading-none mb-1 text-[var(--text)] truncate">{selectedChat.name}</h3>
-            <p className="text-[11px] text-[var(--sub-text)] truncate">{selectedChat.isCloud ? t('chat.cloud_subheading') : 'Truy cập 2 giờ trước'}</p>
+          <div className="min-w-0 group/info cursor-pointer flex items-center gap-2">
+            <div>
+              <h3 className="text-[15px] font-bold leading-none mb-1 text-[var(--text)] truncate flex items-center gap-1.5">
+                {selectedChat.name}
+                <button 
+                  onClick={() => setIsNicknameModalOpen(true)}
+                  className="p-1 hover:bg-[var(--hover-bg)] rounded-md opacity-0 group-hover/info:opacity-100 transition-all text-gray-400 hover:text-[var(--text)]"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                </button>
+              </h3>
+              <p className="text-[11px] text-[var(--sub-text)] truncate">{selectedChat.isCloud ? t('chat.cloud_subheading') : 'Truy cập 2 giờ trước'}</p>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-5 text-[var(--sub-text)] pr-2 shrink-0">
@@ -161,13 +173,13 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat }: Cha
 
                   {/* Action buttons on hover */}
                   <div className={`flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity h-fit mt-1.5 ${msg.sender === 'Me' ? 'mr-2 flex-row-reverse' : 'ml-2'}`}>
-                    <button className="w-8 h-8 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] shadow-sm transition-all border border-[var(--border)]/20">
+                    <button className="w-8 h-8 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] shadow-sm transition-all border border-[var(--border)]/20 cursor-pointer">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
                     </button>
-                    <button className="w-8 h-8 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] shadow-sm transition-all border border-[var(--border)]/20">
+                    <button className="w-8 h-8 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] shadow-sm transition-all border border-[var(--border)]/20 cursor-pointer">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 10l5-5 5 5M8 6v8a4 4 0 004 4h9" /></svg>
                     </button>
-                    <button className="w-8 h-8 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] shadow-sm transition-all border border-[var(--border)]/20">
+                    <button className="w-8 h-8 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] shadow-sm transition-all border border-[var(--border)]/20 cursor-pointer">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>
                     </button>
                   </div>
@@ -238,6 +250,17 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat }: Cha
           </div>
         </div>
       </div>
+
+      <NicknameModal 
+        isOpen={isNicknameModalOpen}
+        onClose={() => setIsNicknameModalOpen(false)}
+        currentName={selectedChat.name}
+        avatar={selectedChat.avatar}
+        onConfirm={(newName) => {
+          console.log('Update nickname to:', newName);
+          // In a real app, we'd update state/API here.
+        }}
+      />
     </div>
   );
 }
