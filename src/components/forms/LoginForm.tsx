@@ -34,6 +34,10 @@ interface LoginFormProps {
   setSuccessMsg: (msg: string | null) => void;
   rememberMe?: boolean;
   setRememberMe?: (val: boolean) => void;
+  qrUuid?: string | null;
+  qrLoading?: boolean;
+  onRefreshQr?: () => void;
+  scannedUser?: { display_name: string; avatar_url: string } | null;
 }
 
 export function LoginForm({
@@ -67,6 +71,10 @@ export function LoginForm({
   setSuccessMsg,
   rememberMe,
   setRememberMe,
+  qrUuid,
+  qrLoading,
+  onRefreshQr,
+  scannedUser,
 }: LoginFormProps) {
   const { t } = useTranslation();
   const [isGenderOpen, setIsGenderOpen] = React.useState(false);
@@ -100,7 +108,7 @@ export function LoginForm({
   };
 
   return (
-    <div className="w-full max-w-[400px] overflow-hidden rounded-lg bg-[var(--card-bg)] border border-[var(--border)] shadow-xl animate-in fade-in zoom-in-95 duration-300">
+    <div suppressHydrationWarning className="w-full max-w-[400px] overflow-hidden rounded-lg bg-[var(--card-bg)] border border-[var(--border)] shadow-xl animate-in fade-in zoom-in-95 duration-300">
       <div className="flex border-b border-[var(--border)] uppercase">
         <button 
           onClick={() => { setLoginMethod('qr'); setError(null); setSuccessMsg(null); }} 
@@ -124,14 +132,81 @@ export function LoginForm({
 
       <div className="flex flex-col items-center p-8 pb-4 min-h-[340px]">
         {loginMethod === 'qr' ? (
-          <>
-            <div className="relative mb-6 flex h-64 w-64 items-center justify-center rounded-lg border-2 border-[var(--border)] p-2 cursor-pointer transition-transform hover:scale-102" onClick={() => onSubmit()}>
-              <div className="relative flex h-full w-full items-center justify-center bg-white p-2 rounded">
-                <QRCodeCanvas value="https://fruvia.chat" size={220} />
+          <div className="flex flex-col items-center animate-in fade-in zoom-in-95 duration-500">
+            {scannedUser ? (
+              // View when QR is already scanned by a mobile device
+              <div className="flex flex-col items-center gap-6 py-4">
+                <div className="relative group">
+                  <div className="absolute -inset-1 bg-gradient-to-tr from-[#0068FF] to-[#00C2FF] rounded-full blur opacity-5 transition duration-500"></div>
+                  <div className="relative h-28 w-28 rounded-full overflow-hidden border-[0.5px] border-black/10 dark:border-white/10 shadow-lg">
+                    <img 
+                      src={scannedUser.avatar_url || "/default/image1.jpg"} 
+                      alt={scannedUser.display_name}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                </div>
+                
+                <div className="text-center">
+                  <h3 className="text-xl font-semibold text-[var(--text)] mb-1 opacity-90">
+                    {scannedUser.display_name}
+                  </h3>
+                  <p className="text-sm text-[var(--sub-text)] font-medium opacity-70">
+                    Vui lòng xác nhận trên điện thoại
+                  </p>
+                </div>
+
+                <p className="text-xs text-[var(--sub-text)] text-center px-4 leading-relaxed opacity-60">
+                  Hãy ấn nút <strong>Cho phép</strong> trên ứng dụng Fruvia Mobile để hoàn tất đăng nhập.
+                </p>
+
+                <button 
+                  onClick={onRefreshQr}
+                  className="mt-6 text-sm text-[#0068FF]/80 font-semibold hover:underline flex items-center gap-1.5 cursor-pointer"
+                >
+                  <SparklesIcon size={14} />
+                  Đăng nhập bằng tài khoản khác
+                </button>
               </div>
-            </div>
-            <p className="mb-4 text-sm font-medium text-[var(--sub-text)]">{t('login.qr.hint')}</p>
-          </>
+            ) : (
+              // Standard QR scan view
+              <>
+                <div className="relative mb-6 flex h-64 w-64 items-center justify-center rounded-lg border-2 border-[var(--border)] p-2 cursor-pointer transition-transform hover:scale-102 overflow-hidden" onClick={onRefreshQr}>
+                  <div className={`relative flex h-full w-full items-center justify-center bg-white p-2 rounded transition-opacity duration-300 ${qrLoading ? 'opacity-20' : 'opacity-100'}`}>
+                    {qrUuid ? (
+                      <QRCodeCanvas value={`frv:auth:${qrUuid}`} size={220} />
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 text-gray-400">
+                        <svg className="animate-spin h-8 w-8 text-[#0068FF]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {(qrLoading || !qrUuid) && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[1px]">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="relative">
+                          <div className="w-12 h-12 rounded-full border-4 border-blue-100 border-t-[#0068FF] animate-spin"></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {qrUuid && !qrLoading && (
+                    <div className="absolute top-2 right-2 p-1.5 bg-white shadow-md rounded-full text-[#0068FF] hover:bg-blue-50 transition-colors" title="Làm mới QR" onClick={(e) => { e.stopPropagation(); onRefreshQr?.(); }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    </div>
+                  )}
+                </div>
+                <p className="mb-4 text-xs font-semibold text-[var(--sub-text)] text-center max-w-[240px] leading-tight">
+                  {qrLoading ? "Đang tạo mã QR..." : (t('login.qr.hint') || "Sử dụng ứng dụng Fruvia Mobile quét mã QR để đăng nhập")}
+                </p>
+              </>
+            )}
+          </div>
         ) : (
           <form onSubmit={onSubmit} className="w-full px-2">
             <h3 className="mb-8 text-center text-sm font-bold text-[var(--text)]">
@@ -321,8 +396,6 @@ export function LoginForm({
             <button type="submit" disabled={loading} className="mb-4 w-full cursor-pointer rounded-md bg-[#0068FF] py-3 text-sm font-bold text-white transition-all hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-500/20 disabled:bg-gray-300">
               {loading ? '...' : (loginMethod === 'phone' ? t('login.phone.submit') : 'Đăng ký tài khoản')}
             </button>
-
-
             
             <div className="flex flex-col gap-3 text-center">
               {loginMethod === 'phone' && (

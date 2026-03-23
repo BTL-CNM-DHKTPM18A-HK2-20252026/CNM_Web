@@ -87,5 +87,18 @@ export const authService = {
       console.error('Introspect Error:', error);
       throw error;
     }
+  },
+
+  /**
+   * Get a unique QR session UUID from the server
+   */
+  async getQrSession() {
+    try {
+      const result = await apiClient.get('/auth/qr-session');
+      return result.data; // UUID string
+    } catch (error) {
+      console.error('Get QR Session Error:', error);
+      throw error;
+    }
   }
 };

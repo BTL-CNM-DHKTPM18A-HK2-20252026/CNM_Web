@@ -31,6 +31,11 @@ const nextConfig: NextConfig = {
         hostname: 'stc-n6-zalo.zdn.vn',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'ui-avatars.com',
+        pathname: '/**',
+      },
     ],
   },
 };

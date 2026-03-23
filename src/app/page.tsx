@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { authService } from '@/services/authService';
 import { toast } from 'sonner';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 import '../i18n/config';
 import { useTheme } from '@/themes';
 import { SunIcon, MoonIcon } from '@/components/ui/Icons';
@@ -23,6 +25,7 @@ export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginMethod, setLoginMethod] = useState<'qr' | 'phone' | 'register'>('phone');
   const [isClient, setIsClient] = useState(false);
+  const [scannedUser, setScannedUser] = useState<{ display_name: string; avatar_url: string } | null>(null);
 
   // Form states
   const [username, setUsername] = useState('0901234567'); // phoneNumber (Ví dụ số hợp lệ)
@@ -39,6 +42,9 @@ export default function Home() {
   const [dob, setDob] = useState('2004-04-20');
   const [gender, setGender] = useState('Nam');
   const [rememberMe, setRememberMe] = useState(true);
+  const [stompClient, setStompClient] = useState<Client | null>(null);
+  const [qrUuid, setQrUuid] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -60,6 +66,98 @@ export default function Home() {
     const saved = localStorage.getItem('savedUsername');
     if (saved) setUsername(saved);
   }, []);
+
+  // Fetch QR Session when switching to QR method
+  useEffect(() => {
+    if (loginMethod === 'qr' && !qrUuid) {
+      fetchQrSession();
+    }
+  }, [loginMethod]);
+
+  const fetchQrSession = async () => {
+    setQrLoading(true);
+    setScannedUser(null); // Reset scanned user when refreshing QR
+    try {
+      const uuid = await authService.getQrSession();
+      setQrUuid(uuid);
+      // Start listening for WebSocket updates for this UUID
+      connectWebSocket(uuid);
+    } catch (err) {
+      console.error('Failed to fetch QR session:', err);
+      toast.error('Không thể lấy mã QR. Vui lòng thử lại.');
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
+  const connectWebSocket = (uuid: string) => {
+    // If there's an existing client, deactivate it first
+    if (stompClient) {
+      stompClient.deactivate();
+    }
+
+    const socket = new SockJS(`${process.env.NEXT_PUBLIC_API_BASE_URL}/ws`);
+    const client = new Client({
+      webSocketFactory: () => socket,
+      debug: (str) => {
+        if (process.env.NODE_ENV === 'development') console.log('STOMP:', str);
+      },
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+    });
+
+    client.onConnect = (frame) => {
+      console.log('Connected to WebSocket for QR login:', uuid);
+      client.subscribe(`/topic/qr-login/${uuid}`, (message) => {
+        try {
+          const result = JSON.parse(message.body);
+          
+          // Handle Scanned state (show user info before login)
+          if (result.message === 'SCANNED' && result.data) {
+            setScannedUser({
+              display_name: result.data.display_name,
+              avatar_url: result.data.avatar_url
+            });
+            return;
+          }
+
+          if (result.success && result.data && result.data.access_token) {
+            // Success! Store token and login
+            console.log('QR Login Success received via WebSocket');
+            const token = result.data.access_token;
+            const displayName = result.data.display_name || username;
+            
+            localStorage.setItem('accessToken', token);
+            setUsername(displayName);
+            setIsLoggedIn(true);
+          }
+        } catch (e) {
+          console.error('Error parsing QR login message:', e);
+        }
+      });
+    };
+
+    client.onStompError = (frame) => {
+      console.error('STOMP Error:', frame.headers['message']);
+    };
+
+    client.onWebSocketClose = () => {
+      console.log('WebSocket connection closed');
+    };
+
+    client.activate();
+    setStompClient(client);
+  };
+
+  // Cleanup WebSocket on unmount
+  useEffect(() => {
+    return () => {
+      if (stompClient) {
+        stompClient.deactivate();
+      }
+    };
+  }, [stompClient]);
 
   const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -98,13 +196,19 @@ export default function Home() {
       }
 
       if (loginMethod === 'phone') {
-        await authService.login(trimmedPhone, password);
+        const result = await authService.login(trimmedPhone, password);
+        const token = result.data.access_token;
+        const displayName = result.data.display_name || trimmedPhone;
+
+        setUsername(displayName);
+
         if (rememberMe) {
           localStorage.setItem('savedUsername', trimmedPhone);
         } else {
           localStorage.removeItem('savedUsername');
         }
         setIsLoggedIn(true);
+        // toast.success(`Chào mừng bạn trở lại, ${displayName}!`);
       } else if (loginMethod === 'register') {
         // 2. Email validation (for registration only)
         if (!validateEmail(trimmedEmail)) {
@@ -161,7 +265,14 @@ export default function Home() {
 
   const handleLogout = async () => {
     await authService.logout();
+    setScannedUser(null);
+    setLoginMethod('qr');
     setIsLoggedIn(false);
+    toast("Đã đăng xuất thành công", {
+      description: "Hẹn gặp lại bạn sớm! Chúc bạn một ngày tốt lành. 👋",
+      icon: <span className="text-xl">👋</span>,
+      duration: 4000,
+    });
   };
 
   // Prevent hydration mismatch
@@ -174,7 +285,7 @@ export default function Home() {
 
   // Show Login Screen
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[var(--background)] p-4 font-sans text-[var(--text)] transition-colors duration-300">
+    <div suppressHydrationWarning className="flex min-h-screen flex-col items-center justify-center bg-[var(--background)] p-4 font-sans text-[var(--text)] transition-colors duration-300">
       {/* Theme Switcher */}
       <div className="absolute top-6 right-6">
         <button
@@ -226,6 +337,10 @@ export default function Home() {
         setSuccessMsg={setSuccessMsg}
         rememberMe={rememberMe}
         setRememberMe={setRememberMe}
+        qrUuid={qrUuid}
+        qrLoading={qrLoading}
+        onRefreshQr={fetchQrSession}
+        scannedUser={scannedUser}
       />
 
       <p className="mt-8 text-xs text-gray-400 font-medium">
