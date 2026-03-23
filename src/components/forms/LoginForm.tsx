@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { QRCodeCanvas } from 'qrcode.react';
-import { EyeIcon, EyeOffIcon } from '@/components/ui/Icons';
+import { EyeIcon, EyeOffIcon, SparklesIcon } from '@/components/ui/Icons';
 
 interface LoginFormProps {
   loginMethod: 'qr' | 'phone' | 'register';
@@ -70,6 +70,34 @@ export function LoginForm({
 }: LoginFormProps) {
   const { t } = useTranslation();
   const [isGenderOpen, setIsGenderOpen] = React.useState(false);
+  
+  const handleGeneratePassword = () => {
+    const lowers = "abcdefghijklmnopqrstuvwxyz";
+    const uppers = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const numbers = "0123456789";
+    const specials = "!@#$%^&*";
+    const all = lowers + uppers + numbers + specials;
+    
+    let generated = "";
+    // Guaranteed diversity (2 of each)
+    for (let i = 0; i < 2; i++) {
+      generated += lowers.charAt(Math.floor(Math.random() * lowers.length));
+      generated += uppers.charAt(Math.floor(Math.random() * uppers.length));
+      generated += numbers.charAt(Math.floor(Math.random() * numbers.length));
+      generated += specials.charAt(Math.floor(Math.random() * specials.length));
+    }
+    // Add 4 more random to reach 12
+    for (let i = 0; i < 4; i++) {
+      generated += all.charAt(Math.floor(Math.random() * all.length));
+    }
+    // Shuffle the result
+    const shuffled = generated.split('').sort(() => Math.random() - 0.5).join('');
+    
+    setPassword(shuffled);
+    if (setConfirmPassword) setConfirmPassword(shuffled);
+    setShowPassword(true);
+    if (setShowConfirmPassword) setShowConfirmPassword(true);
+  };
 
   return (
     <div className="w-full max-w-[400px] overflow-hidden rounded-lg bg-[var(--card-bg)] border border-[var(--border)] shadow-xl animate-in fade-in zoom-in-95 duration-300">
@@ -131,7 +159,15 @@ export function LoginForm({
                 <div className="mb-6 flex flex-col">
                   <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">Email</span>
                   <div className="flex items-center border-b border-[var(--border)] py-2 focus-within:border-[#0068FF] transition-colors group">
-                    <span className="mr-3 text-gray-400 group-focus-within:text-[#0068FF] transition-colors"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>
+                    <span 
+                      className="mr-3 text-gray-400 group-focus-within:text-[#0068FF] transition-colors cursor-help hover:text-[#0068FF]" 
+                      title="Sử dụng định dạng email hợp lệ (ví dụ: user@example.com). Không dùng dấu chấm liên tiếp .."
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                        <polyline points="22,6 12,13 2,6"/>
+                      </svg>
+                    </span>
                     <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="example@email.com" className="w-full bg-transparent text-[13px] font-medium outline-none text-[var(--text)]" required />
                   </div>
                 </div>
@@ -195,13 +231,29 @@ export function LoginForm({
             )}
 
             <div className="mb-6 flex items-center border-b border-[var(--border)] py-2.5 focus-within:border-[#0068FF] transition-colors text-[var(--text)]">
-              <span className="mr-3 text-gray-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="14" height="20" x="5" y="2" rx="2" ry="2" /><path d="M12 18h.01" /></svg></span>
+              <span 
+                className="mr-3 text-gray-400 cursor-help transition-colors hover:text-[#0068FF]" 
+                title="Số điện thoại di động Việt Nam: Gồm 10 chữ số và bắt đầu bằng các đầu số: 03, 05, 07, 08, 09"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
+                  <path d="M12 18h.01" />
+                </svg>
+              </span>
               <span className="mr-2 text-sm font-bold">+84</span>
               <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder={t('login.phone.phone_placeholder')} className="w-full bg-transparent text-sm outline-none font-medium" required />
             </div>
             
-            <div className="mb-8 flex items-center border-b border-[var(--border)] py-2.5 relative focus-within:border-[#0068FF] transition-colors">
-              <span className="mr-3 text-gray-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></span>
+            <div className="mb-8 flex items-center border-b border-[var(--border)] py-2.5 relative focus-within:border-[#0068FF] transition-colors group/pwd">
+              <span 
+                className="mr-3 text-gray-400 cursor-help transition-colors hover:text-[#0068FF]" 
+                title="Mật khẩu mạnh: Ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt (!@#$%^&*)"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              </span>
               <input 
                 type={showPassword ? "text" : "password"} 
                 value={password} 
@@ -210,13 +262,25 @@ export function LoginForm({
                 className="w-full bg-transparent text-sm outline-none pr-10 text-[var(--text)]" 
                 required 
               />
-              <button 
-                type="button" 
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-0 text-gray-400 hover:text-[#0068FF] focus:outline-none cursor-pointer scale-90"
-              >
-                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-              </button>
+              <div className="absolute right-0 flex items-center gap-2">
+                {loginMethod === 'register' && (
+                  <button 
+                    type="button"
+                    onClick={handleGeneratePassword}
+                    className="text-gray-400 hover:text-[#0068FF] focus:outline-none cursor-pointer transition-colors"
+                    title="Tạo mật khẩu mạnh"
+                  >
+                    <SparklesIcon size={16} />
+                  </button>
+                )}
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-gray-400 hover:text-[#0068FF] focus:outline-none cursor-pointer scale-90 transition-colors"
+                >
+                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                </button>
+              </div>
             </div>
 
             {loginMethod === 'phone' && (
@@ -258,7 +322,7 @@ export function LoginForm({
               {loading ? '...' : (loginMethod === 'phone' ? t('login.phone.submit') : 'Đăng ký tài khoản')}
             </button>
 
-            {error && <p className="mb-4 text-center text-[13px] font-medium text-red-500 animate-in slide-in-from-top-1">{error}</p>}
+
             
             <div className="flex flex-col gap-3 text-center">
               {loginMethod === 'phone' && (

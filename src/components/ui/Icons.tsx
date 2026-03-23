@@ -286,3 +286,10 @@ export const GroupRequestIcon = ({ size = 22 }: { size?: number }) => (
     <path d="M12 21v-2a4 4 0 0 0-3-3.87M3 21v-2a4 4 0 0 1 3-3.87" /><circle cx="3" cy="7" r="4" /><circle cx="9" cy="11" r="3" /><path d="M17 14h5M19 11l3 3-3 3" />
   </svg>
 );
+
+export const SparklesIcon = ({ size = 18 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m12 3 1.912 4.913L18.825 9.825l-4.913 1.912L12 16.65l-1.912-4.913L5.175 9.825l4.913-1.912L12 3z" />
+    <path d="M5 3v4" /><path d="M3 5h4" /><path d="M21 17v4" /><path d="M19 19h4" />
+  </svg>
+);
