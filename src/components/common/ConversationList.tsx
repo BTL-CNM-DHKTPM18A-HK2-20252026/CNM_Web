@@ -72,12 +72,7 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
     { key: 'colleagues', color: '#0068FF' }, // Blue
   ];
 
-  const recentSearches: SearchItem[] = [
-    { id: 101, name: 'Trần Hồng Nhiên', avatar: 'https://picsum.photos/id/101/40/40' },
-    { id: 102, name: 'Mẹ', avatar: 'https://picsum.photos/id/102/40/40' },
-    { id: 103, name: 'CNM - Nhóm 10', isGroup: true, avatars: ['https://picsum.photos/id/103/20/20', 'https://picsum.photos/id/104/20/20', 'https://picsum.photos/id/105/20/20', 'https://picsum.photos/id/106/20/20'] },
-    { id: 108, name: 'Xuân Hồ', isInitial: true, initial: 'XH', bgColor: '#7C3AED' },
-  ];
+  const recentSearches: SearchItem[] = [];
 
   const toggleTag = (key: string) => {
     setSelectedTags(prev =>

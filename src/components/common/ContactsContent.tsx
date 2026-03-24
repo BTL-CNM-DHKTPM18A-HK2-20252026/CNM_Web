@@ -1,76 +1,121 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import { UserCircleIcon, MoreHorizontalIcon, SearchIcon, ChevronDownIcon, FriendsIcon, GroupsIcon, FriendRequestIcon, GroupRequestIcon } from '@/components/ui/Icons';
 import { useTranslation } from 'react-i18next';
+import { UserResponse } from '@/services/userService';
+import { friendService, FriendRequestResponse } from '@/services/friendService';
+import { toast } from 'sonner';
+import { useEffect } from 'react';
 
 interface ContactsContentProps {
   category: string;
 }
 
 export function ContactsContent({ category }: ContactsContentProps) {
-  const contacts = [
-    { id: 201, name: 'Ái Vy', avatar: 'https://picsum.photos/id/10/40/40', initial: 'A' },
-    { id: 202, name: 'Anh Đào', avatar: 'https://picsum.photos/id/11/40/40' },
-    { id: 203, name: 'Anh Thành chủ tro', avatar: 'https://picsum.photos/id/12/40/40' },
-    { id: 213, name: 'Anh Thư', avatar: 'https://picsum.photos/id/13/40/40' },
-    { id: 214, name: 'Băng Chẳng Năng', avatar: 'https://picsum.photos/id/14/40/40', initial: 'B' },
-    { id: 215, name: 'Bảo Duy', avatar: 'https://picsum.photos/id/15/40/40' },
-    { id: 216, name: 'Bảo Ngọc', avatar: 'https://picsum.photos/id/16/40/40' },
-    { id: 217, name: 'Bích Diễm', avatar: 'https://picsum.photos/id/17/40/40' },
-    { id: 204, name: 'Bình Pờ', avatar: 'https://picsum.photos/id/1/40/40' },
-    { id: 205, name: 'Bùi Ngọc Sang', avatar: 'https://picsum.photos/id/2/40/40' },
-    { id: 206, name: 'Bùi Tuấn Anh', avatar: 'https://picsum.photos/id/3/40/40' },
-    { id: 207, name: 'Cao Hoàng Minh Cơ', avatar: 'https://picsum.photos/id/4/40/40', initial: 'C' },
-    { id: 208, name: 'Chí Thiện', avatar: 'https://picsum.photos/id/5/40/40' },
-    { id: 209, name: 'Chí Trung', avatar: 'https://picsum.photos/id/6/40/40' },
-    { id: 210, name: 'Chiên Kê', avatar: 'https://picsum.photos/id/7/40/40' },
-  ];
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const groups = [
-    { id: 301, name: 'TTDN_HK2_2025_2026_T.HUNG', members: '7 thành viên', avatar: 'https://picsum.photos/id/101/40/40' },
-    { id: 302, name: 'SE_TTDN_HK2_2025_2026', members: '99 thành viên', avatar: 'https://picsum.photos/id/102/40/40' },
-    { id: 303, name: 'FIT_SE_KTPM_Khóa 18', members: '349 thành viên', avatar: 'https://picsum.photos/id/103/40/40' },
-    { id: 304, name: 'SHCN_DHKTPM18A', members: '75 thành viên', avatar: 'https://picsum.photos/id/104/40/40' },
-    { id: 305, name: 'Gia đình là số 1', members: '11 thành viên', avatar: 'https://picsum.photos/id/105/40/40' },
-    { id: 306, name: 'KTTKPM_DHKTPM18C_HK2_20252026', members: '69 thành viên', avatar: 'https://picsum.photos/id/106/40/40' },
-    { id: 307, name: 'TÒA NHÀ GV02', members: '46 thành viên', avatar: 'https://picsum.photos/id/107/40/40' },
-    { id: 308, name: 'TPP_TOEIC R&L: HỖ TRỢ HỌC VIÊN ĐẠT TARGET', members: '467 thành viên', avatar: 'https://picsum.photos/id/108/40/40' },
-    { id: 309, name: 'Phòng trọ 3H', members: '3 thành viên', avatar: 'https://picsum.photos/id/109/40/40' },
-    { id: 310, name: 'Dev KeToan', members: '6 thành viên', avatar: 'https://picsum.photos/id/110/40/40' },
-    { id: 311, name: 'Nhóm Kiến Trúc Phần Mềm', members: '8 thành viên', avatar: 'https://picsum.photos/id/111/40/40' },
-  ];
+  const [receivedInvites, setReceivedInvites] = useState<FriendRequestResponse[]>([]);
+  const [sentInvites, setSentInvites] = useState<FriendRequestResponse[]>([]);
+  const [friends, setFriends] = useState<UserResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const receivedInvites = [
-    { 
-      id: 1, 
-      name: 'Nguyễn Xuân Nam', 
-      date: '05/02', 
-      source: 'Từ nhóm trò chuyện', 
-      message: 'Xin chào, mình là Nguyễn Xuân Nam. Thấy bạn trong nhóm TTDN_HK2_2025_2026_T.HUNG nên mình muốn kết bạn!',
-      avatar: 'https://picsum.photos/id/64/80/80'
-    },
-    { 
-      id: 2, 
-      name: 'Lê Anh Tuấn', 
-      date: '30/12/23', 
-      source: 'Từ nhóm trò chuyện', 
-      message: 'Xin chào, mình là Lê Anh Tuấn. Mình biết bạn qua nhóm chung. Kết bạn với mình nhé!',
-      avatar: 'https://picsum.photos/id/65/80/80'
-    }
-  ];
-
-  const sentInvites = [
-    { id: 11, name: 'Trương Hải', date: '7 ngày', avatar: 'https://picsum.photos/id/66/80/80' },
-    { id: 12, name: 'Hùng Phạm', date: '05/02', avatar: 'https://picsum.photos/id/67/80/80' },
-    { id: 13, name: 'Nguyễn Trọng Tiến', date: 'Bạn đã gửi lời mời', avatar: 'https://picsum.photos/id/68/80/80' },
-  ];
+  const groups: any[] = [];
 
   const isFriends = category === 'friends';
   const isInvites = category === 'invites';
   const isGroups = category === 'groups';
 
   const title = isFriends ? 'Danh sách bạn bè' : isGroups ? 'Danh sách nhóm và cộng đồng' : isInvites ? 'Lời mời kết bạn' : 'Lời mời vào nhóm và cộng đồng';
-  const countLabel = isFriends ? `Bạn bè (${contacts.length})` : isGroups ? `Nhóm và cộng đồng (${groups.length})` : '';
+  const countLabel = isFriends ? `Bạn bè (${friends.length})` : isGroups ? `Nhóm và cộng đồng (${groups.length})` : '';
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
+  /**
+   * Fetch Invitations
+   */
+  const fetchInvitations = async () => {
+    if (category !== 'invites') return;
+
+    setIsLoading(true);
+    try {
+      const [received, sent] = await Promise.all([
+        friendService.getReceivedRequests(),
+        friendService.getSentRequests()
+      ]);
+      setReceivedInvites(received);
+      setSentInvites(sent);
+    } catch (err) {
+      console.error("Failed to fetch invitations:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Fetch Friends
+   */
+  const fetchFriends = async () => {
+    if (category !== 'friends') return;
+    setIsLoading(true);
+    try {
+      const list = await friendService.getFriends();
+      setFriends(list);
+    } catch (err) {
+      console.error("Failed to fetch friends:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (category === 'invites') {
+      fetchInvitations();
+    } else if (category === 'friends') {
+      fetchFriends();
+    }
+  }, [category]);
+
+  const handleAccept = async (requestId: string) => {
+    try {
+      await friendService.acceptRequest(requestId);
+      toast.success("Đã chấp nhận lời mời kết bạn");
+      fetchInvitations();
+    } catch (err: any) {
+      toast.error(err.message || "Thao tác thất bại");
+    }
+  };
+
+  const handleReject = async (requestId: string) => {
+    try {
+      await friendService.rejectRequest(requestId);
+      toast.success("Đã từ chối lời mời kết bạn");
+      fetchInvitations();
+    } catch (err: any) {
+      toast.error(err.message || "Thao tác thất bại");
+    }
+  };
+
+  const [showAllSent, setShowAllSent] = useState(false);
+
+  const handleRecall = async (userId: string) => {
+    try {
+      await friendService.unfriend(userId);
+      toast.success("Đã thu hồi lời mời");
+      fetchInvitations();
+    } catch (err: any) {
+      toast.error(err.message || "Thao tác thất bại");
+    }
+  };
+
+  // Local filtering logic
+  const filteredData = (isFriends ? friends : groups).filter((item: any) => {
+    const name = (item.display_name || item.full_name || item.name || "").toLowerCase();
+    const phone = (item.phone_number || "").toLowerCase();
+    const search = searchTerm.toLowerCase();
+    return name.includes(search) || phone.includes(search);
+  });
 
   return (
     <div className="flex-1 flex flex-col bg-[var(--background)] transition-colors duration-200 overflow-hidden">
@@ -95,139 +140,197 @@ export function ContactsContent({ category }: ContactsContentProps) {
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {isInvites ? (
           <div className="p-4 space-y-6 w-full">
-            {/* 1. Lời mời đã nhận */}
-            <section>
-              <h3 className="text-[14px] font-bold text-[var(--text)] mb-3 px-1 flex items-center gap-1.5 opacity-90">
-                Lời mời đã nhận ({receivedInvites.length})
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {receivedInvites.map(req => (
-                  <div key={req.id} className="bg-[var(--card-bg)] rounded-lg border border-[var(--border)] shadow-sm p-4 flex flex-col gap-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex gap-3">
-                        <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-black/5">
-                           <Image src={req.avatar} alt={req.name} width={48} height={48} className="object-cover" />
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-[15px] font-bold text-[var(--text)]">{req.name}</span>
-                          <span className="text-[12px] text-[var(--sub-text)] mt-0.5">{req.date} - {req.source}</span>
-                        </div>
-                      </div>
-                      <button className="text-[var(--sub-text)] hover:text-blue-500 p-1"><MoreHorizontalIcon size={18} /></button>
-                    </div>
-                    
-                    <div className="bg-[var(--hover-bg)] p-3 rounded-lg text-[13.5px] text-[var(--text)] leading-relaxed">
-                      {req.message}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 mt-1">
-                      <button className="py-2 bg-[var(--hover-bg)] hover:opacity-80 text-[var(--text)] font-bold rounded-md transition-all text-[14px] cursor-pointer">
-                        Từ chối
-                      </button>
-                      <button className="py-2 bg-[#0068FF] hover:bg-[#005AE0] text-white font-bold rounded-md transition-all text-[14px] cursor-pointer">
-                        Đồng ý
-                      </button>
-                    </div>
+            {receivedInvites.length === 0 && sentInvites.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24">
+                <div className="w-40 h-40 mb-6 relative flex items-center justify-center">
+                  <div className="absolute inset-0 bg-blue-50/50 rounded-full blur-2xl opacity-60"></div>
+                  <div className="relative z-10 p-6 bg-blue-50/40 rounded-full border border-blue-100/50">
+                    <FriendRequestIcon size={48} className="text-blue-500/50" />
                   </div>
-                ))}
+                </div>
+                <p className="text-[15px] font-bold text-[var(--text)] opacity-40">Không có lời mời nào</p>
+                <p className="text-[13px] text-[var(--sub-text)] mt-1 opacity-50 px-8 text-center">Các lời mời kết bạn sẽ hiển thị tại đây.</p>
               </div>
-            </section>
+            ) : (
+              <>
+                {receivedInvites.length > 0 && (
+                  <section>
+                    <h3 className="text-[14px] font-bold text-[var(--text)] mb-3 px-1 flex items-center gap-1.5 opacity-90">
+                      Lời mời đã nhận ({receivedInvites.length})
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {receivedInvites.map(req => (
+                        <div key={req.requestId} className="bg-[var(--card-bg)] rounded-lg border border-[var(--border)] shadow-sm p-4 flex flex-col gap-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex gap-3">
+                              <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-black/5 flex items-center justify-center bg-blue-50">
+                                {req.senderAvatarUrl ? (
+                                  <Image src={req.senderAvatarUrl} alt={req.senderName} width={48} height={48} className="object-cover" />
+                                ) : (
+                                  <span className="text-blue-600 font-bold text-lg">{req.senderName.charAt(0)}</span>
+                                )}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-[15px] font-bold text-[var(--text)]">{req.senderName}</span>
+                                <span className="text-[12px] text-[var(--sub-text)] mt-0.5">{new Date(req.createdAt).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                            <button className="text-[var(--sub-text)] hover:text-blue-500 p-1 cursor-pointer"><MoreHorizontalIcon size={18} /></button>
+                          </div>
 
-            {/* 2. Lời mời đã gửi */}
-            <section>
-              <h3 className="text-[14px] font-bold text-[var(--text)] mb-3 px-1 flex items-center gap-1.5 opacity-90">
-                Lời mời đã gửi (11)
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {sentInvites.map(req => (
-                  <div key={req.id} className="bg-[var(--card-bg)] rounded-lg border border-[var(--border)] shadow-sm p-4 flex flex-col gap-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex gap-3">
-                        <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-black/5">
-                           <Image src={req.avatar} alt={req.name} width={48} height={48} className="object-cover" />
+                          <div className="bg-[var(--hover-bg)] p-3 rounded-lg text-[13.5px] text-[var(--text)] leading-relaxed">
+                            {"Xin chào, kết bạn với mình nhé!"}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 mt-1">
+                            <button
+                              onClick={() => handleReject(req.requestId)}
+                              className="py-2 bg-[var(--hover-bg)] hover:opacity-80 text-[var(--text)] font-bold rounded-md transition-all text-[14px] cursor-pointer"
+                            >
+                              Từ chối
+                            </button>
+                            <button
+                              onClick={() => handleAccept(req.requestId)}
+                              className="py-2 bg-[#0068FF] hover:bg-[#005AE0] text-white font-bold rounded-md transition-all text-[14px] cursor-pointer"
+                            >
+                              Đồng ý
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-[15px] font-bold text-[var(--text)]">{req.name}</span>
-                          <span className="text-[12px] text-[var(--sub-text)] mt-0.5">{req.date}</span>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {sentInvites.length > 0 && (
+                  <section>
+                    <h3 className="text-[14px] font-bold text-[var(--text)] mb-3 px-1 flex items-center gap-1.5 opacity-90">
+                      Lời mời đã gửi ({sentInvites.length})
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {(showAllSent ? sentInvites : sentInvites.slice(0, 6)).map(req => (
+                        <div key={req.requestId} className="bg-[var(--card-bg)] rounded-lg border border-[var(--border)] shadow-sm p-4 flex flex-col gap-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex gap-3">
+                              <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-black/5 flex items-center justify-center bg-gray-50">
+                                {req.receiverAvatarUrl ? (
+                                  <Image src={req.receiverAvatarUrl} alt={req.receiverName} width={48} height={48} className="object-cover" />
+                                ) : (
+                                  <span className="text-gray-500 font-bold text-lg">{req.receiverName.charAt(0)}</span>
+                                )}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-[15px] font-bold text-[var(--text)]">{req.receiverName}</span>
+                                <span className="text-[12px] text-[var(--sub-text)] mt-0.5">Bạn đã gửi lời mời</span>
+                                <span className="text-[11px] text-[var(--sub-text)] opacity-60 underline italic">{new Date(req.createdAt).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                            <button className="text-[var(--sub-text)] hover:text-blue-500 p-1 cursor-pointer"><MoreHorizontalIcon size={18} /></button>
+                          </div>
+
+                          <button
+                            onClick={() => handleRecall(req.receiverId)}
+                            className="w-full py-2 bg-[var(--hover-bg)] hover:bg-red-50 hover:text-red-500 text-[var(--text)] font-bold rounded-md transition-all text-[14px] cursor-pointer border border-transparent hover:border-red-100"
+                          >
+                            Thu hồi lời mời
+                          </button>
                         </div>
-                      </div>
-                      <button className="text-[var(--sub-text)] hover:text-blue-500 p-1"><MoreHorizontalIcon size={18} /></button>
+                      ))}
                     </div>
 
-                    <button className="w-full py-2 bg-[var(--hover-bg)] hover:opacity-80 text-[var(--text)] font-bold rounded-md transition-all text-[14px] cursor-pointer">
-                      Thu hồi lời mời
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className="flex justify-center mt-6">
-                 <button className="px-6 py-1.5 bg-[var(--hover-bg)] hover:opacity-80 text-[var(--text)] font-bold rounded-md transition-all text-[13px] cursor-pointer">
-                   Xem thêm
-                 </button>
-              </div>
-            </section>
+                    {sentInvites.length > 6 && (
+                      <div className="flex justify-center mt-6">
+                        <button 
+                          onClick={() => setShowAllSent(!showAllSent)}
+                          className="px-6 py-1.5 bg-[#E9EBED] hover:bg-[#D8DADF] text-[#081C36] font-bold rounded-[4px] text-[13.5px] transition-all cursor-pointer border border-black/5 active:scale-95"
+                        >
+                          {showAllSent ? 'Thu gọn' : 'Xem thêm'}
+                        </button>
+                      </div>
+                    )}
+                  </section>
+                )}
+              </>
+            )}
 
-            {/* 3. Gợi ý kết bạn */}
-            <section className="pt-4">
-               <div className="flex items-center gap-2 px-1 cursor-pointer group">
-                  <h3 className="text-[14px] font-bold text-[var(--text)] opacity-90">Gợi ý kết bạn (41)</h3>
-                  <span className="text-[var(--sub-text)] group-hover:translate-x-1 transition-transform">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m9 18 6-6-6-6"/></svg>
-                  </span>
-               </div>
+            <section className="pt-8 pb-4">
+              <div className="flex items-center gap-2 px-1 cursor-pointer group opacity-40 hover:opacity-100 transition-opacity">
+                <h3 className="text-[14px] font-bold text-[var(--text)]">Gợi ý kết bạn (0)</h3>
+                <span className="text-[var(--sub-text)] group-hover:translate-x-1 transition-transform">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m9 18 6-6-6-6" /></svg>
+                </span>
+              </div>
             </section>
           </div>
         ) : (
-          /* FRIENDS / GROUPS LIST */
           <div className="flex flex-col h-full">
-            {/* SUB-HEADER (Count) */}
             <div className="bg-[var(--background)] py-4 px-6 flex-shrink-0 border-b border-black/5">
               <span className="text-[var(--text)] font-semibold text-[15.5px]">{countLabel}</span>
             </div>
 
             <div className="flex-1 flex flex-col bg-[var(--card-bg)] overflow-hidden mx-4 mb-4 rounded-xl border border-[var(--border)] shadow-sm">
-              {/* FILTERS AREA */}
               <div className="px-6 py-4 flex items-center gap-3">
                 <div className="relative flex-1">
                   <input
                     type="text"
-                    placeholder={isFriends ? "Tìm bạn" : "Tìm kiếm..."}
+                    value={searchTerm}
+                    onChange={handleInputChange}
+                    placeholder={isFriends ? "Tìm nhanh danh sách bạn bè" : "Tìm kiếm..."}
                     className="w-full bg-[var(--card-bg)] hover:bg-[var(--hover-bg)] focus:bg-[var(--card-bg)] border border-[var(--border)] rounded-lg py-1.5 pl-9 pr-3 text-[14px] text-[var(--text)] outline-none transition-all placeholder:text-[var(--search-placeholder)] focus:border-[#0068FF] shadow-sm"
                   />
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--sub-text)]"><SearchIcon size={16} /></div>
                 </div>
 
-                <button className="flex items-center gap-2 px-3 py-1.5 bg-[var(--card-bg)] border border-[var(--border)] rounded-lg text-[13px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-all cursor-pointer shadow-sm min-w-[120px] focus:border-[#0068FF] outline-none">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 16 4 4 4-4" /><path d="M7 20V4" /><path d="m21 8-4-4-4 4" /><path d="M17 4v16" /></svg>
-                  <span className="font-medium">{isFriends ? 'Tên (A-Z)' : 'Hoạt động (mới — cũ)'}</span>
-                  <span className="text-[var(--sub-text)] ml-auto"><ChevronDownIcon size={14} /></span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button className="flex items-center gap-2 px-3 py-1.5 bg-[var(--card-bg)] border border-[var(--border)] rounded-lg text-[13px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-all cursor-pointer shadow-sm min-w-[120px] focus:border-[#0068FF] outline-none">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 16 4 4 4-4" /><path d="M7 20V4" /><path d="m21 8-4-4-4 4" /><path d="M17 4v16" /></svg>
+                    <span className="font-medium">{isFriends ? 'Tên (A-Z)' : 'Hoạt động (mới — cũ)'}</span>
+                    <span className="text-[var(--sub-text)] ml-auto"><ChevronDownIcon size={14} /></span>
+                  </button>
 
-                <button className="flex items-center gap-2 px-3 py-1.5 bg-[var(--card-bg)] border border-[var(--border)] rounded-lg text-[13px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-all cursor-pointer shadow-sm min-w-[100px] focus:border-[#0068FF] outline-none">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
-                  <span className="font-medium">Tất cả</span>
-                  <span className="text-[var(--sub-text)] ml-auto"><ChevronDownIcon size={14} /></span>
-                </button>
+                  <button className="flex items-center gap-2 px-3 py-1.5 bg-[var(--card-bg)] border border-[var(--border)] rounded-lg text-[13px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-all cursor-pointer shadow-sm min-w-[100px] focus:border-[#0068FF] outline-none">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
+                    <span className="font-medium">Tất cả</span>
+                    <span className="text-[var(--sub-text)] ml-auto"><ChevronDownIcon size={14} /></span>
+                  </button>
+                </div>
               </div>
 
-              {/* CONTENT LIST */}
               <div className="flex-1 overflow-y-auto custom-scrollbar">
-                {(isFriends ? contacts : groups).map((item: any) => {
-                  return (
-                    <React.Fragment key={item.id}>
-                      {isFriends && item.initial && (
-                        <div className="px-6 text-[var(--text)] font-bold text-[14px] mb-2 mt-4 uppercase tracking-wider opacity-80">
-                          {item.initial}
-                        </div>
-                      )}
+                {filteredData.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-32">
+                    <div className="w-32 h-32 mb-6 relative flex items-center justify-center">
+                      <div className="absolute inset-0 bg-blue-50/50 rounded-full blur-2xl opacity-60"></div>
+                      <div className="relative z-10 p-5 bg-blue-50/40 rounded-full border border-blue-100/50">
+                        {isFriends ? (
+                          <UserCircleIcon size={40} className="text-blue-500/50" />
+                        ) : (
+                          <GroupsIcon size={40} className="text-blue-500/50" />
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-[14px] font-bold text-[var(--text)] opacity-40">
+                      {searchTerm ? 'Không tìm thấy kết quả' : (isFriends ? 'Chưa có bạn bè' : 'Chưa tham gia nhóm')}
+                    </p>
+                  </div>
+                ) : (
+                  filteredData.map((item: any) => {
+                    const name = item.display_name || item.full_name || item.name;
+                    const avatar = item.avatar_url || item.avatar;
+                    const id = item.user_id || item.id;
 
-                      <div className={`mx-2 my-1 rounded-lg flex items-center group py-4 px-4 transition-all cursor-pointer hover:bg-[var(--active-bg)]`}>
-                        <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 mr-4 border border-black/5 shadow-sm">
-                          <Image src={item.avatar} alt={item.name} width={48} height={48} className="object-cover" />
+                    return (
+                      <div key={id} className={`mx-2 my-1 rounded-lg flex items-center group py-4 px-4 transition-all cursor-pointer hover:bg-[var(--active-bg)]`}>
+                        <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 mr-4 border border-black/5 shadow-sm bg-blue-50 flex items-center justify-center">
+                          {avatar ? (
+                            <Image src={avatar} alt={name} width={48} height={48} className="object-cover" />
+                          ) : (
+                            <span className="text-blue-600 font-bold text-lg">{name?.charAt(0)}</span>
+                          )}
                         </div>
 
                         <div className="flex-1 flex flex-col justify-center min-w-0 pr-4">
-                          <span className={`text-[15.5px] truncate leading-snug text-[var(--text)] font-semibold`}>{item.name}</span>
+                          <span className={`text-[15.5px] truncate leading-snug text-[var(--text)] font-semibold`}>{name}</span>
                           {!isFriends && <span className="text-[12.5px] text-[var(--sub-text)] font-medium leading-snug">{item.members}</span>}
                         </div>
 
@@ -235,9 +338,9 @@ export function ContactsContent({ category }: ContactsContentProps) {
                           <MoreHorizontalIcon size={20} />
                         </button>
                       </div>
-                    </React.Fragment>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>

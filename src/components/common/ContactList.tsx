@@ -5,9 +5,11 @@ import { useTranslation } from 'react-i18next';
 interface ContactListProps {
   selectedCategory: string;
   onSelectCategory: (category: string) => void;
+  onAddFriend?: () => void;
+  onCreateGroup?: () => void;
 }
 
-export function ContactList({ selectedCategory, onSelectCategory }: ContactListProps) {
+export function ContactList({ selectedCategory, onSelectCategory, onAddFriend, onCreateGroup }: ContactListProps) {
   const { t } = useTranslation();
 
   const categories = [
@@ -30,8 +32,18 @@ export function ContactList({ selectedCategory, onSelectCategory }: ContactListP
           <div className="absolute left-3 text-gray-400"><SearchIcon size={16} /></div>
         </div>
         <div className="flex items-center gap-1">
-          <button className="p-1.5 cursor-pointer hover:bg-[var(--hover-bg)] text-[var(--text)] opacity-70 rounded-md transition-colors"><AddUserIcon size={20} /></button>
-          <button className="p-1.5 cursor-pointer hover:bg-[var(--hover-bg)] text-[var(--text)] opacity-70 rounded-md transition-colors"><CreateGroupIcon size={22} /></button>
+          <button 
+            onClick={onAddFriend}
+            className="p-1.5 cursor-pointer hover:bg-[var(--hover-bg)] text-[var(--text)] opacity-70 rounded-md transition-colors"
+          >
+            <AddUserIcon size={20} />
+          </button>
+          <button 
+            onClick={onCreateGroup}
+            className="p-1.5 cursor-pointer hover:bg-[var(--hover-bg)] text-[var(--text)] opacity-70 rounded-md transition-colors"
+          >
+            <CreateGroupIcon size={22} />
+          </button>
         </div>
       </div>
 

@@ -197,8 +197,9 @@ export default function Home() {
 
       if (loginMethod === 'phone') {
         const result = await authService.login(trimmedPhone, password);
-        const token = result.data.access_token;
-        const displayName = result.data.display_name || trimmedPhone;
+        // Cleaned up: result is now the data payload directly
+        const token = result.access_token;
+        const displayName = result.display_name || trimmedPhone;
 
         setUsername(displayName);
 

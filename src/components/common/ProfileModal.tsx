@@ -4,7 +4,6 @@ import Image from 'next/image';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { apiClient } from '@/services/api';
-import { log } from 'console';
 import { useRef } from 'react';
 
 const XIcon = ({ size = 20 }: { size?: number }) => (
@@ -90,9 +89,12 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
         try {
           const response = await apiClient.get('/users/me');
 
-          if (response && response.success && response.data) {
-            const data = response.data;
-            console.log(data)
+          // Handle both wrapped and unwrapped response for backward compatibility
+          // although our current apiClient already unwraps successful data
+          const data = (response && response.success && response.data) ? response.data : response;
+
+          if (data && (data.full_name || data.id || data.phone_number)) {
+            console.log("Profile data loaded:", data);
             setUserName(data.full_name || "");
             setUserId(data.id || "");
             setAvatarUrl(data.avatar_url || "");
@@ -538,7 +540,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
                 <div className="w-[80px] h-[80px] rounded-full border-[3px] border-[var(--card-bg)] overflow-hidden bg-[var(--card-bg)] shadow-md relative">
                   <Image src={currentAvatar} fill alt="Avatar" className="object-cover" sizes="80px" />
                 </div>
-                <button 
+                <button
                   onClick={() => setIsAvatarMenuOpen(!isAvatarMenuOpen)}
                   className="absolute bottom-0 right-0 w-[30px] h-[30px] bg-[var(--hover-bg)] rounded-full flex items-center justify-center text-[var(--sub-text)] border border-[var(--card-bg)] hover:opacity-80 transition-colors cursor-pointer shadow-sm z-10"
                 >
@@ -548,25 +550,25 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
                 {/* Avatar Action Menu */}
                 {isAvatarMenuOpen && (
                   <div className="absolute top-full left-0 mt-2 w-48 bg-[var(--card-bg)] border border-[var(--border)] rounded-lg shadow-xl z-20 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                    <button 
+                    <button
                       onClick={() => setIsSystemAvatarPickerOpen(true)}
                       className="w-full px-4 py-2.5 text-left text-[14px] hover:bg-[var(--hover-bg)] transition-colors text-[var(--text)] font-medium flex items-center gap-2 cursor-pointer"
                     >
                       <GlobeIcon size={16} />
                       Avatar hệ thống
                     </button>
-                    <button 
+                    <button
                       onClick={() => fileInputRef.current?.click()}
                       className="w-full px-4 py-2.5 text-left text-[14px] hover:bg-[var(--hover-bg)] transition-colors text-[var(--text)] font-medium flex items-center gap-2 cursor-pointer"
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
                       Avatar từ máy
                     </button>
-                    <input 
-                      type="file" 
-                      ref={fileInputRef} 
-                      className="hidden" 
-                      accept="image/*" 
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      accept="image/*"
                       onChange={handleFileChange}
                     />
                   </div>
@@ -608,8 +610,8 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
             </div>
 
             {/* Added Update Button at bottom like first screenshot showed earlier, 
-                but I'll also allow clicking the pencil. 
-                Wait, if the user only showed the second screen for updating, I'll stick to that. */}
+                  but I'll also allow clicking the pencil. 
+                  Wait, if the user only showed the second screen for updating, I'll stick to that. */}
             <div className="mt-6 pt-2">
               <button
                 onClick={() => setIsEditing(true)}
@@ -628,7 +630,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
           <div className="bg-[var(--card-bg)] w-[400px] rounded-xl shadow-2xl overflow-hidden border border-[var(--border)]">
             <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
               <h3 className="font-bold text-[var(--text)]">Chọn avatar hệ thống</h3>
-              <button 
+              <button
                 onClick={() => setIsSystemAvatarPickerOpen(false)}
                 className="p-1 hover:bg-[var(--hover-bg)] rounded-full transition-colors cursor-pointer text-[var(--sub-text)]"
               >
@@ -637,7 +639,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
             </div>
             <div className="p-4 grid grid-cols-4 gap-3 bg-[var(--background)]">
               {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                <button 
+                <button
                   key={i}
                   onClick={() => handleSystemAvatarSelect(`/default/image${i}.jpg`)}
                   className="relative aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-[#0068FF] transition-all cursor-pointer group shadow-sm bg-white dark:bg-gray-800"

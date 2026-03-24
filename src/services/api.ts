@@ -38,14 +38,35 @@ export const apiClient = {
 
     try {
       const response = await fetch(url, config);
-      const result = await response.json();
+
+      // Handle 204 No Content
+      if (response.status === 204) {
+        return { success: true };
+      }
+
+      // Read text first to check if empty
+      const text = await response.text();
+      const result = text ? JSON.parse(text) : { success: true };
 
       if (!response.ok) {
-        // Handle unauthorized or other errors globally if needed
-        if (response.status === 401 && typeof window !== 'undefined') {
-          // localStorage.removeItem('accessToken'); // Auto logout on 401
+        // Auto logout on 401 (Unauthorized) or 404 on profile endpoint (User no longer exists in DB)
+        if (typeof window !== 'undefined' && (response.status === 401 || (response.status === 404 && endpoint.includes('/users/me')))) {
+          console.warn("Session expired or user not found. Logging out...");
+          localStorage.removeItem('accessToken');
+          // Optional: trigger a full page reload or a custom event to update app state
+          if (endpoint.includes('/users/me')) {
+            window.location.href = '/'; // Simple hard redirect to login
+          }
         }
         throw new Error(result.message || `Request failed with status ${response.status}`);
+      }
+
+      // If backend uses ApiResponse wrapper, return the data field
+      if (result && typeof result === 'object' && 'success' in result) {
+        if (!result.success) {
+           throw new Error(result.message || "Request failed");
+        }
+        return result.data !== undefined ? result.data : result;
       }
 
       return result;

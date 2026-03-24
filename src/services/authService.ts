@@ -10,9 +10,9 @@ export const authService = {
     try {
       const result = await apiClient.post('/auth/login', { username, password });
 
-      // Temporarily store access token in localStorage
-      if (result.data && result.data.access_token) {
-        localStorage.setItem('accessToken', result.data.access_token);
+      // Cleaned up: result is already the data field from ApiResponse
+      if (result && result.access_token) {
+        localStorage.setItem('accessToken', result.access_token);
       }
 
       return result;
@@ -55,7 +55,7 @@ export const authService = {
   async checkPhoneNumber(phoneNumber: string) {
     try {
       const result = await apiClient.post('/auth/check-phone-number', { phoneNumber });
-      return result.data; // boolean
+      return result; // result is the boolean data
     } catch (error) {
       console.error('Check Phone Error:', error);
       throw error;
@@ -69,7 +69,7 @@ export const authService = {
   async register(data: { phoneNumber: string; email: string; password: string; displayName: string; firstName?: string; lastName?: string; dob?: Date; gender?: string }) {
     try {
       const result = await apiClient.post('/users', data);
-      return result.data;
+      return result; 
     } catch (error) {
       console.error('Registration Error:', error);
       throw error;
@@ -82,7 +82,7 @@ export const authService = {
   async introspect(token: string) {
     try {
       const result = await apiClient.post('/auth/introspect', { accessToken: token });
-      return result.data; // IntrospectResponse { valid: boolean }
+      return result; // IntrospectResponse { valid: boolean }
     } catch (error) {
       console.error('Introspect Error:', error);
       throw error;
@@ -95,7 +95,7 @@ export const authService = {
   async getQrSession() {
     try {
       const result = await apiClient.get('/auth/qr-session');
-      return result.data; // UUID string
+      return result; // UUID string
     } catch (error) {
       console.error('Get QR Session Error:', error);
       throw error;
