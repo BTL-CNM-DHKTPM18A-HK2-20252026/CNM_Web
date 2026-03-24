@@ -4,7 +4,7 @@ import { SearchIcon, AddUserIcon, PinIcon, ImagePickerIcon, CreateGroupIcon, Che
 import Image from 'next/image';
 
 interface Conversation {
-  id: number;
+  id: string | number;
   name: string;
   lastMsg: string;
   time: string;
@@ -12,13 +12,14 @@ interface Conversation {
   pinned?: boolean;
   isCloud?: boolean;
   avatar?: string;
+  unreadCount?: number;
 }
 
 interface ConversationListProps {
   conversations: Conversation[];
   onAddFriend: () => void;
   onCreateGroup: () => void;
-  onSelectConversation: (id: number) => void;
+  onSelectConversation: (id: string | number) => void;
 }
 
 interface SearchItem {
@@ -349,24 +350,16 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
                   </div>
                 </div>
                 <div className="flex justify-between items-center h-5">
-                  <div className={`text-[13px] flex items-center gap-1.5 truncate ${conv.active ? 'text-[var(--text)] font-semibold' : 'text-[#708090] font-medium'}`}>
-                    {conv.isCloud ? (
-                      <>
-                        <span className="shrink-0">Bạn:</span>
-                        <div className="shrink-0"><ImagePickerIcon size={16} /></div>
-                        <span className="truncate">Hình ảnh</span>
-                      </>
-                    ) : (
-                      <span className="truncate">{conv.lastMsg}</span>
-                    )}
+                  <div className={`text-[13px] flex items-center gap-1.5 truncate ${conv.unreadCount && conv.unreadCount > 0 ? 'text-[var(--text)] font-semibold' : 'text-[#708090]'}`}>
+                    <span className="truncate">{conv.lastMsg}</span>
                   </div>
 
-                  {/* Unread Badge (Mocking values from image) */}
-                  {(conv.id === 1 || conv.id === 2 || conv.id === 4 || conv.id === 7) && (
-                    <div className={`min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-sm shrink-0 ${conv.id === 1 || conv.id === 4 ? 'bg-[#717273]' : 'bg-[#EF4444]'}`}>
-                      {conv.id === 1 ? '69' : conv.id === 2 ? '7' : conv.id === 4 ? '81' : '99+'}
+                  {/* Unread Badge */}
+                  {conv.unreadCount ? (
+                    <div className="min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-sm shrink-0 bg-[#EF4444]">
+                      {conv.unreadCount > 99 ? '99+' : conv.unreadCount}
                     </div>
-                  )}
+                  ) : null}
 
                   <button className="hidden group-hover:flex opacity-60 hover:opacity-100 p-0.5 hover:bg-black/5 rounded transition-all text-gray-500 absolute right-4">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>

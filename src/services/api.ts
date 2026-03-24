@@ -25,7 +25,7 @@ export const apiClient = {
   /**
    * Generic request handler
    */
-  async request(endpoint: string, options: RequestInit = {}) {
+  async request<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
     const config = {
@@ -41,7 +41,7 @@ export const apiClient = {
 
       // Handle 204 No Content
       if (response.status === 204) {
-        return { success: true };
+        return { success: true } as T;
       }
 
       // Read text first to check if empty
@@ -66,10 +66,10 @@ export const apiClient = {
         if (!result.success) {
            throw new Error(result.message || "Request failed");
         }
-        return result.data !== undefined ? result.data : result;
+        return (result.data !== undefined ? result.data : result) as T;
       }
 
-      return result;
+      return result as T;
     } catch (error) {
       console.error(`API Error [${endpoint}]:`, error);
       throw error;
@@ -79,32 +79,32 @@ export const apiClient = {
   /**
    * HTTP Methods
    */
-  get(endpoint: string, options?: RequestInit) {
-    return this.request(endpoint, { ...options, method: 'GET' });
+  get<T = any>(endpoint: string, options?: RequestInit) {
+    return this.request<T>(endpoint, { ...options, method: 'GET' });
   },
 
-  post(endpoint: string, body: any, options?: RequestInit) {
-    return this.request(endpoint, {
+  post<T = any>(endpoint: string, body: any, options?: RequestInit) {
+    return this.request<T>(endpoint, {
       ...options,
       method: 'POST',
       body: JSON.stringify(body),
     });
   },
 
-  put(endpoint: string, body: any, options?: RequestInit) {
-    return this.request(endpoint, {
+  put<T = any>(endpoint: string, body: any, options?: RequestInit) {
+    return this.request<T>(endpoint, {
       ...options,
       method: 'PUT',
       body: JSON.stringify(body),
     });
   },
 
-  delete(endpoint: string, options?: RequestInit) {
-    return this.request(endpoint, { ...options, method: 'DELETE' });
+  delete<T = any>(endpoint: string, options?: RequestInit) {
+    return this.request<T>(endpoint, { ...options, method: 'DELETE' });
   },
 
-  patch(endpoint: string, body: any, options?: RequestInit) {
-    return this.request(endpoint, {
+  patch<T = any>(endpoint: string, body: any, options?: RequestInit) {
+    return this.request<T>(endpoint, {
       ...options,
       method: 'PATCH',
       body: JSON.stringify(body),

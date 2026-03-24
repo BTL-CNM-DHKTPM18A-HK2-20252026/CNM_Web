@@ -34,30 +34,19 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
   const hasToasted = React.useRef(false);
 
   const fetchUserProfile = async () => {
-    console.log('[WS-DEBUG] Dashboard: fetchUserProfile starting...');
     try {
       const response = await apiClient.get('/users/me');
-      console.log('[WS-DEBUG] Dashboard: /users/me response:', response);
-
       const data = (response && response.success && response.data) ? response.data : response;
-      console.log('[WS-DEBUG] Dashboard: CurrentUser data after parse:', data);
 
       if (data && (data.id || data.full_name || data.phone_number)) {
         setCurrentUser(data);
-        console.log('[WS-DEBUG] Dashboard: User set, checking token...');
         
         const token = localStorage.getItem('accessToken');
         if (token) {
-          console.log('[WS-DEBUG] Dashboard: Token present, calling connect()...');
           websocketService.connect(token);
-        } else {
-          console.warn('[WS-DEBUG] Dashboard: MISSING ACCESS TOKEN');
         }
-      } else {
-        console.warn('[WS-DEBUG] Dashboard: Missing mandatory user fields in /me response');
       }
     } catch (error: any) {
-      console.error("[WS-DEBUG] Dashboard: Profile fetch error:", error);
       if (error.message?.includes("Không tìm thấy người dùng")) {
         onLogout();
       }
@@ -66,16 +55,12 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
 
   useEffect(() => {
     fetchUserProfile();
-    
-    // Cleanup on unmount
     return () => {
       websocketService.disconnect();
     };
   }, []);
 
   useEffect(() => {
-    // Only show toast when we have the real full name from the database (Method 2)
-    // This prevents showing the phone number on page reload
     if (!hasToasted.current && currentUser?.full_name) {
       toast(`Chào mừng bạn trở lại Fruvia Chat, ${currentUser.full_name}!`, {
         description: 'Chúc bạn có một ngày làm việc tuyệt vời. 👋',
@@ -86,15 +71,14 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
     }
   }, [currentUser]);
 
-  const conversations: any[] = [];
-
-  const [selectedChatId, setSelectedChatId] = useState<number>(5);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [selectedChatId, setSelectedChatId] = useState<string | number>('');
+  const [isConversationsLoaded, setIsConversationsLoaded] = useState(false);
   const selectedChat = conversations.find(c => c.id === selectedChatId) || conversations[0];
   const [invitationCount, setInvitationCount] = useState(0);
 
   const fetchInvitationCount = async () => {
     try {
-      // Use friendService to get received requests
       const requests = await friendService.getReceivedRequests();
       setInvitationCount(requests.length);
     } catch (error) {
@@ -102,12 +86,57 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
     }
   };
 
+  const fetchConversations = async () => {
+    try {
+      const res = await apiClient.get('/conversations');
+      const data = (res && res.success && res.data) ? res.data : res;
+      if (Array.isArray(data)) {
+        const mapped = data.map((c: any) => {
+           const isSelf = c.conversationType === 'SELF' || c.conversation_type === 'SELF';
+           const name = c.conversationName || c.conversation_name || (isSelf ? 'Cloud của tôi' : 'Conversation');
+           const id = c.conversationId || c.conversation_id;
+           const avatar = c.conversationAvatarUrl || c.conversation_avatar_url || '';
+           
+           let displayName = name;
+           let displayAvatar = avatar;
+
+           if ((c.conversationType === 'PRIVATE' || c.conversation_type === 'PRIVATE') && c.members) {
+              const otherUser = c.members.find((m: any) => m.userId !== currentUser?.id && m.user_id !== currentUser?.id);
+              if (otherUser) {
+                  displayName = otherUser.displayName || otherUser.display_name || displayName;
+                  displayAvatar = otherUser.avatarUrl || otherUser.avatar_url || displayAvatar;
+              }
+           }
+           
+           return {
+             id,
+             name: displayName,
+             lastMsg: c.lastMessageContent || c.last_message_content || 'Bắt đầu trò chuyện',
+             time: (c.lastMessageTime || c.last_message_time) ? new Date(c.lastMessageTime || c.last_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+             isCloud: isSelf,
+             avatar: displayAvatar,
+             unreadCount: c.unreadCount || c.unread_count || 0
+           };
+        });
+        setConversations(mapped);
+        
+        if (mapped.length > 0 && !selectedChatId) {
+          setSelectedChatId(mapped[0].id);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch conversations:", e);
+    } finally {
+      setIsConversationsLoaded(true);
+    }
+  };
+
   useEffect(() => {
     if (currentUser?.id) {
       fetchInvitationCount();
+      fetchConversations();
       
       const subEvents = websocketService.subscribeToFriendEvents(currentUser.id, (msg) => {
-        console.log('[WS-DEBUG] ChatDashboard: Received friend event:', msg.body);
         fetchInvitationCount();
         if (msg.body === "RECEIVED") {
           toast.info("Bạn có lời mời kết bạn mới!", {
@@ -121,6 +150,27 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
       };
     }
   }, [currentUser?.id]);
+
+  useEffect(() => {
+    if (activeTab === 'cloud') {
+      const getOrCreateSelfChat = async () => {
+        try {
+          const res = await apiClient.get('/conversations/self');
+          if (res.success && res.data) {
+            const newId = res.data.conversationId || res.data.conversation_id;
+            setSelectedChatId(newId);
+            setActiveTab('chat');
+            fetchConversations();
+          }
+        } catch (error) {
+          console.error("Failed to get/create self chat:", error);
+          toast.error("Không thể mở My Documents. Vui lòng thử lại.");
+          setActiveTab('chat');
+        }
+      };
+      getOrCreateSelfChat();
+    }
+  }, [activeTab]);
 
   return (
     <div className="flex h-screen w-full bg-[var(--card-bg)] overflow-hidden text-[var(--text)] transition-colors duration-200">
@@ -190,6 +240,19 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
                 onToggleSidebar={(type) => setActiveSidebar(activeSidebar === type ? null : type)}
                 activeSidebar={activeSidebar}
                 selectedChat={selectedChat}
+                currentUser={currentUser}
+                onUpdateConversation={(id, lastMsg, msgTime) => {
+                  setConversations(prev => {
+                    const cloned = [...prev];
+                    const idx = cloned.findIndex(c => c.id === id);
+                    if (idx !== -1) {
+                      const updated = { ...cloned[idx], lastMsg, time: msgTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+                      cloned.splice(idx, 1);
+                      cloned.unshift(updated);
+                    }
+                    return cloned;
+                  });
+                }}
               />
               {activeSidebar === 'info' && (
                 <ChatInfoSidebar onClose={() => setActiveSidebar(null)} />
@@ -205,7 +268,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
                   </div>
 
                   {/* Search Content */}
-                  <div className="flex-1 p-4 overflow-y-auto">
+                  <div className="flex-1 p-4 overflow-y-auto custom-scrollbar">
                     <div className="relative mb-4">
                       <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
