@@ -96,10 +96,13 @@ export function ContactsContent({ category, currentUser }: ContactsContentProps)
   useEffect(() => {
     if (!currentUser?.id) return;
 
-    const friendEventsSub = websocketService.subscribeToFriendEvents(currentUser.id, () => {
-      console.log('Received WebSocket friend event update');
+    const friendEventsSub = websocketService.subscribeToFriendEvents(currentUser.id, (msg) => {
+      console.log(`[WS-DEBUG] ContactsContent: Received event ${msg.body}. Category: ${category}`);
       fetchFriends();
-      if (category === 'invites') fetchInvitations();
+      if (category === 'invites') {
+        console.log('[WS-DEBUG] ContactsContent: Refreshing invitations list...');
+        fetchInvitations();
+      }
     });
 
     return () => {

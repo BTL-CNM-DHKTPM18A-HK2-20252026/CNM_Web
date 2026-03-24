@@ -122,16 +122,9 @@ export default function Home() {
             return;
           }
 
-          if (result.success && result.data && result.data.access_token) {
-            // Success! Store token and login
-            console.log('QR Login Success received via WebSocket');
             const token = result.data.access_token;
-            const displayName = result.data.display_name || username;
-            
             localStorage.setItem('accessToken', token);
-            setUsername(displayName);
             setIsLoggedIn(true);
-          }
         } catch (e) {
           console.error('Error parsing QR login message:', e);
         }
@@ -197,12 +190,8 @@ export default function Home() {
 
       if (loginMethod === 'phone') {
         const result = await authService.login(trimmedPhone, password);
-        // Cleaned up: result is now the data payload directly
         const token = result.access_token;
-        const displayName = result.display_name || trimmedPhone;
-
-        setUsername(displayName);
-
+        localStorage.setItem('accessToken', token);
         if (rememberMe) {
           localStorage.setItem('savedUsername', trimmedPhone);
         } else {

@@ -34,24 +34,30 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
   const hasToasted = React.useRef(false);
 
   const fetchUserProfile = async () => {
+    console.log('[WS-DEBUG] Dashboard: fetchUserProfile starting...');
     try {
       const response = await apiClient.get('/users/me');
+      console.log('[WS-DEBUG] Dashboard: /users/me response:', response);
 
-      // The apiClient already returns the 'data' part if the response was successful
       const data = (response && response.success && response.data) ? response.data : response;
+      console.log('[WS-DEBUG] Dashboard: CurrentUser data after parse:', data);
 
-      if (data && (data.full_name || data.id || data.phone_number)) {
+      if (data && (data.id || data.full_name || data.phone_number)) {
         setCurrentUser(data);
+        console.log('[WS-DEBUG] Dashboard: User set, checking token...');
         
-        // Connect to WebSocket after fetching profile to have current user ID
         const token = localStorage.getItem('accessToken');
         if (token) {
+          console.log('[WS-DEBUG] Dashboard: Token present, calling connect()...');
           websocketService.connect(token);
+        } else {
+          console.warn('[WS-DEBUG] Dashboard: MISSING ACCESS TOKEN');
         }
+      } else {
+        console.warn('[WS-DEBUG] Dashboard: Missing mandatory user fields in /me response');
       }
     } catch (error: any) {
-      console.error("Failed to fetch profile in dashboard:", error);
-      // If user not found (e.g. database re-init), force logout
+      console.error("[WS-DEBUG] Dashboard: Profile fetch error:", error);
       if (error.message?.includes("Không tìm thấy người dùng")) {
         onLogout();
       }
@@ -68,16 +74,17 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
   }, []);
 
   useEffect(() => {
-    if (!hasToasted.current && (userName || currentUser?.full_name)) {
-      const displayName = currentUser?.full_name || userName;
-      toast(`Chào mừng bạn trở lại Fruvia Chat${displayName ? `, ${displayName}` : ''}!`, {
+    // Only show toast when we have the real full name from the database (Method 2)
+    // This prevents showing the phone number on page reload
+    if (!hasToasted.current && currentUser?.full_name) {
+      toast(`Chào mừng bạn trở lại Fruvia Chat, ${currentUser.full_name}!`, {
         description: 'Chúc bạn có một ngày làm việc tuyệt vời. 👋',
         icon: <span className="text-xl">✨</span>,
         duration: 5000,
       });
       hasToasted.current = true;
     }
-  }, [userName, currentUser]);
+  }, [currentUser]);
 
   const conversations: any[] = [];
 
@@ -100,6 +107,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
       fetchInvitationCount();
       
       const subEvents = websocketService.subscribeToFriendEvents(currentUser.id, (msg) => {
+        console.log('[WS-DEBUG] ChatDashboard: Received friend event:', msg.body);
         fetchInvitationCount();
         if (msg.body === "RECEIVED") {
           toast.info("Bạn có lời mời kết bạn mới!", {
