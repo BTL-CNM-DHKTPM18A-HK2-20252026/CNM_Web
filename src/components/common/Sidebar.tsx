@@ -22,6 +22,7 @@ interface SidebarProps {
   setIsProfileModalOpen: (open: boolean) => void;
   onLogout: () => void;
   user?: any;
+  invitationCount?: number;
 }
 
 export function Sidebar({
@@ -33,6 +34,7 @@ export function Sidebar({
   setIsProfileModalOpen,
   onLogout,
   user,
+  invitationCount = 0,
 }: SidebarProps) {
   const { t, i18n } = useTranslation();
   const [showLangSubMenu, setShowLangSubMenu] = React.useState(false);
@@ -121,9 +123,14 @@ export function Sidebar({
 
         <button
           onClick={() => setActiveTab('contacts')}
-          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${activeTab === 'contacts' ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'hover:bg-[var(--sidebar-hover-bg)] text-[var(--sidebar-text)]'}`}
+          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer relative ${activeTab === 'contacts' ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'hover:bg-[var(--sidebar-hover-bg)] text-[var(--sidebar-text)]'}`}
         >
           <ZaloContactIcon size={26} active={activeTab === 'contacts'} />
+          {invitationCount > 0 && (
+            <span className="absolute top-2 right-2 min-w-[18px] h-[18px] flex items-center justify-center bg-[#FF3B30] text-white text-[10px] font-bold rounded-full px-1 border-2 border-[var(--sidebar-bg)] shadow-sm">
+              {invitationCount > 99 ? '99+' : invitationCount}
+            </span>
+          )}
         </button>
 
         <button

@@ -1,18 +1,33 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { UserCircleIcon, MoreHorizontalIcon, SearchIcon, ChevronDownIcon, FriendsIcon, GroupsIcon, FriendRequestIcon, GroupRequestIcon } from '@/components/ui/Icons';
+import { UserCircleIcon, MoreHorizontalIcon, SearchIcon, ChevronDownIcon, ChevronRightIcon, FriendsIcon, GroupsIcon, FriendRequestIcon, GroupRequestIcon } from '@/components/ui/Icons';
 import { useTranslation } from 'react-i18next';
 import { UserResponse } from '@/services/userService';
 import { friendService, FriendRequestResponse } from '@/services/friendService';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
+import { ConfirmationModal } from './ConfirmationModal';
+import { websocketService } from '@/services/websocketService';
 
 interface ContactsContentProps {
   category: string;
+  currentUser?: any;
 }
 
-export function ContactsContent({ category }: ContactsContentProps) {
+export function ContactsContent({ category, currentUser }: ContactsContentProps) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+
+  // States for confirmation modal
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    type: 'unfriend' | 'block';
+    user: any | null;
+  }>({
+    isOpen: false,
+    type: 'unfriend',
+    user: null
+  });
 
   const [receivedInvites, setReceivedInvites] = useState<FriendRequestResponse[]>([]);
   const [sentInvites, setSentInvites] = useState<FriendRequestResponse[]>([]);
@@ -77,6 +92,21 @@ export function ContactsContent({ category }: ContactsContentProps) {
     }
   }, [category]);
 
+  // WebSocket listeners for real-time updates
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    const friendEventsSub = websocketService.subscribeToFriendEvents(currentUser.id, () => {
+      console.log('Received WebSocket friend event update');
+      fetchFriends();
+      if (category === 'invites') fetchInvitations();
+    });
+
+    return () => {
+      friendEventsSub?.unsubscribe();
+    };
+  }, [currentUser?.id, category]);
+
   const handleAccept = async (requestId: string) => {
     try {
       await friendService.acceptRequest(requestId);
@@ -109,6 +139,79 @@ export function ContactsContent({ category }: ContactsContentProps) {
     }
   };
 
+  // Close menu on click outside
+  useEffect(() => {
+    const handleClickOutside = () => setActiveMenuId(null);
+    if (activeMenuId) {
+      document.addEventListener('click', handleClickOutside);
+    }
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [activeMenuId]);
+
+  const handleUnfriend = async (userId: string) => {
+    try {
+      await friendService.unfriend(userId);
+      toast.success("Đã xóa bạn bè");
+      fetchFriends();
+    } catch (err: any) {
+      toast.error(err.message || "Xóa bạn thất bại");
+    }
+  };
+
+  const handleBlock = async (userId: string) => {
+    try {
+      await friendService.blockUser(userId);
+      toast.success("Đã chặn đối phương");
+      fetchFriends();
+    } catch (err: any) {
+      toast.error(err.message || "Chặn người dùng thất bại");
+    }
+  };
+
+  const menuActions = (item: any, isTopRecord: boolean = false) => {
+    const id = item.user_id || item.id;
+    const name = item.display_name || item.full_name || item.name;
+
+    return (
+      <div 
+        className={`absolute right-10 ${isTopRecord ? 'top-[40px]' : 'bottom-[40px]'} w-52 bg-white rounded-lg shadow-[0_8px_32px_rgba(0,0,0,0.18)] border border-gray-200 z-[100] py-1.5 animate-in fade-in zoom-in-95 duration-100`}
+        onClick={e => e.stopPropagation()}
+      >
+        <button className="w-full px-4 py-2 text-left text-[14.5px] hover:bg-gray-50 flex items-center gap-3 text-[#081C36] transition-colors cursor-pointer">
+          <span>Xem thông tin</span>
+        </button>
+        <div className="h-[1px] bg-gray-100 mx-2 my-1"></div>
+        <button className="w-full px-4 py-2 text-left text-[14.5px] hover:bg-gray-50 flex items-center justify-between text-[#081C36] transition-colors group cursor-pointer">
+          <span>Phân loại</span>
+          <ChevronRightIcon size={14} className="text-gray-500" />
+        </button>
+        <button className="w-full px-4 py-2 text-left text-[14.5px] hover:bg-gray-50 flex items-center gap-3 text-[#081C36] transition-colors cursor-pointer">
+          <span>Đặt tên gợi nhớ</span>
+        </button>
+        <div className="h-[1px] bg-gray-100 mx-2 my-1"></div>
+        <button 
+          onClick={() => {
+            setConfirmModal({ isOpen: true, type: 'block', user: item });
+            setActiveMenuId(null);
+          }}
+          className="w-full px-4 py-2 text-left text-[14.5px] hover:bg-gray-50 flex items-center gap-3 text-[#081C36] transition-colors cursor-pointer"
+        >
+          <span>Chặn người này</span>
+        </button>
+        <div className="h-[1px] bg-gray-100 mx-2 my-1"></div>
+        <button 
+          onClick={() => {
+            setConfirmModal({ isOpen: true, type: 'unfriend', user: item });
+            setActiveMenuId(null);
+          }}
+          className="w-full px-4 py-2 text-left text-[14.5px] hover:bg-red-50 text-red-600 font-semibold flex items-center gap-3 transition-colors cursor-pointer"
+        >
+          <span>Xóa bạn</span>
+        </button>
+      </div>
+    );
+  };
+
   // Local filtering logic
   const filteredData = (isFriends ? friends : groups).filter((item: any) => {
     const name = (item.display_name || item.full_name || item.name || "").toLowerCase();
@@ -118,7 +221,7 @@ export function ContactsContent({ category }: ContactsContentProps) {
   });
 
   return (
-    <div className="flex-1 flex flex-col bg-[var(--background)] transition-colors duration-200 overflow-hidden">
+    <div className="flex-1 flex flex-col bg-[var(--background)] transition-colors duration-200 overflow-hidden relative">
       {/* HEADER */}
       <div className="h-[64px] bg-[var(--card-bg)] border-b border-[var(--border)] px-6 flex items-center justify-between shadow-sm flex-shrink-0 transition-colors duration-200">
         <div className="flex items-center gap-3">
@@ -178,8 +281,8 @@ export function ContactsContent({ category }: ContactsContentProps) {
                             <button className="text-[var(--sub-text)] hover:text-blue-500 p-1 cursor-pointer"><MoreHorizontalIcon size={18} /></button>
                           </div>
 
-                          <div className="bg-[var(--hover-bg)] p-3 rounded-lg text-[13.5px] text-[var(--text)] leading-relaxed">
-                            {"Xin chào, kết bạn với mình nhé!"}
+                          <div className="bg-[var(--hover-bg)] p-3 rounded-lg text-[13.5px] text-[var(--text)] leading-relaxed italic">
+                            {req.message || "Xin chào, kết bạn với mình nhé!"}
                           </div>
 
                           <div className="grid grid-cols-2 gap-2 mt-1">
@@ -228,6 +331,10 @@ export function ContactsContent({ category }: ContactsContentProps) {
                             <button className="text-[var(--sub-text)] hover:text-blue-500 p-1 cursor-pointer"><MoreHorizontalIcon size={18} /></button>
                           </div>
 
+                          <div className="bg-[var(--hover-bg)] p-3 rounded-lg text-[13.2px] text-[var(--text)] leading-relaxed italic opacity-85">
+                            {req.message || "Không có nội dung lời nhắn"}
+                          </div>
+
                           <button
                             onClick={() => handleRecall(req.receiverId)}
                             className="w-full py-2 bg-[var(--hover-bg)] hover:bg-red-50 hover:text-red-500 text-[var(--text)] font-bold rounded-md transition-all text-[14px] cursor-pointer border border-transparent hover:border-red-100"
@@ -240,7 +347,7 @@ export function ContactsContent({ category }: ContactsContentProps) {
 
                     {sentInvites.length > 6 && (
                       <div className="flex justify-center mt-6">
-                        <button 
+                        <button
                           onClick={() => setShowAllSent(!showAllSent)}
                           className="px-6 py-1.5 bg-[#E9EBED] hover:bg-[#D8DADF] text-[#081C36] font-bold rounded-[4px] text-[13.5px] transition-all cursor-pointer border border-black/5 active:scale-95"
                         >
@@ -320,7 +427,7 @@ export function ContactsContent({ category }: ContactsContentProps) {
                     const id = item.user_id || item.id;
 
                     return (
-                      <div key={id} className={`mx-2 my-1 rounded-lg flex items-center group py-4 px-4 transition-all cursor-pointer hover:bg-[var(--active-bg)]`}>
+                      <div key={id} className={`mx-2 my-1 rounded-lg flex items-center group py-4 px-4 transition-all cursor-pointer hover:bg-[var(--active-bg)] ${activeMenuId === id ? 'bg-[var(--active-bg)]' : ''}`}>
                         <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 mr-4 border border-black/5 shadow-sm bg-blue-50 flex items-center justify-center">
                           {avatar ? (
                             <Image src={avatar} alt={name} width={48} height={48} className="object-cover" />
@@ -334,9 +441,19 @@ export function ContactsContent({ category }: ContactsContentProps) {
                           {!isFriends && <span className="text-[12.5px] text-[var(--sub-text)] font-medium leading-snug">{item.members}</span>}
                         </div>
 
-                        <button className="opacity-0 group-hover:opacity-100 p-2 hover:bg-black/5 rounded-full text-[var(--sub-text)] transition-all cursor-pointer">
-                          <MoreHorizontalIcon size={20} />
-                        </button>
+                        <div className="relative">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMenuId(activeMenuId === id ? null : id);
+                            }}
+                            className={`p-2 hover:bg-black/5 rounded-full text-gray-400 hover:text-gray-600 transition-all cursor-pointer ${activeMenuId === id ? 'bg-black/5 text-gray-600' : ''}`}
+                          >
+                            <MoreHorizontalIcon size={20} />
+                          </button>
+                          
+                          {activeMenuId === id && menuActions(item, (isFriends ? friends : groups).indexOf(item) < 2)}
+                        </div>
                       </div>
                     );
                   })
@@ -346,6 +463,27 @@ export function ContactsContent({ category }: ContactsContentProps) {
           </div>
         )}
       </div>
+
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={() => {
+          const userId = confirmModal.user?.user_id || confirmModal.user?.id;
+          if (confirmModal.type === 'unfriend') {
+            handleUnfriend(userId);
+          } else {
+            handleBlock(userId);
+          }
+        }}
+        title={confirmModal.type === 'unfriend' ? 'Xóa bạn bè' : 'Chặn người dùng'}
+        message={
+          confirmModal.type === 'unfriend' 
+            ? `Bạn có chắc chắn muốn xóa ${confirmModal.user?.display_name || confirmModal.user?.full_name || 'người này'} khỏi danh sách bạn bè?`
+            : `Bạn có chắc chắn muốn chặn ${confirmModal.user?.display_name || confirmModal.user?.full_name || 'người này'}? Họ sẽ không thể gửi tin nhắn hoặc lời mời kết bạn cho bạn.`
+        }
+        confirmLabel={confirmModal.type === 'unfriend' ? 'Xóa bạn' : 'Chặn'}
+        isDanger={true}
+      />
     </div>
   );
 }

@@ -270,7 +270,7 @@ export default function Home() {
     setLoginMethod('qr');
     setIsLoggedIn(false);
     toast("Đã đăng xuất thành công", {
-      description: "Hẹn gặp lại bạn sớm! Chúc bạn một ngày tốt lành. 👋",
+      description: "Hẹn gặp lại bạn sớm! Chúc bạn một ngày tốt lành.",
       icon: <span className="text-xl">👋</span>,
       duration: 4000,
     });

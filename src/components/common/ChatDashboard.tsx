@@ -12,6 +12,8 @@ import { ContactsContent } from './ContactsContent';
 import { AddFriendModal } from './AddFriendModal';
 import { CreateGroupModal } from './CreateGroupModal';
 import { apiClient } from '@/services/api';
+import { websocketService } from '@/services/websocketService';
+import { friendService } from '@/services/friendService';
 
 interface ChatDashboardProps {
   onLogout: () => void;
@@ -40,6 +42,12 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
 
       if (data && (data.full_name || data.id || data.phone_number)) {
         setCurrentUser(data);
+        
+        // Connect to WebSocket after fetching profile to have current user ID
+        const token = localStorage.getItem('accessToken');
+        if (token) {
+          websocketService.connect(token);
+        }
       }
     } catch (error: any) {
       console.error("Failed to fetch profile in dashboard:", error);
@@ -52,23 +60,59 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
 
   useEffect(() => {
     fetchUserProfile();
+    
+    // Cleanup on unmount
+    return () => {
+      websocketService.disconnect();
+    };
   }, []);
 
   useEffect(() => {
-    if (!hasToasted.current) {
-      toast(`Chào mừng bạn trở lại Fruvia Chat${userName ? `, ${userName}` : ''}!`, {
+    if (!hasToasted.current && (userName || currentUser?.full_name)) {
+      const displayName = currentUser?.full_name || userName;
+      toast(`Chào mừng bạn trở lại Fruvia Chat${displayName ? `, ${displayName}` : ''}!`, {
         description: 'Chúc bạn có một ngày làm việc tuyệt vời. 👋',
         icon: <span className="text-xl">✨</span>,
         duration: 5000,
       });
       hasToasted.current = true;
     }
-  }, [userName]);
+  }, [userName, currentUser]);
 
   const conversations: any[] = [];
 
   const [selectedChatId, setSelectedChatId] = useState<number>(5);
   const selectedChat = conversations.find(c => c.id === selectedChatId) || conversations[0];
+  const [invitationCount, setInvitationCount] = useState(0);
+
+  const fetchInvitationCount = async () => {
+    try {
+      // Use friendService to get received requests
+      const requests = await friendService.getReceivedRequests();
+      setInvitationCount(requests.length);
+    } catch (error) {
+      console.error("Failed to fetch invitation count:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      fetchInvitationCount();
+      
+      const subEvents = websocketService.subscribeToFriendEvents(currentUser.id, (msg) => {
+        fetchInvitationCount();
+        if (msg.body === "RECEIVED") {
+          toast.info("Bạn có lời mời kết bạn mới!", {
+            duration: 3000,
+          });
+        }
+      });
+
+      return () => {
+        subEvents?.unsubscribe();
+      };
+    }
+  }, [currentUser?.id]);
 
   return (
     <div className="flex h-screen w-full bg-[var(--card-bg)] overflow-hidden text-[var(--text)] transition-colors duration-200">
@@ -105,6 +149,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
         setIsProfileModalOpen={setIsProfileModalOpen}
         onLogout={onLogout}
         user={currentUser}
+        invitationCount={invitationCount}
       />
 
       {/* 2. MIDDLE LIST */}
@@ -228,7 +273,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
             </div>
           )
         ) : activeTab === 'contacts' ? (
-          <ContactsContent category={contactCategory} />
+          <ContactsContent category={contactCategory} currentUser={currentUser} />
         ) : (
           <div className="flex-1 bg-[var(--background)] flex items-center justify-center text-[var(--sub-text)]">
             {t('common.coming_soon')}

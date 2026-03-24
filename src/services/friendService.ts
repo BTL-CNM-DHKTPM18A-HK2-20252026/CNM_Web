@@ -10,6 +10,7 @@ export interface FriendRequestResponse {
   receiverName: string;
   receiverAvatarUrl?: string;
   status: string;
+  message?: string;
   createdAt: string;
 }
 
@@ -24,8 +25,8 @@ export const friendService = {
   /**
    * Send a friend request
    */
-  async sendRequest(userId: string) {
-    return apiClient.post('/friends/request', { userId });
+  async sendRequest(userId: string, message?: string) {
+    return apiClient.post('/friends/request', { userId, message });
   },
 
   /**
@@ -64,5 +65,12 @@ export const friendService = {
    */
   async rejectRequest(requestId: string) {
     return apiClient.put(`/friends/request/${requestId}/reject`, {});
+  },
+
+  /**
+   * Block a user
+   */
+  async blockUser(userId: string) {
+    return apiClient.post('/friends/block', { userId });
   }
 };

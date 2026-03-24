@@ -102,7 +102,7 @@ export function AddFriendModal({ isOpen, onClose, currentUserName }: AddFriendMo
   const handleSendRequest = async () => {
     if (!searchResult) return;
     try {
-      await friendService.sendRequest(searchResult.user_id);
+      await friendService.sendRequest(searchResult.user_id, requestMsg);
       toast.success("Đã gửi lời mời kết bạn!");
       handleClose();
     } catch (err: any) {
@@ -279,8 +279,8 @@ export function AddFriendModal({ isOpen, onClose, currentUserName }: AddFriendMo
                   >
                      <span className="text-[14px] font-medium text-[var(--text)] opacity-80">Chặn người này xem nhật ký của tôi</span>
                      <button 
-                        onClick={() => setBlockDiary(!blockDiary)}
-                        className={`w-10 h-5 rounded-full transition-all relative ${blockDiary ? 'bg-[#0068FF]' : 'bg-gray-300'}`}
+                        onClick={(e) => { e.stopPropagation(); setBlockDiary(!blockDiary); }}
+                        className={`w-10 h-5 rounded-full transition-all relative cursor-pointer ${blockDiary ? 'bg-[#0068FF]' : 'bg-gray-300'}`}
                      >
                         <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${blockDiary ? 'right-1' : 'left-1'}`}></div>
                      </button>
