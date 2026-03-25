@@ -1,7 +1,7 @@
 {
   "login": {
     "title": "Fruvia Chat",
-    "subheading": "Log in to Fruvia Chat to connect with Fruvia Web",
+    "subheading": "Log in to Fruvia Chat to connect with Fruvia Chat",
     "tabs": {
       "qr": "WITH QR CODE",
       "phone": "WITH PHONE NUMBER",
@@ -102,12 +102,16 @@
       "media": "Photos/Videos",
       "files": "Files",
       "links": "Links",
-      "view_all": "View all"
+      "view_all": "View all",
+      "no_media": "No photos/videos yet",
+      "no_files": "No attachments yet",
+      "no_links": "No links yet"
     },
     "legend": {
       "photos": "Photos",
       "videos": "Videos",
       "files": "Files",
+      "voice": "Voice messages",
       "other": "Other"
     }
   },

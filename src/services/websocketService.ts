@@ -134,6 +134,18 @@ class WebSocketService {
     }
     return this.subscribe(`/topic/friend-events/${userId}`, callback);
   }
+
+  /**
+   * Send a message to a STOMP destination (e.g., /app/chat/{id}/typing)
+   */
+  send(destination: string, body: any) {
+    if (this.client && this.connected) {
+      this.client.publish({
+        destination,
+        body: JSON.stringify(body),
+      });
+    }
+  }
 }
 
 export const websocketService = new WebSocketService();

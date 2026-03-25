@@ -34,7 +34,7 @@ export function NicknameModal({ isOpen, onClose, currentName, avatar, onConfirm 
 
         {/* Content */}
         <div className="p-6 flex flex-col items-center">
-          <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-white dark:border-gray-800 shadow-md mb-4 bg-gray-100 italic flex items-center justify-center overflow-hidden">
+          <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-[var(--border)] shadow-md mb-4 bg-[var(--hover-bg)] italic flex items-center justify-center overflow-hidden">
              {avatar ? (
                 <img src={avatar} alt={currentName} className="w-full h-full object-cover" />
              ) : (
@@ -67,7 +67,7 @@ export function NicknameModal({ isOpen, onClose, currentName, avatar, onConfirm 
           <div className="flex items-center justify-end gap-3 w-full">
             <button
               onClick={onClose}
-              className="px-6 py-2 rounded-md bg-[#EAEDF0] text-[#081C36] font-bold text-[14px] hover:bg-[#dfe2e7] transition-colors cursor-pointer"
+              className="px-6 py-2 rounded-md bg-[var(--hover-bg)] text-[var(--text)] font-bold text-[14px] hover:opacity-80 transition-all cursor-pointer"
             >
               Hủy
             </button>

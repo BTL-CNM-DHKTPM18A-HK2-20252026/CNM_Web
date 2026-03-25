@@ -1,7 +1,7 @@
 {
   "login": {
     "title": "Fruvia Chat",
-    "subheading": "Đăng nhập tài khoản Fruvia Chat để kết nối với ứng dụng Fruvia Web",
+    "subheading": "Đăng nhập tài khoản Fruvia Chat để kết nối với ứng dụng Fruvia Chat",
     "tabs": {
       "qr": "VỚI MÃ QR",
       "phone": "VỚI SỐ ĐIỆN THOẠI",
@@ -102,12 +102,16 @@
       "media": "Ảnh/Video",
       "files": "File",
       "links": "Link",
-      "view_all": "Xem tất cả"
+      "view_all": "Xem tất cả",
+      "no_media": "Chưa có ảnh/video",
+      "no_files": "Chưa có file đính kèm",
+      "no_links": "Chưa có liên kết"
     },
     "legend": {
       "photos": "Ảnh",
       "videos": "Video",
       "files": "File",
+      "voice": "Tin nhắn thoại",
       "other": "Khác"
     }
   },

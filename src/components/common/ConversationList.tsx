@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SearchIcon, AddUserIcon, PinIcon, ImagePickerIcon, CreateGroupIcon, ChevronDownIcon, MoreHorizontalIcon } from '@/components/ui/Icons';
 import Image from 'next/image';
+import { apiClient } from '@/services/api';
+import { toast } from 'sonner';
 
 interface Conversation {
   id: string | number;
@@ -20,6 +22,8 @@ interface ConversationListProps {
   onAddFriend: () => void;
   onCreateGroup: () => void;
   onSelectConversation: (id: string | number) => void;
+  onPinConversation?: (id: string | number, pinned: boolean) => void;
+  onDeleteConversation?: (id: string | number) => void;
 }
 
 interface SearchItem {
@@ -37,32 +41,37 @@ interface SearchItem {
   isIcon?: boolean;
 }
 
-export function ConversationList({ conversations, onAddFriend, onCreateGroup, onSelectConversation }: ConversationListProps) {
+export function ConversationList({ conversations, onAddFriend, onCreateGroup, onSelectConversation, onPinConversation, onDeleteConversation }: ConversationListProps) {
   const { t, i18n } = useTranslation();
   const [isSearching, setIsSearching] = useState(false);
   const [showClassifyMenu, setShowClassifyMenu] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [contextMenu, setContextMenu] = useState<{ id: string | number; x: number; y: number } | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
 
   const classifyMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (classifyMenuRef.current && !classifyMenuRef.current.contains(event.target as Node)) {
-        // Find if the click was on the button itself to avoid double-toggling
         const target = event.target as HTMLElement;
         if (!target.closest('.classify-button')) {
           setShowClassifyMenu(false);
         }
       }
+      if (contextMenuRef.current && !contextMenuRef.current.contains(event.target as Node)) {
+        setContextMenu(null);
+        setShowSubMenu(null);
+      }
     }
 
-    if (showClassifyMenu) {
+    if (showClassifyMenu || contextMenu) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showClassifyMenu]);
+  }, [showClassifyMenu, contextMenu]);
 
   const classifyItems = [
     { key: 'customer', color: '#EF4444' }, // Red
@@ -85,7 +94,259 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
     e.preventDefault();
     e.stopPropagation();
     setSelectedTags([]);
-    setShowClassifyMenu(false); // Close as per user request
+    setShowClassifyMenu(false);
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, convId: string | number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Clamp menu position within viewport
+    const menuWidth = 220;
+    const menuHeight = 380;
+    const x = Math.min(e.clientX, window.innerWidth - menuWidth);
+    const y = Math.min(e.clientY, window.innerHeight - menuHeight);
+    setContextMenu({ id: convId, x, y });
+  };
+
+  const openContextMenuFromButton = (e: React.MouseEvent, convId: string | number) => {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const menuWidth = 220;
+    const menuHeight = 380;
+    const x = Math.min(rect.right, window.innerWidth - menuWidth);
+    const y = Math.min(rect.bottom + 4, window.innerHeight - menuHeight);
+    setContextMenu({ id: convId, x, y });
+  };
+
+  const [showSubMenu, setShowSubMenu] = useState<string | null>(null);
+
+  const contextConv = contextMenu ? conversations.find(c => c.id === contextMenu.id) : null;
+
+  const subMenuItems = [
+    { key: 'customer', label: 'Khách hàng', color: '#EF4444' },
+    { key: 'family', label: 'Gia đình', color: '#4ADE80' },
+    { key: 'work', label: 'Công việc', color: '#F97316' },
+    { key: 'friends', label: 'Bạn bè', color: '#8B5CF6' },
+    { key: 'reply_later', label: 'Trả lời sau', color: '#FACC15' },
+    { key: 'colleagues', label: 'Đồng nghiệp', color: '#0068FF' },
+  ];
+
+  const renderContextMenu = () => {
+    if (!contextMenu || !contextConv) return null;
+    const isPinned = contextConv.pinned;
+
+    return (
+      <div
+        ref={contextMenuRef}
+        className="fixed z-[9999] w-[220px] bg-white dark:bg-[var(--card-bg)] rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.18)] border border-gray-200 dark:border-[var(--border)] py-1 animate-in fade-in zoom-in-95 duration-100"
+        style={{ left: contextMenu.x, top: contextMenu.y }}
+      >
+        {/* Ghim / Bỏ ghim */}
+        <button
+          onClick={async () => {
+            const convId = contextMenu.id;
+            setContextMenu(null);
+            try {
+              const res = await apiClient.post<any>(`/conversations/${convId}/pin`, {});
+              const newPinned = res?.data?.isPinned ?? res?.isPinned ?? !isPinned;
+              onPinConversation?.(convId, newPinned);
+              toast.success(newPinned ? 'Đã ghim hội thoại' : 'Đã bỏ ghim hội thoại');
+            } catch (e: any) {
+              toast.error(e.message || 'Không thể cập nhật ghim');
+            }
+          }}
+          className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center gap-3 text-[var(--text)] transition-colors cursor-pointer"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><line x1="12" y1="17" x2="12" y2="22" /><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" /></svg>
+          <span>{isPinned ? 'Bỏ ghim hội thoại' : 'Ghim hội thoại'}</span>
+        </button>
+
+        {/* Phân loại — with submenu */}
+        <div
+          className="relative"
+          onMouseEnter={() => setShowSubMenu('classify')}
+          onMouseLeave={() => setShowSubMenu(null)}
+        >
+          <button
+            className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center justify-between text-[var(--text)] transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" /><circle cx="7.5" cy="7.5" r=".5" fill="currentColor" /></svg>
+              <span>Phân loại</span>
+            </div>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="opacity-40"><path d="m9 18 6-6-6-6" /></svg>
+          </button>
+
+          {/* Sub-menu */}
+          {showSubMenu === 'classify' && (
+            <div className="absolute left-full top-0 z-50 pl-1 pointer-events-auto">
+              <div className="w-[210px] bg-white dark:bg-[var(--card-bg)] rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.18)] border border-gray-200 dark:border-[var(--border)] py-1 animate-in fade-in duration-100">
+                {subMenuItems.map((item) => (
+                  <button
+                    key={item.key}
+                    onClick={() => { setContextMenu(null); }}
+                    className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center gap-3 text-[var(--text)] transition-colors cursor-pointer"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill={item.color} stroke={item.color} strokeWidth="1.5" className="shrink-0">
+                      <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" />
+                    </svg>
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+                <div className="h-[1px] bg-gray-100 dark:bg-white/5 mx-2 my-0.5" />
+                <button
+                  onClick={() => { setContextMenu(null); }}
+                  className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center gap-3 text-[var(--text)] transition-colors cursor-pointer"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>
+                  <span>Quản lý thẻ phân loại</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Đánh dấu chưa đọc */}
+        <button
+          onClick={() => { setContextMenu(null); }}
+          className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center gap-3 text-[var(--text)] transition-colors cursor-pointer"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h9" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /><circle cx="19" cy="19" r="3" /></svg>
+          <span>Đánh dấu chưa đọc</span>
+        </button>
+
+        <div className="h-[1px] bg-gray-100 dark:bg-white/5 mx-2" />
+
+        {/* Tắt thông báo */}
+        <div
+          className="relative"
+          onMouseEnter={() => setShowSubMenu('mute')}
+          onMouseLeave={() => setShowSubMenu(null)}
+        >
+          <button
+            className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center justify-between text-[var(--text)] transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+              <span>Tắt thông báo</span>
+            </div>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="opacity-40"><path d="m9 18 6-6-6-6" /></svg>
+          </button>
+
+          {/* Mute sub-menu */}
+          {showSubMenu === 'mute' && (
+            <div className="absolute left-full top-0 z-50 pl-1 pointer-events-auto">
+              <div className="w-[180px] bg-white dark:bg-[var(--card-bg)] rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.18)] border border-gray-200 dark:border-[var(--border)] py-1 animate-in fade-in duration-100">
+                {[
+                  { label: 'Trong 1 giờ', value: '1h' },
+                  { label: 'Trong 4 giờ', value: '4h' },
+                  { label: 'Đến 8:00 sáng', value: '8am' },
+                  { label: 'Cho đến khi mở lại', value: 'forever' },
+                ].map((item) => (
+                  <button
+                    key={item.value}
+                    onClick={() => { setContextMenu(null); }}
+                    className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 text-[var(--text)] transition-colors cursor-pointer"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Ẩn trò chuyện */}
+        <button
+          onClick={() => { setContextMenu(null); }}
+          className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center gap-3 text-[var(--text)] transition-colors cursor-pointer"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+          <span>Ẩn trò chuyện</span>
+        </button>
+
+        {/* Tin nhắn tự xóa */}
+        <div
+          className="relative"
+          onMouseEnter={() => setShowSubMenu('autodelete')}
+          onMouseLeave={() => setShowSubMenu(null)}
+        >
+          <button
+            className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center justify-between text-[var(--text)] transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+              <span>Tin nhắn tự xóa</span>
+              <span className="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
+            </div>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="opacity-40"><path d="m9 18 6-6-6-6" /></svg>
+          </button>
+
+          {/* Auto-delete sub-menu */}
+          {showSubMenu === 'autodelete' && (
+            <div className="absolute left-full top-0 z-50 pl-1 pointer-events-auto">
+              <div className="w-[180px] bg-white dark:bg-[var(--card-bg)] rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.18)] border border-gray-200 dark:border-[var(--border)] py-1 animate-in fade-in duration-100">
+                {[
+                  { label: 'Tắt', value: 'off' },
+                  { label: '1 ngày', value: '1d' },
+                  { label: '7 ngày', value: '7d' },
+                  { label: '30 ngày', value: '30d' },
+                ].map((item) => (
+                  <button
+                    key={item.value}
+                    onClick={() => { setContextMenu(null); }}
+                    className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 text-[var(--text)] transition-colors cursor-pointer"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="h-[1px] bg-gray-100 dark:bg-white/5 mx-2" />
+
+        {/* Xóa hội thoại */}
+        <button
+          onClick={() => {
+            const convId = contextMenu.id;
+            const convName = contextConv.name;
+            setContextMenu(null);
+            toast(`Xóa hội thoại "${convName}"?`, {
+              description: 'Tin nhắn sẽ bị ẩn khỏi danh sách của bạn.',
+              duration: 10000,
+              action: {
+                label: 'Xác nhận xóa',
+                onClick: async () => {
+                  try {
+                    await apiClient.delete(`/conversations/${convId}`);
+                    onDeleteConversation?.(convId);
+                    toast.success('Đã xóa hội thoại');
+                  } catch (e: any) {
+                    toast.error(e.message || 'Không thể xóa hội thoại');
+                  }
+                },
+              },
+              cancel: { label: 'Hủy', onClick: () => { } },
+            });
+          }}
+          className="w-full px-4 py-2 text-left text-[13px] hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-3 text-red-500 transition-colors cursor-pointer"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
+          <span>Xóa hội thoại</span>
+        </button>
+
+        {/* Báo xấu */}
+        <button
+          onClick={() => { setContextMenu(null); }}
+          className="w-full px-4 py-2 text-left text-[13px] hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-3 text-red-500 transition-colors cursor-pointer"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+          <span>Báo xấu</span>
+        </button>
+      </div>
+    );
   };
 
   return (
@@ -320,6 +581,7 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
             <div
               key={conv.id}
               onClick={() => onSelectConversation(conv.id)}
+              onContextMenu={(e) => handleContextMenu(e, conv.id)}
               className={`flex items-center p-3 mb-1 gap-3 rounded-xl cursor-pointer transition-all group border ${conv.active ? 'bg-[var(--active-bg)] border-[var(--active-card-border)]' : 'hover:bg-[var(--hover-bg)] border-transparent hover:border-[var(--active-card-border)]'}`}
             >
               {/* Avatar / Icon */}
@@ -361,7 +623,10 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
                     </div>
                   ) : null}
 
-                  <button className="hidden group-hover:flex opacity-60 hover:opacity-100 p-0.5 hover:bg-black/5 rounded transition-all text-gray-500 absolute right-4">
+                  <button
+                    onClick={(e) => openContextMenuFromButton(e, conv.id)}
+                    className="hidden group-hover:flex opacity-60 hover:opacity-100 p-0.5 hover:bg-black/5 rounded transition-all text-gray-500 absolute right-4"
+                  >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>
                   </button>
                 </div>
@@ -370,6 +635,9 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
           ))}
         </div>
       )}
+
+      {/* Conversation Context Menu */}
+      {renderContextMenu()}
     </div>
   );
 }

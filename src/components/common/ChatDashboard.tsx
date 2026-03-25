@@ -42,7 +42,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
 
       if (data && (data.id || data.full_name || data.phone_number)) {
         setCurrentUser(data);
-        
+
         const token = localStorage.getItem('accessToken');
         if (token) {
           websocketService.connect(token);
@@ -94,34 +94,36 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
       const data = (res && res.success && res.data) ? res.data : res;
       if (Array.isArray(data)) {
         const mapped = data.map((c: any) => {
-           const isSelf = c.conversationType === 'SELF' || c.conversation_type === 'SELF';
-           const name = c.conversationName || c.conversation_name || (isSelf ? 'Cloud của tôi' : 'Conversation');
-           const id = c.conversationId || c.conversation_id;
-           const avatar = c.conversationAvatarUrl || c.conversation_avatar_url || '';
-           
-           let displayName = name;
-           let displayAvatar = avatar;
+          const isSelf = c.conversationType === 'SELF' || c.conversation_type === 'SELF';
+          const name = c.conversationName || c.conversation_name || (isSelf ? 'Cloud của tôi' : 'Conversation');
+          const id = c.conversationId || c.conversation_id;
+          const avatar = c.conversationAvatarUrl || c.conversation_avatar_url || '';
 
-           if ((c.conversationType === 'PRIVATE' || c.conversation_type === 'PRIVATE') && c.members) {
-              const otherUser = c.members.find((m: any) => m.userId !== currentUser?.id && m.user_id !== currentUser?.id);
-              if (otherUser) {
-                  displayName = otherUser.displayName || otherUser.display_name || displayName;
-                  displayAvatar = otherUser.avatarUrl || otherUser.avatar_url || displayAvatar;
-              }
-           }
-           
-           return {
-             id,
-             name: displayName,
-             lastMsg: c.lastMessageContent || c.last_message_content || 'Bắt đầu trò chuyện',
-             time: (c.lastMessageTime || c.last_message_time) ? new Date(c.lastMessageTime || c.last_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
-             isCloud: isSelf,
-             avatar: displayAvatar,
-             unreadCount: c.unreadCount || c.unread_count || 0
-           };
+          let displayName = name;
+          let displayAvatar = avatar;
+
+          if ((c.conversationType === 'PRIVATE' || c.conversation_type === 'PRIVATE') && c.members) {
+            const otherUser = c.members.find((m: any) => m.userId !== currentUser?.id && m.user_id !== currentUser?.id);
+            if (otherUser) {
+              displayName = otherUser.displayName || otherUser.display_name || displayName;
+              displayAvatar = otherUser.avatarUrl || otherUser.avatar_url || displayAvatar;
+            }
+          }
+
+          return {
+            id,
+            name: displayName,
+            lastMsg: c.lastMessageContent || c.last_message_content || 'Bắt đầu trò chuyện',
+            time: (c.lastMessageTime || c.last_message_time) ? new Date(c.lastMessageTime || c.last_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+            isCloud: isSelf,
+            isGroup: (c.conversationType === 'GROUP' || c.conversation_type === 'GROUP'),
+            avatar: displayAvatar,
+            pinned: c.isPinned || c.is_pinned || false,
+            unreadCount: c.unreadCount || c.unread_count || 0
+          };
         });
         setConversations(mapped);
-        
+
         if (mapped.length > 0 && !selectedChatId) {
           setSelectedChatId(mapped[0].id);
         }
@@ -137,7 +139,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
     if (currentUser?.id) {
       fetchInvitationCount();
       fetchConversations();
-      
+
       const subEvents = websocketService.subscribeToFriendEvents(currentUser.id, (msg) => {
         fetchInvitationCount();
         if (msg.body === "RECEIVED") {
@@ -145,13 +147,80 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
             duration: 3000,
           });
         }
+        if (msg.body === "ACCEPTED") {
+          fetchConversations();
+        }
+      });
+
+      // Subscribe to group creation events for this user
+      const subGroup = websocketService.subscribe(`/topic/group-events/${currentUser.id}`, (msg) => {
+        try {
+          const group = JSON.parse(msg.body);
+          toast.info(`Bạn được thêm vào nhóm "${group.conversationName || group.conversation_name || 'Nhóm mới'}"`, {
+            duration: 4000,
+          });
+          fetchConversations();
+        } catch (e) {
+          console.error('Failed to parse group event:', e);
+        }
+      });
+
+      // Subscribe to conversation events (pin/delete) for real-time sidebar updates
+      const subConvEvents = websocketService.subscribe(`/topic/conversation-events/${currentUser.id}`, (msg) => {
+        try {
+          const event = JSON.parse(msg.body);
+          if (event.type === 'PIN_UPDATED') {
+            setConversations(prev => prev.map(c =>
+              c.id === event.conversationId ? { ...c, pinned: event.isPinned } : c
+            ));
+          } else if (event.type === 'CONVERSATION_DELETED') {
+            setConversations(prev => prev.filter(c => c.id !== event.conversationId));
+          }
+        } catch (e) {
+          console.error('Failed to parse conversation event:', e);
+        }
       });
 
       return () => {
         subEvents?.unsubscribe();
+        subGroup?.unsubscribe();
+        subConvEvents?.unsubscribe();
       };
     }
   }, [currentUser?.id]);
+
+  const handleStartP2PChat = async (user: any) => {
+    const friendId = user.user_id || user.id;
+    try {
+      // Use getOrCreate endpoint to ensure conversation exists
+      const res = await apiClient.get<any>(`/conversations/private/${friendId}`);
+      if (res && (res.conversationId || res.conversation_id)) {
+        const convId = res.conversationId || res.conversation_id;
+        await fetchConversations();
+        setSelectedChatId(convId);
+      } else {
+        // Fallback: Virtual Chat (Lazy Creation)
+        const virtualId = `new:${friendId}`;
+        const existingVirtual = conversations.find(c => c.id === virtualId);
+        if (!existingVirtual) {
+          const virtualChat = {
+            id: virtualId,
+            name: user.display_name || user.full_name || user.name,
+            avatar: user.avatar_url || user.avatar,
+            lastMsg: 'Bắt đầu trò chuyện',
+            time: '',
+            isNew: true,
+            recipientId: friendId
+          };
+          setConversations(prev => [virtualChat, ...prev]);
+        }
+        setSelectedChatId(virtualId);
+      }
+      setActiveTab('chat');
+    } catch (error) {
+      console.error("Failed to start P2P chat:", error);
+    }
+  };
 
   useEffect(() => {
     if (activeTab === 'cloud') {
@@ -192,11 +261,19 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
         isOpen={isAddFriendModalOpen}
         onClose={() => setIsAddFriendModalOpen(false)}
         currentUserName={currentUser?.full_name || userName}
+        currentUserId={currentUser?.id}
       />
 
       <CreateGroupModal
         isOpen={isCreateGroupModalOpen}
         onClose={() => setIsCreateGroupModalOpen(false)}
+        onGroupCreated={(group) => {
+          // Refresh conversations to include the new group
+          fetchConversations().then(() => {
+            const groupId = group?.conversationId || group?.conversation_id;
+            if (groupId) setSelectedChatId(groupId);
+          });
+        }}
       />
 
       <UserDataModal
@@ -224,6 +301,15 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
           onAddFriend={() => setIsAddFriendModalOpen(true)}
           onCreateGroup={() => setIsCreateGroupModalOpen(true)}
           onSelectConversation={(id) => setSelectedChatId(id)}
+          onPinConversation={(id, pinned) => {
+            setConversations(prev => prev.map(c =>
+              c.id === id ? { ...c, pinned } : c
+            ));
+          }}
+          onDeleteConversation={(id) => {
+            setConversations(prev => prev.filter(c => c.id !== id));
+            if (selectedChatId === id) setSelectedChatId('');
+          }}
         />
       ) : activeTab === 'contacts' ? (
         <ContactList
@@ -248,23 +334,47 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
                 activeSidebar={activeSidebar}
                 selectedChat={selectedChat}
                 currentUser={currentUser}
+                onSelectConversation={(newId) => {
+                  setConversations(prev => {
+                    return prev.map(c => {
+                      if (c.id === selectedChatId && (c as any).isNew) {
+                        return { ...c, id: newId, isNew: false };
+                      }
+                      return c;
+                    });
+                  });
+                  setSelectedChatId(newId);
+                }}
                 onUpdateConversation={(id, lastMsg, msgTime) => {
                   setConversations(prev => {
                     const cloned = [...prev];
+
+                    // 1. Nếu là tin nhắn từ cuộc hội thoại MỚI (đổi từ virtual sang real)
+                    // Hoặc đơn giản là tìm và cập nhật
                     const idx = cloned.findIndex(c => c.id === id);
                     if (idx !== -1) {
-                      const updated = { ...cloned[idx], lastMsg, time: msgTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+                      const updated = { ...cloned[idx], lastMsg, time: msgTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isNew: false };
                       cloned.splice(idx, 1);
                       cloned.unshift(updated);
+                    } else {
+                      // Nếu chưa có trong list (ví dụ message mới từ server), fetch lại list hoặc thêm thủ công
+                      fetchConversations();
                     }
+
+                    // 2. Xóa các virtual chat cũ nếu cuộc hội thoại cho user đó đã thành real
+                    // (Tự động được xử lý nếu ta thay đổi id của selectedChat)
+
                     return cloned;
                   });
                 }}
               />
               {activeSidebar === 'info' && (
-                <ChatInfoSidebar 
-                  onClose={() => setActiveSidebar(null)} 
+                <ChatInfoSidebar
+                  onClose={() => setActiveSidebar(null)}
                   onOpenDataModal={() => setIsUserDataModalOpen(true)}
+                  conversationId={selectedChat.id}
+                  isGroup={!!(selectedChat as any).isGroup}
+                  currentUser={currentUser}
                 />
               )}
               {activeSidebar === 'search' && (
@@ -354,7 +464,11 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
             </div>
           )
         ) : activeTab === 'contacts' ? (
-          <ContactsContent category={contactCategory} currentUser={currentUser} />
+          <ContactsContent
+            category={contactCategory}
+            currentUser={currentUser}
+            onSelectUser={handleStartP2PChat}
+          />
         ) : (
           <div className="flex-1 bg-[var(--background)] flex items-center justify-center text-[var(--sub-text)]">
             {t('common.coming_soon')}

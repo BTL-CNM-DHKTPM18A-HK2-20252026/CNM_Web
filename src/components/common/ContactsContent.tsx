@@ -12,9 +12,10 @@ import { websocketService } from '@/services/websocketService';
 interface ContactsContentProps {
   category: string;
   currentUser?: any;
+  onSelectUser?: (user: any) => void;
 }
 
-export function ContactsContent({ category, currentUser }: ContactsContentProps) {
+export function ContactsContent({ category, currentUser, onSelectUser }: ContactsContentProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
@@ -71,8 +72,8 @@ export function ContactsContent({ category, currentUser }: ContactsContentProps)
   /**
    * Fetch Friends
    */
-  const fetchFriends = async () => {
-    if (category !== 'friends') return;
+  const fetchFriends = async (force = false) => {
+    if (!force && category !== 'friends') return;
     setIsLoading(true);
     try {
       const list = await friendService.getFriends();
@@ -98,7 +99,7 @@ export function ContactsContent({ category, currentUser }: ContactsContentProps)
 
     const friendEventsSub = websocketService.subscribeToFriendEvents(currentUser.id, (msg) => {
       console.log(`[WS-DEBUG] ContactsContent: Received event ${msg.body}. Category: ${category}`);
-      fetchFriends();
+      fetchFriends(true);
       if (category === 'invites') {
         console.log('[WS-DEBUG] ContactsContent: Refreshing invitations list...');
         fetchInvitations();
@@ -110,11 +111,20 @@ export function ContactsContent({ category, currentUser }: ContactsContentProps)
     };
   }, [currentUser?.id, category]);
 
-  const handleAccept = async (requestId: string) => {
+  const handleAccept = async (requestId: string, senderInfo?: { senderId: string; senderName: string; senderAvatarUrl?: string }) => {
     try {
       await friendService.acceptRequest(requestId);
       toast.success("Đã chấp nhận lời mời kết bạn");
       fetchInvitations();
+      fetchFriends(true);
+      // Auto-open chat with the new friend
+      if (senderInfo && onSelectUser) {
+        onSelectUser({
+          user_id: senderInfo.senderId,
+          display_name: senderInfo.senderName,
+          avatar_url: senderInfo.senderAvatarUrl || '',
+        });
+      }
     } catch (err: any) {
       toast.error(err.message || "Thao tác thất bại");
     }
@@ -176,7 +186,7 @@ export function ContactsContent({ category, currentUser }: ContactsContentProps)
     const name = item.display_name || item.full_name || item.name;
 
     return (
-      <div 
+      <div
         className={`absolute right-10 ${isTopRecord ? 'top-[40px]' : 'bottom-[40px]'} w-52 bg-white rounded-lg shadow-[0_8px_32px_rgba(0,0,0,0.18)] border border-gray-200 z-[100] py-1.5 animate-in fade-in zoom-in-95 duration-100`}
         onClick={e => e.stopPropagation()}
       >
@@ -192,7 +202,7 @@ export function ContactsContent({ category, currentUser }: ContactsContentProps)
           <span>Đặt tên gợi nhớ</span>
         </button>
         <div className="h-[1px] bg-gray-100 mx-2 my-1"></div>
-        <button 
+        <button
           onClick={() => {
             setConfirmModal({ isOpen: true, type: 'block', user: item });
             setActiveMenuId(null);
@@ -202,7 +212,7 @@ export function ContactsContent({ category, currentUser }: ContactsContentProps)
           <span>Chặn người này</span>
         </button>
         <div className="h-[1px] bg-gray-100 mx-2 my-1"></div>
-        <button 
+        <button
           onClick={() => {
             setConfirmModal({ isOpen: true, type: 'unfriend', user: item });
             setActiveMenuId(null);
@@ -296,7 +306,7 @@ export function ContactsContent({ category, currentUser }: ContactsContentProps)
                               Từ chối
                             </button>
                             <button
-                              onClick={() => handleAccept(req.requestId)}
+                              onClick={() => handleAccept(req.requestId, { senderId: req.senderId, senderName: req.senderName, senderAvatarUrl: req.senderAvatarUrl })}
                               className="py-2 bg-[#0068FF] hover:bg-[#005AE0] text-white font-bold rounded-md transition-all text-[14px] cursor-pointer"
                             >
                               Đồng ý
@@ -430,7 +440,7 @@ export function ContactsContent({ category, currentUser }: ContactsContentProps)
                     const id = item.user_id || item.id;
 
                     return (
-                      <div key={id} className={`mx-2 my-1 rounded-lg flex items-center group py-4 px-4 transition-all cursor-pointer hover:bg-[var(--active-bg)] ${activeMenuId === id ? 'bg-[var(--active-bg)]' : ''}`}>
+                      <div key={id} onClick={() => onSelectUser?.(item)} className={`mx-2 my-1 rounded-lg flex items-center group py-4 px-4 transition-all cursor-pointer hover:bg-[var(--active-bg)] ${activeMenuId === id ? 'bg-[var(--active-bg)]' : ''}`}>
                         <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 mr-4 border border-black/5 shadow-sm bg-blue-50 flex items-center justify-center">
                           {avatar ? (
                             <Image src={avatar} alt={name} width={48} height={48} className="object-cover" />
@@ -445,7 +455,7 @@ export function ContactsContent({ category, currentUser }: ContactsContentProps)
                         </div>
 
                         <div className="relative">
-                          <button 
+                          <button
                             onClick={(e) => {
                               e.stopPropagation();
                               setActiveMenuId(activeMenuId === id ? null : id);
@@ -454,7 +464,7 @@ export function ContactsContent({ category, currentUser }: ContactsContentProps)
                           >
                             <MoreHorizontalIcon size={20} />
                           </button>
-                          
+
                           {activeMenuId === id && menuActions(item, (isFriends ? friends : groups).indexOf(item) < 2)}
                         </div>
                       </div>
@@ -480,7 +490,7 @@ export function ContactsContent({ category, currentUser }: ContactsContentProps)
         }}
         title={confirmModal.type === 'unfriend' ? 'Xóa bạn bè' : 'Chặn người dùng'}
         message={
-          confirmModal.type === 'unfriend' 
+          confirmModal.type === 'unfriend'
             ? `Bạn có chắc chắn muốn xóa ${confirmModal.user?.display_name || confirmModal.user?.full_name || 'người này'} khỏi danh sách bạn bè?`
             : `Bạn có chắc chắn muốn chặn ${confirmModal.user?.display_name || confirmModal.user?.full_name || 'người này'}? Họ sẽ không thể gửi tin nhắn hoặc lời mời kết bạn cho bạn.`
         }

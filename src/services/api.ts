@@ -1,4 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
 
 /**
  * Common API client for handling all network requests
@@ -64,7 +64,7 @@ export const apiClient = {
       // If backend uses ApiResponse wrapper, return the data field
       if (result && typeof result === 'object' && 'success' in result) {
         if (!result.success) {
-           throw new Error(result.message || "Request failed");
+          throw new Error(result.message || "Request failed");
         }
         return (result.data !== undefined ? result.data : result) as T;
       }

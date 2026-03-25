@@ -14,9 +14,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Fruvia Web",
-  description: "Đăng nhập tài khoản Fruvia Chat để kết nối với ứng dụng Fruvia Web",
+  title: "Fruvia Chat",
+  description: "Đăng nhập tài khoản Fruvia Chat để kết nối với ứng dụng Fruvia Chat",
+  icons: {
+    icon: "/fruvia_logo.png",
+  },
 };
+
 
 export default function RootLayout({
   children,
