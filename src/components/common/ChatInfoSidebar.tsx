@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   ChevronDownIcon, 
@@ -7,15 +7,40 @@ import {
   SearchIcon,
 } from '@/components/ui/Icons';
 import Image from 'next/image';
+import { apiClient } from '@/services/api';
 
 interface ChatInfoSidebarProps {
   onClose: () => void;
+  onOpenDataModal?: () => void;
 }
 
-export function ChatInfoSidebar({ onClose }: ChatInfoSidebarProps) {
+export function ChatInfoSidebar({ onClose, onOpenDataModal }: ChatInfoSidebarProps) {
   const { t } = useTranslation();
   const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
   const [showMedia, setShowMedia] = React.useState(true);
+  const [stats, setStats] = useState<any>(null);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const res: any = await apiClient.get('/storage/me');
+      if (res) setStats(res);
+    } catch (error) {
+      console.error("Failed to fetch sidebar stats:", error);
+    }
+  };
+
+  const totalPossibleSizeMB = 500;
+  const currentTotalMB = stats?.totalSize ? (stats.totalSize / (1024 * 1024)) : 0;
+  const usagePercentage = Math.min((currentTotalMB / totalPossibleSizeMB) * 100, 100);
+
+  const imagePercentage = stats?.imageSize ? (stats.imageSize / stats.totalSize) * usagePercentage : 0;
+  const videoPercentage = stats?.videoSize ? (stats.videoSize / stats.totalSize) * usagePercentage : 0;
+  const filePercentage = stats?.fileSize ? (stats.fileSize / stats.totalSize) * usagePercentage : 0;
+  const voicePercentage = stats?.voiceSize ? (stats.voiceSize / stats.totalSize) * usagePercentage : 0;
 
   return (
     <div className="w-[350px] bg-[var(--card-bg)] border-l border-[var(--border)] flex flex-col h-full animate-in slide-in-from-right duration-300 transition-colors duration-200">
@@ -75,12 +100,14 @@ export function ChatInfoSidebar({ onClose }: ChatInfoSidebarProps) {
         <div className="p-4 border-b border-[var(--border)] space-y-4 transition-colors duration-200">
           <div className="flex justify-between items-center text-[13px]">
             <span className="font-bold text-[var(--text)]">{t('info.cloud.storage.title')}</span>
-            <span className="text-[var(--sub-text)]">111 MB / 500 MB</span>
+            <span className="text-[var(--sub-text)]">{stats?.totalSizeFormatted || '0 B'} / 500 MB</span>
           </div>
           
           <div className="w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden flex">
-            <div className="h-full bg-orange-500" style={{ width: '22%' }}></div>
-            <div className="h-full bg-yellow-400" style={{ width: '1%' }}></div>
+            <div className="h-full bg-orange-500" style={{ width: `${imagePercentage}%` }}></div>
+            <div className="h-full bg-blue-500" style={{ width: `${videoPercentage}%` }}></div>
+            <div className="h-full bg-green-500" style={{ width: `${filePercentage}%` }}></div>
+            <div className="h-full bg-pink-500" style={{ width: `${voicePercentage}%` }}></div>
           </div>
 
           <div className="flex flex-wrap gap-x-4 gap-y-2 text-[11px] text-[var(--sub-text)]">
@@ -89,12 +116,16 @@ export function ChatInfoSidebar({ onClose }: ChatInfoSidebarProps) {
               <span>{t('info.legend.photos')}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
               <span>{t('info.legend.videos')}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-yellow-400"></div>
+              <div className="w-2 h-2 rounded-full bg-green-500"></div>
               <span>{t('info.legend.files')}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-pink-500"></div>
+              <span>{t('info.legend.voice')}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-gray-400"></div>
@@ -102,7 +133,10 @@ export function ChatInfoSidebar({ onClose }: ChatInfoSidebarProps) {
             </div>
           </div>
 
-          <button className="w-full py-2 bg-[var(--hover-bg)] hover:bg-[var(--border)] rounded flex items-center justify-center text-[13px] font-bold text-[var(--text)] transition-colors cursor-pointer active:scale-[0.98]">
+          <button 
+            onClick={onOpenDataModal}
+            className="w-full py-2 bg-[var(--hover-bg)] hover:bg-[var(--border)] rounded flex items-center justify-center text-[13px] font-bold text-[var(--text)] transition-colors cursor-pointer active:scale-[0.98]"
+          >
             {t('info.cloud.storage.clean_up')}
           </button>
         </div>
@@ -140,7 +174,10 @@ export function ChatInfoSidebar({ onClose }: ChatInfoSidebarProps) {
                       );
                     })}
                  </div>
-                 <button className="w-full py-2 bg-[var(--hover-bg)] hover:bg-[var(--border)] rounded flex items-center justify-center text-[13px] font-bold text-[var(--text)] transition-colors cursor-pointer">
+                 <button 
+                   onClick={onOpenDataModal}
+                   className="w-full py-2 bg-[var(--hover-bg)] hover:bg-[var(--border)] rounded flex items-center justify-center text-[13px] font-bold text-[var(--text)] transition-colors cursor-pointer active:scale-[0.98]"
+                 >
                     {t('info.sections.view_all')}
                  </button>
                </div>

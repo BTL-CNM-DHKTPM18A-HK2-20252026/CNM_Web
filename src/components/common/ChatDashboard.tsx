@@ -11,6 +11,7 @@ import { ContactList } from './ContactList';
 import { ContactsContent } from './ContactsContent';
 import { AddFriendModal } from './AddFriendModal';
 import { CreateGroupModal } from './CreateGroupModal';
+import { UserDataModal } from './UserDataModal';
 import { apiClient } from '@/services/api';
 import { websocketService } from '@/services/websocketService';
 import { friendService } from '@/services/friendService';
@@ -29,6 +30,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAddFriendModalOpen, setIsAddFriendModalOpen] = useState(false);
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
+  const [isUserDataModalOpen, setIsUserDataModalOpen] = useState(false);
   const [activeSidebar, setActiveSidebar] = useState<'info' | 'search' | null>('info');
   const [currentUser, setCurrentUser] = useState<any>(null);
   const hasToasted = React.useRef(false);
@@ -197,6 +199,11 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
         onClose={() => setIsCreateGroupModalOpen(false)}
       />
 
+      <UserDataModal
+        isOpen={isUserDataModalOpen}
+        onClose={() => setIsUserDataModalOpen(false)}
+      />
+
       {/* 1. LEFT SIDEBAR */}
       <Sidebar
         activeTab={activeTab}
@@ -255,7 +262,10 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
                 }}
               />
               {activeSidebar === 'info' && (
-                <ChatInfoSidebar onClose={() => setActiveSidebar(null)} />
+                <ChatInfoSidebar 
+                  onClose={() => setActiveSidebar(null)} 
+                  onOpenDataModal={() => setIsUserDataModalOpen(true)}
+                />
               )}
               {activeSidebar === 'search' && (
                 <div className="w-[340px] border-l border-[var(--border)] bg-[var(--card-bg)] flex flex-col transition-colors duration-200">

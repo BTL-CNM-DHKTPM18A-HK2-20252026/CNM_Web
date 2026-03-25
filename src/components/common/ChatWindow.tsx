@@ -9,7 +9,8 @@ import {
   LightningIcon,
   EmojiIcon,
   LikeIcon,
-  SendIcon
+  SendIcon,
+  VideoPickerIcon
 } from '@/components/ui/Icons';
 import { useTranslation } from 'react-i18next';
 import { StickerPicker } from '@/components/common/StickerPicker';
@@ -86,6 +87,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
   const [isNicknameModalOpen, setIsNicknameModalOpen] = React.useState(false);
   const [isFilePopoverOpen, setIsFilePopoverOpen] = React.useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageClick = () => {
@@ -159,8 +161,8 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       if (file.type.startsWith('image/')) msgType = 'IMAGE';
       else if (file.type.startsWith('video/')) msgType = 'VIDEO';
 
-      // 5. Send message with S3 URL
-      await handleSendMessage(s3Url, msgType);
+      // 5. Send message with S3 URL and metadata
+      await handleSendMessage(s3Url, msgType, file.name, file.size);
 
       toast.dismiss(uploadToast);
       toast.success('Gửi media thành công!');
@@ -172,6 +174,17 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFileUpload(file);
+    }
+  };
+
+  const handleVideoClick = () => {
+    videoInputRef.current?.click();
+  };
+
+  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       handleFileUpload(file);
@@ -229,7 +242,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
             reaction: null,
             rawDate: m.createdAt ? new Date(m.createdAt) : undefined
           }));
-          
+
           setMessages(mapped);
           setHasMore(hasMoreData);
           setShouldScrollToBottom(true);
@@ -285,11 +298,32 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
   const [shouldScrollToBottom, setShouldScrollToBottom] = React.useState(false);
 
   React.useEffect(() => {
+    // Scroll to bottom when shouldScrollToBottom is true
     if (shouldScrollToBottom) {
       scrollToBottom();
       setShouldScrollToBottom(false);
     }
   }, [messages, shouldScrollToBottom]);
+
+  // Use ResizeObserver to handle content height changes (like images loading)
+  React.useEffect(() => {
+    if (!scrollContainerRef.current) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      // Whenever the container size changes (images load), scroll to the bottom
+      // only if shouldScrollToBottom was set or we have a new message
+      // Actually simply scrolling to bottom is usually acceptable for chat
+      scrollToBottom();
+    });
+
+    // Observe the content, not just the container
+    const messagesList = scrollContainerRef.current;
+    resizeObserver.observe(messagesList);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
 
   // Load more messages when scrolling to top
   const loadMoreMessages = async () => {
@@ -298,13 +332,13 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
     try {
       setIsLoadingMore(true);
       const oldestMessageId = messages[0].id;
-      
+
       // Capture current scroll height to preserve position
       const scrollContainer = scrollContainerRef.current;
       const previousScrollHeight = scrollContainer?.scrollHeight || 0;
 
       const res = await apiClient.get(`/messages/conversation/${selectedChat.id}?beforeId=${oldestMessageId}&size=20`);
-      
+
       let items: any[] = [];
       let hasMoreData = false;
 
@@ -361,7 +395,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
     }
   }, [inView]);
 
-  const handleSendMessage = async (customContent?: string, msgType: string = 'TEXT') => {
+  const handleSendMessage = async (customContent?: string, msgType: string = 'TEXT', fileName?: string, fileSize?: number) => {
     const contentToUse = customContent || message.trim();
     if (contentToUse && selectedChat?.id) {
       try {
@@ -371,7 +405,9 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
         const payload = {
           conversationId: selectedChat.id.toString(),
           content: textToSend,
-          messageType: msgType
+          messageType: msgType,
+          fileName,
+          fileSize
         };
 
         const res = await apiClient.post('/messages', payload);
@@ -475,14 +511,14 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       </div>
 
       {/* MESSAGES */}
-      <div 
+      <div
         ref={scrollContainerRef}
         className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-6 bg-[var(--chat-bg)]"
       >
         {/* Infinite Scroll Trigger */}
         {hasMore && (
           <div ref={loadMoreRef} className="h-4 flex items-center justify-center opacity-0">
-             {/* Hidden observer element */}
+            {/* Hidden observer element */}
           </div>
         )}
 
@@ -515,115 +551,125 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                 </div>
               )}
               <div className={`flex ${msg.sender === 'Me' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`flex gap-2 max-w-[80%] group relative ${msg.sender === 'Me' ? 'flex-row-reverse' : ''}`}>
-              {msg.sender !== 'Me' && (
-                <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 mt-1 border-[1px] border-[#DBDFE6] dark:border-white/10 shadow-sm">
-                  <img src={selectedChat.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                </div>
-              )}
-
-              <div className={`flex flex-col ${msg.sender === 'Me' ? 'items-end' : 'items-start'} relative mt-1.5`}>
-                <div className={`relative group min-w-[60px] 
-                  ${msg.type === 'MEDIA' || msg.type === 'IMAGE' || msg.type === 'VIDEO'
-                    ? ''
-                    : `px-3 py-2 rounded-lg shadow-sm text-[15px] border ${msg.sender === 'Me'
-                      ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)] border-[var(--message-me-border)]'
-                      : 'bg-[var(--message-other-bg)] text-[var(--message-other-text)] border-[var(--message-other-border)]'
-                    }`
-                  }`}>
-                  <div className="mb-1 leading-relaxed">
-                    {msg.type === 'IMAGE' ? (
-                      <img src={msg.text} alt="Shared" className="max-w-[300px] rounded-md cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all" onClick={() => window.open(msg.text, '_blank')} />
-                    ) : msg.type === 'VIDEO' ? (
-                      <video src={msg.text} controls className="max-w-[300px] rounded-md" />
-                    ) : msg.type === 'MEDIA' ? (
-                      <div className={`border rounded-lg p-3 flex items-center gap-3.5 min-w-[270px] hover:shadow-md transition-all cursor-pointer group/file relative ${msg.sender === 'Me'
-                        ? 'bg-[var(--message-me-bg)] border-[var(--message-me-border)]'
-                        : 'bg-[var(--message-other-bg)] border-[var(--message-other-border)]'
-                        }`} onClick={() => window.open(getPreviewUrl(msg.text), '_blank')}>
-                        <div className={`h-12 w-10 rounded-md flex items-center justify-center text-white font-bold text-[16px] shadow-sm shrink-0 shadow-inner ${['PDF'].includes(getFileExtension(msg.text)) ? 'bg-red-500' :
-                            ['DOC', 'DOCX', 'W'].includes(getFileExtension(msg.text)) ? 'bg-blue-600' :
-                              ['XLS', 'XLSX'].includes(getFileExtension(msg.text)) ? 'bg-green-600' :
-                                ['PPT', 'PPTX'].includes(getFileExtension(msg.text)) ? 'bg-orange-500' :
-                                  ['ZIP', 'RAR', '7Z'].includes(getFileExtension(msg.text)) ? 'bg-purple-600' :
-                                    'bg-gray-500'
-                          }`}>
-                          {getFileExtension(msg.text).slice(0, 3) || 'FILE'}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-[14px] font-bold text-[var(--text)] truncate mb-0.5">{getFileNameFromUrl(msg.text)}</h4>
-                          <div className="flex items-center gap-1.5 text-[12px] text-[var(--sub-text)] opacity-80">
-                            <span className="flex items-center gap-1">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="opacity-60"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" /></svg>
-                              Xem trực tiếp
-                            </span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={(e) => handleDownloadFile(e, msg.text, getFileNameFromUrl(msg.text))}
-                          className="h-8 w-8 rounded-lg flex items-center justify-center border border-[var(--border)] group-hover/file:bg-[var(--hover-bg)] text-[var(--sub-text)] transition-all shrink-0 hover:scale-110 active:scale-90 cursor-pointer"
-                        >
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
-                        </button>
-                      </div>
-                    ) : (
-                      msg.text
-                    )}
-                  </div>
-                  <div className={`text-[12px] text-[var(--sub-text)] font-medium opacity-85 mt-0.5 ${msg.sender === 'Me' ? 'text-right' : 'text-left'}`}>
-                    {msg.time}
-                  </div>
-
-                  {/* Reactions - Absolute positioned at the bottom right/left of the bubble */}
-                  {msg.reaction && (
-                    <div className={`absolute -bottom-3 ${msg.sender === 'Me' ? 'right-2' : 'left-[calc(100%-40px)]'} flex items-center gap-1 z-10 animate-in fade-in slide-in-from-top-1 duration-200`}>
-                      <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-full px-1.5 py-0.5 flex items-center gap-1 shadow-sm h-6">
-                        <span className="text-[14px]">❤️</span>
-                        <span className="text-[11px] font-bold text-[var(--text)]">{msg.reaction}</span>
-                      </div>
+                <div className={`flex gap-1.5 max-w-[85%] group relative ${msg.sender === 'Me' ? 'flex-row-reverse' : ''} items-center`}>
+                  {msg.sender !== 'Me' && (
+                    <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 mt-1 border-[1px] border-[#DBDFE6] dark:border-white/10 shadow-sm">
+                      <img src={selectedChat.avatar} alt="Avatar" className="w-full h-full object-cover" />
                     </div>
                   )}
 
-                  {/* Quick Reaction Button (Visible on hover) */}
-                  <div className={`absolute -bottom-4 ${msg.sender === 'Me' ? 'left-[-40px]' : 'right-[-40px]'} opacity-0 group-hover:opacity-100 transition-all duration-300 z-20 group/reaction-btn`}>
-                    {/* The Pill Menu (Visible when hovering the button) */}
-                    <div className="absolute bottom-[24px] left-1/2 -translate-x-1/2 hidden group-hover/reaction-btn:flex items-center gap-3 bg-[var(--card-bg)] border border-[var(--border)] rounded-full px-3 py-1.5 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-200 pb-3">
-                      {['👍', '❤️', '😂', '😲', '😭', '😡'].map((emoji) => (
-                        <button
-                          key={emoji}
-                          className="text-[20px] hover:scale-125 transition-transform cursor-pointer relative z-50 pt-3"
-                          title={emoji}
-                        >
-                          <span className="block mt-[-12px]">{emoji}</span>
-                        </button>
-                      ))}
-                    </div>
+                  <div className={`flex flex-col ${msg.sender === 'Me' ? 'items-end' : 'items-start'} relative`}>
+                    <div className={`relative group w-fit min-w-[60px] 
+                  ${msg.type === 'MEDIA' || msg.type === 'IMAGE' || msg.type === 'VIDEO'
+                        ? ''
+                        : `px-3 py-2 rounded-lg shadow-sm text-[15px] border ${msg.sender === 'Me'
+                          ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)] border-[var(--message-me-border)]'
+                          : 'bg-[var(--message-other-bg)] text-[var(--message-other-text)] border-[var(--message-other-border)]'
+                        }`
+                      }`}>
+                      <div className="mb-1 leading-relaxed">
+                        {msg.type === 'IMAGE' || msg.type === 'VIDEO' ? (
+                          <div className="relative group/media-content w-fit max-w-full">
+                            {msg.type === 'IMAGE' ? (
+                              <img
+                                src={msg.text}
+                                alt="Shared"
+                                onLoad={scrollToBottom}
+                                className="max-w-[320px] max-h-[360px] rounded-md cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all shadow-sm object-contain"
+                                onClick={() => window.open(msg.text, '_blank')}
+                              />
+                            ) : (
+                              <video src={msg.text} controls className="max-w-[320px] max-h-[360px] rounded-md shadow-sm object-contain" />
+                            )}
+                          </div>
+                        ) : msg.type === 'MEDIA' ? (
+                          <div className={`border rounded-lg p-3 flex items-center gap-3.5 min-w-[270px] hover:shadow-md transition-all cursor-pointer group/file relative ${msg.sender === 'Me'
+                            ? 'bg-[var(--message-me-bg)] border-[var(--message-me-border)]'
+                            : 'bg-[var(--message-other-bg)] border-[var(--message-other-border)]'
+                            }`} onClick={() => window.open(getPreviewUrl(msg.text), '_blank')}>
+                            <div className={`h-12 w-10 rounded-md flex items-center justify-center text-white font-bold text-[16px] shadow-sm shrink-0 shadow-inner ${['PDF'].includes(getFileExtension(msg.text)) ? 'bg-red-500' :
+                              ['DOC', 'DOCX', 'W'].includes(getFileExtension(msg.text)) ? 'bg-blue-600' :
+                                ['XLS', 'XLSX'].includes(getFileExtension(msg.text)) ? 'bg-green-600' :
+                                  ['PPT', 'PPTX'].includes(getFileExtension(msg.text)) ? 'bg-orange-500' :
+                                    ['ZIP', 'RAR', '7Z'].includes(getFileExtension(msg.text)) ? 'bg-purple-600' :
+                                      'bg-gray-500'
+                              }`}>
+                              {getFileExtension(msg.text).slice(0, 3) || 'FILE'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-[14px] font-bold text-[var(--text)] truncate mb-0.5">{getFileNameFromUrl(msg.text)}</h4>
+                              <div className="flex items-center gap-1.5 text-[12px] text-[var(--sub-text)] opacity-80">
+                                <span className="flex items-center gap-1">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="opacity-60"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" /></svg>
+                                  Xem trực tiếp
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              onClick={(e) => handleDownloadFile(e, msg.text, getFileNameFromUrl(msg.text))}
+                              className="h-8 w-8 rounded-lg flex items-center justify-center border border-[var(--border)] group-hover/file:bg-[var(--hover-bg)] text-[var(--sub-text)] transition-all shrink-0 hover:scale-110 active:scale-90 cursor-pointer"
+                            >
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
+                            </button>
+                          </div>
+                        ) : (
+                          msg.text
+                        )}
+                      </div>
+                      <div className={`text-[12px] text-[var(--sub-text)] font-medium opacity-85 mt-0.5 ${msg.sender === 'Me' ? 'text-right' : 'text-left'}`}>
+                        {msg.time}
+                      </div>
 
-                    {/* The Main Quick Icon Button */}
-                    <button className="w-8 h-8 rounded-full bg-[var(--card-bg)] border border-[var(--border)] flex items-center justify-center shadow-md hover:scale-110 transition-transform cursor-pointer text-gray-400 hover:text-[#0068FF]">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" /></svg>
+                      {/* Reactions - Absolute positioned at the bottom right of the content */}
+                      {msg.reaction && (
+                        <div className={`absolute -bottom-3 ${msg.type === 'IMAGE' || msg.type === 'VIDEO' ? 'right-0' : 'right-1'} flex items-center gap-1 z-10 animate-in fade-in slide-in-from-top-1 duration-200`}>
+                          <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-full px-1.5 py-0.5 flex items-center gap-1 shadow-sm h-6">
+                            <span className="text-[14px]">❤️</span>
+                            <span className="text-[11px] font-bold text-[var(--text)]">{msg.reaction}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Quick Reaction Button (Visible on hover) */}
+                      <div className={`absolute -bottom-3.5 ${msg.type === 'IMAGE' || msg.type === 'VIDEO' ? 'right-0 translate-x-1/2' : msg.type === 'MEDIA' ? 'right-[-2px]' : 'right-[-10px]'} opacity-0 group-hover:opacity-100 transition-all duration-300 z-[60] group/reaction-btn`}>
+                        {/* The Pill Menu (Visible when hovering the button) */}
+                        <div className={`absolute bottom-[24px] ${msg.sender === 'Me' ? 'right-0' : 'left-0'} hidden group-hover/reaction-btn:flex items-center gap-2.5 bg-[var(--card-bg)] border border-[var(--border)] rounded-full px-2.5 py-1 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-200 pb-2 z-[100]`}>
+                          {['👍', '❤️', '😂', '😲', '😭', '😡'].map((emoji) => (
+                            <button
+                              key={emoji}
+                              className="text-[18px] hover:scale-125 transition-transform cursor-pointer relative z-50 pt-2"
+                              title={emoji}
+                            >
+                              <span className="block mt-[-8px]">{emoji}</span>
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* The Main Quick Icon Button */}
+                        <button className="w-7 h-7 rounded-full bg-[var(--card-bg)] border border-[var(--border)] flex items-center justify-center shadow-md hover:scale-110 transition-transform cursor-pointer text-gray-400 hover:text-[#0068FF]">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" /></svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action buttons on hover */}
+                  <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity h-fit ${msg.sender === 'Me' ? 'mr-0.5 flex-row-reverse' : 'ml-0.5'}`}>
+                    <button className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] shadow-sm transition-all border border-[var(--border)]/10 cursor-pointer">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
+                    </button>
+                    <button className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] shadow-sm transition-all border border-[var(--border)]/10 cursor-pointer">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 10l5-5 5 5M8 6v8a4 4 0 004 4h9" /></svg>
+                    </button>
+                    <button className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] shadow-sm transition-all border border-[var(--border)]/10 cursor-pointer">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>
                     </button>
                   </div>
                 </div>
               </div>
-
-              {/* Action buttons on hover */}
-              <div className={`flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity h-fit mt-1.5 ${msg.sender === 'Me' ? 'mr-2 flex-row-reverse' : 'ml-2'}`}>
-                <button className="w-8 h-8 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] shadow-sm transition-all border border-[var(--border)]/20 cursor-pointer">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
-                </button>
-                <button className="w-8 h-8 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] shadow-sm transition-all border border-[var(--border)]/20 cursor-pointer">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 10l5-5 5 5M8 6v8a4 4 0 004 4h9" /></svg>
-                </button>
-                <button className="w-8 h-8 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] shadow-sm transition-all border border-[var(--border)]/20 cursor-pointer">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>
-                </button>
-              </div>
-            </div>
-          </div>
-          </React.Fragment>
-        );
-      })}
+            </React.Fragment>
+          );
+        })}
         <div ref={messagesEndRef} />
       </div>
 
@@ -648,6 +694,19 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
             ref={imageInputRef}
             onChange={handleImageChange}
             accept="image/*"
+            className="hidden"
+          />
+          <button
+            onClick={handleVideoClick}
+            className="w-8 h-8 flex items-center justify-center rounded-md cursor-pointer text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] transition-all"
+          >
+            <VideoPickerIcon size={20} />
+          </button>
+          <input
+            type="file"
+            ref={videoInputRef}
+            onChange={handleVideoChange}
+            accept="video/*"
             className="hidden"
           />
           <div className="relative">

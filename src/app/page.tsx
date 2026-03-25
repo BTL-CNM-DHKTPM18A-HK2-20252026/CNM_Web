@@ -268,74 +268,78 @@ export default function Home() {
   // Prevent hydration mismatch
   if (!isClient) return null;
 
-  // Show Chat Dashboard if logged in
-  if (isLoggedIn) {
-    return <ChatDashboard onLogout={handleLogout} userName={username} />;
-  }
-
-  // Show Login Screen
+  // Main Render
   return (
-    <div suppressHydrationWarning className="flex min-h-screen flex-col items-center justify-center bg-[var(--background)] p-4 font-sans text-[var(--text)] transition-colors duration-300">
-      {/* Theme Switcher */}
-      <div className="absolute top-6 right-6">
-        <button
-          onClick={() => setCurrentTheme(currentTheme === 'dark' ? 'light' : 'dark')}
-          className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--border)] flex items-center justify-center text-[var(--text)] hover:bg-[var(--hover-bg)] transition-all cursor-pointer shadow-sm group"
-          title={currentTheme === 'dark' ? 'Chuyển sang chế độ sáng' : 'Chuyển sang chế độ tối'}
-        >
-          {currentTheme === 'dark' ? <SunIcon size={20} /> : <MoonIcon size={20} />}
-        </button>
-      </div>
+    <div suppressHydrationWarning className={isLoggedIn 
+      ? "h-screen w-full overflow-hidden" 
+      : "flex min-h-screen flex-col items-center justify-center bg-[var(--background)] p-4 font-sans text-[var(--text)] transition-colors duration-300"
+    }>
+      {isLoggedIn ? (
+        <ChatDashboard onLogout={handleLogout} userName={username} />
+      ) : (
+        <>
+          {/* Theme Switcher */}
+          <div className="absolute top-6 right-6">
+            <button
+              onClick={() => setCurrentTheme(currentTheme === 'dark' ? 'light' : 'dark')}
+              className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--border)] flex items-center justify-center text-[var(--text)] hover:bg-[var(--hover-bg)] transition-all cursor-pointer shadow-sm group"
+              title={currentTheme === 'dark' ? 'Chuyển sang chế độ sáng' : 'Chuyển sang chế độ tối'}
+            >
+              {currentTheme === 'dark' ? <SunIcon size={20} /> : <MoonIcon size={20} />}
+            </button>
+          </div>
 
-      <div className="mb-7 text-center animate-in fade-in slide-in-from-top-4 duration-700">
-        <h1 className="mb-2 text-4xl font-black tracking-tighter text-[#0068FF] drop-shadow-sm">
-          {t('login.title')}
-        </h1>
-        <p className="max-w-xs mx-auto text-[15px] font-medium leading-tight text-[var(--sub-text)] opacity-80">
-          {t('login.subheading')}
-        </p>
-      </div>
+          <div className="mb-7 text-center animate-in fade-in slide-in-from-top-4 duration-700">
+            <h1 className="mb-2 text-4xl font-black tracking-tighter text-[#0068FF] drop-shadow-sm">
+              {t('login.title')}
+            </h1>
+            <p className="max-w-xs mx-auto text-[15px] font-medium leading-tight text-[var(--sub-text)] opacity-80">
+              {t('login.subheading')}
+            </p>
+          </div>
 
-      <LoginForm
-        loginMethod={loginMethod}
-        setLoginMethod={setLoginMethod}
-        username={username}
-        setUsername={setUsername}
-        password={password}
-        setPassword={setPassword}
-        confirmPassword={confirmPassword}
-        setConfirmPassword={setConfirmPassword}
-        firstName={firstName}
-        setFirstName={setFirstName}
-        lastName={lastName}
-        setLastName={setLastName}
-        email={email}
-        setEmail={setEmail}
-        dob={dob}
-        setDob={setDob}
-        gender={gender}
-        setGender={setGender}
-        loading={loading}
-        error={error}
-        successMsg={successMsg}
-        showPassword={showPassword}
-        setShowPassword={setShowPassword}
-        showConfirmPassword={showConfirmPassword}
-        setShowConfirmPassword={setShowConfirmPassword}
-        onSubmit={handleLogin}
-        setError={setError}
-        setSuccessMsg={setSuccessMsg}
-        rememberMe={rememberMe}
-        setRememberMe={setRememberMe}
-        qrUuid={qrUuid}
-        qrLoading={qrLoading}
-        onRefreshQr={fetchQrSession}
-        scannedUser={scannedUser}
-      />
+          <LoginForm
+            loginMethod={loginMethod}
+            setLoginMethod={setLoginMethod}
+            username={username}
+            setUsername={setUsername}
+            password={password}
+            setPassword={setPassword}
+            confirmPassword={confirmPassword}
+            setConfirmPassword={setConfirmPassword}
+            firstName={firstName}
+            setFirstName={setFirstName}
+            lastName={lastName}
+            setLastName={setLastName}
+            email={email}
+            setEmail={setEmail}
+            dob={dob}
+            setDob={setDob}
+            gender={gender}
+            setGender={setGender}
+            loading={loading}
+            error={error}
+            successMsg={successMsg}
+            showPassword={showPassword}
+            setShowPassword={setShowPassword}
+            showConfirmPassword={showConfirmPassword}
+            setShowConfirmPassword={setShowConfirmPassword}
+            onSubmit={handleLogin}
+            setError={setError}
+            setSuccessMsg={setSuccessMsg}
+            rememberMe={rememberMe}
+            setRememberMe={setRememberMe}
+            qrUuid={qrUuid}
+            qrLoading={qrLoading}
+            onRefreshQr={fetchQrSession}
+            scannedUser={scannedUser}
+          />
 
-      <p className="mt-8 text-xs text-gray-400 font-medium">
-        © 2026 Fruvia Chat • Privacy • Terms
-      </p>
+          <p className="mt-8 text-xs text-gray-400 font-medium">
+            © 2026 Fruvia Chat • Privacy • Terms
+          </p>
+        </>
+      )}
     </div>
   );
 }
