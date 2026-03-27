@@ -77,9 +77,15 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
   const [saving, setSaving] = useState(false);
   const [userId, setUserId] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [coverPhotoUrl, setCoverPhotoUrl] = useState("");
+  const [coverPhotoPreview, setCoverPhotoPreview] = useState("");
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
   const [isSystemAvatarPickerOpen, setIsSystemAvatarPickerOpen] = useState(false);
+  const [isCoverMenuOpen, setIsCoverMenuOpen] = useState(false);
+  const [isSystemBgPickerOpen, setIsSystemBgPickerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverFileInputRef = useRef<HTMLInputElement>(null);
   const [initialUserData, setInitialUserData] = useState<any>(null);
 
   useEffect(() => {
@@ -98,6 +104,8 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
             setUserName(data.full_name || "");
             setUserId(data.id || "");
             setAvatarUrl(data.avatar_url || "");
+            setCoverPhotoUrl(data.cover_photo_url || "");
+            setCoverPhotoPreview("");
             setGender(data.gender || "Nam");
             setPhoneNumber(data.phone_number || "");
             setBio(data.bio || "");
@@ -239,6 +247,85 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
     setIsAvatarMenuOpen(false);
   };
 
+  const SYSTEM_BACKGROUNDS = [
+    '/background/image1.jpg',
+    '/background/image2.jpg',
+    '/background/image3.jpg',
+  ];
+
+  const handleSystemBgSelect = async (url: string) => {
+    setCoverPhotoPreview(url); // instant preview
+    try {
+      await apiClient.patch('/users/me/cover-photo', { cover_photo_url: url });
+      setCoverPhotoUrl(url);
+      setCoverPhotoPreview('');
+      toast.success('Đã cập nhật ảnh nền');
+      onUpdate?.();
+    } catch (err) {
+      console.error('System bg select failed:', err);
+      setCoverPhotoPreview('');
+      toast.error('Không thể lưu ảnh nền');
+    } finally {
+      setIsSystemBgPickerOpen(false);
+      setIsCoverMenuOpen(false);
+    }
+  };
+
+  /** Upload cover photo: validate → preview → presigned S3 PUT → PATCH /me/cover-photo */
+  const validateAndUploadCover = async (file: File) => {
+    // Validation
+    const allowed = ['image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowed.includes(file.type)) {
+      toast.error('Chỉ chấp nhận file JPG hoặc PNG');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Ảnh nền không được vượt quá 2MB');
+      return;
+    }
+
+    // Instant local preview
+    const localUrl = URL.createObjectURL(file);
+    setCoverPhotoPreview(localUrl);
+    setIsUploadingCover(true);
+
+    try {
+      // 1. Get presigned URL from backend
+      const presignedRes: any = await apiClient.get(
+        `/users/me/presigned-url?fileName=${encodeURIComponent(file.name)}&fileType=${encodeURIComponent(file.type)}`
+      );
+      const presignedUrl: string = presignedRes?.data ?? presignedRes;
+
+      // 2. PUT file directly to S3
+      await fetch(presignedUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type },
+      });
+
+      // 3. Derive the public S3 URL (strip query params from presigned URL)
+      const publicUrl = presignedUrl.split('?')[0];
+
+      // 4. Persist to backend
+      await apiClient.patch('/users/me/cover-photo', { cover_photo_url: publicUrl });
+
+      setCoverPhotoUrl(publicUrl);
+      setCoverPhotoPreview('');
+      toast.success('Đã cập nhật ảnh nền');
+      onUpdate?.();
+    } catch (err) {
+      console.error('Cover photo upload failed:', err);
+      // Roll back preview on failure
+      setCoverPhotoPreview('');
+      toast.error('Tải ảnh nền thất bại. Vui lòng thử lại.');
+    } finally {
+      setIsUploadingCover(false);
+      URL.revokeObjectURL(localUrl);
+      // Reset input so same file can be re-selected
+      if (coverFileInputRef.current) coverFileInputRef.current.value = '';
+    }
+  };
+
   const handleClose = () => {
     setIsEditing(false);
     setOpenDropdown(null);
@@ -276,7 +363,16 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
     return `/default/image${index}.jpg`;
   };
 
+  // Pick a deterministic default background from /background/ when user hasn't set one
+  const getDefaultCoverPhoto = (uid: string) => {
+    if (!uid) return '/background/image1.jpg';
+    const charCodeSum = uid.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    const index = (charCodeSum % 3) + 1;
+    return `/background/image${index}.jpg`;
+  };
+
   const currentAvatar = avatarUrl || getDefaultAvatar(userId);
+  const currentCover = coverPhotoPreview || coverPhotoUrl || getDefaultCoverPhoto(userId);
 
   if (isEditing) {
     return (
@@ -530,8 +626,68 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
         </div>
 
         <div className="overflow-y-auto overflow-x-hidden custom-scrollbar bg-[var(--card-bg)]">
-          <div className="h-[180px] w-full relative">
-            <Image src="https://picsum.photos/id/1018/800/400" alt="Cover" fill className="object-cover" sizes="(max-width: 400px) 100vw, 400px" />
+          <div className="h-[180px] w-full relative group/cover overflow-hidden bg-gray-200 dark:bg-gray-700">
+            {/* Cover photo: preview > saved > default system background */}
+            <Image
+              src={currentCover}
+              alt="Cover"
+              fill
+              className="object-cover transition-opacity duration-300"
+              sizes="(max-width: 550px) 100vw, 550px"
+              unoptimized={!!coverPhotoPreview}
+            />
+
+            {/* Uploading overlay */}
+            {isUploadingCover && (
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-2 text-white">
+                  <svg className="animate-spin w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
+                  <span className="text-[13px] font-medium">Đang tải lên...</span>
+                </div>
+              </div>
+            )}
+
+            {/* Change Cover Button + dropdown menu — visible on hover */}
+            {!isUploadingCover && (
+              <div className="absolute bottom-3 right-3 opacity-0 group-hover/cover:opacity-100 transition-all">
+                <button
+                  onClick={() => setIsCoverMenuOpen((v) => !v)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-black/50 hover:bg-black/70 text-white text-[13px] font-medium rounded-md cursor-pointer"
+                >
+                  <CameraIcon size={14} />
+                  Thay đổi ảnh nền
+                </button>
+
+                {isCoverMenuOpen && (
+                  <div className="absolute bottom-full right-0 mb-2 w-52 bg-[var(--card-bg)] border border-[var(--border)] rounded-lg shadow-2xl py-1 animate-in fade-in zoom-in-95 duration-150 z-20">
+                    <button
+                      onClick={() => { setIsSystemBgPickerOpen(true); setIsCoverMenuOpen(false); }}
+                      className="w-full px-4 py-2.5 text-left text-[13px] hover:bg-[var(--hover-bg)] transition-colors text-[var(--text)] font-medium flex items-center gap-2 cursor-pointer"
+                    >
+                      <GlobeIcon size={15} />
+                      Ảnh nền hệ thống
+                    </button>
+                    <button
+                      onClick={() => { coverFileInputRef.current?.click(); setIsCoverMenuOpen(false); }}
+                      className="w-full px-4 py-2.5 text-left text-[13px] hover:bg-[var(--hover-bg)] transition-colors text-[var(--text)] font-medium flex items-center gap-2 cursor-pointer"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+                      Tải ảnh từ máy
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            <input
+              type="file"
+              ref={coverFileInputRef}
+              className="hidden"
+              accept="image/jpeg,image/png,image/jpg"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) validateAndUploadCover(file);
+              }}
+            />
           </div>
 
           <div className="relative px-4 pb-4 border-b-8 border-[var(--background)]">
@@ -655,6 +811,54 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* System Background Picker Modal */}
+      {isSystemBgPickerOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 animate-in fade-in duration-200">
+          <div className="bg-[var(--card-bg)] w-[480px] rounded-xl shadow-2xl overflow-hidden border border-[var(--border)]">
+            <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
+              <h3 className="font-bold text-[var(--text)]">Chọn ảnh nền hệ thống</h3>
+              <button
+                onClick={() => setIsSystemBgPickerOpen(false)}
+                className="p-1 hover:bg-[var(--hover-bg)] rounded-full transition-colors cursor-pointer text-[var(--sub-text)]"
+              >
+                <XIcon size={20} />
+              </button>
+            </div>
+            <div className="p-4 grid grid-cols-3 gap-3 bg-[var(--background)]">
+              {SYSTEM_BACKGROUNDS.map((src, idx) => {
+                const isActive = currentCover === src;
+                return (
+                  <button
+                    key={src}
+                    onClick={() => handleSystemBgSelect(src)}
+                    className={`relative rounded-lg overflow-hidden border-2 transition-all cursor-pointer group shadow-sm ${isActive ? 'border-[#0068FF] scale-[0.97]' : 'border-transparent hover:border-[#0068FF]'}`}
+                    style={{ aspectRatio: '16/9' }}
+                  >
+                    <Image
+                      src={src}
+                      fill
+                      alt={`Ảnh nền ${idx + 1}`}
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      sizes="140px"
+                    />
+                    {isActive && (
+                      <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
+                        <div className="bg-white rounded-full p-1 shadow">
+                          <CheckIcon size={14} />
+                        </div>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-center text-[12px] text-[var(--sub-text)] pb-3">
+              Bấm vào ảnh để áp dụng ngay
+            </p>
           </div>
         </div>
       )}

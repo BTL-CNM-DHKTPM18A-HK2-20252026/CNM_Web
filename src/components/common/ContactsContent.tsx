@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { useEffect } from 'react';
 import { ConfirmationModal } from './ConfirmationModal';
 import { websocketService } from '@/services/websocketService';
+import { StatusIndicator } from './StatusIndicator';
 
 interface ContactsContentProps {
   category: string;
@@ -441,11 +442,15 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
 
                     return (
                       <div key={id} onClick={() => onSelectUser?.(item)} className={`mx-2 my-1 rounded-lg flex items-center group py-4 px-4 transition-all cursor-pointer hover:bg-[var(--active-bg)] ${activeMenuId === id ? 'bg-[var(--active-bg)]' : ''}`}>
-                        <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 mr-4 border border-black/5 shadow-sm bg-blue-50 flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 mr-4 border border-black/5 shadow-sm bg-blue-50 flex items-center justify-center relative">
                           {avatar ? (
                             <Image src={avatar} alt={name} width={48} height={48} className="object-cover" />
                           ) : (
                             <span className="text-blue-600 font-bold text-lg">{name?.charAt(0)}</span>
+                          )}
+                          {/* Online status dot */}
+                          {isFriends && id && (
+                            <StatusIndicator userId={id} dotOnly dotSize={12} className="absolute bottom-0 right-0" />
                           )}
                         </div>
 

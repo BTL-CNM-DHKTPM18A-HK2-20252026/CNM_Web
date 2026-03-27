@@ -4,6 +4,8 @@ import { SearchIcon, AddUserIcon, PinIcon, ImagePickerIcon, CreateGroupIcon, Che
 import Image from 'next/image';
 import { apiClient } from '@/services/api';
 import { toast } from 'sonner';
+import { StatusIndicator } from './StatusIndicator';
+import { usePresence } from '@/components/providers/PresenceProvider';
 
 interface Conversation {
   id: string | number;
@@ -15,6 +17,9 @@ interface Conversation {
   isCloud?: boolean;
   avatar?: string;
   unreadCount?: number;
+  otherUserId?: string;
+  conversationStatus?: string;
+  isRequest?: boolean;
 }
 
 interface ConversationListProps {
@@ -43,9 +48,26 @@ interface SearchItem {
 
 export function ConversationList({ conversations, onAddFriend, onCreateGroup, onSelectConversation, onPinConversation, onDeleteConversation }: ConversationListProps) {
   const { t, i18n } = useTranslation();
+  const { isOnline, getTimeAgo } = usePresence();
+
+  // Force re-render every 60s so "X minutes ago" text auto-updates
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((n) => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   const [isSearching, setIsSearching] = useState(false);
   const [showClassifyMenu, setShowClassifyMenu] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [filterTab, setFilterTab] = useState<'all' | 'unread' | 'requests'>('all');
+
+  const requestCount = conversations.filter(c => c.isRequest).length;
+  const filteredConversations = filterTab === 'requests'
+    ? conversations.filter(c => c.isRequest)
+    : filterTab === 'unread'
+      ? conversations.filter(c => c.unreadCount && c.unreadCount > 0)
+      : conversations.filter(c => !c.isRequest);
   const [contextMenu, setContextMenu] = useState<{ id: string | number; x: number; y: number } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
 
@@ -394,11 +416,28 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
           /* Tabs and Filters */
           <div className="flex items-center justify-between px-4 pb-0.5 border-b border-[var(--border)] relative">
             <div className="flex gap-6 text-[14px] font-medium transition-colors duration-200">
-              <button className="py-2.5 border-b-2 border-[var(--primary)] text-[var(--primary)] cursor-pointer transition-colors relative">
+              <button
+                onClick={() => setFilterTab('all')}
+                className={`py-2.5 cursor-pointer transition-colors relative ${filterTab === 'all' ? 'border-b-2 border-[var(--primary)] text-[var(--primary)]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
+              >
                 {t('chat.tabs.all')}
               </button>
-              <button className="py-2.5 text-[var(--sub-text)] cursor-pointer hover:text-[var(--text)] transition-colors">
+              <button
+                onClick={() => setFilterTab('unread')}
+                className={`py-2.5 cursor-pointer transition-colors relative ${filterTab === 'unread' ? 'border-b-2 border-[var(--primary)] text-[var(--primary)]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
+              >
                 {t('chat.tabs.unread')}
+              </button>
+              <button
+                onClick={() => setFilterTab('requests')}
+                className={`py-2.5 cursor-pointer transition-colors relative flex items-center gap-1.5 ${filterTab === 'requests' ? 'border-b-2 border-[var(--primary)] text-[var(--primary)]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
+              >
+                Tin nhắn chờ
+                {requestCount > 0 && (
+                  <span className="min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-bold text-white bg-[#EF4444]">
+                    {requestCount > 99 ? '99+' : requestCount}
+                  </span>
+                )}
               </button>
             </div>
             <div className="flex items-center gap-4 text-[13px] text-[var(--sub-text)]">
@@ -577,62 +616,87 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
       ) : (
         /* Normal List */
         <div className="flex-1 overflow-y-auto px-2 pt-2 custom-scrollbar">
-          {conversations.map((conv) => (
-            <div
-              key={conv.id}
-              onClick={() => onSelectConversation(conv.id)}
-              onContextMenu={(e) => handleContextMenu(e, conv.id)}
-              className={`flex items-center p-3 mb-1 gap-3 rounded-xl cursor-pointer transition-all group border ${conv.active ? 'bg-[var(--active-bg)] border-[var(--active-card-border)]' : 'hover:bg-[var(--hover-bg)] border-transparent hover:border-[var(--active-card-border)]'}`}
-            >
-              {/* Avatar / Icon */}
-              <div className={`h-12 w-12 rounded-full border-[1px] border-black/[0.06] dark:border-white/10 overflow-hidden shrink-0 flex items-center justify-center relative ${conv.isCloud ? 'bg-[#0068FF]' : 'bg-gray-100 dark:bg-gray-800'}`}>
-                {conv.isCloud ? (
-                  /* My Cloud Icon similar to image */
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="white">
-                    <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-5 10c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0-6c-2.33 0-4.5 1.17-4.5 2.5V14h9v-1.5c0-1.33-2.17-2.5-4.5-2.5z" />
-                  </svg>
-                ) : conv.avatar ? (
-                  <Image src={conv.avatar} alt={conv.name} width={48} height={48} className="object-cover" unoptimized />
-                ) : (
-                  <div className="text-[var(--primary)] font-bold text-lg">
-                    {conv.name.charAt(0)}
-                  </div>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-center mb-0.5">
-                  <h4 className={`text-[15px] ${conv.pinned ? 'font-bold' : 'font-medium'} truncate text-[var(--text)]`}>{conv.name}</h4>
-                  <div className="flex items-center gap-1">
-                    <span className="text-[12px] text-[#708090] font-medium mr-1">{conv.time}</span>
-                    {conv.pinned && (
-                      <div className="text-[#708090] opacity-80 shrink-0 transform rotate-45 mr-1">
-                        <PinIcon size={12} />
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex justify-between items-center h-5">
-                  <div className={`text-[13px] flex items-center gap-1.5 truncate ${conv.unreadCount && conv.unreadCount > 0 ? 'text-[var(--text)] font-semibold' : 'text-[#708090]'}`}>
-                    <span className="truncate">{conv.lastMsg}</span>
-                  </div>
-
-                  {/* Unread Badge */}
-                  {conv.unreadCount ? (
-                    <div className="min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-sm shrink-0 bg-[#EF4444]">
-                      {conv.unreadCount > 99 ? '99+' : conv.unreadCount}
-                    </div>
-                  ) : null}
-
-                  <button
-                    onClick={(e) => openContextMenuFromButton(e, conv.id)}
-                    className="hidden group-hover:flex opacity-60 hover:opacity-100 p-0.5 hover:bg-black/5 rounded transition-all text-gray-500 absolute right-4"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>
-                  </button>
-                </div>
-              </div>
+          {filteredConversations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-[var(--sub-text)]">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="opacity-30 mb-3">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              <span className="text-[14px]">
+                {filterTab === 'requests' ? 'Không có tin nhắn chờ' : filterTab === 'unread' ? 'Không có tin nhắn chưa đọc' : 'Không có hội thoại'}
+              </span>
             </div>
-          ))}
+          ) : (
+            filteredConversations.map((conv) => (
+              <div
+                key={conv.id}
+                onClick={() => onSelectConversation(conv.id)}
+                onContextMenu={(e) => handleContextMenu(e, conv.id)}
+                className={`flex items-center p-3 mb-1 gap-3 rounded-xl cursor-pointer transition-all group border ${conv.active ? 'bg-[var(--active-bg)] border-[var(--active-card-border)]' : 'hover:bg-[var(--hover-bg)] border-transparent hover:border-[var(--active-card-border)]'}`}
+              >
+                {/* Avatar / Icon */}
+                <div className={`h-12 w-12 rounded-full border-[1px] border-black/[0.06] dark:border-white/10 overflow-hidden shrink-0 flex items-center justify-center relative ${conv.isCloud ? 'bg-[#0068FF]' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                  {conv.isCloud ? (
+                    /* My Cloud Icon similar to image */
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="white">
+                      <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-5 10c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0-6c-2.33 0-4.5 1.17-4.5 2.5V14h9v-1.5c0-1.33-2.17-2.5-4.5-2.5z" />
+                    </svg>
+                  ) : conv.avatar ? (
+                    <Image src={conv.avatar} alt={conv.name} width={48} height={48} className="object-cover" unoptimized />
+                  ) : (
+                    <div className="text-[var(--primary)] font-bold text-lg">
+                      {conv.name.charAt(0)}
+                    </div>
+                  )}
+                  {/* Online status dot */}
+                  {conv.otherUserId && (
+                    <StatusIndicator userId={conv.otherUserId} dotOnly dotSize={12} className="absolute bottom-0 right-0" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-center mb-0.5">
+                    <h4 className={`text-[15px] ${conv.pinned ? 'font-bold' : 'font-medium'} truncate text-[var(--text)]`}>{conv.name}</h4>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[12px] text-[#708090] font-medium mr-1">{conv.time}</span>
+                      {conv.pinned && (
+                        <div className="text-[#708090] opacity-80 shrink-0 transform rotate-45 mr-1">
+                          <PinIcon size={12} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center h-5">
+                    <div className={`text-[13px] flex items-center gap-1.5 truncate ${conv.unreadCount && conv.unreadCount > 0 ? 'text-[var(--text)] font-semibold' : 'text-[#708090]'}`}>
+                      {conv.otherUserId && conv.lastMsg === 'Bắt đầu trò chuyện' ? (
+                        isOnline(conv.otherUserId) ? (
+                          <span className="text-green-500 font-medium">Đang hoạt động</span>
+                        ) : getTimeAgo(conv.otherUserId) ? (
+                          <span className="truncate">{getTimeAgo(conv.otherUserId)}</span>
+                        ) : (
+                          <span className="truncate">{conv.lastMsg}</span>
+                        )
+                      ) : (
+                        <span className="truncate">{conv.lastMsg}</span>
+                      )}
+                    </div>
+
+                    {/* Unread Badge */}
+                    {conv.unreadCount ? (
+                      <div className="min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-sm shrink-0 bg-[#EF4444]">
+                        {conv.unreadCount > 99 ? '99+' : conv.unreadCount}
+                      </div>
+                    ) : null}
+
+                    <button
+                      onClick={(e) => openContextMenuFromButton(e, conv.id)}
+                      className="hidden group-hover:flex opacity-60 hover:opacity-100 p-0.5 hover:bg-black/5 rounded transition-all text-gray-500 absolute right-4"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 

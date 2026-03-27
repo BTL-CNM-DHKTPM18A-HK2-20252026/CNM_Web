@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import {
   SearchIcon,
   StickerIcon,
@@ -19,6 +20,7 @@ import { NicknameModal } from '@/components/common/NicknameModal';
 import { apiClient } from '@/services/api';
 import { websocketService } from '@/services/websocketService';
 import { useInView } from 'react-intersection-observer';
+import { StatusIndicator } from './StatusIndicator';
 
 interface ChatWindowProps {
   onToggleSidebar: (type: 'info' | 'search') => void;
@@ -31,6 +33,9 @@ interface ChatWindowProps {
     avatar?: string;
     isNew?: boolean;
     recipientId?: string;
+    otherUserId?: string;
+    isRequest?: boolean;
+    conversationStatus?: string;
   };
   currentUser?: any;
   onUpdateConversation?: (id: string | number, lastMsg: string, time?: string) => void;
@@ -854,12 +859,18 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14l-4-4 1.41-1.41L10 13.17l7.59-7.59L19 7l-8 9z" /></svg>
             </div>
           ) : selectedChat.avatar ? (
-            <div className="h-12 w-12 rounded-full overflow-hidden shrink-0">
+            <div className="h-12 w-12 rounded-full overflow-hidden shrink-0 relative">
               <img src={selectedChat.avatar} alt={selectedChat.name} className="w-full h-full object-cover" />
+              {selectedChat.otherUserId && (
+                <StatusIndicator userId={selectedChat.otherUserId} dotOnly dotSize={12} className="absolute bottom-0 right-0" />
+              )}
             </div>
           ) : (
-            <div className="h-12 w-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0">
+            <div className="h-12 w-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0 relative">
               <span className="text-[#0068FF] font-bold text-lg">{selectedChat.name?.charAt(0) || '?'}</span>
+              {selectedChat.otherUserId && (
+                <StatusIndicator userId={selectedChat.otherUserId} dotOnly dotSize={12} className="absolute bottom-0 right-0" />
+              )}
             </div>
           )}
           <div className="min-w-0 group/info cursor-pointer flex items-center gap-2">
@@ -870,7 +881,16 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                 </button>
               </h3>
-              <p className="text-[13px] text-[var(--sub-text)] truncate">{selectedChat.isCloud ? t('chat.cloud_subheading') : 'Truy cập 2 giờ trước'}</p>
+              <p className="text-[13px] text-[var(--sub-text)] truncate">
+                {selectedChat.isCloud
+                  ? t('chat.cloud_subheading')
+                  : selectedChat.otherUserId
+                    ? undefined
+                    : (selectedChat.isGroup ? `Nhóm · ${selectedChat.name}` : '')}
+              </p>
+              {!selectedChat.isCloud && selectedChat.otherUserId && (
+                <StatusIndicator userId={selectedChat.otherUserId} />
+              )}
             </div>
           </div>
         </div>
@@ -889,6 +909,16 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           <button onClick={() => onToggleSidebar('info')} className={`cursor-pointer transition-all p-1.5 rounded-md ${activeSidebar === 'info' ? 'text-[#0068FF] bg-[var(--hover-bg)]' : 'hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70'}`}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="9" y1="3" x2="9" y2="21" /></svg></button>
         </div>
       </div>
+
+      {/* STRANGER WARNING BANNER */}
+      {selectedChat.isRequest && (
+        <div className="px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 flex items-center gap-2.5">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+          <span className="text-[13px] text-amber-800 dark:text-amber-200">
+            Người này không có trong danh bạ của bạn. Hãy cẩn thận với các đường link lạ.
+          </span>
+        </div>
+      )}
 
       {/* MESSAGES */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar px-4 pt-4 pb-8 bg-[var(--chat-bg)]">
@@ -1073,100 +1103,142 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       </div>
 
       {/* INPUT BAR */}
-      <div className="bg-[var(--card-bg)] border-t border-[var(--border)] flex-shrink-0 transition-colors duration-200">
-        <div className="flex items-center px-4 py-1.5 gap-1.5 border-b border-[var(--border)] relative h-[46px]">
-          {isRecording ? (
-            <div className="flex-1 flex items-center justify-between animate-in slide-in-from-bottom-2 duration-300">
-              <div className="flex items-center gap-3 px-3 py-1.5 bg-red-50 dark:bg-red-500/10 text-red-500 rounded-lg border border-red-100 dark:border-red-500/20">
-                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                <div className="flex flex-col leading-none">
-                  <span className="text-[13px] font-bold font-mono">
-                    {Math.floor(recordingTime / 60)}:{String(recordingTime % 60).padStart(2, '0')}
-                  </span>
-                  <span className="text-[10px] opacity-70 font-medium mt-0.5">Đang ghi âm...</span>
+      {selectedChat.isRequest ? (
+        /* Message Request Action Bar */
+        <div className="bg-[var(--card-bg)] border-t border-[var(--border)] flex-shrink-0 px-4 py-3 flex items-center justify-center gap-3">
+          <button
+            onClick={async () => {
+              try {
+                await apiClient.post(`/conversations/${selectedChat.id}/block`, {});
+                toast.success('Đã chặn người dùng này');
+                if (onUpdateConversation) onUpdateConversation(selectedChat.id, '', '');
+              } catch (e: any) { toast.error(e.message || 'Không thể chặn'); }
+            }}
+            className="px-5 py-2 rounded-lg bg-red-50 dark:bg-red-500/10 text-red-500 font-semibold text-[14px] hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors cursor-pointer border border-red-200 dark:border-red-500/20"
+          >
+            Chặn
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                await apiClient.delete(`/conversations/${selectedChat.id}/decline`);
+                toast.success('Đã từ chối tin nhắn');
+                if (onUpdateConversation) onUpdateConversation(selectedChat.id, '', '');
+              } catch (e: any) { toast.error(e.message || 'Không thể từ chối'); }
+            }}
+            className="px-5 py-2 rounded-lg bg-gray-100 dark:bg-white/10 text-[var(--text)] font-semibold text-[14px] hover:bg-gray-200 dark:hover:bg-white/15 transition-colors cursor-pointer border border-[var(--border)]"
+          >
+            Xóa
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                await apiClient.post(`/conversations/${selectedChat.id}/accept`, {});
+                toast.success('Đã chấp nhận tin nhắn');
+                if (onUpdateConversation) onUpdateConversation(selectedChat.id, '', '');
+              } catch (e: any) { toast.error(e.message || 'Không thể chấp nhận'); }
+            }}
+            className="px-5 py-2 rounded-lg bg-[#0068FF] text-white font-semibold text-[14px] hover:bg-[#0052CC] transition-colors cursor-pointer"
+          >
+            Chấp nhận
+          </button>
+        </div>
+      ) : (
+        <div className="bg-[var(--card-bg)] border-t border-[var(--border)] flex-shrink-0 transition-colors duration-200">
+          <div className="flex items-center px-4 py-1.5 gap-1.5 border-b border-[var(--border)] relative h-[46px]">
+            {isRecording ? (
+              <div className="flex-1 flex items-center justify-between animate-in slide-in-from-bottom-2 duration-300">
+                <div className="flex items-center gap-3 px-3 py-1.5 bg-red-50 dark:bg-red-500/10 text-red-500 rounded-lg border border-red-100 dark:border-red-500/20">
+                  <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  <div className="flex flex-col leading-none">
+                    <span className="text-[13px] font-bold font-mono">
+                      {Math.floor(recordingTime / 60)}:{String(recordingTime % 60).padStart(2, '0')}
+                    </span>
+                    <span className="text-[10px] opacity-70 font-medium mt-0.5">Đang ghi âm...</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => stopRecording(true)}
+                    className="text-[13px] font-bold text-[var(--sub-text)] hover:text-red-500 px-3 py-2 cursor-pointer transition-colors"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    onClick={() => stopRecording(false)}
+                    className="h-8 px-4 flex items-center gap-2 rounded-md bg-red-500 text-white animate-pulse cursor-pointer shadow-lg shadow-red-500/20"
+                  >
+                    <VoiceIcon size={18} />
+                    <span className="text-[13px] font-bold">Gửi</span>
+                  </button>
                 </div>
               </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => stopRecording(true)}
-                  className="text-[13px] font-bold text-[var(--sub-text)] hover:text-red-500 px-3 py-2 cursor-pointer transition-colors"
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={() => stopRecording(false)}
-                  className="h-8 px-4 flex items-center gap-2 rounded-md bg-red-500 text-white animate-pulse cursor-pointer shadow-lg shadow-red-500/20"
-                >
-                  <VoiceIcon size={18} />
-                  <span className="text-[13px] font-bold">Gửi</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <button onClick={() => togglePicker('sticker')} className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer ${isPickerOpen && pickerTab === 'sticker' ? 'bg-[var(--hover-bg)] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}><StickerIcon size={20} /></button>
-              <button onClick={handleImageClick} className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] cursor-pointer"><ImagePickerIcon size={20} /></button>
-              <input type="file" ref={imageInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
-              <button onClick={handleVideoClick} className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] cursor-pointer"><VideoPickerIcon size={20} /></button>
-              <input type="file" ref={videoInputRef} onChange={handleVideoChange} accept="video/*" className="hidden" />
-              <div className="relative">
-                <button onClick={handleFileIconClick} className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer ${isFilePopoverOpen ? 'bg-[var(--hover-bg)] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}><FilePickerIcon size={20} /></button>
-                {isFilePopoverOpen && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setIsFilePopoverOpen(false)} />
-                    <div className="absolute bottom-[calc(100%+14px)] left-[-10px] bg-[var(--card-bg)] border border-[var(--border)] rounded-lg shadow-xl z-50 p-0 overflow-hidden min-w-[140px]">
-                      <button onClick={handleFileClick} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-[var(--hover-bg)] w-full text-left text-[var(--text)] text-[14px] font-medium cursor-pointer"><FilePickerIcon size={18} />Chọn File</button>
-                      <div className="absolute top-[calc(100%-1px)] left-4 w-4 h-4 overflow-hidden"><div className="w-2.5 h-2.5 bg-[var(--card-bg)] border-b border-r border-[var(--border)] rotate-45 -translate-y-1.5 mx-auto" /></div>
-                    </div>
-                  </>
-                )}
-              </div>
-              <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
-              <button className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] cursor-pointer"><ScreenShotIcon size={20} /></button>
-              <button className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] cursor-pointer"><BusinessCardIcon size={20} /></button>
-              <button className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] cursor-pointer"><LightningIcon size={20} /></button>
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (isRecording) stopRecording();
-                  else startRecording();
-                }}
-                disabled={isInitializingMic}
-                className={`w-8 h-8 flex items-center justify-center rounded-md transition-all cursor-pointer ${isInitializingMic ? 'opacity-50 cursor-not-allowed' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}
-              >
-                {isInitializingMic ? (
-                  <div className="w-4 h-4 border-2 border-[var(--text)] border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <VoiceIcon size={20} />
-                )}
-              </button>
-            </>
-          )}
-          <StickerPicker isOpen={isPickerOpen} onClose={() => setIsPickerOpen(false)} onSelect={onSelectSticker} activeTab={pickerTab} />
-        </div>
-        {/* Typing indicator */}
-        {typingUsers.length > 0 && (
-          <div className="px-4 py-1 text-[12px] text-[var(--sub-text)] italic animate-pulse">
-            {typingUsers.length === 1
-              ? `${typingUsers[0].displayName} đang soạn tin...`
-              : `${typingUsers.map(u => u.displayName).join(', ')} đang soạn tin...`}
-          </div>
-        )}
-        <div className="flex items-center px-4 py-3 gap-3">
-          <div className="flex-1">
-            <input type="text" value={message} onChange={(e) => { setMessage(e.target.value); sendTypingIndicator(); }} onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); }} placeholder={t('chat.input_placeholder')} className="w-full bg-transparent outline-none text-[15px] placeholder:text-[var(--sub-text)] placeholder:opacity-50 py-1 text-[var(--text)]" />
-          </div>
-          <div className="flex items-center gap-2 pr-1 shrink-0">
-            <button onClick={() => togglePicker('emoji')} className={`transition-colors cursor-pointer ${isPickerOpen && pickerTab === 'emoji' ? 'text-[#0068FF]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}><EmojiIcon size={22} /></button>
-            {message.trim() ? (
-              <button onClick={() => handleSendMessage()} className="text-[#0068FF] flex items-center justify-center transform translate-y-[-1px] cursor-pointer"><SendIcon size={22} /></button>
             ) : (
-              <button onClick={() => handleSendMessage('👍')} className="text-[#0068FF] hover:scale-110 active:scale-90 flex items-center justify-center transform translate-y-[-1.5px] cursor-pointer"><LikeIcon size={22} /></button>
+              <>
+                <button onClick={() => togglePicker('sticker')} className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer ${isPickerOpen && pickerTab === 'sticker' ? 'bg-[var(--hover-bg)] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}><StickerIcon size={20} /></button>
+                <button onClick={handleImageClick} className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] cursor-pointer"><ImagePickerIcon size={20} /></button>
+                <input type="file" ref={imageInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
+                <button onClick={handleVideoClick} className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] cursor-pointer"><VideoPickerIcon size={20} /></button>
+                <input type="file" ref={videoInputRef} onChange={handleVideoChange} accept="video/*" className="hidden" />
+                <div className="relative">
+                  <button onClick={handleFileIconClick} className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer ${isFilePopoverOpen ? 'bg-[var(--hover-bg)] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}><FilePickerIcon size={20} /></button>
+                  {isFilePopoverOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setIsFilePopoverOpen(false)} />
+                      <div className="absolute bottom-[calc(100%+14px)] left-[-10px] bg-[var(--card-bg)] border border-[var(--border)] rounded-lg shadow-xl z-50 p-0 overflow-hidden min-w-[140px]">
+                        <button onClick={handleFileClick} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-[var(--hover-bg)] w-full text-left text-[var(--text)] text-[14px] font-medium cursor-pointer"><FilePickerIcon size={18} />Chọn File</button>
+                        <div className="absolute top-[calc(100%-1px)] left-4 w-4 h-4 overflow-hidden"><div className="w-2.5 h-2.5 bg-[var(--card-bg)] border-b border-r border-[var(--border)] rotate-45 -translate-y-1.5 mx-auto" /></div>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+                <button className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] cursor-pointer"><ScreenShotIcon size={20} /></button>
+                <button className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] cursor-pointer"><BusinessCardIcon size={20} /></button>
+                <button className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] cursor-pointer"><LightningIcon size={20} /></button>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (isRecording) stopRecording();
+                    else startRecording();
+                  }}
+                  disabled={isInitializingMic}
+                  className={`w-8 h-8 flex items-center justify-center rounded-md transition-all cursor-pointer ${isInitializingMic ? 'opacity-50 cursor-not-allowed' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}
+                >
+                  {isInitializingMic ? (
+                    <div className="w-4 h-4 border-2 border-[var(--text)] border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <VoiceIcon size={20} />
+                  )}
+                </button>
+              </>
             )}
+            <StickerPicker isOpen={isPickerOpen} onClose={() => setIsPickerOpen(false)} onSelect={onSelectSticker} activeTab={pickerTab} />
+          </div>
+          {/* Typing indicator */}
+          {typingUsers.length > 0 && (
+            <div className="px-4 py-1 text-[12px] text-[var(--sub-text)] italic animate-pulse">
+              {typingUsers.length === 1
+                ? `${typingUsers[0].displayName} đang soạn tin...`
+                : `${typingUsers.map(u => u.displayName).join(', ')} đang soạn tin...`}
+            </div>
+          )}
+          <div className="flex items-center px-4 py-3 gap-3">
+            <div className="flex-1">
+              <input type="text" value={message} onChange={(e) => { setMessage(e.target.value); sendTypingIndicator(); }} onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); }} placeholder={t('chat.input_placeholder')} className="w-full bg-transparent outline-none text-[15px] placeholder:text-[var(--sub-text)] placeholder:opacity-50 py-1 text-[var(--text)]" />
+            </div>
+            <div className="flex items-center gap-2 pr-1 shrink-0">
+              <button onClick={() => togglePicker('emoji')} className={`transition-colors cursor-pointer ${isPickerOpen && pickerTab === 'emoji' ? 'text-[#0068FF]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}><EmojiIcon size={22} /></button>
+              {message.trim() ? (
+                <button onClick={() => handleSendMessage()} className="text-[#0068FF] flex items-center justify-center transform translate-y-[-1px] cursor-pointer"><SendIcon size={22} /></button>
+              ) : (
+                <button onClick={() => handleSendMessage('👍')} className="text-[#0068FF] hover:scale-110 active:scale-90 flex items-center justify-center transform translate-y-[-1.5px] cursor-pointer"><LikeIcon size={22} /></button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <NicknameModal isOpen={isNicknameModalOpen} onClose={() => setIsNicknameModalOpen(false)} currentName={selectedChat.name} avatar={selectedChat.avatar} onConfirm={(newName) => { }} />
 

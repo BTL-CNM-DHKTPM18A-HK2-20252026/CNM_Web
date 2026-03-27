@@ -10,16 +10,20 @@ import Image from 'next/image';
 import { apiClient } from '@/services/api';
 import { friendService } from '@/services/friendService';
 import { toast } from 'sonner';
+import { websocketService } from '@/services/websocketService';
 
 interface ChatInfoSidebarProps {
   onClose: () => void;
   onOpenDataModal?: () => void;
   conversationId?: string | number;
   isGroup?: boolean;
+  isCloud?: boolean;
+  conversationName?: string;
+  conversationAvatar?: string;
   currentUser?: any;
 }
 
-export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGroup, currentUser }: ChatInfoSidebarProps) {
+export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGroup, isCloud, conversationName, conversationAvatar, currentUser }: ChatInfoSidebarProps) {
   const { t } = useTranslation();
   const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
   const [showMedia, setShowMedia] = React.useState(true);
@@ -197,8 +201,20 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
   };
 
   useEffect(() => {
-    fetchStats();
-  }, []);
+    if (isCloud) fetchStats();
+  }, [isCloud]);
+
+  // Real-time storage update via WebSocket
+  useEffect(() => {
+    if (!isCloud || !currentUser?.id) return;
+    const topic = `/topic/storage/${currentUser.id}`;
+    const sub = websocketService.subscribe(topic, () => {
+      fetchStats();
+    });
+    return () => {
+      sub.unsubscribe();
+    };
+  }, [isCloud, currentUser?.id]);
 
   useEffect(() => {
     if (conversationId) {
@@ -287,65 +303,83 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {/* Profile Section */}
         <div className="flex flex-col items-center pt-8 pb-6 px-6 border-b border-[var(--border)] transition-colors duration-200">
-          <div className="w-16 h-16 rounded-full bg-[#0068FF] flex items-center justify-center text-white shadow-lg mb-4">
-            <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-5 10c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0-6c-2.33 0-4.5 1.17-4.5 2.5V14h9v-1.5c0-1.33-2.17-2.5-4.5-2.5z" />
-            </svg>
-          </div>
-          <h3 className="text-[18px] font-bold text-[var(--text)] mb-2 flex items-center gap-2">
-            {t('chat.self_cloud')}
-          </h3>
-          <p className="text-[13px] text-[var(--sub-text)] text-center leading-normal">
-            {t('info.cloud.desc')}
-          </p>
+          {isCloud ? (
+            <>
+              <div className="w-16 h-16 rounded-full bg-[#0068FF] flex items-center justify-center text-white shadow-lg mb-4">
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-5 10c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0-6c-2.33 0-4.5 1.17-4.5 2.5V14h9v-1.5c0-1.33-2.17-2.5-4.5-2.5z" />
+                </svg>
+              </div>
+              <h3 className="text-[18px] font-bold text-[var(--text)] mb-2 flex items-center gap-2">
+                {t('chat.self_cloud')}
+              </h3>
+              <p className="text-[13px] text-[var(--sub-text)] text-center leading-normal">
+                {t('info.cloud.desc')}
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white shadow-lg mb-4">
+                {conversationAvatar ? (
+                  <img src={conversationAvatar} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-[26px] font-bold">{(conversationName || '?').charAt(0)}</span>
+                )}
+              </div>
+              <h3 className="text-[18px] font-bold text-[var(--text)] mb-1 text-center">
+                {conversationName || t('info.title')}
+              </h3>
+              {isGroup && (
+                <p className="text-[12px] text-[var(--sub-text)]">{members.length} {t('info.members') || 'thành viên'}</p>
+              )}
+            </>
+          )}
         </div>
 
 
 
-        {/* Storage Section */}
-        <div className="p-4 border-b border-[var(--border)] space-y-4 transition-colors duration-200">
-          <div className="flex justify-between items-center text-[13px]">
-            <span className="font-bold text-[var(--text)]">{t('info.cloud.storage.title')}</span>
-            <span className="text-[var(--sub-text)]">{stats?.totalSizeFormatted || '0 B'} / 500 MB</span>
-          </div>
+        {/* Storage Section — Cloud only */}
+        {isCloud && (
+          <div className="p-4 border-b border-[var(--border)] space-y-4 transition-colors duration-200">
+            <div className="flex justify-between items-center text-[13px]">
+              <span className="font-bold text-[var(--text)]">{t('info.cloud.storage.title')}</span>
+              <span className="text-[var(--sub-text)]">{stats?.totalSizeFormatted || '0 B'} / 500 MB</span>
+            </div>
 
-          <div className="w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden flex">
-            <div className="h-full bg-orange-500" style={{ width: `${imagePercentage}%` }}></div>
-            <div className="h-full bg-blue-500" style={{ width: `${videoPercentage}%` }}></div>
-            <div className="h-full bg-green-500" style={{ width: `${filePercentage}%` }}></div>
-            <div className="h-full bg-pink-500" style={{ width: `${voicePercentage}%` }}></div>
-          </div>
+            <div className="w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden flex">
+              <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${imagePercentage}%` }} title={`Ảnh: ${stats?.imageSizeFormatted || '0 B'}`}></div>
+              <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${videoPercentage}%` }} title={`Video: ${stats?.videoSizeFormatted || '0 B'}`}></div>
+              <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${filePercentage}%` }} title={`File: ${stats?.fileSizeFormatted || '0 B'}`}></div>
+              <div className="h-full bg-pink-500 transition-all duration-500" style={{ width: `${voicePercentage}%` }} title={`Voice: ${stats?.voiceSizeFormatted || '0 B'}`}></div>
+            </div>
 
-          <div className="flex flex-wrap gap-x-4 gap-y-2 text-[11px] text-[var(--sub-text)]">
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-              <span>{t('info.legend.photos')}</span>
+            <div className="flex flex-wrap gap-x-4 gap-y-2 text-[11px] text-[var(--sub-text)]">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                <span>{t('info.legend.photos')} {stats?.imageSizeFormatted ? `(${stats.imageSizeFormatted})` : ''}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                <span>{t('info.legend.videos')} {stats?.videoSizeFormatted ? `(${stats.videoSizeFormatted})` : ''}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                <span>{t('info.legend.files')} {stats?.fileSizeFormatted ? `(${stats.fileSizeFormatted})` : ''}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-pink-500"></div>
+                <span>{t('info.legend.voice')} {stats?.voiceSizeFormatted ? `(${stats.voiceSizeFormatted})` : ''}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-              <span>{t('info.legend.videos')}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-green-500"></div>
-              <span>{t('info.legend.files')}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-pink-500"></div>
-              <span>{t('info.legend.voice')}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-gray-400"></div>
-              <span>{t('info.legend.other')}</span>
-            </div>
-          </div>
 
-          <button
-            onClick={onOpenDataModal}
-            className="w-full py-2 bg-[var(--hover-bg)] hover:bg-[var(--border)] rounded flex items-center justify-center text-[13px] font-bold text-[var(--text)] transition-colors cursor-pointer active:scale-[0.98]"
-          >
-            {t('info.cloud.storage.clean_up')}
-          </button>
-        </div>
+            <button
+              onClick={onOpenDataModal}
+              className="w-full py-2 bg-[var(--hover-bg)] hover:bg-[var(--border)] rounded flex items-center justify-center text-[13px] font-bold text-[var(--text)] transition-colors cursor-pointer active:scale-[0.98]"
+            >
+              {t('info.cloud.storage.clean_up')}
+            </button>
+          </div>
+        )}
 
         {/* Group Members Section */}
         {isGroup && (
@@ -433,7 +467,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span className="text-[13px] font-medium text-[var(--text)] truncate">{mName}{isMe ? ' (Bạn)' : ''}</span>
-                            {mRole === 'ADMIN' && <span className="text-[10px] font-bold text-orange-500 bg-orange-50 dark:bg-orange-500/10 px-1.5 py-0.5 rounded-full shrink-0">Admin</span>}
+                            {mRole === 'ADMIN' && <span className="text-[10px] font-bold text-orange-500 bg-orange-50 dark:bg-orange-500/10 px-1.5 py-0.5 rounded-full shrink-0">Trưởng nhóm</span>}
                             {mRole === 'DEPUTY' && <span className="text-[10px] font-bold text-blue-500 bg-blue-50 dark:bg-blue-500/10 px-1.5 py-0.5 rounded-full shrink-0">Phó nhóm</span>}
                           </div>
                         </div>
