@@ -1,4 +1,20 @@
 {
+  "common": {
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "close": "Close",
+    "delete": "Delete",
+    "action_failed": "Action failed",
+    "collapse": "Collapse",
+    "view_more": "View more",
+    "unknown_user": "Unknown User",
+    "coming_soon": "Coming soon",
+    "saving": "Saving...",
+    "uploading": "Uploading...",
+    "select_all": "Select all",
+    "you": "You"
+  },
   "login": {
     "title": "Fruvia Chat",
     "subheading": "Log in to Fruvia Chat to connect with Fruvia Chat",
@@ -10,7 +26,11 @@
     "qr": {
       "expired": "QR code expired, click to refresh",
       "refresh": "Refresh QR",
-      "hint": "Only for logging in to Fruvia on computer"
+      "hint": "Only for logging in to Fruvia on computer",
+      "confirm_on_phone": "Please confirm on your phone",
+      "allow_hint": "Press the <strong>Allow</strong> button on the Fruvia Mobile app to complete login.",
+      "switch_account": "Login with another account",
+      "loading": "Generating QR code..."
     },
     "phone": {
       "header": "Login with password",
@@ -18,13 +38,55 @@
       "password_placeholder": "Password",
       "submit": "Login with password",
       "forgot_password": "Forgot password?",
-      "qr_back": "Login via QR code"
+      "qr_back": "Login via QR code",
+      "remember_me": "Remember profile"
+    },
+    "register": {
+      "header": "Create new account",
+      "last_name": "Last Name",
+      "last_name_placeholder": "Enter last name...",
+      "first_name": "First Name",
+      "first_name_placeholder": "Enter first name...",
+      "email_hint": "Use a valid email format (e.g.: user@example.com). No consecutive dots ..",
+      "dob": "Date of Birth",
+      "gender": "Gender",
+      "register_btn": "Register",
+      "password_hint": "Create a strong password",
+      "confirm_password_hint": "Strong password: At least 8 characters, including uppercase, lowercase, numbers and special characters (!@#$%^&*)",
+      "phone_hint": "Vietnamese mobile phone number: 10 digits starting with: 03, 05, 07, 08, 09",
+      "confirm_password_placeholder": "Confirm password"
     },
     "promo": {
       "title": "Best Fruvia PC experience",
       "desc": "Send 1GB files, HD video calls, lightning fast sync",
       "download": "Download Now"
+    },
+    "validation": {
+      "phone_invalid": "Invalid phone number (10 digits, e.g.: 0901234567)",
+      "email_invalid": "Invalid email (check format and dots)",
+      "password_weak": "Password must be at least 8 characters, including uppercase, lowercase, number and special character (!@#$%^&*)",
+      "confirm_mismatch": "Confirm password does not match",
+      "qr_error": "Cannot get QR code. Please try again."
+    },
+    "success": {
+      "register": "Account registered successfully!",
+      "register_desc": "You can now log in with the phone number you just registered.",
+      "logout": "Logged out successfully",
+      "logout_desc": "See you soon! Have a great day."
+    },
+    "error": {
+      "login_failed": "Login failed",
+      "register_failed": "Registration failed"
+    },
+    "theme_switch": {
+      "light": "Switch to light mode",
+      "dark": "Switch to dark mode"
     }
+  },
+  "gender": {
+    "male": "Male",
+    "female": "Female",
+    "other": "Other"
   },
   "sidebar": {
     "account_info": "Account Info",
@@ -43,6 +105,7 @@
       "unread": "Unread"
     },
     "classify": "Filter",
+    "tags": "Tags",
     "more": "More",
     "self_cloud": "My Documents",
     "cloud_subheading": "Transfer files across your devices",
@@ -50,6 +113,8 @@
     "you": "You",
     "time_unit": "min",
     "today": "Today",
+    "start_conversation": "Start a conversation",
+    "file_attachment": "Attachment",
     "search_overlay": {
       "close": "Close",
       "recent": "Recent searches",
@@ -70,10 +135,250 @@
       "strangers": "Messages from strangers",
       "manage": "Manage classification tags"
     },
-    "search_panel_title": "Search in Chat"
+    "search_panel_title": "Search in Chat",
+    "date": {
+      "today": "Today",
+      "yesterday": "Yesterday"
+    },
+    "voice": {
+      "too_short": "Message too short (Minimum 1 second)",
+      "sending": "Sending voice message...",
+      "send_success": "Voice message sent successfully!",
+      "recording_hint": "Recording... Click the icon again to send.",
+      "mic_error": "Cannot access Microphone. Please check your browser's microphone permissions.",
+      "recording": "Recording..."
+    },
+    "upload": {
+      "loading": "Uploading {{name}}...",
+      "success": "Media sent successfully!",
+      "error": "Error uploading media"
+    },
+    "message": {
+      "recalled": "Message has been recalled",
+      "edit_error": "Cannot edit message",
+      "recall_error": "Cannot recall message",
+      "delete_local_success": "Message deleted on your side",
+      "delete_error": "Cannot delete message"
+    },
+    "snippet": {
+      "image": "[Image]",
+      "video": "[Video]",
+      "file": "[File]",
+      "voice": "[Voice message]",
+      "sticker": "[Sticker]"
+    },
+    "header": {
+      "group_prefix": "Group",
+      "add_to_group": "Add to group",
+      "video_call": "Video call"
+    },
+    "friend": {
+      "accept_success": "Friend request accepted!",
+      "accept_error": "Cannot accept friend request",
+      "send_success": "Friend request sent!",
+      "send_error": "Cannot send friend request",
+      "accept_btn": "Accept",
+      "sent_label": "Invitation sent",
+      "add_btn": "Add friend"
+    },
+    "actions": {
+      "reply": "Reply",
+      "forward": "Forward",
+      "more": "More"
+    },
+    "reply": {
+      "replying_to": "Replying to"
+    },
+    "forward": {
+      "title": "Forward message",
+      "message_preview": "Message to forward:",
+      "search_placeholder": "Search conversations...",
+      "no_results": "No conversations found",
+      "selected": "{{count}} selected",
+      "send_btn": "Forward",
+      "sending": "Sending...",
+      "success": "Forwarded to {{count}} conversation(s)",
+      "error": "Failed to forward message"
+    },
+    "typing": {
+      "one": "{{name}} is typing...",
+      "many": "{{names}} are typing..."
+    },
+    "nickname": {
+      "update_success": "Nickname updated",
+      "update_error": "Cannot update nickname"
+    },
+    "status": {
+      "on_cloud": "On Cloud",
+      "edited": "Edited",
+      "seen": "Seen",
+      "sent": "Sent"
+    },
+    "confirm": {
+      "edit_cancel": "Cancel",
+      "edit_save": "Save",
+      "recall_title": "Recall message",
+      "delete_title": "Delete message",
+      "recall_message": "This message will be recalled for everyone in the conversation. Are you sure?",
+      "delete_message": "This message will only be deleted on your side. Others can still see it. Are you sure?",
+      "recall_btn": "Recall",
+      "delete_btn": "Delete on my side"
+    },
+    "ctx_menu": {
+      "edit": "Edit",
+      "recall": "Recall",
+      "delete_local": "Delete on my side"
+    },
+    "reactions": {
+      "title": "Reactions",
+      "all": "All"
+    },
+    "ctx": {
+      "pin": "Pin conversation",
+      "unpin": "Unpin conversation",
+      "pin_success": "Conversation pinned",
+      "unpin_success": "Conversation unpinned",
+      "pin_error": "Cannot update pin",
+      "classify": "Classify",
+      "classify_success": "Classified as: {{label}}",
+      "classify_removed": "Classification removed",
+      "classify_error": "Cannot update classification",
+      "mark_unread": "Mark as unread",
+      "mute": "Mute notifications",
+      "hide": "Hide conversation",
+      "auto_delete": "Auto-delete messages",
+      "delete": "Delete conversation",
+      "delete_confirm": "Delete conversation \"{{name}}\"?",
+      "delete_desc": "Messages will be hidden from your list.",
+      "confirm_delete": "Confirm delete",
+      "delete_success": "Conversation deleted",
+      "delete_error": "Cannot delete conversation",
+      "report": "Report"
+    },
+    "mute": {
+      "1h": "For 1 hour",
+      "4h": "For 4 hours",
+      "8am": "Until 8:00 AM",
+      "forever": "Until turned back on"
+    },
+    "auto_delete": {
+      "off": "Off",
+      "1d": "1 day",
+      "7d": "7 days",
+      "30d": "30 days"
+    },
+    "stranger_warning": "This person is not in your contacts. Be careful with suspicious links.",
+    "choose_file": "Choose File",
+    "recording_cancel": "Cancel",
+    "recording_send": "Send",
+    "empty": {
+      "requests": "No pending messages",
+      "unread": "No unread messages",
+      "conversations": "No conversations"
+    },
+    "request": {
+      "accept": "Accept",
+      "decline": "Decline",
+      "accepted": "Accepted",
+      "accept_success": "Message request accepted",
+      "accept_error": "Cannot accept message request",
+      "decline_success": "Message request declined",
+      "block_success": "User blocked"
+    }
+  },
+  "presence": {
+    "online": "Active now",
+    "just_now": "Just now",
+    "minutes_ago": "Active {{count}} min ago",
+    "hours_ago": "Active {{count}} hr ago",
+    "days_ago": "Active {{count}} days ago",
+    "weeks_ago": "Active {{count}} weeks ago",
+    "active_on_date": "Active {{date}}",
+    "offline": "Offline"
+  },
+  "contacts": {
+    "title": {
+      "friends": "Friends List",
+      "groups": "Groups & Communities",
+      "invites": "Friend Requests",
+      "group_invites": "Group & Community Invitations"
+    },
+    "count": {
+      "friends": "Friends ({{count}})",
+      "groups": "Groups & communities ({{count}})"
+    },
+    "invite": {
+      "accept_success": "Friend request accepted",
+      "reject_success": "Friend request rejected",
+      "recall_success": "Invitation recalled",
+      "default_message": "Hello, let's be friends!",
+      "sent_label": "You sent a request",
+      "no_message": "No message content",
+      "reject": "Decline",
+      "accept": "Accept",
+      "recall": "Recall invitation",
+      "received": "Received invitations ({{count}})",
+      "sent": "Sent invitations ({{count}})"
+    },
+    "invites": {
+      "empty": "No invitations",
+      "empty_desc": "Friend requests will appear here."
+    },
+    "unfriend": {
+      "success": "Friend removed",
+      "error": "Failed to remove friend"
+    },
+    "block": {
+      "success": "User blocked",
+      "error": "Failed to block user"
+    },
+    "menu": {
+      "view_info": "View info",
+      "classify": "Classify",
+      "set_nickname": "Set nickname",
+      "block": "Block this person",
+      "unfriend": "Remove friend"
+    },
+    "actions": {
+      "message": "Send message"
+    },
+    "search": {
+      "friends_placeholder": "Search friends list",
+      "placeholder": "Search..."
+    },
+    "sort": {
+      "name_az": "Name (A-Z)",
+      "activity": "Activity (new — old)"
+    },
+    "filter": {
+      "all": "All"
+    },
+    "empty": {
+      "search": "No results found",
+      "friends": "No friends yet",
+      "groups": "No groups joined yet"
+    },
+    "confirm": {
+      "unfriend_title": "Remove friend",
+      "block_title": "Block user",
+      "unfriend_message": "Are you sure you want to remove {{name}} from your friend list?",
+      "block_message": "Are you sure you want to block {{name}}? They will not be able to send messages or friend requests to you.",
+      "unfriend_btn": "Remove friend",
+      "block_btn": "Block"
+    },
+    "suggestions": "Friend suggestions (0)",
+    "send_message": "Send message"
+  },
+  "dashboard": {
+    "user_not_found": "User not found",
+    "welcome": "Welcome back to Fruvia Chat, {{name}}!",
+    "welcome_desc": "Have a wonderful day. 👋",
+    "cloud_open_error": "Cannot open My Documents. Please try again.",
+    "new_friend_invite": "You have a new friend request!",
+    "added_to_group": "You were added to group \"{{name}}\""
   },
   "profile": {
-    "title": "Profile",
+    "title": "Account Info",
     "personal_info": "Personal Info",
     "gender": "Gender",
     "birthday": "Birthday",
@@ -81,10 +386,46 @@
     "gender_male": "Male",
     "gender_female": "Female",
     "update": "Update",
-    "privacy_note": "Only friends with your phone number saved can see this"
+    "privacy_note": "Only friends with your phone number saved can see this",
+    "update_success": "Profile updated successfully!",
+    "update_error": "Update failed. Please try again later.",
+    "avatar": {
+      "update_success": "Avatar updated",
+      "update_error": "Cannot save avatar"
+    },
+    "cover": {
+      "update_success": "Cover photo updated",
+      "update_error": "Cannot save cover photo",
+      "invalid_type": "Only JPG or PNG files accepted",
+      "too_large": "Cover photo must not exceed 2MB",
+      "upload_error": "Failed to upload cover photo. Please try again.",
+      "change": "Change cover photo",
+      "system_bg": "System backgrounds",
+      "upload_from_device": "Upload from device"
+    },
+    "edit": {
+      "title": "Update personal info",
+      "display_name": "Display Name",
+      "personal_info": "Personal Info",
+      "dob": "Date of Birth",
+      "bio": "Bio",
+      "bio_placeholder": "Tell something about yourself...",
+      "address": "Address",
+      "address_placeholder": "Address...",
+      "city": "City",
+      "city_placeholder": "City...",
+      "workplace": "Workplace",
+      "workplace_placeholder": "Analyst, doctor...",
+      "education": "Education",
+      "education_placeholder": "University..."
+    }
   },
   "info": {
     "title": "Conversation Info",
+    "members": "members",
+    "time": {
+      "just_now": "Just now"
+    },
     "cloud": {
       "desc": "Store and access your most important content on Fruvia Chat",
       "storage": {
@@ -93,7 +434,7 @@
       },
       "upgrade": {
         "title": "Upgrade My Documents Storage",
-        "desc": "Expand your storage up to 100GB and automatically secure your Zalo data with zCloud.",
+        "desc": "Expand your storage up to 100GB and automatically secure your data with zCloud.",
         "add": "Add Storage"
       }
     },
@@ -105,7 +446,9 @@
       "view_all": "View all",
       "no_media": "No photos/videos yet",
       "no_files": "No attachments yet",
-      "no_links": "No links yet"
+      "no_links": "No links yet",
+      "file_attachment": "Attachment",
+      "just_now": "Just now"
     },
     "legend": {
       "photos": "Photos",
@@ -114,6 +457,152 @@
       "voice": "Voice messages",
       "other": "Other"
     }
+  },
+  "group": {
+    "members_title": "Group Members",
+    "add_member": "Add member",
+    "add_member_success": "Members added",
+    "add_member_error": "Cannot add members",
+    "select_friends": "Select friends to add",
+    "no_friends": "No friends to add",
+    "adding": "Adding...",
+    "add_count": "Add ({{count}})",
+    "members": {
+      "title": "Group Members",
+      "add": "Add member",
+      "select_friends": "Select friends to add",
+      "no_friends": "No friends to add",
+      "adding": "Adding...",
+      "add_count": "Add ({{count}})",
+      "search": "Search members"
+    },
+    "member": {
+      "you": " (You)",
+      "add_success": "Members added",
+      "add_error": "Cannot add members",
+      "manage_role": "Manage role",
+      "remove": "Remove from group",
+      "remove_confirm": "Remove {{name}} from group?",
+      "remove_desc": "This member will no longer have access to this group chat.",
+      "remove_confirm_btn": "Confirm remove",
+      "remove_success": "Removed {{name}} from group",
+      "remove_error": "Cannot remove member"
+    },
+    "role": {
+      "admin": "Admin",
+      "admin_title": "Admin",
+      "deputy": "Deputy",
+      "deputy_title": "Deputy",
+      "member": "Member",
+      "member_title": "Member",
+      "promote_deputy": "Promote to Deputy",
+      "demote_member": "Demote to Member",
+      "change_confirm": "Promote {{name}} to {{role}}?",
+      "change_success": "{{name}} promoted to {{role}}",
+      "change_error": "Cannot change role"
+    },
+    "manage_role": "Manage role",
+    "promote_deputy": "Promote to Deputy",
+    "demote_member": "Demote to Member",
+    "transfer_ownership": "Transfer Admin role",
+    "remove_member": "Remove from group",
+    "leave": {
+      "title": "Leave group",
+      "confirm": "Are you sure you want to leave this group?",
+      "desc": "You will no longer receive messages from this group.",
+      "confirm_btn": "Confirm leave",
+      "success": "Left group",
+      "error": "Cannot leave group",
+      "transfer_and_leave": "Transfer & Leave group"
+    },
+    "leave_confirm": "Are you sure you want to leave this group?",
+    "leave_desc": "You will no longer receive messages from this group.",
+    "leave_confirm_btn": "Confirm leave",
+    "leave_success": "Left group",
+    "leave_error": "Cannot leave group",
+    "transfer": {
+      "title": "Transfer Admin role",
+      "confirm": "Are you sure you want to transfer Admin to {{name}}?",
+      "desc": "This action cannot be undone.",
+      "confirm_btn": "Confirm transfer",
+      "leave_success": "Transferred admin to {{name}} and left group",
+      "success": "Transferred Admin to {{name}}",
+      "error": "Cannot transfer admin",
+      "select_successor": "Select successor before leaving",
+      "select_successor_desc": "You must select a member to be the new Admin before leaving.",
+      "select_member_desc": "Select a member to transfer Admin role."
+    },
+    "disband": {
+      "confirm": "Are you sure you want to disband this group?",
+      "desc": "All members will be removed and group data will be deleted.",
+      "success": "Group disbanded",
+      "error": "Cannot disband group"
+    }
+  },
+  "addFriend": {
+    "title": "Add Friend",
+    "account_info": "Account Info",
+    "default_message": "Hi, I'm {{name}}. Let's be friends!",
+    "self_error": "You cannot add yourself as a friend",
+    "not_found": "User not found",
+    "send_success": "Friend request sent!",
+    "send_error": "Failed to send friend request",
+    "phone_placeholder": "Phone number",
+    "recent_results": "Recent results",
+    "searching": "Searching...",
+    "status": {
+      "friend": "Friend"
+    },
+    "add_btn": "Add friend",
+    "search_btn": "Search",
+    "message_placeholder": "Enter friend request message",
+    "char_count": "characters",
+    "block_diary": "Block this person from seeing my diary",
+    "info_btn": "Info"
+  },
+  "createGroup": {
+    "title": "Create Group",
+    "success": "Group created successfully!",
+    "error": "Failed to create group",
+    "name_placeholder": "Enter group name...",
+    "search_placeholder": "Enter name, phone number, or list of phone numbers",
+    "loading_friends": "Loading friends list...",
+    "no_results": "No results found",
+    "no_friends": "No friends yet",
+    "creating": "Creating...",
+    "create_btn": "Create group ({{count}})"
+  },
+  "nickname_modal": {
+    "title": "Set Nickname",
+    "description": "Give <span>{{name}}</span> a nickname to remember.",
+    "note": "Note: The nickname will only be visible to you.",
+    "placeholder": "Enter nickname"
+  },
+  "userData": {
+    "title": "Manage My Documents Data",
+    "storage": "Storage",
+    "photos": "Photos",
+    "videos": "Videos",
+    "files": "Files",
+    "voice": "Voice",
+    "other": "Other",
+    "upgrade_storage": "Upgrade Storage",
+    "upgrade_desc": "Storage space up to 100 GB. Automatically secured.",
+    "add_storage": "Add Storage",
+    "tabs": {
+      "all": "All",
+      "image": "Photos",
+      "video": "Videos",
+      "file": "Files",
+      "voice": "Voice messages"
+    },
+    "sort_size_desc": "Size descending",
+    "cleanup": "Cleanup ({{count}})"
+  },
+  "sticker": {
+    "search_sticker": "Search sticker",
+    "search_emoji": "Search emoji",
+    "search_gif": "Search GIF"
   },
   "settings": {
     "title": "Settings",

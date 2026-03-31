@@ -50,7 +50,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
         }
       }
     } catch (error: any) {
-      if (error.message?.includes("Không tìm thấy người dùng")) {
+      if (error.message?.includes("Không tìm thấy người dùng") || error.message?.includes("User not found")) {
         onLogout();
       }
     }
@@ -65,8 +65,8 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
 
   useEffect(() => {
     if (!hasToasted.current && currentUser?.full_name) {
-      toast(`Chào mừng bạn trở lại Fruvia Chat, ${currentUser.full_name}!`, {
-        description: 'Chúc bạn có một ngày làm việc tuyệt vời. 👋',
+      toast(t('dashboard.welcome', { name: currentUser.full_name }), {
+        description: t('dashboard.welcome_desc'),
         icon: <span className="text-xl">✨</span>,
         duration: 5000,
       });
@@ -79,6 +79,27 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
   const [isConversationsLoaded, setIsConversationsLoaded] = useState(false);
   const selectedChat = conversations.find(c => c.id === selectedChatId) || conversations[0];
   const [invitationCount, setInvitationCount] = useState(0);
+
+  const parseDateToMillis = (value?: string | null) => {
+    if (!value) return 0;
+    const millis = new Date(value).getTime();
+    return Number.isNaN(millis) ? 0 : millis;
+  };
+
+  const sortConversations = (list: any[]) => {
+    return [...list].sort((a, b) => {
+      const aPinned = !!a.pinned;
+      const bPinned = !!b.pinned;
+      if (aPinned !== bPinned) return aPinned ? -1 : 1;
+
+      if (aPinned && bPinned) {
+        const pinnedDiff = parseDateToMillis(b.pinnedAt) - parseDateToMillis(a.pinnedAt);
+        if (pinnedDiff !== 0) return pinnedDiff;
+      }
+
+      return parseDateToMillis(b.lastMessageAt) - parseDateToMillis(a.lastMessageAt);
+    });
+  };
 
   const fetchInvitationCount = async () => {
     try {
@@ -96,7 +117,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
       if (Array.isArray(data)) {
         const mapped = data.map((c: any) => {
           const isSelf = c.conversationType === 'SELF' || c.conversation_type === 'SELF';
-          const name = c.conversationName || c.conversation_name || (isSelf ? 'Cloud của tôi' : 'Conversation');
+          const name = c.conversationName || c.conversation_name || (isSelf ? t('chat.self_cloud') : 'Conversation');
           const id = c.conversationId || c.conversation_id;
           const avatar = c.conversationAvatarUrl || c.conversation_avatar_url || '';
 
@@ -124,23 +145,27 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
           return {
             id,
             name: displayName,
-            lastMsg: c.lastMessageContent || c.last_message_content || 'Bắt đầu trò chuyện',
+            lastMsg: c.lastMessageContent || c.last_message_content || t('chat.start_conversation'),
             time: (c.lastMessageTime || c.last_message_time) ? new Date(c.lastMessageTime || c.last_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+            lastMessageAt: c.lastMessageTime || c.last_message_time || null,
             isCloud: isSelf,
             isGroup: (c.conversationType === 'GROUP' || c.conversation_type === 'GROUP'),
             avatar: displayAvatar,
             pinned: c.isPinned || c.is_pinned || false,
+            pinnedAt: c.pinnedAt || c.pinned_at || null,
             unreadCount: c.unreadCount || c.unread_count || 0,
             otherUserId,
             nickname: myNickname || undefined,
+            conversationTag: c.conversationTag || c.conversation_tag || undefined,
             conversationStatus: c.conversationStatus || c.conversation_status || 'NORMAL',
             isRequest: (c.conversationStatus || c.conversation_status) === 'PENDING',
           };
         });
-        setConversations(mapped);
+        const sorted = sortConversations(mapped);
+        setConversations(sorted);
 
-        if (mapped.length > 0 && !selectedChatId) {
-          setSelectedChatId(mapped[0].id);
+        if (sorted.length > 0 && !selectedChatId) {
+          setSelectedChatId(sorted[0].id);
         }
       }
     } catch (e) {
@@ -158,7 +183,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
       const subEvents = websocketService.subscribeToFriendEvents(currentUser.id, (msg) => {
         fetchInvitationCount();
         if (msg.body === "RECEIVED") {
-          toast.info("Bạn có lời mời kết bạn mới!", {
+          toast.info(t('dashboard.new_friend_invite'), {
             duration: 3000,
           });
         }
@@ -171,7 +196,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
       const subGroup = websocketService.subscribe(`/topic/group-events/${currentUser.id}`, (msg) => {
         try {
           const group = JSON.parse(msg.body);
-          toast.info(`Bạn được thêm vào nhóm "${group.conversationName || group.conversation_name || 'Nhóm mới'}"`, {
+          toast.info(t('dashboard.added_to_group', { name: group.conversationName || group.conversation_name || 'Nhóm mới' }), {
             duration: 4000,
           });
           fetchConversations();
@@ -185,9 +210,19 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
         try {
           const event = JSON.parse(msg.body);
           if (event.type === 'PIN_UPDATED') {
-            setConversations(prev => prev.map(c =>
-              c.id === event.conversationId ? { ...c, pinned: event.isPinned } : c
-            ));
+            setConversations(prev =>
+              sortConversations(
+                prev.map(c =>
+                  c.id === event.conversationId
+                    ? {
+                      ...c,
+                      pinned: event.isPinned,
+                      pinnedAt: event.isPinned ? (event.pinnedAt || new Date().toISOString()) : null,
+                    }
+                    : c
+                )
+              )
+            );
           } else if (event.type === 'CONVERSATION_DELETED') {
             setConversations(prev => prev.filter(c => c.id !== event.conversationId));
           }
@@ -222,7 +257,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
             id: virtualId,
             name: user.display_name || user.full_name || user.name,
             avatar: user.avatar_url || user.avatar,
-            lastMsg: 'Bắt đầu trò chuyện',
+            lastMsg: t('chat.start_conversation'),
             time: '',
             isNew: true,
             recipientId: friendId
@@ -250,7 +285,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
           }
         } catch (error) {
           console.error("Failed to get/create self chat:", error);
-          toast.error("Không thể mở My Documents. Vui lòng thử lại.");
+          toast.error(t('dashboard.cloud_open_error'));
           setActiveTab('chat');
         }
       };
@@ -318,13 +353,28 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
             onCreateGroup={() => setIsCreateGroupModalOpen(true)}
             onSelectConversation={(id) => setSelectedChatId(id)}
             onPinConversation={(id, pinned) => {
-              setConversations(prev => prev.map(c =>
-                c.id === id ? { ...c, pinned } : c
-              ));
+              setConversations(prev =>
+                sortConversations(
+                  prev.map(c =>
+                    c.id === id
+                      ? {
+                        ...c,
+                        pinned,
+                        pinnedAt: pinned ? new Date().toISOString() : null,
+                      }
+                      : c
+                  )
+                )
+              );
             }}
             onDeleteConversation={(id) => {
               setConversations(prev => prev.filter(c => c.id !== id));
               if (selectedChatId === id) setSelectedChatId('');
+            }}
+            onTagConversation={(id, tag) => {
+              setConversations(prev =>
+                prev.map(c => c.id === id ? { ...c, conversationTag: tag || undefined } : c)
+              );
             }}
           />
         ) : activeTab === 'contacts' ? (
@@ -369,9 +419,15 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
                       // Hoặc đơn giản là tìm và cập nhật
                       const idx = cloned.findIndex(c => c.id === id);
                       if (idx !== -1) {
-                        const updated = { ...cloned[idx], lastMsg, time: msgTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isNew: false };
+                        const updated = {
+                          ...cloned[idx],
+                          lastMsg,
+                          time: msgTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                          lastMessageAt: new Date().toISOString(),
+                          isNew: false,
+                        };
                         cloned.splice(idx, 1);
-                        cloned.unshift(updated);
+                        cloned.push(updated);
                       } else {
                         // Nếu chưa có trong list (ví dụ message mới từ server), fetch lại list hoặc thêm thủ công
                         fetchConversations();
@@ -380,8 +436,13 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
                       // 2. Xóa các virtual chat cũ nếu cuộc hội thoại cho user đó đã thành real
                       // (Tự động được xử lý nếu ta thay đổi id của selectedChat)
 
-                      return cloned;
+                      return sortConversations(cloned);
                     });
+                  }}
+                  onNicknameChange={(id, nickname) => {
+                    setConversations(prev =>
+                      prev.map(c => c.id === id ? { ...c, nickname: nickname || undefined } : c)
+                    );
                   }}
                 />
                 {activeSidebar === 'info' && (

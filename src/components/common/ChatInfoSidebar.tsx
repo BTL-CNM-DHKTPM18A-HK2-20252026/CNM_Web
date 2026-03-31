@@ -72,35 +72,35 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
     setAddingMembers(true);
     try {
       await apiClient.post(`/conversations/${conversationId}/members`, selectedNewMembers);
-      toast.success('Đã thêm thành viên');
+      toast.success(t('group.member.add_success'));
       setShowAddMember(false);
       setSelectedNewMembers([]);
       fetchMembers();
     } catch (e: any) {
-      toast.error(e.message || 'Không thể thêm thành viên');
+      toast.error(e.message || t('group.member.add_error'));
     } finally {
       setAddingMembers(false);
     }
   };
 
   const handleRemoveMember = (memberId: string, memberName: string) => {
-    toast(`Xóa ${memberName} khỏi nhóm?`, {
-      description: 'Thành viên sẽ không còn truy cập được nhóm chat này.',
+    toast(t('group.member.remove_confirm', { name: memberName }), {
+      description: t('group.member.remove_desc'),
       duration: 10000,
       action: {
-        label: 'Xác nhận xóa',
+        label: t('common.confirm'),
         onClick: async () => {
           try {
             await apiClient.delete(`/conversations/${conversationId}/members/${memberId}`);
-            toast.success(`Đã xóa ${memberName} khỏi nhóm`);
+            toast.success(t('group.member.remove_success', { name: memberName }));
             fetchMembers();
           } catch (e: any) {
-            toast.error(e.message || 'Không thể xóa thành viên');
+            toast.error(e.message || t('group.member.remove_error'));
           }
         },
       },
       cancel: {
-        label: 'Hủy',
+        label: t('common.cancel'),
         onClick: () => { },
       },
     });
@@ -114,23 +114,23 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
       setShowTransferModal(true);
       return;
     }
-    toast('Bạn có chắc muốn rời nhóm?', {
-      description: 'Bạn sẽ không còn nhận được tin nhắn từ nhóm này.',
+    toast(t('group.leave.confirm'), {
+      description: t('group.leave.desc'),
       duration: 10000,
       action: {
-        label: 'Xác nhận rời',
+        label: t('common.confirm'),
         onClick: async () => {
           try {
             await apiClient.post(`/conversations/${conversationId}/leave`, {});
-            toast.success('Đã rời nhóm');
+            toast.success(t('group.leave.success'));
             window.location.reload();
           } catch (e: any) {
-            toast.error(e.message || 'Không thể rời nhóm');
+            toast.error(e.message || t('group.leave.error'));
           }
         },
       },
       cancel: {
-        label: 'Hủy',
+        label: t('common.cancel'),
         onClick: () => { },
       },
     });
@@ -138,52 +138,52 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
 
   // Change member role (promote/demote) — Thay đổi quyền thành viên
   const handleChangeRole = (targetUserId: string, targetName: string, newRole: 'DEPUTY' | 'MEMBER') => {
-    const roleLabel = newRole === 'DEPUTY' ? 'Phó nhóm' : 'Thành viên';
-    toast(`Phong ${targetName} làm ${roleLabel}?`, {
+    const roleLabel = newRole === 'DEPUTY' ? t('group.role.deputy_title') : t('group.role.member_title');
+    toast(t('group.role.change_confirm', { name: targetName, role: roleLabel }), {
       duration: 10000,
       action: {
-        label: 'Xác nhận',
+        label: t('common.confirm'),
         onClick: async () => {
           try {
             await apiClient.patch(`/conversations/${conversationId}/members/${targetUserId}/role`, { role: newRole });
-            toast.success(`Đã phong ${targetName} làm ${roleLabel}`);
+            toast.success(t('group.role.change_success', { name: targetName, role: roleLabel }));
             fetchMembers();
           } catch (e: any) {
-            toast.error(e.message || 'Không thể thay đổi quyền');
+            toast.error(e.message || t('group.role.change_error'));
           }
         },
       },
-      cancel: { label: 'Hủy', onClick: () => { } },
+      cancel: { label: t('common.cancel'), onClick: () => { } },
     });
     setOpenMenuId(null);
   };
 
   // Transfer ownership — Chuyển quyền Trưởng nhóm
   const handleTransferOwnership = (newAdminId: string, newAdminName: string) => {
-    toast(`Bạn có chắc muốn phong ${newAdminName} làm Trưởng nhóm?`, {
-      description: 'Hành động này không thể hoàn tác.',
+    toast(t('group.transfer.confirm', { name: newAdminName }), {
+      description: t('group.transfer.desc'),
       duration: 15000,
       action: {
-        label: 'Xác nhận chuyển quyền',
+        label: t('common.confirm'),
         onClick: async () => {
           try {
             if (transferReason === 'leave') {
               // Transfer + leave in one flow
               await apiClient.post(`/conversations/${conversationId}/leave`, { successorId: newAdminId });
-              toast.success(`Đã chuyển quyền cho ${newAdminName} và rời nhóm`);
+              toast.success(t('group.transfer.leave_success', { name: newAdminName }));
               window.location.reload();
             } else {
               await apiClient.post(`/conversations/${conversationId}/transfer`, { newAdminId });
-              toast.success(`Đã chuyển quyền Trưởng nhóm cho ${newAdminName}`);
+              toast.success(t('group.transfer.success', { name: newAdminName }));
               fetchMembers();
             }
             setShowTransferModal(false);
           } catch (e: any) {
-            toast.error(e.message || 'Không thể chuyển quyền');
+            toast.error(e.message || t('group.transfer.error'));
           }
         },
       },
-      cancel: { label: 'Hủy', onClick: () => { } },
+      cancel: { label: t('common.cancel'), onClick: () => { } },
     });
   };
 
@@ -330,7 +330,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                 {conversationName || t('info.title')}
               </h3>
               {isGroup && (
-                <p className="text-[12px] text-[var(--sub-text)]">{members.length} {t('info.members') || 'thành viên'}</p>
+                <p className="text-[12px] text-[var(--sub-text)]">{members.length} {t('info.members')}</p>
               )}
             </>
           )}
@@ -347,7 +347,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
             </div>
 
             <div className="w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden flex">
-              <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${imagePercentage}%` }} title={`Ảnh: ${stats?.imageSizeFormatted || '0 B'}`}></div>
+              <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${imagePercentage}%` }} title={`${t('info.legend.photos')}: ${stats?.imageSizeFormatted || '0 B'}`}></div>
               <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${videoPercentage}%` }} title={`Video: ${stats?.videoSizeFormatted || '0 B'}`}></div>
               <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${filePercentage}%` }} title={`File: ${stats?.fileSizeFormatted || '0 B'}`}></div>
               <div className="h-full bg-pink-500 transition-all duration-500" style={{ width: `${voicePercentage}%` }} title={`Voice: ${stats?.voiceSizeFormatted || '0 B'}`}></div>
@@ -390,7 +390,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
             >
               <div className="flex items-center gap-2">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--sub-text)]"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
-                <span className="text-[14px] font-bold text-[var(--text)]">Thành viên nhóm ({members.length})</span>
+                <span className="text-[14px] font-bold text-[var(--text)]">{t('group.members.title')} ({members.length})</span>
               </div>
               <span className={`text-[var(--sub-text)] transition-transform duration-200 ${!showMembers ? '-rotate-90' : ''}`}>
                 <ChevronDownIcon size={16} />
@@ -406,7 +406,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                     className="w-full mb-3 py-2 flex items-center justify-center gap-2 text-[13px] font-bold text-[#0068FF] bg-[#0068FF]/10 hover:bg-[#0068FF]/20 rounded-md transition-colors cursor-pointer"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                    Thêm thành viên
+                    {t('group.members.add')}
                   </button>
                 )}
 
@@ -414,14 +414,14 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                 {showAddMember && (
                   <div className="mb-3 p-3 border border-[var(--border)] rounded-lg bg-[var(--hover-bg)]">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-[13px] font-bold text-[var(--text)]">Chọn bạn bè để thêm</span>
+                      <span className="text-[13px] font-bold text-[var(--text)]">{t('group.members.select_friends')}</span>
                       <button onClick={() => { setShowAddMember(false); setSelectedNewMembers([]); }} className="text-[var(--sub-text)] hover:text-[var(--text)] cursor-pointer">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                       </button>
                     </div>
                     <div className="max-h-[200px] overflow-y-auto custom-scrollbar space-y-1">
                       {friendsList.length === 0 ? (
-                        <p className="text-[12px] text-[var(--sub-text)] text-center py-2">Không có bạn bè nào để thêm</p>
+                        <p className="text-[12px] text-[var(--sub-text)] text-center py-2">{t('group.members.no_friends')}</p>
                       ) : friendsList.map((f: any) => {
                         const fId = f.user_id || f.id;
                         const fName = f.display_name || f.full_name || f.name || 'Unknown';
@@ -444,7 +444,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                         disabled={addingMembers}
                         className="w-full mt-2 py-1.5 bg-[#0068FF] text-white text-[13px] font-bold rounded-md hover:bg-[#0057d1] transition-colors cursor-pointer disabled:opacity-50"
                       >
-                        {addingMembers ? 'Đang thêm...' : `Thêm (${selectedNewMembers.length})`}
+                        {addingMembers ? t('group.members.adding') : t('group.members.add_count', { count: selectedNewMembers.length })}
                       </button>
                     )}
                   </div>
@@ -466,9 +466,9 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <span className="text-[13px] font-medium text-[var(--text)] truncate">{mName}{isMe ? ' (Bạn)' : ''}</span>
-                            {mRole === 'ADMIN' && <span className="text-[10px] font-bold text-orange-500 bg-orange-50 dark:bg-orange-500/10 px-1.5 py-0.5 rounded-full shrink-0">Trưởng nhóm</span>}
-                            {mRole === 'DEPUTY' && <span className="text-[10px] font-bold text-blue-500 bg-blue-50 dark:bg-blue-500/10 px-1.5 py-0.5 rounded-full shrink-0">Phó nhóm</span>}
+                            <span className="text-[13px] font-medium text-[var(--text)] truncate">{mName}{isMe ? ` (${t('common.you')})` : ''}</span>
+                            {mRole === 'ADMIN' && <span className="text-[10px] font-bold text-orange-500 bg-orange-50 dark:bg-orange-500/10 px-1.5 py-0.5 rounded-full shrink-0">{t('group.role.admin_title')}</span>}
+                            {mRole === 'DEPUTY' && <span className="text-[10px] font-bold text-blue-500 bg-blue-50 dark:bg-blue-500/10 px-1.5 py-0.5 rounded-full shrink-0">{t('group.role.deputy_title')}</span>}
                           </div>
                         </div>
                         {/* 3-dot menu (Admin only, not self) */}
@@ -477,7 +477,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                             <button
                               onClick={() => setOpenMenuId(menuOpen ? null : m.userId)}
                               className="opacity-0 group-hover/member:opacity-100 text-[var(--sub-text)] hover:text-[var(--text)] hover:bg-[var(--hover-bg)] p-1 rounded-full transition-all cursor-pointer"
-                              title="Quản lý quyền"
+                              title={t('group.member.manage_role')}
                             >
                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" /></svg>
                             </button>
@@ -491,7 +491,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                                       className="w-full px-3 py-2 text-left text-[13px] text-[var(--text)] hover:bg-[var(--hover-bg)] flex items-center gap-2 transition-colors cursor-pointer"
                                     >
                                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
-                                      Phong Phó nhóm
+                                      {t('group.role.promote_deputy')}
                                     </button>
                                   )}
                                   {mRole === 'DEPUTY' && (
@@ -500,7 +500,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                                       className="w-full px-3 py-2 text-left text-[13px] text-[var(--text)] hover:bg-[var(--hover-bg)] flex items-center gap-2 transition-colors cursor-pointer"
                                     >
                                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
-                                      Hạ quyền Thành viên
+                                      {t('group.role.demote_member')}
                                     </button>
                                   )}
                                   <button
@@ -508,7 +508,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                                     className="w-full px-3 py-2 text-left text-[13px] text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-500/10 flex items-center gap-2 transition-colors cursor-pointer"
                                   >
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><polyline points="17 11 19 13 23 9" /></svg>
-                                    Chuyển quyền Trưởng nhóm
+                                    {t('group.transfer.title')}
                                   </button>
                                   <div className="border-t border-[var(--border)] my-1" />
                                   <button
@@ -516,7 +516,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                                     className="w-full px-3 py-2 text-left text-[13px] text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2 transition-colors cursor-pointer"
                                   >
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                                    Xóa khỏi nhóm
+                                    {t('group.member.remove')}
                                   </button>
                                 </div>
                               </>
@@ -534,7 +534,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                   className="w-full mt-4 py-2 flex items-center justify-center gap-2 text-[13px] font-bold text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-md transition-colors cursor-pointer"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
-                  {isAdmin ? 'Chuyển quyền & Rời nhóm' : 'Rời nhóm'}
+                  {isAdmin ? t('group.leave.transfer_and_leave') : t('group.leave.title')}
                 </button>
 
                 {/* Transfer Ownership Modal / Modal chuyển quyền Trưởng nhóm */}
@@ -544,12 +544,12 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                     <div className="w-full max-w-[400px] bg-[var(--card-bg)] rounded-lg shadow-2xl relative z-[101] animate-in zoom-in-95 duration-200 overflow-hidden">
                       <div className="px-5 py-4 border-b border-[var(--border)]">
                         <h3 className="text-[16px] font-bold text-[var(--text)]">
-                          {transferReason === 'leave' ? 'Chọn người kế nhiệm trước khi rời nhóm' : 'Chuyển quyền Trưởng nhóm'}
+                          {transferReason === 'leave' ? t('group.transfer.select_successor') : t('group.transfer.title')}
                         </h3>
                         <p className="text-[12px] text-[var(--sub-text)] mt-1">
                           {transferReason === 'leave'
-                            ? 'Bạn phải chọn một thành viên làm Trưởng nhóm mới trước khi rời.'
-                            : 'Chọn thành viên để chuyển quyền Trưởng nhóm.'}
+                            ? t('group.transfer.select_successor_desc')
+                            : t('group.transfer.select_member_desc')}
                         </p>
                       </div>
                       <div className="max-h-[300px] overflow-y-auto custom-scrollbar p-3 space-y-1">
@@ -567,7 +567,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                               </div>
                               <div className="flex-1 min-w-0">
                                 <span className="text-[13px] font-medium text-[var(--text)] truncate block">{mName}</span>
-                                {m.role === 'DEPUTY' && <span className="text-[10px] text-blue-500">Phó nhóm</span>}
+                                {m.role === 'DEPUTY' && <span className="text-[10px] text-blue-500">{t('group.role.deputy_title')}</span>}
                               </div>
                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--sub-text)] shrink-0"><polyline points="9 18 15 12 9 6" /></svg>
                             </button>
@@ -579,7 +579,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                           onClick={() => setShowTransferModal(false)}
                           className="px-4 py-1.5 text-[13px] font-bold text-[var(--text)] bg-[var(--hover-bg)] hover:bg-[var(--border)] rounded-md transition-colors cursor-pointer"
                         >
-                          Hủy
+                          {t('common.cancel')}
                         </button>
                       </div>
                     </div>
@@ -638,7 +638,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                   ))}
                   {mediaItems.length === 0 && (
                     <div className="col-span-4 py-4 text-center text-[12px] text-[var(--sub-text)] opacity-60">
-                      {t('info.sections.no_media') || 'Chưa có ảnh/video'}
+                      {t('info.sections.no_media')}
                     </div>
                   )}
                 </div>
@@ -668,7 +668,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
             {showFiles && (
               <div className="px-4 pb-4 animate-in fade-in slide-in-from-top-2 duration-200 space-y-2">
                 {fileItems.slice(0, 5).map((f, i) => {
-                  const rawName = f.content.split('/').pop()?.split('_').slice(1).join('_') || 'File đính kèm';
+                  const rawName = f.content.split('/').pop()?.split('_').slice(1).join('_') || t('info.sections.file_attachment');
                   const fileName = decodeURIComponent(rawName);
                   const ext = fileName.split('.').pop()?.toLowerCase() || '';
 
@@ -684,7 +684,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                         <div className="text-[11px] text-[var(--sub-text)] flex items-center gap-2">
                           <span>{f.fileSize ? formatSize(f.fileSize) : 'N/A'}</span>
                           <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                          <span>Vừa xong</span>
+                          <span>{t('info.sections.just_now')}</span>
                         </div>
                       </div>
                     </div>
@@ -692,7 +692,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                 })}
                 {fileItems.length === 0 && (
                   <div className="py-2 text-center text-[12px] text-[var(--sub-text)] opacity-60">
-                    {t('info.sections.no_files') || 'Chưa có file đính kèm'}
+                    {t('info.sections.no_files')}
                   </div>
                 )}
               </div>
@@ -741,7 +741,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                 })}
                 {linkItems.length === 0 && (
                   <div className="py-2 text-center text-[12px] text-[var(--sub-text)] opacity-60">
-                    {t('info.sections.no_links') || 'Chưa có link được chia sẻ'}
+                    {t('info.sections.no_links')}
                   </div>
                 )}
               </div>

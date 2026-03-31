@@ -17,6 +17,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { StickerPicker } from '@/components/common/StickerPicker';
 import { NicknameModal } from '@/components/common/NicknameModal';
+import { ForwardModal } from '@/components/common/ForwardModal';
 import { apiClient } from '@/services/api';
 import { websocketService } from '@/services/websocketService';
 import { friendService } from '@/services/friendService';
@@ -42,6 +43,7 @@ interface ChatWindowProps {
   currentUser?: any;
   onUpdateConversation?: (id: string | number, lastMsg: string, time?: string) => void;
   onSelectConversation?: (id: string | number) => void;
+  onNicknameChange?: (id: string | number, nickname: string | null) => void;
 }
 
 const getFileNameFromUrl = (url: string) => {
@@ -51,7 +53,7 @@ const getFileNameFromUrl = (url: string) => {
     const filename = lastPart.includes('_') ? lastPart.split('_').slice(1).join('_') : lastPart;
     return decodeURIComponent(filename);
   } catch {
-    return 'File đính kèm';
+    return 'File';
   }
 };
 
@@ -78,19 +80,19 @@ const isDifferentDay = (d1?: Date, d2?: Date) => {
   return d1.toDateString() !== d2.toDateString();
 };
 
-const formatDateSeparator = (date?: Date) => {
+const formatDateSeparator = (date?: Date, t?: (key: string) => string) => {
   if (!date) return "";
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const diffTime = today.getTime() - new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-  if (diffDays === 0) return "Hôm nay";
-  if (diffDays === 1) return "Hôm qua";
+  if (diffDays === 0) return t ? t('chat.date.today') : "Hôm nay";
+  if (diffDays === 1) return t ? t('chat.date.yesterday') : "Hôm qua";
   return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, currentUser, onUpdateConversation, onSelectConversation }: ChatWindowProps) {
+export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, currentUser, onUpdateConversation, onSelectConversation, onNicknameChange }: ChatWindowProps) {
   const { t } = useTranslation();
   const [message, setMessage] = React.useState("");
   const [isPickerOpen, setIsPickerOpen] = React.useState(false);
@@ -98,6 +100,13 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
 
   // Nickname state
   const [nickname, setNickname] = useState<string | null>(null);
+
+  // Reply state
+  const [replyingTo, setReplyingTo] = useState<{ id: string; text: string; sender: string; type: string } | null>(null);
+  const messageInputRef = useRef<HTMLInputElement>(null);
+
+  // Forward state
+  const [forwardingMsg, setForwardingMsg] = useState<{ id: string; text: string; type: string; sender: string } | null>(null);
 
   // Message management states (Edit / Recall / Delete)
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -140,6 +149,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
   // Fetch nickname for current conversation member
   useEffect(() => {
     setNickname(selectedChat?.nickname || null);
+    setReplyingTo(null);
   }, [selectedChat?.id, selectedChat?.nickname]);
 
   // Voice Recording
@@ -177,7 +187,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
         const { toast } = await import('sonner');
 
         if (duration < 1) {
-          toast.error('Tin nhắn quá ngắn (Tối thiểu 1 giây)');
+          toast.error(t('chat.voice.too_short'));
           stream.getTracks().forEach(track => track.stop());
           return;
         }
@@ -186,7 +196,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
         const audioFile = new File([audioBlob], `voice_${Date.now()}.webm`, { type: 'audio/webm' });
 
         try {
-          const uploadToast = toast.loading('Đang gửi tin nhắn thoại...');
+          const uploadToast = toast.loading(t('chat.voice.sending'));
 
           const res = await apiClient.get<any>(`/messages/presigned-url?fileName=${encodeURIComponent(audioFile.name)}&fileType=${encodeURIComponent(audioFile.type)}`);
           const presignedUrl = typeof res === 'string' ? res : (res?.data || res?.url || res);
@@ -201,7 +211,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           await handleSendMessage(s3Url, 'VOICE', audioFile.name, audioFile.size, duration);
 
           toast.dismiss(uploadToast);
-          toast.success('Gửi tin nhắn thoại thành công!');
+          toast.success(t('chat.voice.send_success'));
         } catch (err) {
           console.error('Voice upload error:', err);
         }
@@ -217,11 +227,11 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       }, 1000);
 
       const { toast } = await import('sonner');
-      toast.info('Đang thu âm... Nhấn lại vào icon để gửi.');
+      toast.info(t('chat.voice.recording_hint'));
     } catch (err) {
       console.error('Microphone error:', err);
       const { toast } = await import('sonner');
-      toast.error('Không thể truy cập Microphone. Hãy kiểm tra quyền truy cập microphone của trình duyệt.');
+      toast.error(t('chat.voice.mic_error'));
     } finally {
       setIsInitializingMic(false);
     }
@@ -398,7 +408,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
   const handleFileUpload = async (file: File) => {
     try {
       const { toast } = await import('sonner');
-      const uploadToast = toast.loading(`Đang tải ${file.name}...`);
+      const uploadToast = toast.loading(t('chat.upload.loading', { name: file.name }));
       const res = await apiClient.get<any>(`/messages/presigned-url?fileName=${encodeURIComponent(file.name)}&fileType=${encodeURIComponent(file.type)}`);
       const presignedUrl = typeof res === 'string' ? res : (res?.data || res?.url || res);
 
@@ -419,11 +429,11 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
 
       await handleSendMessage(s3Url, msgType, file.name, file.size);
       toast.dismiss(uploadToast);
-      toast.success('Gửi media thành công!');
+      toast.success(t('chat.upload.success'));
     } catch (error) {
       console.error('Upload error:', error);
       const { toast } = await import('sonner');
-      toast.error('Lỗi khi tải media lên S3');
+      toast.error(t('chat.upload.error'));
     }
   };
 
@@ -629,6 +639,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
             linkTitle: m.linkTitle,
             linkThumbnail: m.linkThumbnail,
             voiceDuration: m.voiceDuration,
+            replyToMessageId: m.replyToMessageId || null,
             sender: m.senderId === 'SYSTEM' ? 'SYSTEM' : m.senderId === currentUser?.id ? 'Me' : m.senderName,
             senderId: m.senderId,
             time: m.createdAt ? new Date(m.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
@@ -715,7 +726,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
               return m;
             }));
             if (onUpdateConversation) {
-              onUpdateConversation(selectedChat.id, 'Tin nhắn đã được thu hồi');
+              onUpdateConversation(selectedChat.id, t('chat.message.recalled'));
             }
             return;
           }
@@ -731,6 +742,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
               id: newMsg.messageId || newMsg.id,
               text: newMsg.content,
               type: newMsg.messageType || 'TEXT',
+              replyToMessageId: newMsg.replyToMessageId || null,
               sender: newMsg.senderId === 'SYSTEM' ? 'SYSTEM' : newMsg.senderId === currentUser?.id ? 'Me' : newMsg.senderName,
               senderId: newMsg.senderId,
               time: newMsg.createdAt ? new Date(newMsg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }) : new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
@@ -806,6 +818,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           id: m.messageId || m.id,
           text: m.content,
           type: m.messageType || 'TEXT',
+          replyToMessageId: m.replyToMessageId || null,
           sender: m.senderId === 'SYSTEM' ? 'SYSTEM' : m.senderId === currentUser?.id ? 'Me' : m.senderName,
           senderId: m.senderId,
           time: m.createdAt ? new Date(m.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
@@ -857,11 +870,11 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
 
   const getSnippet = (content: string, messageType?: string) => {
     switch (messageType) {
-      case 'IMAGE': return '[Hình ảnh]';
-      case 'VIDEO': return '[Video]';
-      case 'MEDIA': return '[File]';
-      case 'VOICE': return '[Tin nhắn thoại]';
-      case 'STICKER': return '[Sticker]';
+      case 'IMAGE': return t('chat.snippet.image');
+      case 'VIDEO': return t('chat.snippet.video');
+      case 'MEDIA': return t('chat.snippet.file');
+      case 'VOICE': return t('chat.snippet.voice');
+      case 'STICKER': return t('chat.snippet.sticker');
       case 'SYSTEM': return content;
       default: return content;
     }
@@ -879,7 +892,8 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           messageType: msgType,
           fileName,
           fileSize,
-          voiceDuration
+          voiceDuration,
+          replyToMessageId: replyingTo?.id || undefined
         };
 
         if (isNewConv) {
@@ -914,12 +928,14 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
               id: newMsg.messageId || newMsg.id,
               text: newMsg.content,
               type: newMsg.messageType || msgType,
+              replyToMessageId: newMsg.replyToMessageId || replyingTo?.id || null,
               sender: 'Me',
               time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
               reactions: [],
               rawDate: new Date()
             }];
           });
+          setReplyingTo(null);
         }
       } catch (err) {
         console.error("Send failed", err);
@@ -959,7 +975,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       setEditingMessageId(null);
       setEditContent('');
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Không thể chỉnh sửa tin nhắn';
+      const msg = e?.response?.data?.message || e?.message || t('chat.message.edit_error');
       toast.error(msg);
     }
   };
@@ -969,7 +985,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       await apiClient.post(`/messages/${messageId}/recall`, {});
       setConfirmDialog(null);
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Không thể thu hồi tin nhắn';
+      const msg = e?.response?.data?.message || e?.message || t('chat.message.recall_error');
       toast.error(msg);
       setConfirmDialog(null);
     }
@@ -980,9 +996,9 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       await apiClient.delete(`/messages/${messageId}/local`);
       setMessages(prev => prev.filter(m => m.id !== messageId));
       setConfirmDialog(null);
-      toast.success('Đã xóa tin nhắn ở phía bạn');
+      toast.success(t('chat.message.delete_local_success'));
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Không thể xóa tin nhắn';
+      const msg = e?.response?.data?.message || e?.message || t('chat.message.delete_error');
       toast.error(msg);
       setConfirmDialog(null);
     }
@@ -1043,7 +1059,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                   ? t('chat.cloud_subheading')
                   : selectedChat.otherUserId
                     ? undefined
-                    : (selectedChat.isGroup ? `Nhóm · ${selectedChat.name}` : '')}
+                    : (selectedChat.isGroup ? `${t('chat.header.group_prefix')} · ${selectedChat.name}` : '')}
               </p>
               {!selectedChat.isCloud && selectedChat.otherUserId && (
                 <StatusIndicator userId={selectedChat.otherUserId} />
@@ -1054,10 +1070,10 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
         <div className="flex items-center gap-6 text-[var(--sub-text)] pr-2 shrink-0">
           {!selectedChat.isCloud && (
             <>
-              <button className="cursor-pointer transition-all p-1.5 rounded-md hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70" title="Thêm vào nhóm">
+              <button className="cursor-pointer transition-all p-1.5 rounded-md hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70" title={t('chat.header.add_to_group')}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" /></svg>
               </button>
-              <button className="cursor-pointer transition-all p-1.5 rounded-md hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70" title="Cuộc gọi video">
+              <button className="cursor-pointer transition-all p-1.5 rounded-md hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70" title={t('chat.header.video_call')}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></svg>
               </button>
             </>
@@ -1073,7 +1089,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           <div className="flex items-center gap-2.5 min-w-0">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
             <span className="text-[13px] text-amber-800 dark:text-amber-200">
-              Người này không có trong danh bạ của bạn. Hãy cẩn thận với các đường link lạ.
+              {t('chat.stranger_warning')}
             </span>
           </div>
           <div className="shrink-0">
@@ -1085,17 +1101,17 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                   setFriendActionLoading(true);
                   try {
                     await friendService.acceptRequest(pendingRequestId);
-                    toast.success('Đã chấp nhận lời mời kết bạn!');
+                    toast.success(t('chat.friend.accept_success'));
                     setFriendRequestStatus('friend');
-                  } catch { toast.error('Không thể chấp nhận lời mời'); }
+                  } catch { toast.error(t('chat.friend.accept_error')); }
                   setFriendActionLoading(false);
                 }}
                 className="px-3 py-1.5 bg-[#0068FF] hover:bg-[#0052CC] text-white text-[13px] font-semibold rounded-md transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50"
               >
-                Đồng ý
+                {t('chat.friend.accept_btn')}
               </button>
             ) : friendRequestStatus === 'sent' ? (
-              <span className="text-[12px] text-amber-700 dark:text-amber-300 italic whitespace-nowrap">Đã gửi lời mời</span>
+              <span className="text-[12px] text-amber-700 dark:text-amber-300 italic whitespace-nowrap">{t('chat.friend.sent_label')}</span>
             ) : (
               <button
                 disabled={friendActionLoading}
@@ -1104,14 +1120,14 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                   setFriendActionLoading(true);
                   try {
                     await friendService.sendRequest(selectedChat.otherUserId);
-                    toast.success('Đã gửi lời mời kết bạn!');
+                    toast.success(t('chat.friend.send_success'));
                     setFriendRequestStatus('sent');
-                  } catch { toast.error('Không thể gửi lời mời'); }
+                  } catch { toast.error(t('chat.friend.send_error')); }
                   setFriendActionLoading(false);
                 }}
                 className="px-3 py-1.5 bg-[#0068FF] hover:bg-[#0052CC] text-white text-[13px] font-semibold rounded-md transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50"
               >
-                Kết bạn
+                {t('chat.friend.add_btn')}
               </button>
             )}
           </div>
@@ -1132,7 +1148,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
               <React.Fragment key={msg.id}>
                 {showDateSeparator && (
                   <div className="flex justify-center my-2">
-                    <span className="bg-black/5 dark:bg-white/10 px-4 py-1.5 rounded-full text-[12px] font-bold text-[var(--sub-text)] opacity-60">{formatDateSeparator(msg.rawDate)}</span>
+                    <span className="bg-black/5 dark:bg-white/10 px-4 py-1.5 rounded-full text-[12px] font-bold text-[var(--sub-text)] opacity-60">{formatDateSeparator(msg.rawDate, t)}</span>
                   </div>
                 )}
                 {msg.type === 'SYSTEM' ? (
@@ -1140,8 +1156,9 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                     <span className="bg-black/5 dark:bg-white/10 px-4 py-1.5 rounded-full text-[12px] text-[var(--sub-text)] opacity-80">{msg.text}</span>
                   </div>
                 ) : (
-                  <div className={`flex ${msg.sender === 'Me' ? 'justify-end' : 'justify-start'}`}>
+                  <div id={`msg-${msg.id}`} className={`flex ${msg.sender === 'Me' ? 'justify-end' : 'justify-start'} transition-colors duration-300 [&.highlight-msg]:bg-[#0068FF]/10 rounded-lg`}>
                     <div className={`flex gap-1.5 max-w-[72%] group relative ${msg.sender === 'Me' ? 'flex-row-reverse' : ''} items-center`}>
+
                       {msg.sender !== 'Me' && (
                         <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 mt-1 border-[1px] border-[#DBDFE6] dark:border-white/10 shadow-sm flex items-center justify-center bg-blue-50">
                           {(msg as any).avatar ? (
@@ -1158,6 +1175,27 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                         {msg.sender !== 'Me' && selectedChat.isGroup && (
                           <span className="text-[12px] font-semibold text-[var(--sub-text)] mb-0.5 ml-1">{msg.sender}</span>
                         )}
+                        {/* Reply reference */}
+                        {msg.replyToMessageId && (() => {
+                          const repliedMsg = messages.find(m => m.id === msg.replyToMessageId);
+                          if (!repliedMsg) return null;
+                          const replySnippet = repliedMsg.isRecalled ? t('chat.message.recalled') : repliedMsg.type === 'IMAGE' ? `📷 ${t('chat.snippet.image')}` : repliedMsg.type === 'VIDEO' ? `🎬 ${t('chat.snippet.video')}` : repliedMsg.type === 'VOICE' ? `🎤 ${t('chat.snippet.voice')}` : repliedMsg.type === 'MEDIA' ? `📎 ${t('chat.snippet.file')}` : repliedMsg.text?.length > 80 ? repliedMsg.text.slice(0, 80) + '...' : repliedMsg.text;
+                          return (
+                            <div
+                              onClick={() => {
+                                const el = document.getElementById(`msg-${repliedMsg.id}`);
+                                if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('highlight-msg'); setTimeout(() => el.classList.remove('highlight-msg'), 1500); }
+                              }}
+                              className={`mb-1 px-2.5 py-1.5 rounded-md border-l-[3px] cursor-pointer transition-colors text-[12px] leading-snug ${msg.sender === 'Me'
+                                ? 'bg-black/5 dark:bg-white/5 border-white/40 dark:border-white/30 hover:bg-black/10 dark:hover:bg-white/10'
+                                : 'bg-black/5 dark:bg-white/5 border-[#0068FF]/40 hover:bg-black/10 dark:hover:bg-white/10'
+                                }`}
+                            >
+                              <div className="font-bold text-[11px] text-[#0068FF] mb-0.5">{repliedMsg.sender === 'Me' ? t('common.you') : repliedMsg.sender}</div>
+                              <div className="text-[var(--sub-text)] truncate max-w-[280px]">{replySnippet}</div>
+                            </div>
+                          );
+                        })()}
                         <div className={`relative group w-fit min-w-[100px] 
                     ${msg.isRecalled
                             ? `px-3 pt-2 pb-2 rounded-lg shadow-sm text-[15px] border border-dashed ${msg.sender === 'Me' ? 'border-gray-300 dark:border-gray-600' : 'border-gray-300 dark:border-gray-600'}`
@@ -1174,7 +1212,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                             {msg.isRecalled ? (
                               <div className="flex items-center gap-2 py-1 text-[var(--sub-text)] italic opacity-70">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
-                                <span className="text-[14px]">Tin nhắn đã được thu hồi</span>
+                                <span className="text-[14px]">{t('chat.message.recalled')}</span>
                               </div>
                             ) : editingMessageId === msg.id ? (
                               <div className="flex flex-col gap-2 min-w-[250px]">
@@ -1187,8 +1225,8 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                                   autoFocus
                                 />
                                 <div className="flex items-center gap-2 justify-end">
-                                  <button onClick={() => { setEditingMessageId(null); setEditContent(''); }} className="text-[12px] text-[var(--sub-text)] hover:text-[var(--text)] px-2 py-1 rounded cursor-pointer">Hủy</button>
-                                  <button onClick={() => handleEditMessage(msg.id)} className="text-[12px] text-white bg-[#0068FF] hover:bg-[#0052CC] px-3 py-1 rounded font-medium cursor-pointer">Lưu</button>
+                                  <button onClick={() => { setEditingMessageId(null); setEditContent(''); }} className="text-[12px] text-[var(--sub-text)] hover:text-[var(--text)] px-2 py-1 rounded cursor-pointer">{t('chat.confirm.edit_cancel')}</button>
+                                  <button onClick={() => handleEditMessage(msg.id)} className="text-[12px] text-white bg-[#0068FF] hover:bg-[#0052CC] px-3 py-1 rounded font-medium cursor-pointer">{t('chat.confirm.edit_save')}</button>
                                 </div>
                               </div>
                             ) : msg.type === 'IMAGE' || msg.type === 'VIDEO' ? (
@@ -1210,7 +1248,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                                   <h4 className="text-[14px] font-bold text-[var(--text)] truncate mb-0.5">{getFileNameFromUrl(msg.text)}</h4>
                                   <div className="flex items-center gap-1 text-[12px] text-[var(--sub-text)] opacity-70">
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="shrink-0"><path d="M17.5 11.5c.34-.33.74-.5 1.14-.5a1.88 1.88 0 1 1 0 3.75h-10a3.13 3.13 0 1 1 0-6.25c.34 0 .66.05.97.15A4.38 4.38 0 1 1 17.5 11.5Z" /></svg>
-                                    <span>Đã có trên Cloud</span>
+                                    <span>{t('chat.status.on_cloud')}</span>
                                   </div>
                                 </div>
                                 <button onClick={(e) => handleDownloadFile(e, msg.text, getFileNameFromUrl(msg.text))} className="h-8 w-8 rounded-lg flex items-center justify-center border border-[var(--border)] group-hover/file:bg-[var(--hover-bg)] transition-all shrink-0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg></button>
@@ -1234,7 +1272,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                                   )}
                                 </div>
                                 <div className="absolute bottom-1.5 right-0 text-[11.5px] text-[var(--sub-text)] opacity-90 font-medium leading-none flex items-center gap-1">
-                                  {msg.isEdited && <span className="italic opacity-70">Đã chỉnh sửa</span>}
+                                  {msg.isEdited && <span className="italic opacity-70">{t('chat.status.edited')}</span>}
                                   {msg.time}
                                 </div>
                               </div>
@@ -1313,7 +1351,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                                       ))}
                                       <div className="bg-blue-500/10 rounded-full px-2 py-0.5 flex items-center gap-1 text-[11px] text-blue-500 font-medium">
                                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /><polyline points="14 6 3 17" /></svg>
-                                        <span>Đã xem</span>
+                                        <span>{t('chat.status.seen')}</span>
                                       </div>
                                     </div>
                                   );
@@ -1322,14 +1360,14 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                                   return (
                                     <div className="bg-blue-500/10 rounded-full px-2 py-0.5 flex items-center gap-1 text-[11px] text-blue-500 font-medium">
                                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /><polyline points="14 6 3 17" /></svg>
-                                      <span>Đã xem</span>
+                                      <span>{t('chat.status.seen')}</span>
                                     </div>
                                   );
                                 }
                                 return (
                                   <div className="bg-black/5 dark:bg-white/10 rounded-full px-2 py-0.5 flex items-center gap-1 text-[11px] text-[var(--sub-text)] font-medium">
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--sub-text)] opacity-70"><polyline points="20 6 9 17 4 12" /></svg>
-                                    <span>Đã gửi</span>
+                                    <span>{t('chat.status.sent')}</span>
                                   </div>
                                 );
                               })()}
@@ -1341,9 +1379,9 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                       {/* Actions on hover */}
                       {!msg.isRecalled && (
                         <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity h-fit ${msg.sender === 'Me' ? 'mr-0.5 flex-row-reverse self-center' : 'ml-0.5 self-center'}`}>
-                          <button title="Trả lời" className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg></button>
-                          <button title="Chuyển tiếp" className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 10l5-5 5 5M8 6v8a4 4 0 004 4h9" /></svg></button>
-                          <button title="Thêm" onClick={(e) => openContextMenu(e, msg)} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg></button>
+                          <button title={t('chat.actions.reply')} onClick={() => { setReplyingTo({ id: msg.id, text: msg.text, sender: msg.sender, type: msg.type }); setTimeout(() => messageInputRef.current?.focus(), 50); }} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg></button>
+                          <button title={t('chat.actions.forward')} onClick={() => setForwardingMsg({ id: msg.id, text: msg.text, type: msg.type, sender: msg.sender })} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 10l5-5 5 5M8 6v8a4 4 0 004 4h9" /></svg></button>
+                          <button title={t('chat.actions.more')} onClick={(e) => openContextMenu(e, msg)} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg></button>
                         </div>
                       )}
                     </div>
@@ -1356,6 +1394,22 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
         <div ref={messagesEndRef} />
       </div>
 
+      {/* REPLY PREVIEW BAR */}
+      {replyingTo && (
+        <div className="bg-[var(--card-bg)] border-t border-[var(--border)] px-4 py-2 flex items-center gap-3 animate-in slide-in-from-bottom-2 duration-200">
+          <div className="w-1 h-10 rounded-full bg-[#0068FF] shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-[12px] font-bold text-[#0068FF]">{t('chat.reply.replying_to')} {replyingTo.sender === 'Me' ? t('common.you') : replyingTo.sender}</div>
+            <div className="text-[13px] text-[var(--sub-text)] truncate">
+              {replyingTo.type === 'IMAGE' ? `📷 ${t('chat.snippet.image')}` : replyingTo.type === 'VIDEO' ? `🎬 ${t('chat.snippet.video')}` : replyingTo.type === 'VOICE' ? `🎤 ${t('chat.snippet.voice')}` : replyingTo.type === 'MEDIA' ? `📎 ${t('chat.snippet.file')}` : replyingTo.text?.length > 60 ? replyingTo.text.slice(0, 60) + '...' : replyingTo.text}
+            </div>
+          </div>
+          <button onClick={() => setReplyingTo(null)} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full hover:bg-[var(--hover-bg)] text-[var(--sub-text)] transition-colors cursor-pointer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+          </button>
+        </div>
+      )}
+
       {/* INPUT BAR */}
       <div className="bg-[var(--card-bg)] border-t border-[var(--border)] flex-shrink-0 transition-colors duration-200">
         <div className="flex items-center px-4 py-1.5 gap-1.5 border-b border-[var(--border)] relative h-[46px]">
@@ -1367,7 +1421,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                   <span className="text-[13px] font-bold font-mono">
                     {Math.floor(recordingTime / 60)}:{String(recordingTime % 60).padStart(2, '0')}
                   </span>
-                  <span className="text-[10px] opacity-70 font-medium mt-0.5">Đang ghi âm...</span>
+                  <span className="text-[10px] opacity-70 font-medium mt-0.5">{t('chat.voice.recording')}</span>
                 </div>
               </div>
 
@@ -1376,14 +1430,14 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                   onClick={() => stopRecording(true)}
                   className="text-[13px] font-bold text-[var(--sub-text)] hover:text-red-500 px-3 py-2 cursor-pointer transition-colors"
                 >
-                  Hủy
+                  {t('chat.recording_cancel')}
                 </button>
                 <button
                   onClick={() => stopRecording(false)}
                   className="h-8 px-4 flex items-center gap-2 rounded-md bg-red-500 text-white animate-pulse cursor-pointer shadow-lg shadow-red-500/20"
                 >
                   <VoiceIcon size={18} />
-                  <span className="text-[13px] font-bold">Gửi</span>
+                  <span className="text-[13px] font-bold">{t('chat.recording_send')}</span>
                 </button>
               </div>
             </div>
@@ -1400,7 +1454,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsFilePopoverOpen(false)} />
                     <div className="absolute bottom-[calc(100%+14px)] left-[-10px] bg-[var(--card-bg)] border border-[var(--border)] rounded-lg shadow-xl z-50 p-0 overflow-hidden min-w-[140px]">
-                      <button onClick={handleFileClick} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-[var(--hover-bg)] w-full text-left text-[var(--text)] text-[14px] font-medium cursor-pointer"><FilePickerIcon size={18} />Chọn File</button>
+                      <button onClick={handleFileClick} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-[var(--hover-bg)] w-full text-left text-[var(--text)] text-[14px] font-medium cursor-pointer"><FilePickerIcon size={18} />{t('chat.choose_file')}</button>
                       <div className="absolute top-[calc(100%-1px)] left-4 w-4 h-4 overflow-hidden"><div className="w-2.5 h-2.5 bg-[var(--card-bg)] border-b border-r border-[var(--border)] rotate-45 -translate-y-1.5 mx-auto" /></div>
                     </div>
                   </>
@@ -1433,13 +1487,13 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
         {typingUsers.length > 0 && (
           <div className="px-4 py-1 text-[12px] text-[var(--sub-text)] italic animate-pulse">
             {typingUsers.length === 1
-              ? `${typingUsers[0].displayName} đang soạn tin...`
-              : `${typingUsers.map(u => u.displayName).join(', ')} đang soạn tin...`}
+              ? t('chat.typing.one', { name: typingUsers[0].displayName })
+              : t('chat.typing.many', { names: typingUsers.map(u => u.displayName).join(', ') })}
           </div>
         )}
         <div className="flex items-center px-4 py-3 gap-3">
           <div className="flex-1">
-            <input type="text" value={message} onChange={(e) => { setMessage(e.target.value); sendTypingIndicator(); }} onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); }} placeholder={t('chat.input_placeholder')} className="w-full bg-transparent outline-none text-[15px] placeholder:text-[var(--sub-text)] placeholder:opacity-50 py-1 text-[var(--text)]" />
+            <input ref={messageInputRef} type="text" value={message} onChange={(e) => { setMessage(e.target.value); sendTypingIndicator(); }} onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); if (e.key === 'Escape' && replyingTo) setReplyingTo(null); }} placeholder={t('chat.input_placeholder')} className="w-full bg-transparent outline-none text-[15px] placeholder:text-[var(--sub-text)] placeholder:opacity-50 py-1 text-[var(--text)]" />
           </div>
           <div className="flex items-center gap-2 pr-1 shrink-0">
             <button onClick={() => togglePicker('emoji')} className={`transition-colors cursor-pointer ${isPickerOpen && pickerTab === 'emoji' ? 'text-[#0068FF]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}><EmojiIcon size={22} /></button>
@@ -1452,13 +1506,31 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
         </div>
       </div>
 
+      {/* Forward Modal */}
+      {forwardingMsg && (
+        <ForwardModal
+          message={forwardingMsg}
+          currentConversationId={String(selectedChat.id)}
+          currentUserId={currentUser?.id}
+          onClose={() => setForwardingMsg(null)}
+          onForwarded={(convId) => {
+            if (onUpdateConversation) {
+              const snippet = forwardingMsg.type === 'IMAGE' ? t('chat.snippet.image') : forwardingMsg.type === 'VIDEO' ? t('chat.snippet.video') : forwardingMsg.type === 'MEDIA' ? t('chat.snippet.file') : forwardingMsg.type === 'VOICE' ? t('chat.snippet.voice') : forwardingMsg.text;
+              onUpdateConversation(convId, snippet, new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }));
+            }
+          }}
+        />
+      )}
+
       <NicknameModal isOpen={isNicknameModalOpen} onClose={() => setIsNicknameModalOpen(false)} currentName={nickname || selectedChat.name} avatar={selectedChat.avatar} onConfirm={async (newName) => {
         try {
           await apiClient.patch(`/conversations/${selectedChat.id}/nickname`, { nickname: newName });
-          setNickname(newName && newName !== selectedChat.name ? newName : null);
-          toast.success('Đã cập nhật biệt danh');
+          const newNickname = newName && newName !== selectedChat.name ? newName : null;
+          setNickname(newNickname);
+          onNicknameChange?.(selectedChat.id, newNickname);
+          toast.success(t('chat.nickname.update_success'));
         } catch (e) {
-          toast.error('Không thể cập nhật biệt danh');
+          toast.error(t('chat.nickname.update_error'));
         }
       }} />
 
@@ -1479,7 +1551,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                 className="flex items-center gap-3 w-full px-4 py-2.5 text-[14px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                Chỉnh sửa
+                {t('chat.ctx_menu.edit')}
               </button>
             )}
             {contextMenu.isMe && (
@@ -1488,7 +1560,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                 className="flex items-center gap-3 w-full px-4 py-2.5 text-[14px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
-                Thu hồi
+                {t('chat.ctx_menu.recall')}
               </button>
             )}
             <button
@@ -1496,7 +1568,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
               className="flex items-center gap-3 w-full px-4 py-2.5 text-[14px] text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-              Xóa ở phía tôi
+              {t('chat.ctx_menu.delete_local')}
             </button>
           </div>
         </>
@@ -1508,12 +1580,12 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           <div className="bg-[var(--card-bg)] w-[380px] max-w-[90vw] rounded-lg shadow-2xl overflow-hidden border border-[var(--border)]">
             <div className="px-5 pt-5 pb-3">
               <h3 className="text-[16px] font-bold text-[var(--text)] mb-2">
-                {confirmDialog.type === 'recall' ? 'Thu hồi tin nhắn' : 'Xóa tin nhắn'}
+                {confirmDialog.type === 'recall' ? t('chat.confirm.recall_title') : t('chat.confirm.delete_title')}
               </h3>
               <p className="text-[14px] text-[var(--sub-text)]">
                 {confirmDialog.type === 'recall'
-                  ? 'Tin nhắn sẽ bị thu hồi với tất cả mọi người trong cuộc trò chuyện. Bạn có chắc không?'
-                  : 'Tin nhắn sẽ chỉ bị xóa ở phía bạn. Người khác vẫn có thể xem. Bạn có chắc không?'}
+                  ? t('chat.confirm.recall_message')
+                  : t('chat.confirm.delete_message')}
               </p>
             </div>
             <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-[var(--border)]">
@@ -1521,7 +1593,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                 onClick={() => setConfirmDialog(null)}
                 className="px-4 py-2 text-[14px] font-medium text-[var(--sub-text)] hover:bg-[var(--hover-bg)] rounded-md transition-colors cursor-pointer"
               >
-                Hủy
+                {t('common.cancel')}
               </button>
               <button
                 onClick={() => {
@@ -1530,7 +1602,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                 }}
                 className={`px-4 py-2 text-[14px] font-medium text-white rounded-md transition-colors cursor-pointer ${confirmDialog.type === 'recall' ? 'bg-[#0068FF] hover:bg-[#0052CC]' : 'bg-red-500 hover:bg-red-600'}`}
               >
-                {confirmDialog.type === 'recall' ? 'Thu hồi' : 'Xóa'}
+                {confirmDialog.type === 'recall' ? t('chat.confirm.recall_btn') : t('chat.confirm.delete_btn')}
               </button>
             </div>
           </div>
@@ -1541,7 +1613,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-[1px]">
           <div className="bg-[var(--card-bg)] w-[500px] h-auto max-h-[420px] max-w-[95vw] rounded-lg shadow-2xl flex flex-col overflow-hidden border border-[var(--border)]">
             <div className="h-[50px] border-b border-[var(--border)] flex items-center justify-between pl-4 pr-1.5 shrink-0">
-              <h3 className="text-[16px] font-bold text-[var(--text)]">Biểu cảm</h3>
+              <h3 className="text-[16px] font-bold text-[var(--text)]">{t('chat.reactions.title')}</h3>
               <button onClick={() => setReactionModalMessageId(null)} className="w-8 h-8 flex items-center justify-center text-[var(--sub-text)] hover:bg-[var(--hover-bg)] rounded-full transition-colors cursor-pointer"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
             <div className="flex-1 flex overflow-hidden min-h-[280px]">
@@ -1553,7 +1625,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                   allReactions.forEach((r: any) => counts[r.emoji] = (counts[r.emoji] || 0) + 1);
                   return (
                     <div className="flex flex-col">
-                      <button onClick={() => setReactionModalEmojiTab('all')} className={`flex items-center justify-between px-2 py-2.5 transition-colors cursor-pointer ${reactionModalEmojiTab === 'all' ? 'bg-[var(--card-bg)] text-[var(--primary)] border-r-2 border-[var(--primary)]' : 'text-[var(--text)] hover:bg-black/5 dark:hover:bg-white/5'}`}><span className="text-[13.5px] font-medium">Tất cả</span><span className="text-[12px] text-[var(--sub-text)]">{allReactions.length}</span></button>
+                      <button onClick={() => setReactionModalEmojiTab('all')} className={`flex items-center justify-between px-2 py-2.5 transition-colors cursor-pointer ${reactionModalEmojiTab === 'all' ? 'bg-[var(--card-bg)] text-[var(--primary)] border-r-2 border-[var(--primary)]' : 'text-[var(--text)] hover:bg-black/5 dark:hover:bg-white/5'}`}><span className="text-[13.5px] font-medium">{t('chat.reactions.all')}</span><span className="text-[12px] text-[var(--sub-text)]">{allReactions.length}</span></button>
                       {Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([emj, count]) => (
                         <button key={emj} onClick={() => setReactionModalEmojiTab(emj)} className={`flex items-center justify-between px-2 py-2.5 transition-colors cursor-pointer ${reactionModalEmojiTab === emj ? 'bg-[var(--card-bg)] text-[var(--primary)] border-r-2 border-[var(--primary)]' : 'text-[var(--text)] hover:bg-black/5 dark:hover:bg-white/5'}`}><span className="text-[17px] leading-none">{emj}</span><span className="text-[12px] text-[var(--sub-text)]">{count}</span></button>
                       ))}

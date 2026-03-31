@@ -58,7 +58,7 @@ export function AddFriendModal({ isOpen, onClose, currentUserName, currentUserId
 
   React.useEffect(() => {
     if (isOpen && !requestMsg) {
-      setRequestMsg(`Xin chào, mình là ${currentUserName || 'người quen'}. Kết bạn với mình nhé!`);
+      setRequestMsg(t('addFriend.default_message', { name: currentUserName || '...' }));
     }
   }, [isOpen, currentUserName]);
 
@@ -90,15 +90,15 @@ export function AddFriendModal({ isOpen, onClose, currentUserName, currentUserId
 
       if (result && result.user_id) {
         if (currentUserId && result.user_id === currentUserId) {
-          setSearchError("Không thể kết bạn với chính mình");
+          setSearchError(t('addFriend.self_error'));
         } else {
           setSearchResult(result);
         }
       } else {
-        setSearchError("Không tìm thấy người dùng");
+        setSearchError(t('addFriend.not_found'));
       }
     } catch (err: any) {
-      setSearchError(err.message || "Không tìm thấy người dùng");
+      setSearchError(err.message || t('addFriend.not_found'));
     } finally {
       setIsSearching(false);
     }
@@ -108,10 +108,10 @@ export function AddFriendModal({ isOpen, onClose, currentUserName, currentUserId
     if (!searchResult) return;
     try {
       await friendService.sendRequest(searchResult.user_id, requestMsg);
-      toast.success("Đã gửi lời mời kết bạn!");
+      toast.success(t('addFriend.send_success'));
       handleClose();
     } catch (err: any) {
-      toast.error(err.message || "Gửi lời mời thất bại");
+      toast.error(err.message || t('addFriend.send_error'));
     }
   };
 
@@ -120,7 +120,7 @@ export function AddFriendModal({ isOpen, onClose, currentUserName, currentUserId
     setSearchResult(null);
     setSearchError(null);
     setStep(1);
-    setRequestMsg('Xin chào, mình là người quen...');
+    setRequestMsg(t('addFriend.default_message', { name: '...' }));
     setBlockDiary(false);
     onClose();
   };
@@ -142,7 +142,7 @@ export function AddFriendModal({ isOpen, onClose, currentUserName, currentUserId
               </button>
             )}
             <h2 className="text-[16px] font-bold text-[var(--text)]">
-              {step === 1 ? "Thêm bạn" : "Thông tin tài khoản"}
+              {step === 1 ? t('addFriend.title') : t('addFriend.account_info')}
             </h2>
           </div>
           <button onClick={handleClose} className="text-[var(--text)] hover:bg-[var(--hover-bg)] p-1 rounded-full transition-all cursor-pointer">
@@ -167,7 +167,7 @@ export function AddFriendModal({ isOpen, onClose, currentUserName, currentUserId
                 </div>
                 <input
                   type="text"
-                  placeholder="Số điện thoại"
+                  placeholder={t('addFriend.phone_placeholder')}
                   value={phoneNumber}
                   onChange={(e) => {
                     const val = e.target.value;
@@ -182,11 +182,11 @@ export function AddFriendModal({ isOpen, onClose, currentUserName, currentUserId
               {/* Search Result Section */}
               {(searchResult || isSearching || searchError) && (
                 <div className="flex flex-col gap-3">
-                  <h3 className="text-[13px] font-bold text-[var(--sub-text)] opacity-70">Kết quả gần nhất</h3>
+                  <h3 className="text-[13px] font-bold text-[var(--sub-text)] opacity-70">{t('addFriend.recent_results')}</h3>
                   {isSearching ? (
                     <div className="flex items-center gap-3 py-2 text-[var(--sub-text)]">
                       <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                      <span className="text-[14px]">Đang tìm kiếm...</span>
+                      <span className="text-[14px]">{t('addFriend.searching')}</span>
                     </div>
                   ) : searchError ? (
                     <div className="py-2 text-[14px] text-red-500 italic">{searchError}</div>
@@ -207,13 +207,13 @@ export function AddFriendModal({ isOpen, onClose, currentUserName, currentUserId
                       </div>
 
                       {searchResult.friendship_status === 'ACCEPTED' ? (
-                        <span className="text-[13px] font-bold text-green-500 px-3 py-1 bg-green-50 rounded-md">Bạn bè</span>
+                        <span className="text-[13px] font-bold text-green-500 px-3 py-1 bg-green-50 rounded-md">{t('addFriend.status.friend')}</span>
                       ) : (
                         <button
                           onClick={() => setStep(2)}
                           className="px-4 py-1.5 bg-[#0068FF] hover:bg-[#005AE0] text-white font-bold rounded-md text-[13px] transition-all cursor-pointer"
                         >
-                          Kết bạn
+                          {t('addFriend.add_btn')}
                         </button>
                       )}
                     </div>
@@ -233,11 +233,11 @@ export function AddFriendModal({ isOpen, onClose, currentUserName, currentUserId
                 onClick={handleSearch}
                 disabled={phoneNumber.length < 9 || isSearching}
                 className={`px-6 py-2 font-bold rounded-[3px] text-[15px] transition-all ${phoneNumber.length >= 9 && !isSearching
-                    ? 'bg-[#0068FF] text-white hover:bg-[#0057d1] cursor-pointer'
-                    : 'bg-[#0068FF]/30 text-white/50 cursor-default'
+                  ? 'bg-[#0068FF] text-white hover:bg-[#0057d1] cursor-pointer'
+                  : 'bg-[#0068FF]/30 text-white/50 cursor-default'
                   }`}
               >
-                {isSearching ? 'Đang tìm...' : 'Tìm kiếm'}
+                {isSearching ? t('addFriend.searching') : t('addFriend.search_btn')}
               </button>
             </div>
           </>
@@ -270,10 +270,10 @@ export function AddFriendModal({ isOpen, onClose, currentUserName, currentUserId
                     value={requestMsg}
                     onChange={(e) => setRequestMsg(e.target.value.substring(0, 150))}
                     className="w-full h-24 p-3 bg-transparent border border-[var(--border)] rounded-md outline-none focus:border-[#0068FF] text-[14px] resize-none transition-all"
-                    placeholder="Nhập lời nhắn kết bạn"
+                    placeholder={t('addFriend.message_placeholder')}
                   />
                   <span className="absolute bottom-2 right-3 text-[11px] text-[var(--sub-text)]">
-                    {requestMsg.length}/150 ký tự
+                    {requestMsg.length}/150 {t('addFriend.char_count')}
                   </span>
                 </div>
 
@@ -281,7 +281,7 @@ export function AddFriendModal({ isOpen, onClose, currentUserName, currentUserId
                   onClick={() => setBlockDiary(!blockDiary)}
                   className="flex items-center justify-between bg-[var(--hover-bg)] p-3 rounded-lg group cursor-pointer active:opacity-80 transition-opacity"
                 >
-                  <span className="text-[14px] font-medium text-[var(--text)] opacity-80">Chặn người này xem nhật ký của tôi</span>
+                  <span className="text-[14px] font-medium text-[var(--text)] opacity-80">{t('addFriend.block_diary')}</span>
                   <button
                     onClick={(e) => { e.stopPropagation(); setBlockDiary(!blockDiary); }}
                     className={`w-10 h-5 rounded-full transition-all relative cursor-pointer ${blockDiary ? 'bg-[#0068FF]' : 'bg-gray-300'}`}
@@ -296,13 +296,13 @@ export function AddFriendModal({ isOpen, onClose, currentUserName, currentUserId
               <button
                 className="flex-1 py-2.5 bg-[#E9EBED] hover:bg-[#D8DADF] text-[var(--text)] font-bold rounded-md text-[14px] transition-all cursor-pointer"
               >
-                Thông tin
+                {t('addFriend.info_btn')}
               </button>
               <button
                 onClick={handleSendRequest}
                 className="flex-1 py-2.5 bg-[#0068FF] hover:bg-[#005AE0] text-white font-bold rounded-md text-[14px] transition-all cursor-pointer shadow-md"
               >
-                Kết bạn
+                {t('addFriend.add_btn')}
               </button>
             </div>
           </div>

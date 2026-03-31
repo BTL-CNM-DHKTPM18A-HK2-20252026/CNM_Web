@@ -10,6 +10,7 @@ import { usePresence } from '@/components/providers/PresenceProvider';
 interface Conversation {
   id: string | number;
   name: string;
+  nickname?: string;
   lastMsg: string;
   time: string;
   active?: boolean;
@@ -20,6 +21,7 @@ interface Conversation {
   otherUserId?: string;
   conversationStatus?: string;
   isRequest?: boolean;
+  conversationTag?: string;
 }
 
 interface ConversationListProps {
@@ -29,6 +31,7 @@ interface ConversationListProps {
   onSelectConversation: (id: string | number) => void;
   onPinConversation?: (id: string | number, pinned: boolean) => void;
   onDeleteConversation?: (id: string | number) => void;
+  onTagConversation?: (id: string | number, tag: string | null) => void;
 }
 
 interface SearchItem {
@@ -46,7 +49,7 @@ interface SearchItem {
   isIcon?: boolean;
 }
 
-export function ConversationList({ conversations, onAddFriend, onCreateGroup, onSelectConversation, onPinConversation, onDeleteConversation }: ConversationListProps) {
+export function ConversationList({ conversations, onAddFriend, onCreateGroup, onSelectConversation, onPinConversation, onDeleteConversation, onTagConversation }: ConversationListProps) {
   const { t, i18n } = useTranslation();
   const { isOnline, getTimeAgo } = usePresence();
 
@@ -62,9 +65,15 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [filterTab, setFilterTab] = useState<'all' | 'unread'>('all');
 
-  const filteredConversations = filterTab === 'unread'
-    ? conversations.filter(c => (c.unreadCount && c.unreadCount > 0) || c.isRequest)
-    : conversations;
+  const filteredConversations = (() => {
+    let result = filterTab === 'unread'
+      ? conversations.filter(c => (c.unreadCount && c.unreadCount > 0) || c.isRequest)
+      : conversations;
+    if (selectedTags.length > 0) {
+      result = result.filter(c => c.conversationTag && selectedTags.includes(c.conversationTag));
+    }
+    return result;
+  })();
   const [contextMenu, setContextMenu] = useState<{ id: string | number; x: number; y: number } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
 
@@ -142,12 +151,12 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
   const contextConv = contextMenu ? conversations.find(c => c.id === contextMenu.id) : null;
 
   const subMenuItems = [
-    { key: 'customer', label: 'Khách hàng', color: '#EF4444' },
-    { key: 'family', label: 'Gia đình', color: '#4ADE80' },
-    { key: 'work', label: 'Công việc', color: '#F97316' },
-    { key: 'friends', label: 'Bạn bè', color: '#8B5CF6' },
-    { key: 'reply_later', label: 'Trả lời sau', color: '#FACC15' },
-    { key: 'colleagues', label: 'Đồng nghiệp', color: '#0068FF' },
+    { key: 'customer', label: t('chat.classify_menu.customer'), color: '#EF4444' },
+    { key: 'family', label: t('chat.classify_menu.family'), color: '#4ADE80' },
+    { key: 'work', label: t('chat.classify_menu.work'), color: '#F97316' },
+    { key: 'friends', label: t('chat.classify_menu.friends'), color: '#8B5CF6' },
+    { key: 'reply_later', label: t('chat.classify_menu.reply_later'), color: '#FACC15' },
+    { key: 'colleagues', label: t('chat.classify_menu.colleagues'), color: '#0068FF' },
   ];
 
   const renderContextMenu = () => {
@@ -169,15 +178,15 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
               const res = await apiClient.post<any>(`/conversations/${convId}/pin`, {});
               const newPinned = res?.data?.isPinned ?? res?.isPinned ?? !isPinned;
               onPinConversation?.(convId, newPinned);
-              toast.success(newPinned ? 'Đã ghim hội thoại' : 'Đã bỏ ghim hội thoại');
+              toast.success(newPinned ? t('chat.ctx.pin_success') : t('chat.ctx.unpin_success'));
             } catch (e: any) {
-              toast.error(e.message || 'Không thể cập nhật ghim');
+              toast.error(e.message || t('chat.ctx.pin_error'));
             }
           }}
           className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center gap-3 text-[var(--text)] transition-colors cursor-pointer"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><line x1="12" y1="17" x2="12" y2="22" /><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" /></svg>
-          <span>{isPinned ? 'Bỏ ghim hội thoại' : 'Ghim hội thoại'}</span>
+          <span>{isPinned ? t('chat.ctx.unpin') : t('chat.ctx.pin')}</span>
         </button>
 
         {/* Phân loại — with submenu */}
@@ -191,7 +200,7 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
           >
             <div className="flex items-center gap-3">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" /><circle cx="7.5" cy="7.5" r=".5" fill="currentColor" /></svg>
-              <span>Phân loại</span>
+              <span>{t('chat.ctx.classify')}</span>
             </div>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="opacity-40"><path d="m9 18 6-6-6-6" /></svg>
           </button>
@@ -200,25 +209,40 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
           {showSubMenu === 'classify' && (
             <div className="absolute left-full top-0 z-50 pl-1 pointer-events-auto">
               <div className="w-[210px] bg-white dark:bg-[var(--card-bg)] rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.18)] border border-gray-200 dark:border-[var(--border)] py-1 animate-in fade-in duration-100">
-                {subMenuItems.map((item) => (
-                  <button
-                    key={item.key}
-                    onClick={() => { setContextMenu(null); }}
-                    className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center gap-3 text-[var(--text)] transition-colors cursor-pointer"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill={item.color} stroke={item.color} strokeWidth="1.5" className="shrink-0">
-                      <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" />
-                    </svg>
-                    <span>{item.label}</span>
-                  </button>
-                ))}
+                {subMenuItems.map((item) => {
+                  const isActive = contextConv?.conversationTag === item.key;
+                  return (
+                    <button
+                      key={item.key}
+                      onClick={async () => {
+                        const convId = contextMenu!.id;
+                        const newTag = isActive ? null : item.key;
+                        setContextMenu(null);
+                        try {
+                          await apiClient.patch(`/conversations/${convId}/tag`, { tag: newTag });
+                          onTagConversation?.(convId, newTag);
+                          toast.success(newTag ? t('chat.ctx.classify_success', { label: item.label }) : t('chat.ctx.classify_removed'));
+                        } catch (e: any) {
+                          toast.error(e.message || t('chat.ctx.classify_error'));
+                        }
+                      }}
+                      className={`w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center gap-3 text-[var(--text)] transition-colors cursor-pointer ${isActive ? 'bg-[#e5efff] dark:bg-white/10' : ''}`}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill={item.color} stroke={item.color} strokeWidth="1.5" className="shrink-0">
+                        <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" />
+                      </svg>
+                      <span>{item.label}</span>
+                      {isActive && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="ml-auto opacity-70"><polyline points="20 6 9 17 4 12" /></svg>}
+                    </button>
+                  );
+                })}
                 <div className="h-[1px] bg-gray-100 dark:bg-white/5 mx-2 my-0.5" />
                 <button
                   onClick={() => { setContextMenu(null); }}
                   className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center gap-3 text-[var(--text)] transition-colors cursor-pointer"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>
-                  <span>Quản lý thẻ phân loại</span>
+                  <span>{t('chat.classify_menu.manage')}</span>
                 </button>
               </div>
             </div>
@@ -231,7 +255,7 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
           className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center gap-3 text-[var(--text)] transition-colors cursor-pointer"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h9" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /><circle cx="19" cy="19" r="3" /></svg>
-          <span>Đánh dấu chưa đọc</span>
+          <span>{t('chat.ctx.mark_unread')}</span>
         </button>
 
         <div className="h-[1px] bg-gray-100 dark:bg-white/5 mx-2" />
@@ -247,7 +271,7 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
           >
             <div className="flex items-center gap-3">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
-              <span>Tắt thông báo</span>
+              <span>{t('chat.ctx.mute')}</span>
             </div>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="opacity-40"><path d="m9 18 6-6-6-6" /></svg>
           </button>
@@ -257,10 +281,10 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
             <div className="absolute left-full top-0 z-50 pl-1 pointer-events-auto">
               <div className="w-[180px] bg-white dark:bg-[var(--card-bg)] rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.18)] border border-gray-200 dark:border-[var(--border)] py-1 animate-in fade-in duration-100">
                 {[
-                  { label: 'Trong 1 giờ', value: '1h' },
-                  { label: 'Trong 4 giờ', value: '4h' },
-                  { label: 'Đến 8:00 sáng', value: '8am' },
-                  { label: 'Cho đến khi mở lại', value: 'forever' },
+                  { label: t('chat.mute.1h'), value: '1h' },
+                  { label: t('chat.mute.4h'), value: '4h' },
+                  { label: t('chat.mute.8am'), value: '8am' },
+                  { label: t('chat.mute.forever'), value: 'forever' },
                 ].map((item) => (
                   <button
                     key={item.value}
@@ -281,7 +305,7 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
           className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center gap-3 text-[var(--text)] transition-colors cursor-pointer"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
-          <span>Ẩn trò chuyện</span>
+          <span>{t('chat.ctx.hide')}</span>
         </button>
 
         {/* Tin nhắn tự xóa */}
@@ -295,7 +319,7 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
           >
             <div className="flex items-center gap-3">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-              <span>Tin nhắn tự xóa</span>
+              <span>{t('chat.ctx.auto_delete')}</span>
               <span className="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
             </div>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="opacity-40"><path d="m9 18 6-6-6-6" /></svg>
@@ -306,10 +330,10 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
             <div className="absolute left-full top-0 z-50 pl-1 pointer-events-auto">
               <div className="w-[180px] bg-white dark:bg-[var(--card-bg)] rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.18)] border border-gray-200 dark:border-[var(--border)] py-1 animate-in fade-in duration-100">
                 {[
-                  { label: 'Tắt', value: 'off' },
-                  { label: '1 ngày', value: '1d' },
-                  { label: '7 ngày', value: '7d' },
-                  { label: '30 ngày', value: '30d' },
+                  { label: t('chat.auto_delete.off'), value: 'off' },
+                  { label: t('chat.auto_delete.1d'), value: '1d' },
+                  { label: t('chat.auto_delete.7d'), value: '7d' },
+                  { label: t('chat.auto_delete.30d'), value: '30d' },
                 ].map((item) => (
                   <button
                     key={item.value}
@@ -332,28 +356,28 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
             const convId = contextMenu.id;
             const convName = contextConv.name;
             setContextMenu(null);
-            toast(`Xóa hội thoại "${convName}"?`, {
-              description: 'Tin nhắn sẽ bị ẩn khỏi danh sách của bạn.',
+            toast(t('chat.ctx.delete_confirm', { name: convName }), {
+              description: t('chat.ctx.delete_desc'),
               duration: 10000,
               action: {
-                label: 'Xác nhận xóa',
+                label: t('chat.ctx.confirm_delete'),
                 onClick: async () => {
                   try {
                     await apiClient.delete(`/conversations/${convId}`);
                     onDeleteConversation?.(convId);
-                    toast.success('Đã xóa hội thoại');
+                    toast.success(t('chat.ctx.delete_success'));
                   } catch (e: any) {
-                    toast.error(e.message || 'Không thể xóa hội thoại');
+                    toast.error(e.message || t('chat.ctx.delete_error'));
                   }
                 },
               },
-              cancel: { label: 'Hủy', onClick: () => { } },
+              cancel: { label: t('common.cancel'), onClick: () => { } },
             });
           }}
           className="w-full px-4 py-2 text-left text-[13px] hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-3 text-red-500 transition-colors cursor-pointer"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
-          <span>Xóa hội thoại</span>
+          <span>{t('chat.ctx.delete')}</span>
         </button>
 
         {/* Báo xấu */}
@@ -362,7 +386,7 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
           className="w-full px-4 py-2 text-left text-[13px] hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-3 text-red-500 transition-colors cursor-pointer"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
-          <span>Báo xấu</span>
+          <span>{t('chat.ctx.report')}</span>
         </button>
       </div>
     );
@@ -437,7 +461,7 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
                       <span className="font-bold text-[var(--primary)] text-[13px]">
                         {selectedTags.length === 1
                           ? (selectedTags[0] === 'strangers' ? t('chat.classify_menu.strangers') : t(`chat.classify_menu.${selectedTags[0]}`))
-                          : `${selectedTags.length} ${i18n.language === 'vi' ? 'thẻ' : 'tags'}`
+                          : `${selectedTags.length} ${t('chat.tags')}`
                         }
                       </span>
                       <div
@@ -449,7 +473,7 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
                     </>
                   ) : (
                     <>
-                      {showClassifyMenu ? (i18n.language === 'vi' ? 'Thẻ' : 'Tags') : t('chat.classify')} <ChevronDownIcon size={14} />
+                      {showClassifyMenu ? t('chat.tags') : t('chat.classify')} <ChevronDownIcon size={14} />
                     </>
                   )}
                 </button>
@@ -608,7 +632,7 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
               <span className="text-[14px]">
-                {filterTab === 'requests' ? 'Không có tin nhắn chờ' : filterTab === 'unread' ? 'Không có tin nhắn chưa đọc' : 'Không có hội thoại'}
+                {filterTab === 'requests' ? t('chat.empty.requests') : filterTab === 'unread' ? t('chat.empty.unread') : t('chat.empty.conversations')}
               </span>
             </div>
           ) : (
@@ -640,7 +664,13 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center mb-0.5">
-                    <h4 className={`text-[15px] ${conv.pinned ? 'font-bold' : 'font-medium'} truncate text-[var(--text)]`}>{conv.name}</h4>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {conv.conversationTag && (() => {
+                        const tagColor = subMenuItems.find(t => t.key === conv.conversationTag)?.color;
+                        return tagColor ? <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: tagColor }} /> : null;
+                      })()}
+                      <h4 className="text-[15px] font-medium truncate text-[var(--text)]">{conv.nickname || conv.name}</h4>
+                    </div>
                     <div className="flex items-center gap-1">
                       <span className="text-[12px] text-[#708090] font-medium mr-1">{conv.time}</span>
                       {conv.pinned && (
@@ -652,9 +682,9 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
                   </div>
                   <div className="flex justify-between items-center h-5">
                     <div className={`text-[13px] flex items-center gap-1.5 truncate ${conv.unreadCount && conv.unreadCount > 0 ? 'text-[var(--text)] font-semibold' : 'text-[#708090]'}`}>
-                      {conv.otherUserId && conv.lastMsg === 'Bắt đầu trò chuyện' ? (
+                      {conv.otherUserId && conv.lastMsg === t('chat.start_conversation') ? (
                         isOnline(conv.otherUserId) ? (
-                          <span className="text-green-500 font-medium">Đang hoạt động</span>
+                          <span className="text-green-500 font-medium">{t('presence.online')}</span>
                         ) : getTimeAgo(conv.otherUserId) ? (
                           <span className="truncate">{getTimeAgo(conv.otherUserId)}</span>
                         ) : (
@@ -674,7 +704,7 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
 
                     <button
                       onClick={(e) => openContextMenuFromButton(e, conv.id)}
-                      className="hidden group-hover:flex opacity-60 hover:opacity-100 p-0.5 hover:bg-black/5 rounded transition-all text-gray-500 absolute right-4"
+                      className="hidden group-hover:flex opacity-60 hover:opacity-100 p-0.5 hover:bg-black/5 rounded transition-all text-gray-500 absolute right-4 cursor-pointer"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>
                     </button>

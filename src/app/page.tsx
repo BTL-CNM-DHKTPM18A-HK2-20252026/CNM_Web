@@ -84,7 +84,7 @@ export default function Home() {
       connectWebSocket(uuid);
     } catch (err) {
       console.error('Failed to fetch QR session:', err);
-      toast.error('Không thể lấy mã QR. Vui lòng thử lại.');
+      toast.error(t('login.validation.qr_error'));
     } finally {
       setQrLoading(false);
     }
@@ -112,7 +112,7 @@ export default function Home() {
       client.subscribe(`/topic/qr-login/${uuid}`, (message) => {
         try {
           const result = JSON.parse(message.body);
-          
+
           // Handle Scanned state (show user info before login)
           if (result.message === 'SCANNED' && result.data) {
             setScannedUser({
@@ -122,9 +122,9 @@ export default function Home() {
             return;
           }
 
-            const token = result.data.access_token;
-            localStorage.setItem('accessToken', token);
-            setIsLoggedIn(true);
+          const token = result.data.access_token;
+          localStorage.setItem('accessToken', token);
+          setIsLoggedIn(true);
         } catch (e) {
           console.error('Error parsing QR login message:', e);
         }
@@ -181,7 +181,7 @@ export default function Home() {
     try {
       // 1. Phone validation (both login and register)
       if (!phoneRegex.test(trimmedPhone)) {
-        const msg = 'Số điện thoại không hợp lệ (10 chữ số, ví dụ: 0901234567)';
+        const msg = t('login.validation.phone_invalid');
         setError(msg);
         toast.error(msg);
         setLoading(false);
@@ -202,7 +202,7 @@ export default function Home() {
       } else if (loginMethod === 'register') {
         // 2. Email validation (for registration only)
         if (!validateEmail(trimmedEmail)) {
-          const msg = 'Email không hợp lệ (kiểm tra lại định dạng và các dấu chấm)';
+          const msg = t('login.validation.email_invalid');
           setError(msg);
           toast.error(msg);
           setLoading(false);
@@ -212,7 +212,7 @@ export default function Home() {
         // 3. Password strength validation (for registration only)
         const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{8,}$/;
         if (!passwordRegex.test(password)) {
-          const msg = 'Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt (!@#$%^&*)';
+          const msg = t('login.validation.password_weak');
           setError(msg);
           toast.error(msg);
           setLoading(false);
@@ -220,7 +220,7 @@ export default function Home() {
         }
 
         if (confirmPassword && password !== confirmPassword) {
-          const msg = 'Mật khẩu xác nhận không khớp';
+          const msg = t('login.validation.confirm_mismatch');
           setError(msg);
           toast.error(msg);
           setLoading(false);
@@ -236,8 +236,8 @@ export default function Home() {
           dob: dob ? new Date(dob) : undefined,
           gender: gender
         });
-        toast.success("Đăng ký tài khoản thành công!", {
-          description: "Bây giờ bạn có thể đăng nhập bằng số điện thoại vừa đăng ký.",
+        toast.success(t('login.success.register'), {
+          description: t('login.success.register_desc'),
           duration: 5000,
           className: "bg-white dark:bg-[#1E1E1E] border border-blue-100 dark:border-blue-900 shadow-xl",
           icon: <div className="h-5 w-5 bg-blue-500 rounded-full flex items-center justify-center text-white"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><polyline points="20 6 9 17 4 12" /></svg></div>
@@ -245,7 +245,7 @@ export default function Home() {
         setLoginMethod('phone');
       }
     } catch (err: any) {
-      const msg = err.message || (loginMethod === 'phone' ? 'Đăng nhập thất bại' : 'Đăng ký thất bại');
+      const msg = err.message || (loginMethod === 'phone' ? t('login.error.login_failed') : t('login.error.register_failed'));
       setError(msg);
       toast.error(msg);
     } finally {
@@ -258,8 +258,8 @@ export default function Home() {
     setScannedUser(null);
     setLoginMethod('qr');
     setIsLoggedIn(false);
-    toast("Đã đăng xuất thành công", {
-      description: "Hẹn gặp lại bạn sớm! Chúc bạn một ngày tốt lành.",
+    toast(t('login.success.logout'), {
+      description: t('login.success.logout_desc'),
       icon: <span className="text-xl">👋</span>,
       duration: 4000,
     });
@@ -270,8 +270,8 @@ export default function Home() {
 
   // Main Render
   return (
-    <div suppressHydrationWarning className={isLoggedIn 
-      ? "h-screen w-full overflow-hidden" 
+    <div suppressHydrationWarning className={isLoggedIn
+      ? "h-screen w-full overflow-hidden"
       : "flex min-h-screen flex-col items-center justify-center bg-[var(--background)] p-4 font-sans text-[var(--text)] transition-colors duration-300"
     }>
       {isLoggedIn ? (
@@ -283,7 +283,7 @@ export default function Home() {
             <button
               onClick={() => setCurrentTheme(currentTheme === 'dark' ? 'light' : 'dark')}
               className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--border)] flex items-center justify-center text-[var(--text)] hover:bg-[var(--hover-bg)] transition-all cursor-pointer shadow-sm group"
-              title={currentTheme === 'dark' ? 'Chuyển sang chế độ sáng' : 'Chuyển sang chế độ tối'}
+              title={currentTheme === 'dark' ? t('login.theme_switch.light') : t('login.theme_switch.dark')}
             >
               {currentTheme === 'dark' ? <SunIcon size={20} /> : <MoonIcon size={20} />}
             </button>

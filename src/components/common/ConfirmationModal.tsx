@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -19,11 +20,12 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   confirmLabel,
   isDanger = true
 }) => {
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-[1px] animate-in fade-in duration-200">
-      <div 
+      <div
         className="bg-[var(--card-bg)] w-full max-w-[340px] rounded-xl shadow-2xl border border-[var(--border)] overflow-hidden animate-in zoom-in-95 duration-200"
         onClick={e => e.stopPropagation()}
       >
@@ -41,21 +43,20 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
 
         {/* Actions - iOS/Zalo style */}
         <div className="flex border-t border-[var(--border)]">
-          <button 
+          <button
             onClick={onClose}
             className="flex-1 py-3 text-[16px] font-medium text-[var(--sub-text)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
           >
-            Hủy
+            {t('common.cancel')}
           </button>
           <div className="w-[1px] bg-[var(--border)]"></div>
-          <button 
+          <button
             onClick={() => {
               onConfirm();
               onClose();
             }}
-            className={`flex-1 py-3 text-[16px] font-bold transition-colors cursor-pointer ${
-              isDanger ? 'text-[#FF3B30] hover:bg-red-50 dark:hover:bg-red-500/10' : 'text-[#0068FF] hover:bg-blue-50 dark:hover:bg-blue-500/10'
-            }`}
+            className={`flex-1 py-3 text-[16px] font-bold transition-colors cursor-pointer ${isDanger ? 'text-[#FF3B30] hover:bg-red-50 dark:hover:bg-red-500/10' : 'text-[#0068FF] hover:bg-blue-50 dark:hover:bg-blue-500/10'
+              }`}
           >
             {confirmLabel}
           </button>

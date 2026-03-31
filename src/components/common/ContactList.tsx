@@ -13,10 +13,10 @@ export function ContactList({ selectedCategory, onSelectCategory, onAddFriend, o
   const { t } = useTranslation();
 
   const categories = [
-    { id: 'friends', name: 'Danh sách bạn bè', icon: <FriendsIcon size={22} /> },
-    { id: 'groups', name: 'Danh sách nhóm và cộng đồng', icon: <GroupsIcon size={22} /> },
-    { id: 'invites', name: 'Lời mời kết bạn', icon: <FriendRequestIcon size={22} /> },
-    { id: 'group_invites', name: 'Lời mời vào nhóm và cộng đồng', icon: <GroupRequestIcon size={22} /> },
+    { id: 'friends', name: t('contacts.title.friends'), icon: <FriendsIcon size={22} /> },
+    { id: 'groups', name: t('contacts.title.groups'), icon: <GroupsIcon size={22} /> },
+    { id: 'invites', name: t('contacts.title.invites'), icon: <FriendRequestIcon size={22} /> },
+    { id: 'group_invites', name: t('contacts.title.group_invites'), icon: <GroupRequestIcon size={22} /> },
   ];
 
   return (
@@ -26,19 +26,19 @@ export function ContactList({ selectedCategory, onSelectCategory, onAddFriend, o
         <div className="relative flex-1 flex items-center">
           <input
             type="text"
-            placeholder="Tìm kiếm"
+            placeholder={t('contacts.search.placeholder')}
             className="w-full bg-[var(--search-bg)] border-transparent rounded-full py-1.5 pl-9 pr-3 text-[13.5px] text-[var(--text)] outline-none border transition-all placeholder:text-[var(--search-placeholder)]"
           />
           <div className="absolute left-3 text-gray-400"><SearchIcon size={16} /></div>
         </div>
         <div className="flex items-center gap-1">
-          <button 
+          <button
             onClick={onAddFriend}
             className="p-1.5 cursor-pointer hover:bg-[var(--hover-bg)] text-[var(--text)] opacity-70 rounded-md transition-colors"
           >
             <AddUserIcon size={20} />
           </button>
-          <button 
+          <button
             onClick={onCreateGroup}
             className="p-1.5 cursor-pointer hover:bg-[var(--hover-bg)] text-[var(--text)] opacity-70 rounded-md transition-colors"
           >

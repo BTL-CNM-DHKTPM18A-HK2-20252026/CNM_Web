@@ -17,6 +17,7 @@ interface ContactsContentProps {
 }
 
 export function ContactsContent({ category, currentUser, onSelectUser }: ContactsContentProps) {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
@@ -42,8 +43,8 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
   const isInvites = category === 'invites';
   const isGroups = category === 'groups';
 
-  const title = isFriends ? 'Danh sách bạn bè' : isGroups ? 'Danh sách nhóm và cộng đồng' : isInvites ? 'Lời mời kết bạn' : 'Lời mời vào nhóm và cộng đồng';
-  const countLabel = isFriends ? `Bạn bè (${friends.length})` : isGroups ? `Nhóm và cộng đồng (${groups.length})` : '';
+  const title = isFriends ? t('contacts.title.friends') : isGroups ? t('contacts.title.groups') : isInvites ? t('contacts.title.invites') : t('contacts.title.group_invites');
+  const countLabel = isFriends ? t('contacts.count.friends', { count: friends.length }) : isGroups ? t('contacts.count.groups', { count: groups.length }) : '';
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -115,7 +116,7 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
   const handleAccept = async (requestId: string, senderInfo?: { senderId: string; senderName: string; senderAvatarUrl?: string }) => {
     try {
       await friendService.acceptRequest(requestId);
-      toast.success("Đã chấp nhận lời mời kết bạn");
+      toast.success(t('contacts.invite.accept_success'));
       fetchInvitations();
       fetchFriends(true);
       // Auto-open chat with the new friend
@@ -127,17 +128,17 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
         });
       }
     } catch (err: any) {
-      toast.error(err.message || "Thao tác thất bại");
+      toast.error(err.message || t('common.action_failed'));
     }
   };
 
   const handleReject = async (requestId: string) => {
     try {
       await friendService.rejectRequest(requestId);
-      toast.success("Đã từ chối lời mời kết bạn");
+      toast.success(t('contacts.invite.reject_success'));
       fetchInvitations();
     } catch (err: any) {
-      toast.error(err.message || "Thao tác thất bại");
+      toast.error(err.message || t('common.action_failed'));
     }
   };
 
@@ -146,10 +147,10 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
   const handleRecall = async (userId: string) => {
     try {
       await friendService.unfriend(userId);
-      toast.success("Đã thu hồi lời mời");
+      toast.success(t('contacts.invite.recall_success'));
       fetchInvitations();
     } catch (err: any) {
-      toast.error(err.message || "Thao tác thất bại");
+      toast.error(err.message || t('common.action_failed'));
     }
   };
 
@@ -165,20 +166,20 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
   const handleUnfriend = async (userId: string) => {
     try {
       await friendService.unfriend(userId);
-      toast.success("Đã xóa bạn bè");
+      toast.success(t('contacts.unfriend.success'));
       fetchFriends();
     } catch (err: any) {
-      toast.error(err.message || "Xóa bạn thất bại");
+      toast.error(err.message || t('contacts.unfriend.error'));
     }
   };
 
   const handleBlock = async (userId: string) => {
     try {
       await friendService.blockUser(userId);
-      toast.success("Đã chặn đối phương");
+      toast.success(t('contacts.block.success'));
       fetchFriends();
     } catch (err: any) {
-      toast.error(err.message || "Chặn người dùng thất bại");
+      toast.error(err.message || t('contacts.block.error'));
     }
   };
 
@@ -192,15 +193,15 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
         onClick={e => e.stopPropagation()}
       >
         <button className="w-full px-4 py-2 text-left text-[14.5px] hover:bg-gray-50 flex items-center gap-3 text-[#081C36] transition-colors cursor-pointer">
-          <span>Xem thông tin</span>
+          <span>{t('contacts.menu.view_info')}</span>
         </button>
         <div className="h-[1px] bg-gray-100 mx-2 my-1"></div>
         <button className="w-full px-4 py-2 text-left text-[14.5px] hover:bg-gray-50 flex items-center justify-between text-[#081C36] transition-colors group cursor-pointer">
-          <span>Phân loại</span>
+          <span>{t('contacts.menu.classify')}</span>
           <ChevronRightIcon size={14} className="text-gray-500" />
         </button>
         <button className="w-full px-4 py-2 text-left text-[14.5px] hover:bg-gray-50 flex items-center gap-3 text-[#081C36] transition-colors cursor-pointer">
-          <span>Đặt tên gợi nhớ</span>
+          <span>{t('contacts.menu.set_nickname')}</span>
         </button>
         <div className="h-[1px] bg-gray-100 mx-2 my-1"></div>
         <button
@@ -210,7 +211,7 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
           }}
           className="w-full px-4 py-2 text-left text-[14.5px] hover:bg-gray-50 flex items-center gap-3 text-[#081C36] transition-colors cursor-pointer"
         >
-          <span>Chặn người này</span>
+          <span>{t('contacts.menu.block')}</span>
         </button>
         <div className="h-[1px] bg-gray-100 mx-2 my-1"></div>
         <button
@@ -220,7 +221,7 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
           }}
           className="w-full px-4 py-2 text-left text-[14.5px] hover:bg-red-50 text-red-600 font-semibold flex items-center gap-3 transition-colors cursor-pointer"
         >
-          <span>Xóa bạn</span>
+          <span>{t('contacts.menu.unfriend')}</span>
         </button>
       </div>
     );
@@ -265,15 +266,15 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
                     <FriendRequestIcon size={48} className="text-blue-500/50" />
                   </div>
                 </div>
-                <p className="text-[15px] font-bold text-[var(--text)] opacity-40">Không có lời mời nào</p>
-                <p className="text-[13px] text-[var(--sub-text)] mt-1 opacity-50 px-8 text-center">Các lời mời kết bạn sẽ hiển thị tại đây.</p>
+                <p className="text-[15px] font-bold text-[var(--text)] opacity-40">{t('contacts.invites.empty')}</p>
+                <p className="text-[13px] text-[var(--sub-text)] mt-1 opacity-50 px-8 text-center">{t('contacts.invites.empty_desc')}</p>
               </div>
             ) : (
               <>
                 {receivedInvites.length > 0 && (
                   <section>
                     <h3 className="text-[14px] font-bold text-[var(--text)] mb-3 px-1 flex items-center gap-1.5 opacity-90">
-                      Lời mời đã nhận ({receivedInvites.length})
+                      {t('contacts.invite.received', { count: receivedInvites.length })}
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {receivedInvites.map(req => (
@@ -294,7 +295,7 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
                             </div>
                             <button
                               onClick={() => onSelectUser?.({ id: req.senderId, user_id: req.senderId, display_name: req.senderName, avatar_url: req.senderAvatarUrl })}
-                              title="Nhắn tin"
+                              title={t('contacts.send_message')}
                               className="text-[var(--sub-text)] hover:text-[#0068FF] hover:bg-blue-50 dark:hover:bg-blue-500/10 p-1.5 rounded-full cursor-pointer transition-all"
                             >
                               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
@@ -302,7 +303,7 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
                           </div>
 
                           <div className="bg-[var(--hover-bg)] p-3 rounded-lg text-[13.5px] text-[var(--text)] leading-relaxed italic">
-                            {req.message || "Xin chào, kết bạn với mình nhé!"}
+                            {req.message || t('contacts.invite.default_message')}
                           </div>
 
                           <div className="grid grid-cols-2 gap-2 mt-1">
@@ -310,13 +311,13 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
                               onClick={() => handleReject(req.requestId)}
                               className="py-2 bg-[var(--hover-bg)] hover:opacity-80 text-[var(--text)] font-bold rounded-md transition-all text-[14px] cursor-pointer"
                             >
-                              Từ chối
+                              {t('contacts.invite.reject')}
                             </button>
                             <button
                               onClick={() => handleAccept(req.requestId, { senderId: req.senderId, senderName: req.senderName, senderAvatarUrl: req.senderAvatarUrl })}
                               className="py-2 bg-[#0068FF] hover:bg-[#005AE0] text-white font-bold rounded-md transition-all text-[14px] cursor-pointer"
                             >
-                              Đồng ý
+                              {t('contacts.invite.accept')}
                             </button>
                           </div>
                         </div>
@@ -328,7 +329,7 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
                 {sentInvites.length > 0 && (
                   <section>
                     <h3 className="text-[14px] font-bold text-[var(--text)] mb-3 px-1 flex items-center gap-1.5 opacity-90">
-                      Lời mời đã gửi ({sentInvites.length})
+                      {t('contacts.invite.sent', { count: sentInvites.length })}
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {(showAllSent ? sentInvites : sentInvites.slice(0, 6)).map(req => (
@@ -344,13 +345,13 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
                               </div>
                               <div className="flex flex-col">
                                 <span className="text-[15px] font-bold text-[var(--text)]">{req.receiverName}</span>
-                                <span className="text-[12px] text-[var(--sub-text)] mt-0.5">Bạn đã gửi lời mời</span>
+                                <span className="text-[12px] text-[var(--sub-text)] mt-0.5">{t('contacts.invite.sent_label')}</span>
                                 <span className="text-[11px] text-[var(--sub-text)] opacity-60 underline italic">{new Date(req.createdAt).toLocaleDateString()}</span>
                               </div>
                             </div>
                             <button
                               onClick={() => onSelectUser?.({ id: req.receiverId, user_id: req.receiverId, display_name: req.receiverName, avatar_url: req.receiverAvatarUrl })}
-                              title="Nhắn tin"
+                              title={t('contacts.send_message')}
                               className="text-[var(--sub-text)] hover:text-[#0068FF] hover:bg-blue-50 dark:hover:bg-blue-500/10 p-1.5 rounded-full cursor-pointer transition-all"
                             >
                               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
@@ -358,14 +359,14 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
                           </div>
 
                           <div className="bg-[var(--hover-bg)] p-3 rounded-lg text-[13.2px] text-[var(--text)] leading-relaxed italic opacity-85">
-                            {req.message || "Không có nội dung lời nhắn"}
+                            {req.message || t('contacts.invite.no_message')}
                           </div>
 
                           <button
                             onClick={() => handleRecall(req.receiverId)}
                             className="w-full py-2 bg-[var(--hover-bg)] hover:bg-red-50 hover:text-red-500 text-[var(--text)] font-bold rounded-md transition-all text-[14px] cursor-pointer border border-transparent hover:border-red-100"
                           >
-                            Thu hồi lời mời
+                            {t('contacts.invite.recall')}
                           </button>
                         </div>
                       ))}
@@ -377,7 +378,7 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
                           onClick={() => setShowAllSent(!showAllSent)}
                           className="px-6 py-1.5 bg-[#E9EBED] hover:bg-[#D8DADF] text-[#081C36] font-bold rounded-[4px] text-[13.5px] transition-all cursor-pointer border border-black/5 active:scale-95"
                         >
-                          {showAllSent ? 'Thu gọn' : 'Xem thêm'}
+                          {showAllSent ? t('common.collapse') : t('common.view_more')}
                         </button>
                       </div>
                     )}
@@ -388,7 +389,7 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
 
             <section className="pt-8 pb-4">
               <div className="flex items-center gap-2 px-1 cursor-pointer group opacity-40 hover:opacity-100 transition-opacity">
-                <h3 className="text-[14px] font-bold text-[var(--text)]">Gợi ý kết bạn (0)</h3>
+                <h3 className="text-[14px] font-bold text-[var(--text)]">{t('contacts.suggestions')}</h3>
                 <span className="text-[var(--sub-text)] group-hover:translate-x-1 transition-transform">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m9 18 6-6-6-6" /></svg>
                 </span>
@@ -408,7 +409,7 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
                     type="text"
                     value={searchTerm}
                     onChange={handleInputChange}
-                    placeholder={isFriends ? "Tìm nhanh danh sách bạn bè" : "Tìm kiếm..."}
+                    placeholder={isFriends ? t('contacts.search.friends_placeholder') : t('contacts.search.placeholder')}
                     className="w-full bg-[var(--card-bg)] hover:bg-[var(--hover-bg)] focus:bg-[var(--card-bg)] border border-[var(--border)] rounded-lg py-1.5 pl-9 pr-3 text-[14px] text-[var(--text)] outline-none transition-all placeholder:text-[var(--search-placeholder)] focus:border-[#0068FF] shadow-sm"
                   />
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--sub-text)]"><SearchIcon size={16} /></div>
@@ -417,13 +418,13 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
                 <div className="flex items-center gap-2">
                   <button className="flex items-center gap-2 px-3 py-1.5 bg-[var(--card-bg)] border border-[var(--border)] rounded-lg text-[13px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-all cursor-pointer shadow-sm min-w-[120px] focus:border-[#0068FF] outline-none">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 16 4 4 4-4" /><path d="M7 20V4" /><path d="m21 8-4-4-4 4" /><path d="M17 4v16" /></svg>
-                    <span className="font-medium">{isFriends ? 'Tên (A-Z)' : 'Hoạt động (mới — cũ)'}</span>
+                    <span className="font-medium">{isFriends ? t('contacts.sort.name_az') : t('contacts.sort.activity')}</span>
                     <span className="text-[var(--sub-text)] ml-auto"><ChevronDownIcon size={14} /></span>
                   </button>
 
                   <button className="flex items-center gap-2 px-3 py-1.5 bg-[var(--card-bg)] border border-[var(--border)] rounded-lg text-[13px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-all cursor-pointer shadow-sm min-w-[100px] focus:border-[#0068FF] outline-none">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
-                    <span className="font-medium">Tất cả</span>
+                    <span className="font-medium">{t('contacts.filter.all')}</span>
                     <span className="text-[var(--sub-text)] ml-auto"><ChevronDownIcon size={14} /></span>
                   </button>
                 </div>
@@ -443,7 +444,7 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
                       </div>
                     </div>
                     <p className="text-[14px] font-bold text-[var(--text)] opacity-40">
-                      {searchTerm ? 'Không tìm thấy kết quả' : (isFriends ? 'Chưa có bạn bè' : 'Chưa tham gia nhóm')}
+                      {searchTerm ? t('contacts.empty.search') : (isFriends ? t('contacts.empty.friends') : t('contacts.empty.groups'))}
                     </p>
                   </div>
                 ) : (
@@ -505,13 +506,13 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
             handleBlock(userId);
           }
         }}
-        title={confirmModal.type === 'unfriend' ? 'Xóa bạn bè' : 'Chặn người dùng'}
+        title={confirmModal.type === 'unfriend' ? t('contacts.confirm.unfriend_title') : t('contacts.confirm.block_title')}
         message={
           confirmModal.type === 'unfriend'
-            ? `Bạn có chắc chắn muốn xóa ${confirmModal.user?.display_name || confirmModal.user?.full_name || 'người này'} khỏi danh sách bạn bè?`
-            : `Bạn có chắc chắn muốn chặn ${confirmModal.user?.display_name || confirmModal.user?.full_name || 'người này'}? Họ sẽ không thể gửi tin nhắn hoặc lời mời kết bạn cho bạn.`
+            ? t('contacts.confirm.unfriend_message', { name: confirmModal.user?.display_name || confirmModal.user?.full_name || t('common.unknown_user') })
+            : t('contacts.confirm.block_message', { name: confirmModal.user?.display_name || confirmModal.user?.full_name || t('common.unknown_user') })
         }
-        confirmLabel={confirmModal.type === 'unfriend' ? 'Xóa bạn' : 'Chặn'}
+        confirmLabel={confirmModal.type === 'unfriend' ? t('contacts.confirm.unfriend_btn') : t('contacts.confirm.block_btn')}
         isDanger={true}
       />
     </div>

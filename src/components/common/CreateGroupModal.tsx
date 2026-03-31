@@ -113,12 +113,12 @@ export function CreateGroupModal({ isOpen, onClose, onGroupCreated }: CreateGrou
           .join(', '),
         memberIds: selectedMembers,
       });
-      toast.success('Tạo nhóm thành công!');
+      toast.success(t('createGroup.success'));
       onGroupCreated?.(res);
       onClose();
     } catch (err: any) {
       console.error('Failed to create group:', err);
-      toast.error(err.message || 'Tạo nhóm thất bại');
+      toast.error(err.message || t('createGroup.error'));
     } finally {
       setCreating(false);
     }
@@ -134,7 +134,7 @@ export function CreateGroupModal({ isOpen, onClose, onGroupCreated }: CreateGrou
       <div className="w-full max-w-[520px] bg-[var(--card-bg)] rounded-md shadow-2xl relative z-[101] animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col h-[85vh] max-h-[720px]">
         {/* Header */}
         <div className="h-[52px] border-b border-[var(--border)] flex items-center justify-between px-4 bg-[var(--card-bg)] shrink-0">
-          <h2 className="text-[17px] font-bold text-[var(--text)]">Tạo nhóm</h2>
+          <h2 className="text-[17px] font-bold text-[var(--text)]">{t('createGroup.title')}</h2>
           <button onClick={onClose} className="text-[var(--text)] hover:bg-[var(--hover-bg)] p-1 rounded-full transition-all cursor-pointer">
             <XIcon size={24} />
           </button>
@@ -149,7 +149,7 @@ export function CreateGroupModal({ isOpen, onClose, onGroupCreated }: CreateGrou
             <div className="flex-1 border-b border-[var(--border)] focus-within:border-[#0068FF] transition-all">
               <input
                 type="text"
-                placeholder="Nhập tên nhóm..."
+                placeholder={t('createGroup.name_placeholder')}
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value)}
                 className="w-full bg-transparent border-none outline-none py-2 text-[16px] text-[var(--text)] placeholder:text-[var(--sub-text)] font-bold"
@@ -161,7 +161,7 @@ export function CreateGroupModal({ isOpen, onClose, onGroupCreated }: CreateGrou
           <div className="relative">
             <input
               type="text"
-              placeholder="Nhập tên, số điện thoại, hoặc danh sách số điện thoại"
+              placeholder={t('createGroup.search_placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-transparent border border-[var(--border)] rounded-full py-2.5 pl-10 pr-4 text-[14px] text-[var(--text)] focus:border-[#0068FF] outline-none transition-all placeholder:text-[var(--sub-text)]"
@@ -202,11 +202,11 @@ export function CreateGroupModal({ isOpen, onClose, onGroupCreated }: CreateGrou
           <div className="flex-1 flex flex-col min-h-0">
             {loading ? (
               <div className="flex-1 flex items-center justify-center text-[var(--sub-text)] text-[14px]">
-                Đang tải danh sách bạn bè...
+                {t('createGroup.loading_friends')}
               </div>
             ) : filteredFriends.length === 0 ? (
               <div className="flex-1 flex items-center justify-center text-[var(--sub-text)] text-[14px]">
-                {searchQuery ? 'Không tìm thấy kết quả' : 'Chưa có bạn bè nào'}
+                {searchQuery ? t('createGroup.no_results') : t('createGroup.no_friends')}
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto px-1 custom-scrollbar space-y-1">
@@ -256,7 +256,7 @@ export function CreateGroupModal({ isOpen, onClose, onGroupCreated }: CreateGrou
             onClick={onClose}
             className="px-5 py-1.5 bg-[var(--hover-bg)] hover:bg-[#dfe0e2] dark:hover:opacity-80 text-[var(--text)] font-bold rounded-[3px] text-[15px] transition-all cursor-pointer"
           >
-            Hủy
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleCreateGroup}
@@ -266,7 +266,7 @@ export function CreateGroupModal({ isOpen, onClose, onGroupCreated }: CreateGrou
               : 'bg-[#0068FF]/30 text-white/50 cursor-default'
               }`}
           >
-            {creating ? 'Đang tạo...' : `Tạo nhóm${selectedMembers.length > 0 ? ` (${selectedMembers.length})` : ''}`}
+            {creating ? t('createGroup.creating') : selectedMembers.length > 0 ? t('createGroup.create_btn', { count: selectedMembers.length }) : t('createGroup.title')}
           </button>
         </div>
       </div>

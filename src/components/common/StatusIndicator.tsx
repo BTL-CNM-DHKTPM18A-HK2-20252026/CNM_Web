@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePresence } from '@/components/providers/PresenceProvider';
 
 // ──────────────────────────────────────────────────────────────
@@ -39,6 +40,7 @@ export function StatusIndicator({
     className = '',
 }: StatusIndicatorProps) {
     const { isOnline, getTimeAgo } = usePresence();
+    const { t } = useTranslation();
     const online = isOnline(userId);
     const timeAgo = getTimeAgo(userId);
 
@@ -47,11 +49,11 @@ export function StatusIndicator({
         return (
             <span
                 className={`inline-block rounded-full border-2 border-white dark:border-gray-800 ${online
-                        ? 'bg-green-500'
-                        : 'bg-gray-400'
+                    ? 'bg-green-500'
+                    : 'bg-gray-400'
                     } ${className}`}
                 style={{ width: dotSize, height: dotSize }}
-                title={online ? 'Đang hoạt động' : timeAgo || 'Offline'}
+                title={online ? t('presence.online') : timeAgo || t('presence.offline')}
             />
         );
     }
@@ -61,7 +63,7 @@ export function StatusIndicator({
         return (
             <span className={`flex items-center gap-1.5 text-[12px] text-green-500 ${className}`}>
                 <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
-                Đang hoạt động
+                {t('presence.online')}
             </span>
         );
     }

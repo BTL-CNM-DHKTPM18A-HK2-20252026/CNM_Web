@@ -195,7 +195,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
       });
 
       if (response && response.success) {
-        toast.success("Cập nhật thông tin cá nhân thành công!");
+        toast.success(t('profile.update_success'));
         setInitialUserData({
           userName,
           gender,
@@ -213,7 +213,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
       }
     } catch (error) {
       console.error("Failed to update profile:", error);
-      toast.error("Cập nhật thất bại. Vui lòng thử lại sau.");
+      toast.error(t('profile.update_error'));
     } finally {
       setSaving(false);
     }
@@ -223,13 +223,13 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
     try {
       setAvatarUrl(img);
       await apiClient.patch('/users/me/avatar', { avatar_url: img });
-      toast.success("Đã cập nhật ảnh đại diện");
+      toast.success(t('profile.avatar.update_success'));
       setIsSystemAvatarPickerOpen(false);
       setIsAvatarMenuOpen(false);
       onUpdate?.();
     } catch (error) {
       console.error("Failed to update system avatar:", error);
-      toast.error("Không thể lưu ảnh đại diện");
+      toast.error(t('profile.avatar.update_error'));
     }
   };
 
@@ -259,12 +259,12 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
       await apiClient.patch('/users/me/cover-photo', { cover_photo_url: url });
       setCoverPhotoUrl(url);
       setCoverPhotoPreview('');
-      toast.success('Đã cập nhật ảnh nền');
+      toast.success(t('profile.cover.update_success'));
       onUpdate?.();
     } catch (err) {
       console.error('System bg select failed:', err);
       setCoverPhotoPreview('');
-      toast.error('Không thể lưu ảnh nền');
+      toast.error(t('profile.cover.update_error'));
     } finally {
       setIsSystemBgPickerOpen(false);
       setIsCoverMenuOpen(false);
@@ -276,11 +276,11 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
     // Validation
     const allowed = ['image/jpeg', 'image/png', 'image/jpg'];
     if (!allowed.includes(file.type)) {
-      toast.error('Chỉ chấp nhận file JPG hoặc PNG');
+      toast.error(t('profile.cover.invalid_type'));
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      toast.error('Ảnh nền không được vượt quá 2MB');
+      toast.error(t('profile.cover.too_large'));
       return;
     }
 
@@ -311,13 +311,13 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
 
       setCoverPhotoUrl(publicUrl);
       setCoverPhotoPreview('');
-      toast.success('Đã cập nhật ảnh nền');
+      toast.success(t('profile.cover.update_success'));
       onUpdate?.();
     } catch (err) {
       console.error('Cover photo upload failed:', err);
       // Roll back preview on failure
       setCoverPhotoPreview('');
-      toast.error('Tải ảnh nền thất bại. Vui lòng thử lại.');
+      toast.error(t('profile.cover.upload_error'));
     } finally {
       setIsUploadingCover(false);
       URL.revokeObjectURL(localUrl);
@@ -389,7 +389,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
               >
                 <ChevronLeftIcon size={24} />
               </button>
-              <h2 className="text-[17px] font-bold text-[var(--text)]">Cập nhật thông tin cá nhân</h2>
+              <h2 className="text-[17px] font-bold text-[var(--text)]">{t('profile.edit.title')}</h2>
             </div>
             <button
               onClick={handleClose}
@@ -406,7 +406,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
           >
             {/* Display Name */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[15px] font-bold text-[var(--text)]">Tên hiển thị</label>
+              <label className="text-[15px] font-bold text-[var(--text)]">{t('profile.edit.display_name')}</label>
               <div className="h-[42px] w-full border border-[var(--border)] rounded-md px-3 flex items-center focus-within:border-[#0068FF] transition-colors text-sm">
                 <input
                   type="text"
@@ -419,7 +419,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
 
             {/* Personal Info Section */}
             <div className="flex flex-col gap-3">
-              <h3 className="text-[16px] font-bold text-[var(--text)]">Thông tin cá nhân</h3>
+              <h3 className="text-[16px] font-bold text-[var(--text)]">{t('profile.edit.personal_info')}</h3>
 
               {/* Gender Radio */}
               <div className="flex items-center gap-6">
@@ -428,7 +428,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
                     {gender === 'Nam' && <div className="w-2.5 h-2.5 rounded-full bg-[#0068FF]" />}
                   </div>
                   <input type="radio" className="hidden" name="gender" checked={gender === 'Nam'} onChange={() => setGender('Nam')} />
-                  <span className="text-[15px] text-[var(--text)]">Nam</span>
+                  <span className="text-[15px] text-[var(--text)]">{t('gender.male')}</span>
                 </label>
 
                 <label className="flex items-center gap-2 cursor-pointer group">
@@ -436,14 +436,14 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
                     {gender === 'Nữ' && <div className="w-2.5 h-2.5 rounded-full bg-[#0068FF]" />}
                   </div>
                   <input type="radio" className="hidden" name="gender" checked={gender === 'Nữ'} onChange={() => setGender('Nữ')} />
-                  <span className="text-[15px] text-[var(--text)]">Nữ</span>
+                  <span className="text-[15px] text-[var(--text)]">{t('gender.female')}</span>
                 </label>
               </div>
             </div>
 
             {/* Birthday Dropdowns */}
             <div className="flex flex-col gap-1.5 relative mb-4">
-              <label className="text-[15px] font-bold text-[var(--text)]">Ngày sinh</label>
+              <label className="text-[15px] font-bold text-[var(--text)]">{t('profile.edit.dob')}</label>
               <div className="grid grid-cols-3 gap-3">
                 {/* DAY */}
                 <div className="relative">
@@ -521,12 +521,12 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
 
             {/* Bio Field */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[15px] font-bold text-[var(--text)]">Giới thiệu</label>
+              <label className="text-[15px] font-bold text-[var(--text)]">{t('profile.edit.bio')}</label>
               <div className="min-h-[80px] w-full border border-[var(--border)] rounded-md px-3 py-2 flex items-start focus-within:border-[#0068FF] transition-colors">
                 <textarea
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  placeholder="Thêm giới thiệu về bạn..."
+                  placeholder={t('profile.edit.bio_placeholder')}
                   className="w-full bg-transparent outline-none text-[15px] text-[var(--text)] resize-none h-full"
                 />
               </div>
@@ -535,25 +535,25 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
             {/* Address & City Row */}
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-[15px] font-bold text-[var(--text)]">Địa chỉ</label>
+                <label className="text-[15px] font-bold text-[var(--text)]">{t('profile.edit.address')}</label>
                 <div className="h-[42px] w-full border border-[var(--border)] rounded-md px-3 flex items-center focus-within:border-[#0068FF] transition-colors">
                   <input
                     type="text"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Địa chỉ..."
+                    placeholder={t('profile.edit.address_placeholder')}
                     className="w-full bg-transparent outline-none text-[15px] text-[var(--text)]"
                   />
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-[15px] font-bold text-[var(--text)]">Thành phố</label>
+                <label className="text-[15px] font-bold text-[var(--text)]">{t('profile.edit.city')}</label>
                 <div className="h-[42px] w-full border border-[var(--border)] rounded-md px-3 flex items-center focus-within:border-[#0068FF] transition-colors">
                   <input
                     type="text"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    placeholder="Thành phố..."
+                    placeholder={t('profile.edit.city_placeholder')}
                     className="w-full bg-transparent outline-none text-[15px] text-[var(--text)]"
                   />
                 </div>
@@ -563,25 +563,25 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
             {/* Workplace & Education Row */}
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-[15px] font-bold text-[var(--text)]">Công việc</label>
+                <label className="text-[15px] font-bold text-[var(--text)]">{t('profile.edit.workplace')}</label>
                 <div className="h-[42px] w-full border border-[var(--border)] rounded-md px-3 flex items-center focus-within:border-[#0068FF] transition-colors">
                   <input
                     type="text"
                     value={workplace}
                     onChange={(e) => setWorkplace(e.target.value)}
-                    placeholder="Nhà phân tích, bác sĩ..."
+                    placeholder={t('profile.edit.workplace_placeholder')}
                     className="w-full bg-transparent outline-none text-[15px] text-[var(--text)]"
                   />
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-[15px] font-bold text-[var(--text)]">Học vấn</label>
+                <label className="text-[15px] font-bold text-[var(--text)]">{t('profile.edit.education')}</label>
                 <div className="h-[42px] w-full border border-[var(--border)] rounded-md px-3 flex items-center focus-within:border-[#0068FF] transition-colors">
                   <input
                     type="text"
                     value={education}
                     onChange={(e) => setEducation(e.target.value)}
-                    placeholder="Đại học Công nghiệp..."
+                    placeholder={t('profile.edit.education_placeholder')}
                     className="w-full bg-transparent outline-none text-[15px] text-[var(--text)]"
                   />
                 </div>
@@ -594,7 +594,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
               onClick={() => setIsEditing(false)}
               className="px-5 py-1.5 bg-[var(--hover-bg)] hover:opacity-80 text-[var(--text)] font-bold rounded-[3px] text-[15px] transition-all cursor-pointer"
             >
-              Hủy
+              {t('common.cancel')}
             </button>
             <button
               onClick={handleUpdate}
@@ -604,7 +604,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
                 : 'bg-[#0068FF]/30 text-white/50 cursor-default'
                 }`}
             >
-              {saving ? 'Đang lưu...' : 'Cập nhật'}
+              {saving ? t('common.saving') : t('profile.update')}
             </button>
           </div>
         </div>
@@ -619,7 +619,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
       <div className="w-full max-w-[550px] bg-[var(--card-bg)] rounded-md shadow-2xl relative z-[101] animate-in zoom-in-95 duration-200 overflow-visible flex flex-col">
         {/* Header */}
         <div className="h-[48px] border-b border-[var(--border)] flex items-center justify-between px-4 bg-[var(--card-bg)] shrink-0 rounded-t-md">
-          <h2 className="text-[17px] font-bold text-[var(--text)]">Thông tin tài khoản</h2>
+          <h2 className="text-[17px] font-bold text-[var(--text)]">{t('profile.title')}</h2>
           <button onClick={handleClose} className="text-[var(--text)] hover:bg-[var(--hover-bg)] p-1 rounded-full transition-all cursor-pointer">
             <XIcon size={24} />
           </button>
@@ -642,7 +642,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
               <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                 <div className="flex flex-col items-center gap-2 text-white">
                   <svg className="animate-spin w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
-                  <span className="text-[13px] font-medium">Đang tải lên...</span>
+                  <span className="text-[13px] font-medium">{t('common.uploading')}</span>
                 </div>
               </div>
             )}
@@ -655,7 +655,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-black/50 hover:bg-black/70 text-white text-[13px] font-medium rounded-md cursor-pointer"
                 >
                   <CameraIcon size={14} />
-                  Thay đổi ảnh nền
+                  {t('profile.cover.change')}
                 </button>
 
                 {isCoverMenuOpen && (
@@ -665,14 +665,14 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
                       className="w-full px-4 py-2.5 text-left text-[13px] hover:bg-[var(--hover-bg)] transition-colors text-[var(--text)] font-medium flex items-center gap-2 cursor-pointer"
                     >
                       <GlobeIcon size={15} />
-                      Ảnh nền hệ thống
+                      {t('profile.cover.system_bg')}
                     </button>
                     <button
                       onClick={() => { coverFileInputRef.current?.click(); setIsCoverMenuOpen(false); }}
                       className="w-full px-4 py-2.5 text-left text-[13px] hover:bg-[var(--hover-bg)] transition-colors text-[var(--text)] font-medium flex items-center gap-2 cursor-pointer"
                     >
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
-                      Tải ảnh từ máy
+                      {t('profile.cover.upload_from_device')}
                     </button>
                   </div>
                 )}
@@ -744,14 +744,14 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
           </div>
 
           <div className="px-4 py-5">
-            <h3 className="text-[16px] font-bold text-[var(--text)] mb-5">Thông tin cá nhân</h3>
+            <h3 className="text-[16px] font-bold text-[var(--text)] mb-5">{t('profile.personal_info')}</h3>
             <div className="space-y-4">
               <div className="flex items-start">
-                <span className="w-[100px] text-[15px] text-[var(--sub-text)] shrink-0">Giới tính</span>
+                <span className="w-[100px] text-[15px] text-[var(--sub-text)] shrink-0">{t('profile.gender')}</span>
                 <span className="text-[15px] text-[var(--text)]">{gender}</span>
               </div>
               <div className="flex items-start">
-                <span className="w-[100px] text-[15px] text-[var(--sub-text)] shrink-0">Ngày sinh</span>
+                <span className="w-[100px] text-[15px] text-[var(--sub-text)] shrink-0">{t('profile.edit.dob')}</span>
                 <span className="text-[15px] text-[var(--text)]">{day} tháng {month}, {year}</span>
               </div>
               <div className="flex items-start">

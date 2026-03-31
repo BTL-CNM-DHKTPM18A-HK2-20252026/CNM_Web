@@ -77,15 +77,16 @@ export function LoginForm({
   scannedUser,
 }: LoginFormProps) {
   const { t } = useTranslation();
+  const genderLabelMap: Record<string, string> = { 'Nam': t('gender.male'), 'Nữ': t('gender.female'), 'Khác': t('gender.other') };
   const [isGenderOpen, setIsGenderOpen] = React.useState(false);
-  
+
   const handleGeneratePassword = () => {
     const lowers = "abcdefghijklmnopqrstuvwxyz";
     const uppers = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const numbers = "0123456789";
     const specials = "!@#$%^&*";
     const all = lowers + uppers + numbers + specials;
-    
+
     let generated = "";
     // Guaranteed diversity (2 of each)
     for (let i = 0; i < 2; i++) {
@@ -100,7 +101,7 @@ export function LoginForm({
     }
     // Shuffle the result
     const shuffled = generated.split('').sort(() => Math.random() - 0.5).join('');
-    
+
     setPassword(shuffled);
     if (setConfirmPassword) setConfirmPassword(shuffled);
     setShowPassword(true);
@@ -110,20 +111,20 @@ export function LoginForm({
   return (
     <div suppressHydrationWarning className="w-full max-w-[400px] overflow-hidden rounded-lg bg-[var(--card-bg)] border border-[var(--border)] shadow-xl animate-in fade-in zoom-in-95 duration-300">
       <div className="flex border-b border-[var(--border)] uppercase">
-        <button 
-          onClick={() => { setLoginMethod('qr'); setError(null); setSuccessMsg(null); }} 
+        <button
+          onClick={() => { setLoginMethod('qr'); setError(null); setSuccessMsg(null); }}
           className={`flex-1 cursor-pointer py-4 text-xs font-bold transition-all ${loginMethod === 'qr' ? 'border-b-[3px] border-[#0068FF] text-[#0068FF]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
         >
           {t('login.tabs.qr')}
         </button>
-        <button 
-          onClick={() => { setLoginMethod('phone'); setError(null); setSuccessMsg(null); }} 
+        <button
+          onClick={() => { setLoginMethod('phone'); setError(null); setSuccessMsg(null); }}
           className={`flex-1 cursor-pointer py-4 text-xs font-bold transition-all ${loginMethod === 'phone' ? 'border-b-[3px] border-[#0068FF] text-[#0068FF]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
         >
           {t('login.tabs.phone')}
         </button>
-        <button 
-          onClick={() => { setLoginMethod('register'); setError(null); setSuccessMsg(null); }} 
+        <button
+          onClick={() => { setLoginMethod('register'); setError(null); setSuccessMsg(null); }}
           className={`flex-1 cursor-pointer py-4 text-xs font-bold transition-all ${loginMethod === 'register' ? 'border-b-[3px] border-[#0068FF] text-[#0068FF]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
         >
           {t('login.tabs.register')}
@@ -139,33 +140,31 @@ export function LoginForm({
                 <div className="relative group">
                   <div className="absolute -inset-1 bg-gradient-to-tr from-[#0068FF] to-[#00C2FF] rounded-full blur opacity-5 transition duration-500"></div>
                   <div className="relative h-28 w-28 rounded-full overflow-hidden border-[0.5px] border-black/10 dark:border-white/10 shadow-lg">
-                    <img 
-                      src={scannedUser.avatar_url || "/default/image1.jpg"} 
+                    <img
+                      src={scannedUser.avatar_url || "/default/image1.jpg"}
                       alt={scannedUser.display_name}
                       className="h-full w-full object-cover"
                     />
                   </div>
                 </div>
-                
+
                 <div className="text-center">
                   <h3 className="text-xl font-semibold text-[var(--text)] mb-1 opacity-90">
                     {scannedUser.display_name}
                   </h3>
                   <p className="text-sm text-[var(--sub-text)] font-medium opacity-70">
-                    Vui lòng xác nhận trên điện thoại
+                    {t('login.qr.confirm_on_phone')}
                   </p>
                 </div>
 
-                <p className="text-xs text-[var(--sub-text)] text-center px-4 leading-relaxed opacity-60">
-                  Hãy ấn nút <strong>Cho phép</strong> trên ứng dụng Fruvia Mobile để hoàn tất đăng nhập.
-                </p>
+                <p className="text-xs text-[var(--sub-text)] text-center px-4 leading-relaxed opacity-60" dangerouslySetInnerHTML={{ __html: t('login.qr.allow_hint') }} />
 
-                <button 
+                <button
                   onClick={onRefreshQr}
                   className="mt-6 text-sm text-[#0068FF]/80 font-semibold hover:underline flex items-center gap-1.5 cursor-pointer"
                 >
                   <SparklesIcon size={14} />
-                  Đăng nhập bằng tài khoản khác
+                  {t('login.qr.switch_account')}
                 </button>
               </div>
             ) : (
@@ -184,7 +183,7 @@ export function LoginForm({
                       </div>
                     )}
                   </div>
-                  
+
                   {(qrLoading || !qrUuid) && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[1px]">
                       <div className="flex flex-col items-center gap-3">
@@ -196,13 +195,13 @@ export function LoginForm({
                   )}
 
                   {qrUuid && !qrLoading && (
-                    <div className="absolute top-2 right-2 p-1.5 bg-white shadow-md rounded-full text-[#0068FF] hover:bg-blue-50 transition-colors" title="Làm mới QR" onClick={(e) => { e.stopPropagation(); onRefreshQr?.(); }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    <div className="absolute top-2 right-2 p-1.5 bg-white shadow-md rounded-full text-[#0068FF] hover:bg-blue-50 transition-colors" title={t('login.qr.refresh')} onClick={(e) => { e.stopPropagation(); onRefreshQr?.(); }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M23 4v6h-6" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>
                     </div>
                   )}
                 </div>
                 <p className="mb-4 text-xs font-semibold text-[var(--sub-text)] text-center max-w-[240px] leading-tight">
-                  {qrLoading ? "Đang tạo mã QR..." : (t('login.qr.hint') || "Sử dụng ứng dụng Fruvia Mobile quét mã QR để đăng nhập")}
+                  {qrLoading ? t('login.qr.loading') : t('login.qr.hint')}
                 </p>
               </>
             )}
@@ -210,37 +209,37 @@ export function LoginForm({
         ) : (
           <form onSubmit={onSubmit} className="w-full px-2">
             <h3 className="mb-8 text-center text-sm font-bold text-[var(--text)]">
-              {loginMethod === 'phone' ? t('login.phone.header') : 'Tạo tài khoản mới'}
+              {loginMethod === 'phone' ? t('login.phone.header') : t('login.register.header')}
             </h3>
-            
+
             {loginMethod === 'register' && (
               <>
                 <div className="mb-6 grid grid-cols-2 gap-4">
                   <div className="flex flex-col">
-                    <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">Họ</span>
+                    <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">{t('login.register.last_name')}</span>
                     <div className="flex items-center border-b border-[var(--border)] py-2 focus-within:border-[#0068FF] transition-colors group">
-                      <span className="mr-3 text-gray-400 group-focus-within:text-[#0068FF] transition-colors"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg></span>
-                      <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Nhập họ..." className="w-full bg-transparent text-[13px] font-medium outline-none text-[var(--text)]" required />
+                      <span className="mr-3 text-gray-400 group-focus-within:text-[#0068FF] transition-colors"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="7" r="4" /><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /></svg></span>
+                      <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder={t('login.register.last_name_placeholder')} className="w-full bg-transparent text-[13px] font-medium outline-none text-[var(--text)]" required />
                     </div>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">Tên</span>
+                    <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">{t('login.register.first_name')}</span>
                     <div className="flex items-center border-b border-[var(--border)] py-2 focus-within:border-[#0068FF] transition-colors group">
-                      <span className="mr-3 text-gray-400 group-focus-within:text-[#0068FF] transition-colors"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg></span>
-                      <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Nhập tên..." className="w-full bg-transparent text-[13px] font-medium outline-none text-[var(--text)]" required />
+                      <span className="mr-3 text-gray-400 group-focus-within:text-[#0068FF] transition-colors"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="7" r="4" /><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /></svg></span>
+                      <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder={t('login.register.first_name_placeholder')} className="w-full bg-transparent text-[13px] font-medium outline-none text-[var(--text)]" required />
                     </div>
                   </div>
                 </div>
                 <div className="mb-6 flex flex-col">
                   <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">Email</span>
                   <div className="flex items-center border-b border-[var(--border)] py-2 focus-within:border-[#0068FF] transition-colors group">
-                    <span 
-                      className="mr-3 text-gray-400 group-focus-within:text-[#0068FF] transition-colors cursor-help hover:text-[#0068FF]" 
-                      title="Sử dụng định dạng email hợp lệ (ví dụ: user@example.com). Không dùng dấu chấm liên tiếp .."
+                    <span
+                      className="mr-3 text-gray-400 group-focus-within:text-[#0068FF] transition-colors cursor-help hover:text-[#0068FF]"
+                      title={t('login.register.email_hint')}
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                        <polyline points="22,6 12,13 2,6"/>
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                        <polyline points="22,6 12,13 2,6" />
                       </svg>
                     </span>
                     <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="example@email.com" className="w-full bg-transparent text-[13px] font-medium outline-none text-[var(--text)]" required />
@@ -248,35 +247,35 @@ export function LoginForm({
                 </div>
                 <div className="mb-6 flex space-x-4 items-center">
                   <div className="flex-1 flex flex-col">
-                    <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">Ngày sinh</span>
+                    <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">{t('login.register.dob')}</span>
                     <div className="flex items-center border-b border-[var(--border)] py-2 focus-within:border-[#0068FF] transition-colors group cursor-pointer">
                       <span className="mr-3 text-gray-400 group-focus-within:text-[#0068FF] transition-colors">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
                       </span>
-                      <input 
-                        type="date" 
-                        value={dob} 
-                        onChange={(e) => setDob?.(e.target.value)} 
-                        className="w-full bg-transparent text-[13px] font-medium outline-none text-[var(--text)] cursor-pointer" 
-                        required 
+                      <input
+                        type="date"
+                        value={dob}
+                        onChange={(e) => setDob?.(e.target.value)}
+                        className="w-full bg-transparent text-[13px] font-medium outline-none text-[var(--text)] cursor-pointer"
+                        required
                       />
                     </div>
                   </div>
-                  
+
                   <div className="flex-1 flex flex-col relative">
-                    <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">Giới tính</span>
-                    <div 
+                    <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">{t('login.register.gender')}</span>
+                    <div
                       className="flex items-center border-b border-[var(--border)] py-2 cursor-pointer focus-within:border-[#0068FF] transition-colors group"
                       onClick={() => setIsGenderOpen(!isGenderOpen)}
                     >
                       <span className="mr-3 text-gray-400 group-hover:text-[#0068FF] transition-colors transition-colors">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2C9.24 2 7 4.24 7 7s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM12 14c-4.42 0-8 2.24-8 5v3h16v-3c0-2.76-3.58-5-8-5z"/></svg>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2C9.24 2 7 4.24 7 7s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM12 14c-4.42 0-8 2.24-8 5v3h16v-3c0-2.76-3.58-5-8-5z" /></svg>
                       </span>
                       <span className="w-full bg-transparent text-[13px] font-medium text-[var(--text)] select-none">
-                        {gender || 'Nam'}
+                        {genderLabelMap[gender || 'Nam'] || t('gender.male')}
                       </span>
                       <span className={`ml-auto text-gray-400 transition-transform duration-200 ${isGenderOpen ? 'rotate-180' : ''}`}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M6 9l6 6 6-6"/></svg>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M6 9l6 6 6-6" /></svg>
                       </span>
                     </div>
 
@@ -284,7 +283,7 @@ export function LoginForm({
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setIsGenderOpen(false)}></div>
                         <div className="absolute top-full left-0 right-0 z-20 mt-1 overflow-hidden rounded-md border border-[var(--border)] bg-[var(--card-bg)] shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
-                          {['Nam', 'Nữ', 'Khác'].map((val) => (
+                          {(['Nam', 'Nữ', 'Khác'] as const).map((val) => (
                             <button
                               key={val}
                               type="button"
@@ -294,7 +293,7 @@ export function LoginForm({
                               }}
                               className={`w-full px-4 py-2.5 text-left text-[13px] font-bold transition-all cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-600/10 ${gender === val ? 'text-[#0068FF] bg-blue-50/80 dark:bg-blue-600/20' : 'text-[var(--text)]'}`}
                             >
-                              {val}
+                              {genderLabelMap[val]}
                             </button>
                           ))}
                         </div>
@@ -306,9 +305,9 @@ export function LoginForm({
             )}
 
             <div className="mb-6 flex items-center border-b border-[var(--border)] py-2.5 focus-within:border-[#0068FF] transition-colors text-[var(--text)]">
-              <span 
-                className="mr-3 text-gray-400 cursor-help transition-colors hover:text-[#0068FF]" 
-                title="Số điện thoại di động Việt Nam: Gồm 10 chữ số và bắt đầu bằng các đầu số: 03, 05, 07, 08, 09"
+              <span
+                className="mr-3 text-gray-400 cursor-help transition-colors hover:text-[#0068FF]"
+                title={t('login.register.phone_hint')}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
@@ -318,38 +317,38 @@ export function LoginForm({
               <span className="mr-2 text-sm font-bold">+84</span>
               <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder={t('login.phone.phone_placeholder')} className="w-full bg-transparent text-sm outline-none font-medium" required />
             </div>
-            
+
             <div className="mb-8 flex items-center border-b border-[var(--border)] py-2.5 relative focus-within:border-[#0068FF] transition-colors group/pwd">
-              <span 
-                className="mr-3 text-gray-400 cursor-help transition-colors hover:text-[#0068FF]" 
-                title="Mật khẩu mạnh: Ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt (!@#$%^&*)"
+              <span
+                className="mr-3 text-gray-400 cursor-help transition-colors hover:text-[#0068FF]"
+                title={t('login.register.confirm_password_hint')}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
                   <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                 </svg>
               </span>
-              <input 
-                type={showPassword ? "text" : "password"} 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                placeholder={t('login.phone.password_placeholder')} 
-                className="w-full bg-transparent text-sm outline-none pr-10 text-[var(--text)]" 
-                required 
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={t('login.phone.password_placeholder')}
+                className="w-full bg-transparent text-sm outline-none pr-10 text-[var(--text)]"
+                required
               />
               <div className="absolute right-0 flex items-center gap-2">
                 {loginMethod === 'register' && (
-                  <button 
+                  <button
                     type="button"
                     onClick={handleGeneratePassword}
                     className="text-gray-400 hover:text-[#0068FF] focus:outline-none cursor-pointer transition-colors"
-                    title="Tạo mật khẩu mạnh"
+                    title={t('login.register.password_hint')}
                   >
                     <SparklesIcon size={16} />
                   </button>
                 )}
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="text-gray-400 hover:text-[#0068FF] focus:outline-none cursor-pointer scale-90 transition-colors"
                 >
@@ -363,28 +362,28 @@ export function LoginForm({
                 <label className="flex items-center gap-2 cursor-pointer group">
                   <div className={`w-4.5 h-4.5 rounded border flex items-center justify-center transition-all ${rememberMe ? 'bg-[#0068FF] border-[#0068FF]' : 'bg-transparent border-[var(--border)] group-hover:border-[#0068FF]'}`}>
                     {rememberMe && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><polyline points="20 6 9 17 4 12"/></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><polyline points="20 6 9 17 4 12" /></svg>
                     )}
                   </div>
                   <input type="checkbox" className="hidden" checked={rememberMe} onChange={(e) => setRememberMe?.(e.target.checked)} />
-                  <span className="text-[13px] text-[var(--sub-text)] font-medium group-hover:text-[var(--text)] transition-colors select-none">Ghi nhớ hồ sơ</span>
+                  <span className="text-[13px] text-[var(--sub-text)] font-medium group-hover:text-[var(--text)] transition-colors select-none">{t('login.phone.remember_me')}</span>
                 </label>
               </div>
             )}
-            
+
             {loginMethod === 'register' && (
               <div className="mb-8 flex items-center border-b border-[var(--border)] py-2.5 relative focus-within:border-[#0068FF] transition-colors">
                 <span className="mr-3 text-gray-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></span>
-                <input 
-                  type={showConfirmPassword ? "text" : "password"} 
-                  value={confirmPassword} 
-                  onChange={(e) => setConfirmPassword?.(e.target.value)} 
-                  placeholder="Xác nhận mật khẩu" 
-                  className="w-full bg-transparent text-sm outline-none pr-10 text-[var(--text)]" 
-                  required 
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword?.(e.target.value)}
+                  placeholder={t('login.register.confirm_password_placeholder')}
+                  className="w-full bg-transparent text-sm outline-none pr-10 text-[var(--text)]"
+                  required
                 />
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setShowConfirmPassword?.(!showConfirmPassword)}
                   className="absolute right-0 text-gray-400 hover:text-[#0068FF] focus:outline-none cursor-pointer scale-90"
                 >
@@ -394,9 +393,9 @@ export function LoginForm({
             )}
 
             <button type="submit" disabled={loading} className="mb-4 w-full cursor-pointer rounded-md bg-[#0068FF] py-3 text-sm font-bold text-white transition-all hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-500/20 disabled:bg-gray-300">
-              {loading ? '...' : (loginMethod === 'phone' ? t('login.phone.submit') : 'Đăng ký tài khoản')}
+              {loading ? '...' : (loginMethod === 'phone' ? t('login.phone.submit') : t('login.register.register_btn'))}
             </button>
-            
+
             <div className="flex flex-col gap-3 text-center">
               {loginMethod === 'phone' && (
                 <button type="button" className="cursor-pointer text-[13px] font-medium text-[var(--sub-text)] hover:text-[var(--text)]">{t('login.phone.forgot_password')}</button>

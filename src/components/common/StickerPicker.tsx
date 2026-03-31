@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Image from 'next/image';
 import { SearchIcon, ClockIcon } from '@/components/ui/Icons';
 import EmojiPicker, { Theme, EmojiClickData } from 'emoji-picker-react';
@@ -16,6 +17,7 @@ export function StickerPicker({ isOpen, onClose, onSelect, activeTab: initialTab
   const [searchQuery, setSearchQuery] = useState('');
   const pickerRef = useRef<HTMLDivElement>(null);
   const { currentTheme } = useTheme();
+  const { t } = useTranslation();
 
   useEffect(() => {
     setActiveTab(initialTab);
@@ -85,7 +87,7 @@ export function StickerPicker({ isOpen, onClose, onSelect, activeTab: initialTab
         <div className="relative shrink-0">
           <input
             type="text"
-            placeholder={activeTab === 'sticker' ? 'Tìm kiếm sticker' : activeTab === 'emoji' ? 'Tìm kiếm emoji' : 'Tìm kiếm GIF'}
+            placeholder={activeTab === 'sticker' ? t('sticker.search_sticker') : activeTab === 'emoji' ? t('sticker.search_emoji') : t('sticker.search_gif')}
             className="w-full h-9 bg-[var(--hover-bg)] border border-transparent rounded-full pl-9 pr-4 text-[13px] text-[var(--text)] focus:bg-[var(--card-bg)] focus:border-[#0068FF] outline-none transition-all placeholder:text-[var(--sub-text)]"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}

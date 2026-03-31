@@ -1,4 +1,20 @@
 {
+  "common": {
+    "cancel": "Hủy",
+    "confirm": "Xác nhận",
+    "save": "Lưu",
+    "close": "Đóng",
+    "delete": "Xóa",
+    "action_failed": "Thao tác thất bại",
+    "collapse": "Thu gọn",
+    "view_more": "Xem thêm",
+    "unknown_user": "Người dùng không xác định",
+    "coming_soon": "Sắp ra mắt",
+    "saving": "Đang lưu...",
+    "uploading": "Đang tải lên...",
+    "select_all": "Chọn tất cả",
+    "you": "Bạn"
+  },
   "login": {
     "title": "Fruvia Chat",
     "subheading": "Đăng nhập tài khoản Fruvia Chat để kết nối với ứng dụng Fruvia Chat",
@@ -10,7 +26,11 @@
     "qr": {
       "expired": "Mã QR hết hạn, nhấn để lấy mã mới",
       "refresh": "Lấy mã mới",
-      "hint": "Chỉ dùng để đăng nhập Fruvia trên máy tính"
+      "hint": "Chỉ dùng để đăng nhập Fruvia trên máy tính",
+      "confirm_on_phone": "Vui lòng xác nhận trên điện thoại",
+      "allow_hint": "Hãy ấn nút <strong>Cho phép</strong> trên ứng dụng Fruvia Mobile để hoàn tất đăng nhập.",
+      "switch_account": "Đăng nhập bằng tài khoản khác",
+      "loading": "Đang tạo mã QR..."
     },
     "phone": {
       "header": "Đăng nhập với mật khẩu",
@@ -18,13 +38,55 @@
       "password_placeholder": "Mật khẩu",
       "submit": "Đăng nhập với mật khẩu",
       "forgot_password": "Quên mật khẩu?",
-      "qr_back": "Đăng nhập qua mã QR"
+      "qr_back": "Đăng nhập qua mã QR",
+      "remember_me": "Ghi nhớ hồ sơ"
+    },
+    "register": {
+      "header": "Tạo tài khoản mới",
+      "last_name": "Họ",
+      "last_name_placeholder": "Nhập họ...",
+      "first_name": "Tên",
+      "first_name_placeholder": "Nhập tên...",
+      "email_hint": "Sử dụng định dạng email hợp lệ (ví dụ: user@example.com). Không dùng dấu chấm liên tiếp ..",
+      "dob": "Ngày sinh",
+      "gender": "Giới tính",
+      "register_btn": "Đăng ký",
+      "password_hint": "Tạo mật khẩu mạnh",
+      "confirm_password_hint": "Mật khẩu mạnh: Ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt (!@#$%^&*)",
+      "phone_hint": "Số điện thoại di động Việt Nam: Gồm 10 chữ số và bắt đầu bằng các đầu số: 03, 05, 07, 08, 09",
+      "confirm_password_placeholder": "Xác nhận mật khẩu"
     },
     "promo": {
       "title": "Trải nghiệm Fruvia PC tốt nhất",
       "desc": "Gửi file 1GB, gọi video HD, đồng bộ tin nhắn cực nhanh",
       "download": "Tải ngay"
+    },
+    "validation": {
+      "phone_invalid": "Số điện thoại không hợp lệ (10 chữ số, ví dụ: 0901234567)",
+      "email_invalid": "Email không hợp lệ (kiểm tra lại định dạng và các dấu chấm)",
+      "password_weak": "Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt (!@#$%^&*)",
+      "confirm_mismatch": "Mật khẩu xác nhận không khớp",
+      "qr_error": "Không thể lấy mã QR. Vui lòng thử lại."
+    },
+    "success": {
+      "register": "Đăng ký tài khoản thành công!",
+      "register_desc": "Bây giờ bạn có thể đăng nhập bằng số điện thoại vừa đăng ký.",
+      "logout": "Đã đăng xuất thành công",
+      "logout_desc": "Hẹn gặp lại bạn sớm! Chúc bạn một ngày tốt lành."
+    },
+    "error": {
+      "login_failed": "Đăng nhập thất bại",
+      "register_failed": "Đăng ký thất bại"
+    },
+    "theme_switch": {
+      "light": "Chuyển sang chế độ sáng",
+      "dark": "Chuyển sang chế độ tối"
     }
+  },
+  "gender": {
+    "male": "Nam",
+    "female": "Nữ",
+    "other": "Khác"
   },
   "sidebar": {
     "account_info": "Thông tin tài khoản",
@@ -43,6 +105,7 @@
       "unread": "Chưa đọc"
     },
     "classify": "Phân loại",
+    "tags": "Thẻ",
     "more": "Thêm",
     "self_cloud": "Cloud của tôi",
     "cloud_subheading": "Truyền file giữa các thiết bị của bạn",
@@ -50,6 +113,8 @@
     "you": "Bạn",
     "time_unit": "phút",
     "today": "Hôm nay",
+    "start_conversation": "Bắt đầu trò chuyện",
+    "file_attachment": "File đính kèm",
     "search_overlay": {
       "close": "Đóng",
       "recent": "Tìm gần đây",
@@ -70,10 +135,250 @@
       "strangers": "Người lạ",
       "manage": "Quản lý thẻ phân loại"
     },
-    "search_panel_title": "Tìm kiếm trong trò chuyện"
+    "search_panel_title": "Tìm kiếm trong trò chuyện",
+    "date": {
+      "today": "Hôm nay",
+      "yesterday": "Hôm qua"
+    },
+    "voice": {
+      "too_short": "Tin nhắn quá ngắn (Tối thiểu 1 giây)",
+      "sending": "Đang gửi tin nhắn thoại...",
+      "send_success": "Gửi tin nhắn thoại thành công!",
+      "recording_hint": "Đang thu âm... Nhấn lại vào icon để gửi.",
+      "mic_error": "Không thể truy cập Microphone. Hãy kiểm tra quyền truy cập microphone của trình duyệt.",
+      "recording": "Đang ghi âm..."
+    },
+    "upload": {
+      "loading": "Đang tải {{name}}...",
+      "success": "Gửi media thành công!",
+      "error": "Lỗi khi tải media lên S3"
+    },
+    "message": {
+      "recalled": "Tin nhắn đã được thu hồi",
+      "edit_error": "Không thể chỉnh sửa tin nhắn",
+      "recall_error": "Không thể thu hồi tin nhắn",
+      "delete_local_success": "Đã xóa tin nhắn ở phía bạn",
+      "delete_error": "Không thể xóa tin nhắn"
+    },
+    "snippet": {
+      "image": "[Hình ảnh]",
+      "video": "[Video]",
+      "file": "[File]",
+      "voice": "[Tin nhắn thoại]",
+      "sticker": "[Sticker]"
+    },
+    "header": {
+      "group_prefix": "Nhóm",
+      "add_to_group": "Thêm vào nhóm",
+      "video_call": "Cuộc gọi video"
+    },
+    "friend": {
+      "accept_success": "Đã chấp nhận lời mời kết bạn!",
+      "accept_error": "Không thể chấp nhận lời mời",
+      "send_success": "Đã gửi lời mời kết bạn!",
+      "send_error": "Không thể gửi lời mời",
+      "accept_btn": "Đồng ý",
+      "sent_label": "Đã gửi lời mời",
+      "add_btn": "Kết bạn"
+    },
+    "actions": {
+      "reply": "Trả lời",
+      "forward": "Chuyển tiếp",
+      "more": "Thêm"
+    },
+    "reply": {
+      "replying_to": "Trả lời"
+    },
+    "forward": {
+      "title": "Chuyển tiếp tin nhắn",
+      "message_preview": "Tin nhắn chuyển tiếp:",
+      "search_placeholder": "Tìm cuộc trò chuyện...",
+      "no_results": "Không tìm thấy cuộc trò chuyện",
+      "selected": "Đã chọn {{count}}",
+      "send_btn": "Chuyển tiếp",
+      "sending": "Đang gửi...",
+      "success": "Đã chuyển tiếp đến {{count}} cuộc trò chuyện",
+      "error": "Không thể chuyển tiếp tin nhắn"
+    },
+    "typing": {
+      "one": "{{name}} đang soạn tin...",
+      "many": "{{names}} đang soạn tin..."
+    },
+    "nickname": {
+      "update_success": "Đã cập nhật biệt danh",
+      "update_error": "Không thể cập nhật biệt danh"
+    },
+    "status": {
+      "on_cloud": "Đã có trên Cloud",
+      "edited": "Đã chỉnh sửa",
+      "seen": "Đã xem",
+      "sent": "Đã gửi"
+    },
+    "confirm": {
+      "edit_cancel": "Hủy",
+      "edit_save": "Lưu",
+      "recall_title": "Thu hồi tin nhắn",
+      "delete_title": "Xóa tin nhắn",
+      "recall_message": "Tin nhắn sẽ bị thu hồi với tất cả mọi người trong cuộc trò chuyện. Bạn có chắc không?",
+      "delete_message": "Tin nhắn sẽ chỉ bị xóa ở phía bạn. Người khác vẫn có thể xem. Bạn có chắc không?",
+      "recall_btn": "Thu hồi",
+      "delete_btn": "Xóa ở phía tôi"
+    },
+    "ctx_menu": {
+      "edit": "Chỉnh sửa",
+      "recall": "Thu hồi",
+      "delete_local": "Xóa ở phía tôi"
+    },
+    "reactions": {
+      "title": "Biểu cảm",
+      "all": "Tất cả"
+    },
+    "ctx": {
+      "pin": "Ghim hội thoại",
+      "unpin": "Bỏ ghim hội thoại",
+      "pin_success": "Đã ghim hội thoại",
+      "unpin_success": "Đã bỏ ghim hội thoại",
+      "pin_error": "Không thể cập nhật ghim",
+      "classify": "Phân loại",
+      "classify_success": "Đã phân loại: {{label}}",
+      "classify_removed": "Đã bỏ phân loại",
+      "classify_error": "Không thể cập nhật phân loại",
+      "mark_unread": "Đánh dấu chưa đọc",
+      "mute": "Tắt thông báo",
+      "hide": "Ẩn trò chuyện",
+      "auto_delete": "Tin nhắn tự xóa",
+      "delete": "Xóa hội thoại",
+      "delete_confirm": "Xóa hội thoại \"{{name}}\"?",
+      "delete_desc": "Tin nhắn sẽ bị ẩn khỏi danh sách của bạn.",
+      "confirm_delete": "Xác nhận xóa",
+      "delete_success": "Đã xóa hội thoại",
+      "delete_error": "Không thể xóa hội thoại",
+      "report": "Báo xấu"
+    },
+    "mute": {
+      "1h": "Trong 1 giờ",
+      "4h": "Trong 4 giờ",
+      "8am": "Đến 8:00 sáng",
+      "forever": "Cho đến khi mở lại"
+    },
+    "auto_delete": {
+      "off": "Tắt",
+      "1d": "1 ngày",
+      "7d": "7 ngày",
+      "30d": "30 ngày"
+    },
+    "stranger_warning": "Người này không có trong danh bạ của bạn. Hãy cẩn thận với các đường link lạ.",
+    "choose_file": "Chọn File",
+    "recording_cancel": "Hủy",
+    "recording_send": "Gửi",
+    "empty": {
+      "requests": "Không có tin nhắn chờ",
+      "unread": "Không có tin nhắn chưa đọc",
+      "conversations": "Chưa có hội thoại"
+    },
+    "request": {
+      "accept": "Đồng ý",
+      "decline": "Từ chối",
+      "accepted": "Đã chấp nhận",
+      "accept_success": "Đã chấp nhận tin nhắn",
+      "accept_error": "Không thể chấp nhận tin nhắn",
+      "decline_success": "Đã từ chối tin nhắn",
+      "block_success": "Đã chặn người dùng"
+    }
+  },
+  "presence": {
+    "online": "Đang hoạt động",
+    "just_now": "Vừa xong",
+    "minutes_ago": "Hoạt động {{count}} phút trước",
+    "hours_ago": "Hoạt động {{count}} giờ trước",
+    "days_ago": "Hoạt động {{count}} ngày trước",
+    "weeks_ago": "Hoạt động {{count}} tuần trước",
+    "active_on_date": "Hoạt động {{date}}",
+    "offline": "Offline"
+  },
+  "contacts": {
+    "title": {
+      "friends": "Danh sách bạn bè",
+      "groups": "Danh sách nhóm và cộng đồng",
+      "invites": "Lời mời kết bạn",
+      "group_invites": "Lời mời vào nhóm và cộng đồng"
+    },
+    "count": {
+      "friends": "Bạn bè ({{count}})",
+      "groups": "Nhóm và cộng đồng ({{count}})"
+    },
+    "invite": {
+      "accept_success": "Đã chấp nhận lời mời kết bạn",
+      "reject_success": "Đã từ chối lời mời kết bạn",
+      "recall_success": "Đã thu hồi lời mời",
+      "default_message": "Xin chào, kết bạn với mình nhé!",
+      "sent_label": "Bạn đã gửi lời mời",
+      "no_message": "Không có nội dung lời nhắn",
+      "reject": "Từ chối",
+      "accept": "Đồng ý",
+      "recall": "Thu hồi lời mời",
+      "received": "Lời mời đã nhận ({{count}})",
+      "sent": "Lời mời đã gửi ({{count}})"
+    },
+    "invites": {
+      "empty": "Không có lời mời nào",
+      "empty_desc": "Các lời mời kết bạn sẽ hiển thị tại đây."
+    },
+    "unfriend": {
+      "success": "Đã xóa bạn bè",
+      "error": "Xóa bạn thất bại"
+    },
+    "block": {
+      "success": "Đã chặn đối phương",
+      "error": "Chặn người dùng thất bại"
+    },
+    "menu": {
+      "view_info": "Xem thông tin",
+      "classify": "Phân loại",
+      "set_nickname": "Đặt tên gợi nhớ",
+      "block": "Chặn người này",
+      "unfriend": "Xóa bạn"
+    },
+    "actions": {
+      "message": "Nhắn tin"
+    },
+    "search": {
+      "friends_placeholder": "Tìm nhanh danh sách bạn bè",
+      "placeholder": "Tìm kiếm..."
+    },
+    "sort": {
+      "name_az": "Tên (A-Z)",
+      "activity": "Hoạt động (mới — cũ)"
+    },
+    "filter": {
+      "all": "Tất cả"
+    },
+    "empty": {
+      "search": "Không tìm thấy kết quả",
+      "friends": "Chưa có bạn bè",
+      "groups": "Chưa tham gia nhóm"
+    },
+    "confirm": {
+      "unfriend_title": "Xóa bạn bè",
+      "block_title": "Chặn người dùng",
+      "unfriend_message": "Bạn có chắc chắn muốn xóa {{name}} khỏi danh sách bạn bè?",
+      "block_message": "Bạn có chắc chắn muốn chặn {{name}}? Họ sẽ không thể gửi tin nhắn hoặc lời mời kết bạn cho bạn.",
+      "unfriend_btn": "Xóa bạn",
+      "block_btn": "Chặn"
+    },
+    "suggestions": "Gợi ý kết bạn (0)",
+    "send_message": "Nhắn tin"
+  },
+  "dashboard": {
+    "user_not_found": "Không tìm thấy người dùng",
+    "welcome": "Chào mừng bạn trở lại Fruvia Chat, {{name}}!",
+    "welcome_desc": "Chúc bạn có một ngày làm việc tuyệt vời. 👋",
+    "cloud_open_error": "Không thể mở My Documents. Vui lòng thử lại.",
+    "new_friend_invite": "Bạn có lời mời kết bạn mới!",
+    "added_to_group": "Bạn được thêm vào nhóm \"{{name}}\""
   },
   "profile": {
-    "title": "Trang cá nhân",
+    "title": "Thông tin tài khoản",
     "personal_info": "Thông tin cá nhân",
     "gender": "Giới tính",
     "birthday": "Ngày sinh",
@@ -81,10 +386,43 @@
     "gender_male": "Nam",
     "gender_female": "Nữ",
     "update": "Cập nhật",
-    "privacy_note": "Chỉ bạn bè có lưu số của bạn trong danh bạ máy xem được số này"
+    "privacy_note": "Chỉ bạn bè có lưu số của bạn trong danh bạ máy xem được số này",
+    "update_success": "Cập nhật thông tin cá nhân thành công!",
+    "update_error": "Cập nhật thất bại. Vui lòng thử lại sau.",
+    "avatar": {
+      "update_success": "Đã cập nhật ảnh đại diện",
+      "update_error": "Không thể lưu ảnh đại diện"
+    },
+    "cover": {
+      "update_success": "Đã cập nhật ảnh nền",
+      "update_error": "Không thể lưu ảnh nền",
+      "invalid_type": "Chỉ chấp nhận file JPG hoặc PNG",
+      "too_large": "Ảnh nền không được vượt quá 2MB",
+      "upload_error": "Tải ảnh nền thất bại. Vui lòng thử lại.",
+      "change": "Thay đổi ảnh nền",
+      "system_bg": "Ảnh nền hệ thống",
+      "upload_from_device": "Tải ảnh từ máy"
+    },
+    "edit": {
+      "title": "Cập nhật thông tin cá nhân",
+      "display_name": "Tên hiển thị",
+      "personal_info": "Thông tin cá nhân",
+      "dob": "Ngày sinh",
+      "bio": "Giới thiệu",
+      "bio_placeholder": "Thêm giới thiệu về bạn...",
+      "address": "Địa chỉ",
+      "address_placeholder": "Địa chỉ...",
+      "city": "Thành phố",
+      "city_placeholder": "Thành phố...",
+      "workplace": "Công việc",
+      "workplace_placeholder": "Nhà phân tích, bác sĩ...",
+      "education": "Học vấn",
+      "education_placeholder": "Đại học Công nghiệp..."
+    }
   },
   "info": {
     "title": "Thông tin hội thoại",
+    "members": "thành viên",
     "cloud": {
       "desc": "Lưu trữ và truy cập những nội dung quan trọng nhất trên Fruvia Chat",
       "storage": {
@@ -105,7 +443,9 @@
       "view_all": "Xem tất cả",
       "no_media": "Chưa có ảnh/video",
       "no_files": "Chưa có file đính kèm",
-      "no_links": "Chưa có liên kết"
+      "no_links": "Chưa có liên kết",
+      "file_attachment": "File đính kèm",
+      "just_now": "Vừa xong"
     },
     "legend": {
       "photos": "Ảnh",
@@ -114,6 +454,152 @@
       "voice": "Tin nhắn thoại",
       "other": "Khác"
     }
+  },
+  "group": {
+    "members_title": "Thành viên nhóm",
+    "add_member": "Thêm thành viên",
+    "add_member_success": "Đã thêm thành viên",
+    "add_member_error": "Không thể thêm thành viên",
+    "select_friends": "Chọn bạn bè để thêm",
+    "no_friends": "Không có bạn bè để thêm",
+    "adding": "Đang thêm...",
+    "add_count": "Thêm ({{count}})",
+    "members": {
+      "title": "Thành viên nhóm",
+      "add": "Thêm thành viên",
+      "select_friends": "Chọn bạn bè để thêm",
+      "no_friends": "Không có bạn bè nào để thêm",
+      "adding": "Đang thêm...",
+      "add_count": "Thêm ({{count}})",
+      "search": "Tìm kiếm thành viên"
+    },
+    "member": {
+      "you": " (Bạn)",
+      "add_success": "Đã thêm thành viên",
+      "add_error": "Không thể thêm thành viên",
+      "manage_role": "Quản lý quyền",
+      "remove": "Xóa khỏi nhóm",
+      "remove_confirm": "Xóa {{name}} khỏi nhóm?",
+      "remove_desc": "Thành viên sẽ không còn truy cập được nhóm chat này.",
+      "remove_confirm_btn": "Xác nhận xóa",
+      "remove_success": "Đã xóa {{name}} khỏi nhóm",
+      "remove_error": "Không thể xóa thành viên"
+    },
+    "role": {
+      "admin": "Trưởng nhóm",
+      "admin_title": "Trưởng nhóm",
+      "deputy": "Phó nhóm",
+      "deputy_title": "Phó nhóm",
+      "member": "Thành viên",
+      "member_title": "Thành viên",
+      "promote_deputy": "Phong Phó nhóm",
+      "demote_member": "Hạ quyền Thành viên",
+      "change_confirm": "Phong {{name}} làm {{role}}?",
+      "change_success": "Đã phong {{name}} làm {{role}}",
+      "change_error": "Không thể thay đổi quyền"
+    },
+    "manage_role": "Quản lý quyền",
+    "promote_deputy": "Phong làm Phó nhóm",
+    "demote_member": "Hạ làm Thành viên",
+    "transfer_ownership": "Chuyển quyền Trưởng nhóm",
+    "remove_member": "Xóa khỏi nhóm",
+    "leave": {
+      "title": "Rời nhóm",
+      "confirm": "Bạn có chắc muốn rời nhóm?",
+      "desc": "Bạn sẽ không còn nhận được tin nhắn từ nhóm này.",
+      "confirm_btn": "Xác nhận rời",
+      "success": "Đã rời nhóm",
+      "error": "Không thể rời nhóm",
+      "transfer_and_leave": "Chuyển quyền & Rời nhóm"
+    },
+    "leave_confirm": "Bạn có chắc muốn rời nhóm?",
+    "leave_desc": "Bạn sẽ không còn nhận được tin nhắn từ nhóm này.",
+    "leave_confirm_btn": "Xác nhận rời",
+    "leave_success": "Đã rời nhóm",
+    "leave_error": "Không thể rời nhóm",
+    "transfer": {
+      "title": "Chuyển quyền Trưởng nhóm",
+      "confirm": "Bạn có chắc muốn phong {{name}} làm Trưởng nhóm?",
+      "desc": "Hành động này không thể hoàn tác.",
+      "confirm_btn": "Xác nhận chuyển quyền",
+      "leave_success": "Đã chuyển quyền cho {{name}} và rời nhóm",
+      "success": "Đã chuyển quyền Trưởng nhóm cho {{name}}",
+      "error": "Không thể chuyển quyền",
+      "select_successor": "Chọn người kế nhiệm trước khi rời nhóm",
+      "select_successor_desc": "Bạn phải chọn một thành viên làm Trưởng nhóm mới trước khi rời.",
+      "select_member_desc": "Chọn thành viên để chuyển quyền Trưởng nhóm."
+    },
+    "disband": {
+      "confirm": "Bạn có chắc muốn giải tán nhóm?",
+      "desc": "Tất cả thành viên sẽ bị xóa khỏi nhóm và dữ liệu nhóm sẽ bị xóa.",
+      "success": "Đã giải tán nhóm",
+      "error": "Không thể giải tán nhóm"
+    }
+  },
+  "addFriend": {
+    "title": "Thêm bạn",
+    "account_info": "Thông tin tài khoản",
+    "default_message": "Xin chào, mình là {{name}}. Kết bạn với mình nhé!",
+    "self_error": "Không thể kết bạn với chính mình",
+    "not_found": "Không tìm thấy người dùng",
+    "send_success": "Đã gửi lời mời kết bạn!",
+    "send_error": "Gửi lời mời thất bại",
+    "phone_placeholder": "Số điện thoại",
+    "recent_results": "Kết quả gần nhất",
+    "searching": "Đang tìm kiếm...",
+    "status": {
+      "friend": "Bạn bè"
+    },
+    "add_btn": "Kết bạn",
+    "search_btn": "Tìm kiếm",
+    "message_placeholder": "Nhập lời nhắn kết bạn",
+    "char_count": "ký tự",
+    "block_diary": "Chặn người này xem nhật ký của tôi",
+    "info_btn": "Thông tin"
+  },
+  "createGroup": {
+    "title": "Tạo nhóm",
+    "success": "Tạo nhóm thành công!",
+    "error": "Tạo nhóm thất bại",
+    "name_placeholder": "Nhập tên nhóm...",
+    "search_placeholder": "Nhập tên, số điện thoại, hoặc danh sách số điện thoại",
+    "loading_friends": "Đang tải danh sách bạn bè...",
+    "no_results": "Không tìm thấy kết quả",
+    "no_friends": "Chưa có bạn bè nào",
+    "creating": "Đang tạo...",
+    "create_btn": "Tạo nhóm ({{count}})"
+  },
+  "nickname_modal": {
+    "title": "Đặt tên gợi nhớ",
+    "description": "Hãy đặt cho <span>{{name}}</span> một cái tên dễ nhớ.",
+    "note": "Lưu ý: Tên gợi nhớ sẽ chỉ hiển thị riêng với bạn.",
+    "placeholder": "Nhập tên gợi nhớ"
+  },
+  "userData": {
+    "title": "Quản lý dữ liệu My Documents",
+    "storage": "Dung lượng",
+    "photos": "Ảnh",
+    "videos": "Video",
+    "files": "File",
+    "voice": "Voice",
+    "other": "Khác",
+    "upgrade_storage": "Nâng cấp dung lượng",
+    "upgrade_desc": "Không gian lưu trữ lên đến 100 GB. Tự động bảo mật.",
+    "add_storage": "Thêm dung lượng",
+    "tabs": {
+      "all": "Tất cả",
+      "image": "Ảnh",
+      "video": "Video",
+      "file": "File",
+      "voice": "Tin nhắn thoại"
+    },
+    "sort_size_desc": "Dung lượng giảm dần",
+    "cleanup": "Dọn dẹp ({{count}})"
+  },
+  "sticker": {
+    "search_sticker": "Tìm kiếm sticker",
+    "search_emoji": "Tìm kiếm emoji",
+    "search_gif": "Tìm kiếm GIF"
   },
   "settings": {
     "title": "Cài đặt",
