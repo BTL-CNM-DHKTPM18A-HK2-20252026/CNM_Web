@@ -34,6 +34,36 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
   const [linkItems, setLinkItems] = useState<any[]>([]);
   const [showLinks, setShowLinks] = React.useState(true);
 
+  // Pinned messages
+  const [showPinned, setShowPinned] = React.useState(true);
+  const [pinnedMessages, setPinnedMessages] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (conversationId) {
+      fetchPinnedMessages();
+    }
+  }, [conversationId]);
+
+  const fetchPinnedMessages = async () => {
+    try {
+      const res: any = await apiClient.get(`/messages/conversations/${conversationId}/pinned`);
+      const list = Array.isArray(res) ? res : (res?.data || []);
+      setPinnedMessages(list);
+    } catch {
+      setPinnedMessages([]);
+    }
+  };
+
+  const handleUnpinMessage = async (messageId: string) => {
+    try {
+      await apiClient.delete(`/messages/${messageId}/pin`);
+      toast.success(t('chat.pin.unpin_success'));
+      fetchPinnedMessages();
+    } catch (e: any) {
+      toast.error(e?.message || t('chat.pin.unpin_error'));
+    }
+  };
+
   // Group member management state
   const [showMembers, setShowMembers] = React.useState(true);
   const [members, setMembers] = useState<any[]>([]);
@@ -126,6 +156,29 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
             window.location.reload();
           } catch (e: any) {
             toast.error(e.message || t('group.leave.error'));
+          }
+        },
+      },
+      cancel: {
+        label: t('common.cancel'),
+        onClick: () => { },
+      },
+    });
+  };
+
+  const handleDissolveGroup = () => {
+    toast(t('group.disband.confirm'), {
+      description: t('group.disband.desc'),
+      duration: 10000,
+      action: {
+        label: t('common.confirm'),
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/conversations/${conversationId}/dissolve`);
+            toast.success(t('group.disband.success'));
+            window.location.reload();
+          } catch (e: any) {
+            toast.error(e.message || t('group.disband.error'));
           }
         },
       },
@@ -537,6 +590,17 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                   {isAdmin ? t('group.leave.transfer_and_leave') : t('group.leave.title')}
                 </button>
 
+                {/* Dissolve group button / Nút giải tán nhóm — Admin only */}
+                {isAdmin && (
+                  <button
+                    onClick={handleDissolveGroup}
+                    className="w-full mt-2 py-2 flex items-center justify-center gap-2 text-[13px] font-bold text-red-600 bg-red-100 dark:bg-red-600/15 hover:bg-red-200 dark:hover:bg-red-600/25 rounded-md transition-colors cursor-pointer"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                    {t('group.disband.title')}
+                  </button>
+                )}
+
                 {/* Transfer Ownership Modal / Modal chuyển quyền Trưởng nhóm */}
                 {showTransferModal && (
                   <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -592,6 +656,66 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
 
         {/* Sections */}
         <div className="divide-y divide-[var(--border)] transition-colors duration-200">
+          {/* Pinned Messages Section — Zalo style */}
+          <div className="flex flex-col">
+            <div
+              onClick={() => setShowPinned(!showPinned)}
+              className="p-4 flex items-center justify-between hover:bg-[var(--hover-bg)] cursor-pointer transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <span className="w-8 h-8 rounded-full bg-[#0068FF]/10 flex items-center justify-center shrink-0 group-hover:bg-[#0068FF]/15 transition-colors">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 17v5" /><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z" /></svg>
+                </span>
+                <div className="flex flex-col">
+                  <span className="text-[14px] font-bold text-[var(--text)] leading-tight">{t('info.sections.pinned_messages')}</span>
+                  {pinnedMessages.length > 0 && (
+                    <span className="text-[11px] text-[var(--sub-text)] leading-tight mt-0.5">{pinnedMessages.length} {t('chat.pin.pinned').toLowerCase()}</span>
+                  )}
+                </div>
+              </div>
+              <span className={`text-[var(--sub-text)] transition-transform duration-200 ${!showPinned ? '-rotate-90' : ''}`}>
+                <ChevronDownIcon size={16} />
+              </span>
+            </div>
+            {showPinned && (
+              <div className="px-3 pb-3 space-y-1">
+                {pinnedMessages.length === 0 ? (
+                  <div className="py-3 text-center text-[12px] text-[var(--sub-text)] opacity-60">
+                    {t('info.sections.no_pinned')}
+                  </div>
+                ) : pinnedMessages.map((pin: any, idx: number) => (
+                  <div key={pin.id} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors cursor-pointer group/pin"
+                    onClick={() => {
+                      const el = document.getElementById(`msg-${pin.messageId}`);
+                      if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        el.classList.add('highlight-msg');
+                        setTimeout(() => el.classList.remove('highlight-msg'), 2000);
+                      }
+                    }}
+                  >
+                    <div className="w-5 h-5 rounded-full bg-[#0068FF]/10 flex items-center justify-center shrink-0">
+                      <span className="text-[10px] font-bold text-[#0068FF]">{idx + 1}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[12px] font-semibold text-[#0068FF] leading-tight">{pin.senderName}</div>
+                      <div className="text-[13px] text-[var(--text)] truncate leading-snug mt-0.5">
+                        {pin.messageType !== 'TEXT' ? `[${pin.messageType}]` : (pin.content?.length > 50 ? pin.content.slice(0, 50) + '...' : pin.content)}
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleUnpinMessage(pin.messageId); }}
+                      className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover/pin:opacity-100 hover:bg-red-50 dark:hover:bg-red-500/10 text-[var(--sub-text)] hover:text-red-500 transition-all cursor-pointer"
+                      title={t('chat.ctx_menu.unpin')}
+                    >
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <SectionItem icon={<ClockIcon size={18} />} title={t('info.sections.reminders')} />
 
           <div className="flex flex-col">

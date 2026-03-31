@@ -114,34 +114,54 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
   const [contextMenu, setContextMenu] = useState<{ msgId: string; x: number; y: number; isMe: boolean; type: string } | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ type: 'recall' | 'delete'; msgId: string } | null>(null);
 
+  // Pinned messages state
+  const [pinnedMessages, setPinnedMessages] = useState<{ id: string; messageId: string; content: string; senderName: string; messageType: string; pinnedAt: string }[]>([]);
+  const [showPinnedList, setShowPinnedList] = useState(false);
+
   // Friend request state for stranger chats
-  const [friendRequestStatus, setFriendRequestStatus] = useState<'none' | 'received' | 'sent' | 'friend'>('none');
+  const [friendRequestStatus, setFriendRequestStatus] = useState<'loading' | 'none' | 'received' | 'sent' | 'friend'>('loading');
   const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
   const [friendActionLoading, setFriendActionLoading] = useState(false);
 
   useEffect(() => {
     const checkFriendStatus = async () => {
-      if (!selectedChat.otherUserId || !currentUser?.id || selectedChat.isCloud || selectedChat.isGroup) {
+      const peerId = selectedChat.otherUserId || selectedChat.recipientId;
+      if (!peerId || !currentUser?.id || selectedChat.isCloud || selectedChat.isGroup) {
         setFriendRequestStatus('none');
         return;
       }
       try {
-        const [received, sent, friends] = await Promise.all([
+        // Fetch independently to avoid one failure breaking all checks
+        const [friendsResult, receivedResult, sentResult] = await Promise.allSettled([
+          friendService.getFriends(),
           friendService.getReceivedRequests(),
           friendService.getSentRequests(),
-          friendService.getFriends(),
         ]);
-        const isFriend = friends.some((f: any) => (f.user_id || f.id) === selectedChat.otherUserId);
+
+        // Unwrap safely — apiClient may return raw ApiResponse or unwrapped data
+        const unwrap = (r: PromiseSettledResult<any>): any[] => {
+          if (r.status !== 'fulfilled') return [];
+          const v = r.value;
+          if (Array.isArray(v)) return v;
+          if (v && Array.isArray(v.data)) return v.data;
+          return [];
+        };
+        const friends = unwrap(friendsResult);
+        const received = unwrap(receivedResult);
+        const sent = unwrap(sentResult);
+
+        const isFriend = friends.some((f: any) => (f.user_id || f.userId || f.id) === peerId);
         if (isFriend) { setFriendRequestStatus('friend'); return; }
-        const receivedReq = received.find(r => r.senderId === selectedChat.otherUserId);
+        const receivedReq = received.find((r: any) => (r.senderId || r.sender_id) === peerId);
         if (receivedReq) { setFriendRequestStatus('received'); setPendingRequestId(receivedReq.requestId); return; }
-        const sentReq = sent.find(r => r.receiverId === selectedChat.otherUserId);
+        const sentReq = sent.find((r: any) => (r.receiverId || r.receiver_id) === peerId);
         if (sentReq) { setFriendRequestStatus('sent'); return; }
         setFriendRequestStatus('none');
       } catch { setFriendRequestStatus('none'); }
     };
+    setFriendRequestStatus('loading');
     checkFriendStatus();
-  }, [selectedChat.otherUserId, selectedChat.isCloud, selectedChat.isGroup, currentUser?.id]);
+  }, [selectedChat.otherUserId, selectedChat.recipientId, selectedChat.isCloud, selectedChat.isGroup, currentUser?.id]);
   const [isNicknameModalOpen, setIsNicknameModalOpen] = React.useState(false);
   const [isFilePopoverOpen, setIsFilePopoverOpen] = React.useState(false);
   const [isUserDataModalOpen, setIsUserDataModalOpen] = useState(false);
@@ -459,6 +479,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
   const [messages, setMessages] = React.useState<any[]>([]);
   const [hasMore, setHasMore] = React.useState(true);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+  const [isInitialLoading, setIsInitialLoading] = React.useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -604,7 +625,14 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
   const { ref: loadMoreRef, inView } = useInView({ threshold: 0 });
 
   const scrollToBottom = (instant?: boolean) => {
-    messagesEndRef.current?.scrollIntoView({ behavior: instant ? 'instant' : 'smooth' });
+    const container = scrollContainerRef.current;
+    if (container) {
+      if (instant) {
+        container.scrollTop = container.scrollHeight;
+      } else {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
   };
 
   React.useEffect(() => {
@@ -614,10 +642,12 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           setMessages([]);
           setHasMore(false);
           setIsLoadingMore(false);
+          setIsInitialLoading(false);
           return;
         }
 
         try {
+          setIsInitialLoading(true);
           setIsLoadingMore(true);
           const res = await apiClient.get(`/messages/conversation/${selectedChat.id}?size=20&page=0`);
           let items: any[] = [];
@@ -663,11 +693,13 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
 
           setMessages(mapped);
           setHasMore(hasMoreData);
+          setIsLoadingMore(false);
+          setIsInitialLoading(false);
           setShouldScrollToBottom(true);
         } catch (e) {
           console.error("Failed to fetch messages:", e);
-        } finally {
           setIsLoadingMore(false);
+          setIsInitialLoading(false);
         }
       }
     };
@@ -731,6 +763,12 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
             return;
           }
 
+          // Handle MESSAGE_PIN / MESSAGE_UNPIN events
+          if (newMsg.type === 'MESSAGE_PIN' || newMsg.type === 'MESSAGE_UNPIN') {
+            fetchPinnedMessages(String(selectedChat.id));
+            return;
+          }
+
           if (onUpdateConversation) {
             onUpdateConversation(selectedChat.id, getSnippet(newMsg.content, newMsg.messageType), newMsg.createdAt ? new Date(newMsg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }) : undefined);
           }
@@ -772,20 +810,24 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
   // Reset initial load flag when conversation changes
   React.useEffect(() => {
     isInitialLoadRef.current = true;
+    setIsInitialLoading(true);
   }, [selectedChat?.id]);
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     if (shouldScrollToBottom) {
-      // Use instant scroll on initial load (switching conversations), smooth for new messages
-      const useInstant = isInitialLoadRef.current;
-      if (useInstant) {
-        // Delay slightly to let images/media start rendering
-        setTimeout(() => {
-          scrollToBottom(true);
+      const container = scrollContainerRef.current;
+      if (container) {
+        if (isInitialLoadRef.current) {
+          // Flag to suppress scrollbar visibility during programmatic scroll
+          container.dataset.programmaticScroll = '1';
+          container.scrollTop = container.scrollHeight;
+          // Remove flag after scroll event fires
+          requestAnimationFrame(() => { delete container.dataset.programmaticScroll; });
           isInitialLoadRef.current = false;
-        }, 100);
-      } else {
-        scrollToBottom();
+        } else {
+          // Smooth scroll for new incoming messages
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
       }
       setShouldScrollToBottom(false);
     }
@@ -1022,6 +1064,57 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
     });
   };
 
+  // === Pinned messages handlers ===
+  const fetchPinnedMessages = async (convId: string) => {
+    try {
+      const res: any = await apiClient.get(`/messages/conversations/${convId}/pinned`);
+      const list = Array.isArray(res) ? res : (res?.data || []);
+      setPinnedMessages(list.map((p: any) => ({
+        id: p.id,
+        messageId: p.messageId,
+        content: p.content,
+        senderName: p.senderName,
+        messageType: p.messageType,
+        pinnedAt: p.pinnedAt,
+      })));
+    } catch {
+      setPinnedMessages([]);
+    }
+  };
+
+  const handlePinMessage = async (messageId: string) => {
+    try {
+      await apiClient.post(`/messages/${messageId}/pin`, {});
+      toast.success(t('chat.pin.pin_success'));
+      if (selectedChat?.id) fetchPinnedMessages(String(selectedChat.id));
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || t('chat.pin.pin_error');
+      toast.error(msg);
+    }
+    setContextMenu(null);
+  };
+
+  const handleUnpinMessage = async (messageId: string) => {
+    try {
+      await apiClient.delete(`/messages/${messageId}/pin`);
+      toast.success(t('chat.pin.unpin_success'));
+      if (selectedChat?.id) fetchPinnedMessages(String(selectedChat.id));
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || t('chat.pin.unpin_error');
+      toast.error(msg);
+    }
+    setContextMenu(null);
+  };
+
+  useEffect(() => {
+    if (selectedChat?.id && !selectedChat.isNew) {
+      fetchPinnedMessages(String(selectedChat.id));
+    } else {
+      setPinnedMessages([]);
+    }
+    setShowPinnedList(false);
+  }, [selectedChat?.id]);
+
   return (
     <div className="flex-1 flex flex-col bg-[var(--background)] transition-colors duration-200">
       {/* HEADER */}
@@ -1084,7 +1177,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       </div>
 
       {/* STRANGER WARNING BANNER */}
-      {!selectedChat.isCloud && !selectedChat.isGroup && friendRequestStatus !== 'friend' && (
+      {!selectedChat.isCloud && !selectedChat.isGroup && (selectedChat.otherUserId || selectedChat.recipientId) && friendRequestStatus !== 'friend' && friendRequestStatus !== 'loading' && (
         <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 flex items-center justify-between gap-2.5">
           <div className="flex items-center gap-2.5 min-w-0">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
@@ -1116,10 +1209,11 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
               <button
                 disabled={friendActionLoading}
                 onClick={async () => {
-                  if (!selectedChat.otherUserId) return;
+                  const peerId = selectedChat.otherUserId || selectedChat.recipientId;
+                  if (!peerId) return;
                   setFriendActionLoading(true);
                   try {
-                    await friendService.sendRequest(selectedChat.otherUserId);
+                    await friendService.sendRequest(peerId);
                     toast.success(t('chat.friend.send_success'));
                     setFriendRequestStatus('sent');
                   } catch { toast.error(t('chat.friend.send_error')); }
@@ -1134,8 +1228,91 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
         </div>
       )}
 
+      {/* PINNED MESSAGE BAR — Zalo style */}
+      {pinnedMessages.length > 0 && (
+        <div className="relative z-20">
+          <div className="bg-[var(--card-bg)] border-b border-[var(--border)] flex items-stretch cursor-pointer hover:bg-[var(--hover-bg)] transition-colors select-none"
+            onClick={() => setShowPinnedList(!showPinnedList)}
+          >
+            {/* Left accent bar */}
+            <div className="w-[3px] bg-[#0068FF] shrink-0 rounded-r-sm" />
+            <div className="flex items-center gap-2.5 flex-1 min-w-0 px-3 py-2">
+              <div className="w-7 h-7 rounded-full bg-[#0068FF]/10 flex items-center justify-center shrink-0">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 17v5" /><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z" /></svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] font-semibold text-[#0068FF] leading-tight mb-0.5">
+                  {pinnedMessages.length > 1
+                    ? `${pinnedMessages.length} ${t('chat.pin.pinned')}`
+                    : t('chat.pin.pinned')}
+                </div>
+                <div className="text-[13px] text-[var(--text)] truncate leading-snug">
+                  <span className="font-semibold">{pinnedMessages[0].senderName}: </span>
+                  {pinnedMessages[0].messageType !== 'TEXT'
+                    ? `[${pinnedMessages[0].messageType}]`
+                    : (pinnedMessages[0].content?.length > 60
+                      ? pinnedMessages[0].content.slice(0, 60) + '...'
+                      : pinnedMessages[0].content)}
+                </div>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`text-[var(--sub-text)] shrink-0 transition-transform duration-200 ${showPinnedList ? 'rotate-180' : ''}`}><path d="M6 9l6 6 6-6" /></svg>
+            </div>
+          </div>
+
+          {/* PINNED MESSAGES DROPDOWN — Zalo style (overlay) */}
+          {showPinnedList && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setShowPinnedList(false)} />
+              <div className="absolute left-0 right-0 top-full z-20 bg-[var(--card-bg)] border-b border-[var(--border)] max-h-[280px] overflow-y-auto custom-scrollbar shadow-lg rounded-b-lg">
+                <div className="px-3 py-1.5 text-[11px] font-semibold text-[var(--sub-text)] uppercase tracking-wider bg-[var(--hover-bg)] sticky top-0 z-10">
+                  {t('chat.pin.pinned')} ({pinnedMessages.length})
+                </div>
+                {pinnedMessages.map((pin, idx) => (
+                  <div
+                    key={pin.id}
+                    className={`px-3 py-2.5 flex items-center gap-3 hover:bg-[var(--hover-bg)] cursor-pointer transition-colors group/pin-item ${idx < pinnedMessages.length - 1 ? 'border-b border-[var(--border)]/40' : ''}`}
+                    onClick={() => {
+                      const el = document.getElementById(`msg-${pin.messageId}`);
+                      if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        el.classList.add('highlight-msg');
+                        setTimeout(() => el.classList.remove('highlight-msg'), 2000);
+                      }
+                      setShowPinnedList(false);
+                    }}
+                  >
+                    {/* Pin number badge */}
+                    <div className="w-6 h-6 rounded-full bg-[#0068FF]/10 flex items-center justify-center shrink-0">
+                      <span className="text-[11px] font-bold text-[#0068FF]">{idx + 1}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[12px] font-semibold text-[#0068FF] leading-tight">{pin.senderName}</div>
+                      <div className="text-[13px] text-[var(--text)] truncate leading-snug mt-0.5">
+                        {pin.messageType !== 'TEXT' ? `[${pin.messageType}]` : (pin.content?.length > 80 ? pin.content.slice(0, 80) + '...' : pin.content)}
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleUnpinMessage(pin.messageId); }}
+                      className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover/pin-item:opacity-100 hover:bg-red-50 dark:hover:bg-red-500/10 text-[var(--sub-text)] hover:text-red-500 transition-all cursor-pointer"
+                      title={t('chat.ctx_menu.unpin')}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {/* MESSAGES */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar px-4 pt-4 pb-8 bg-[var(--chat-bg)]" onScroll={() => setContextMenu(null)}>
+        {isInitialLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="w-7 h-7 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (<>
         {hasMore && <div ref={loadMoreRef} className="h-4 opacity-0" />}
         {isLoadingMore && <div className="flex justify-center p-2"><div className="w-5 h-5 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" /></div>}
 
@@ -1215,24 +1392,29 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                                 <span className="text-[14px]">{t('chat.message.recalled')}</span>
                               </div>
                             ) : editingMessageId === msg.id ? (
-                              <div className="flex flex-col gap-2 min-w-[250px]">
+                              <div className="flex flex-col gap-1.5 min-w-[280px]">
+                                <div className="flex items-center gap-1.5 mb-0.5">
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>
+                                  <span className="text-[11px] font-semibold text-[#0068FF]">{t('chat.confirm.edit_save')}</span>
+                                </div>
                                 <input
                                   type="text"
                                   value={editContent}
                                   onChange={(e) => setEditContent(e.target.value)}
                                   onKeyDown={(e) => { if (e.key === 'Enter') handleEditMessage(msg.id); if (e.key === 'Escape') { setEditingMessageId(null); setEditContent(''); } }}
-                                  className="w-full bg-transparent outline-none border-b-2 border-[#0068FF] text-[15px] py-1 text-[var(--text)]"
+                                  className="w-full bg-[var(--hover-bg)] outline-none border border-[#0068FF]/30 focus:border-[#0068FF] rounded-lg text-[15px] px-3 py-1.5 text-[var(--text)] transition-colors"
                                   autoFocus
                                 />
-                                <div className="flex items-center gap-2 justify-end">
-                                  <button onClick={() => { setEditingMessageId(null); setEditContent(''); }} className="text-[12px] text-[var(--sub-text)] hover:text-[var(--text)] px-2 py-1 rounded cursor-pointer">{t('chat.confirm.edit_cancel')}</button>
-                                  <button onClick={() => handleEditMessage(msg.id)} className="text-[12px] text-white bg-[#0068FF] hover:bg-[#0052CC] px-3 py-1 rounded font-medium cursor-pointer">{t('chat.confirm.edit_save')}</button>
+                                <div className="flex items-center gap-1.5 justify-end">
+                                  <span className="text-[11px] text-[var(--sub-text)] mr-auto">Esc {t('chat.confirm.edit_cancel').toLowerCase()}</span>
+                                  <button onClick={() => { setEditingMessageId(null); setEditContent(''); }} className="text-[12px] text-[var(--sub-text)] hover:text-[var(--text)] px-3 py-1 rounded-md hover:bg-[var(--hover-bg)] cursor-pointer transition-colors">{t('chat.confirm.edit_cancel')}</button>
+                                  <button onClick={() => handleEditMessage(msg.id)} className="text-[12px] text-white bg-[#0068FF] hover:bg-[#0052CC] px-4 py-1 rounded-md font-semibold cursor-pointer shadow-sm transition-colors">{t('chat.confirm.edit_save')}</button>
                                 </div>
                               </div>
                             ) : msg.type === 'IMAGE' || msg.type === 'VIDEO' ? (
                               <div className="relative group/media-content w-fit max-w-full">
                                 {msg.type === 'IMAGE' ? (
-                                  <img src={msg.text} alt="Shared" onLoad={scrollToBottom} className="max-w-[320px] max-h-[360px] rounded-md cursor-pointer hover:opacity-90 transition-all shadow-sm object-contain" onClick={() => window.open(msg.text, '_blank')} />
+                                  <img src={msg.text} alt="Shared" onLoad={() => scrollToBottom()} className="max-w-[320px] max-h-[360px] rounded-md cursor-pointer hover:opacity-90 transition-all shadow-sm object-contain" onClick={() => window.open(msg.text, '_blank')} />
                                 ) : (
                                   <video src={msg.text} controls className="max-w-[320px] max-h-[360px] rounded-md shadow-sm object-contain" />
                                 )}
@@ -1295,18 +1477,6 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                                 <span className="text-[13px] font-bold text-[var(--text)]">{msg.reactions.length}</span>
                               </div>
                             )}
-                            <div className="group/reaction-btn relative">
-                              {/* Hover Bridge & Wrapper */}
-                              <div className={`absolute bottom-full ${msg.sender === 'Me' ? 'right-0' : 'left-1/2 -translate-x-1/2'} hidden group-hover/reaction-btn:flex flex-col items-center z-[100] pb-2 animate-in fade-in zoom-in duration-200`}>
-                                <div className="flex items-center gap-1 px-1.5 py-1.5 bg-[var(--card-bg)] border border-[var(--border)] rounded-full shadow-2xl w-max">
-                                  {['👍', '❤️', '😂', '😲', '😭', '😡'].map((emoji) => (
-                                    <button key={emoji} onClick={(e) => { e.stopPropagation(); handleReactMessage(msg.id, emoji); }} className="text-[20px] hover:scale-125 transition-transform px-1 cursor-pointer">{emoji}</button>
-                                  ))}
-                                </div>
-                              </div>
-                              <button onClick={(e) => { e.stopPropagation(); handleReactMessage(msg.id, '👍'); }} className="w-6 h-6 rounded-full bg-[var(--card-bg)] border border-[var(--border)] flex items-center justify-center shadow-md text-gray-400 hover:scale-110 active:scale-95 transition-all cursor-pointer"><LikeIcon size={14} /></button>
-                            </div>
-
                           </div>
                         </div>
 
@@ -1392,6 +1562,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           })}
         </div>
         <div ref={messagesEndRef} />
+        </>)}
       </div>
 
       {/* REPLY PREVIEW BAR */}
@@ -1563,6 +1734,18 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                 {t('chat.ctx_menu.recall')}
               </button>
             )}
+            {(() => {
+              const isPinned = pinnedMessages.some(p => p.messageId === contextMenu.msgId);
+              return (
+                <button
+                  onClick={() => isPinned ? handleUnpinMessage(contextMenu.msgId) : handlePinMessage(contextMenu.msgId)}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-[14px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 17v5" /><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z" /></svg>
+                  {isPinned ? t('chat.ctx_menu.unpin') : t('chat.ctx_menu.pin')}
+                </button>
+              );
+            })()}
             <button
               onClick={() => { setConfirmDialog({ type: 'delete', msgId: contextMenu.msgId }); setContextMenu(null); }}
               className="flex items-center gap-3 w-full px-4 py-2.5 text-[14px] text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"

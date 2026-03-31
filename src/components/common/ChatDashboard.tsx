@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Sidebar } from './Sidebar';
@@ -33,6 +33,12 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
   const [isUserDataModalOpen, setIsUserDataModalOpen] = useState(false);
   const [activeSidebar, setActiveSidebar] = useState<'info' | 'search' | null>('info');
+
+  // Sidebar search state (search within current conversation)
+  const [sidebarSearchQuery, setSidebarSearchQuery] = useState('');
+  const [sidebarSearchResults, setSidebarSearchResults] = useState<{ messageId: string; senderId: string; senderName: string; content: string; messageType: string; createdAt: string }[]>([]);
+  const [isSidebarSearchLoading, setIsSidebarSearchLoading] = useState(false);
+  const sidebarSearchTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const hasToasted = React.useRef(false);
 
@@ -79,6 +85,36 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
   const [isConversationsLoaded, setIsConversationsLoaded] = useState(false);
   const selectedChat = conversations.find(c => c.id === selectedChatId) || conversations[0];
   const [invitationCount, setInvitationCount] = useState(0);
+
+  const handleSidebarSearch = useCallback((value: string) => {
+    setSidebarSearchQuery(value);
+    if (sidebarSearchTimerRef.current) clearTimeout(sidebarSearchTimerRef.current);
+
+    if (!value.trim() || !selectedChat?.id) {
+      setSidebarSearchResults([]);
+      setIsSidebarSearchLoading(false);
+      return;
+    }
+
+    setIsSidebarSearchLoading(true);
+    sidebarSearchTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await apiClient.get(`/search/messages?q=${encodeURIComponent(value.trim())}&conversationId=${selectedChat.id}&size=20`);
+        const data = res?.content || (Array.isArray(res) ? res : []);
+        setSidebarSearchResults(Array.isArray(data) ? data : []);
+      } catch {
+        setSidebarSearchResults([]);
+      } finally {
+        setIsSidebarSearchLoading(false);
+      }
+    }, 400);
+  }, [selectedChat?.id]);
+
+  // Clear sidebar search when switching conversations or closing
+  useEffect(() => {
+    setSidebarSearchQuery('');
+    setSidebarSearchResults([]);
+  }, [selectedChat?.id, activeSidebar]);
 
   const parseDateToMillis = (value?: string | null) => {
     if (!value) return 0;
@@ -159,6 +195,9 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
             conversationTag: c.conversationTag || c.conversation_tag || undefined,
             conversationStatus: c.conversationStatus || c.conversation_status || 'NORMAL',
             isRequest: (c.conversationStatus || c.conversation_status) === 'PENDING',
+            mutedUntil: c.mutedUntil || c.muted_until || null,
+            isMarkedUnread: c.isMarkedUnread || c.is_marked_unread || false,
+            autoDeleteDuration: c.autoDeleteDuration || c.auto_delete_duration || null,
           };
         });
         const sorted = sortConversations(mapped);
@@ -196,10 +235,24 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
       const subGroup = websocketService.subscribe(`/topic/group-events/${currentUser.id}`, (msg) => {
         try {
           const group = JSON.parse(msg.body);
-          toast.info(t('dashboard.added_to_group', { name: group.conversationName || group.conversation_name || 'Nhóm mới' }), {
-            duration: 4000,
-          });
-          fetchConversations();
+          if (group.type === 'DISSOLVED') {
+            toast.info(t('group.disband.success') + `: ${group.conversationName || ''}`, { duration: 5000 });
+            setConversations(prev => prev.filter(c => c.id !== group.conversationId));
+            if (selectedChatId === group.conversationId) {
+              setSelectedChatId('');
+            }
+          } else if (group.type === 'REMOVED') {
+            toast.info(t('group.removed') || 'Bạn đã bị xóa khỏi nhóm', { duration: 4000 });
+            setConversations(prev => prev.filter(c => c.id !== group.conversationId));
+            if (selectedChatId === group.conversationId) {
+              setSelectedChatId('');
+            }
+          } else {
+            toast.info(t('dashboard.added_to_group', { name: group.conversationName || group.conversation_name || 'Nhóm mới' }), {
+              duration: 4000,
+            });
+            fetchConversations();
+          }
         } catch (e) {
           console.error('Failed to parse group event:', e);
         }
@@ -225,6 +278,33 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
             );
           } else if (event.type === 'CONVERSATION_DELETED') {
             setConversations(prev => prev.filter(c => c.id !== event.conversationId));
+          } else if (event.type === 'MUTED') {
+            setConversations(prev =>
+              prev.map(c =>
+                c.id === event.conversationId
+                  ? { ...c, mutedUntil: event.mutedUntil || null }
+                  : c
+              )
+            );
+          } else if (event.type === 'MARK_UNREAD') {
+            setConversations(prev =>
+              prev.map(c =>
+                c.id === event.conversationId
+                  ? { ...c, isMarkedUnread: event.isMarkedUnread }
+                  : c
+              )
+            );
+          } else if (event.type === 'AUTO_DELETE_UPDATED') {
+            setConversations(prev =>
+              prev.map(c =>
+                c.id === event.conversationId
+                  ? { ...c, autoDeleteDuration: event.autoDeleteDuration || null }
+                  : c
+              )
+            );
+          } else if (event.type === 'CONVERSATION_UNHIDDEN') {
+            // Re-fetch conversations to include the unhidden one
+            fetchConversations();
           }
         } catch (e) {
           console.error('Failed to parse conversation event:', e);
@@ -376,6 +456,24 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
                 prev.map(c => c.id === id ? { ...c, conversationTag: tag || undefined } : c)
               );
             }}
+            onMuteConversation={(id, mutedUntil) => {
+              setConversations(prev =>
+                prev.map(c => c.id === id ? { ...c, mutedUntil } : c)
+              );
+            }}
+            onMarkUnread={(id, isMarkedUnread) => {
+              setConversations(prev =>
+                prev.map(c => c.id === id ? { ...c, isMarkedUnread } : c)
+              );
+            }}
+            onAutoDeleteConversation={(id, duration) => {
+              setConversations(prev =>
+                prev.map(c => c.id === id ? { ...c, autoDeleteDuration: duration } : c)
+              );
+            }}
+            onUnhideConversation={() => {
+              fetchConversations();
+            }}
           />
         ) : activeTab === 'contacts' ? (
           <ContactList
@@ -475,39 +573,62 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
                         </div>
                         <input
                           type="text"
-                          placeholder="Nhập từ khóa để tìm kiếm"
+                          value={sidebarSearchQuery}
+                          onChange={(e) => handleSidebarSearch(e.target.value)}
+                          placeholder={t('chat.search_panel_placeholder') || 'Nhập từ khóa để tìm kiếm'}
                           className="w-full bg-[var(--card-bg)] border border-[var(--border)] rounded-md py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-[#0068FF] transition-all"
                         />
                       </div>
 
-                      {/* Filters */}
-                      <div className="flex items-center gap-2 mb-4 text-[13px]">
-                        <span className="text-[var(--sub-text)] whitespace-nowrap">Lọc theo:</span>
-                        <button className="flex items-center gap-1.5 px-2 py-1.5 bg-[var(--hover-bg)] rounded-md border border-[var(--border)] flex-1 justify-center">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                          Người gửi
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                        </button>
-                        <button className="flex items-center gap-1.5 px-2 py-1.5 bg-[var(--hover-bg)] rounded-md border border-[var(--border)] flex-1 justify-center">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                          Ngày gửi
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                        </button>
-                      </div>
-
-                      {/* Empty State */}
-                      <div className="flex flex-col items-center justify-center pt-12 text-center opacity-60">
-                        <div className="w-[180px] h-[180px] mb-6 relative">
-                          <div className="absolute inset-0 bg-blue-50 dark:bg-blue-500/10 rounded-full blur-2xl"></div>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="1" className="relative z-10 w-full h-full opacity-30">
-                            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            <path d="M9 10h4M9 14h6" opacity="0.5" />
-                          </svg>
+                      {sidebarSearchQuery.trim() ? (
+                        /* Search Results */
+                        isSidebarSearchLoading ? (
+                          <div className="flex items-center justify-center py-8">
+                            <div className="w-6 h-6 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
+                          </div>
+                        ) : sidebarSearchResults.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center pt-8 text-center opacity-60">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="opacity-30 mb-3">
+                              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                            <p className="text-[14px] text-[var(--sub-text)]">{t('chat.search_overlay.no_results') || 'Không tìm thấy kết quả'}</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            <p className="text-[13px] text-[var(--sub-text)] mb-3">
+                              {t('chat.search_panel_found', { count: sidebarSearchResults.length }) || `Tìm thấy ${sidebarSearchResults.length} kết quả`}
+                            </p>
+                            {sidebarSearchResults.map(msg => (
+                              <div
+                                key={msg.messageId}
+                                className="p-3 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors border border-transparent hover:border-[var(--border)]"
+                              >
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-[13px] font-medium text-[var(--text)]">{msg.senderName}</span>
+                                  <span className="text-[11px] text-[var(--sub-text)]">
+                                    {msg.createdAt ? new Date(msg.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}
+                                  </span>
+                                </div>
+                                <p className="text-[13px] text-[var(--sub-text)] line-clamp-2">{msg.content}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      ) : (
+                        /* Empty State */
+                        <div className="flex flex-col items-center justify-center pt-12 text-center opacity-60">
+                          <div className="w-[180px] h-[180px] mb-6 relative">
+                            <div className="absolute inset-0 bg-blue-50 dark:bg-blue-500/10 rounded-full blur-2xl"></div>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="1" className="relative z-10 w-full h-full opacity-30">
+                              <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                              <path d="M9 10h4M9 14h6" opacity="0.5" />
+                            </svg>
+                          </div>
+                          <p className="text-[14px] leading-relaxed text-[var(--sub-text)]">
+                            {t('chat.search_panel_hint') || 'Hãy nhập từ khóa để bắt đầu tìm kiếm tin nhắn và file trong trò chuyện'}
+                          </p>
                         </div>
-                        <p className="text-[14px] leading-relaxed text-[var(--sub-text)]">
-                          Hãy nhập từ khóa để bắt đầu tìm kiếm<br />tin nhắn và file trong trò chuyện
-                        </p>
-                      </div>
+                      )}
                     </div>
                   </div>
                 )}

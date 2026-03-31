@@ -118,6 +118,9 @@
     "search_overlay": {
       "close": "Đóng",
       "recent": "Tìm gần đây",
+      "no_results": "Không tìm thấy kết quả",
+      "contacts": "Liên hệ",
+      "messages": "Tin nhắn",
       "filters": {
         "title": "Lọc tin nhắn",
         "mention": "Nhắc bạn",
@@ -227,7 +230,16 @@
     "ctx_menu": {
       "edit": "Chỉnh sửa",
       "recall": "Thu hồi",
-      "delete_local": "Xóa ở phía tôi"
+      "delete_local": "Xóa ở phía tôi",
+      "pin": "Ghim tin nhắn",
+      "unpin": "Bỏ ghim tin nhắn"
+    },
+    "pin": {
+      "pin_success": "Đã ghim tin nhắn",
+      "unpin_success": "Đã bỏ ghim tin nhắn",
+      "pin_error": "Không thể ghim tin nhắn",
+      "unpin_error": "Không thể bỏ ghim tin nhắn",
+      "pinned": "tin nhắn đã ghim"
     },
     "reactions": {
       "title": "Biểu cảm",
@@ -246,6 +258,7 @@
       "mark_unread": "Đánh dấu chưa đọc",
       "mute": "Tắt thông báo",
       "hide": "Ẩn trò chuyện",
+      "hide_success": "Đã ẩn hội thoại",
       "auto_delete": "Tin nhắn tự xóa",
       "delete": "Xóa hội thoại",
       "delete_confirm": "Xóa hội thoại \"{{name}}\"?",
@@ -253,21 +266,31 @@
       "confirm_delete": "Xác nhận xóa",
       "delete_success": "Đã xóa hội thoại",
       "delete_error": "Không thể xóa hội thoại",
-      "report": "Báo xấu"
+      "report": "Báo xấu",
+      "marked_unread": "Đã đánh dấu chưa đọc",
+      "unmarked_unread": "Đã bỏ đánh dấu chưa đọc"
     },
     "mute": {
       "1h": "Trong 1 giờ",
       "4h": "Trong 4 giờ",
       "8am": "Đến 8:00 sáng",
-      "forever": "Cho đến khi mở lại"
+      "forever": "Cho đến khi mở lại",
+      "off": "Bật thông báo",
+      "success": "Đã tắt thông báo",
+      "off_success": "Đã bật lại thông báo"
     },
     "auto_delete": {
       "off": "Tắt",
       "1d": "1 ngày",
       "7d": "7 ngày",
-      "30d": "30 ngày"
+      "30d": "30 ngày",
+      "success": "Đã cập nhật tin nhắn tự xóa"
     },
     "stranger_warning": "Người này không có trong danh bạ của bạn. Hãy cẩn thận với các đường link lạ.",
+    "hidden_conversations": "Hội thoại đã ẩn",
+    "hidden_empty": "Không có hội thoại nào bị ẩn",
+    "unhide": "Hiện lại",
+    "unhide_success": "Đã hiện lại hội thoại",
     "choose_file": "Chọn File",
     "recording_cancel": "Hủy",
     "recording_send": "Gửi",
@@ -444,6 +467,8 @@
       "no_media": "Chưa có ảnh/video",
       "no_files": "Chưa có file đính kèm",
       "no_links": "Chưa có liên kết",
+      "pinned_messages": "Tin nhắn đã ghim",
+      "no_pinned": "Chưa có tin nhắn ghim",
       "file_attachment": "File đính kèm",
       "just_now": "Vừa xong"
     },
@@ -530,6 +555,7 @@
       "select_member_desc": "Chọn thành viên để chuyển quyền Trưởng nhóm."
     },
     "disband": {
+      "title": "Giải tán nhóm",
       "confirm": "Bạn có chắc muốn giải tán nhóm?",
       "desc": "Tất cả thành viên sẽ bị xóa khỏi nhóm và dữ liệu nhóm sẽ bị xóa.",
       "success": "Đã giải tán nhóm",
@@ -639,5 +665,22 @@
       }
     },
     "development": "Tính năng {{name}} đang được phát triển"
+  },
+  "report": {
+    "reporting": "Báo cáo hội thoại",
+    "reason": "Lý do",
+    "select_reason": "Chọn lý do báo cáo",
+    "reasons": {
+      "spam": "Tin nhắn rác / Spam",
+      "harassment": "Quấy rối / Bắt nạt",
+      "inappropriate": "Nội dung không phù hợp",
+      "scam": "Lừa đảo",
+      "other": "Khác"
+    },
+    "description": "Mô tả chi tiết (tùy chọn)",
+    "description_placeholder": "Nhập mô tả thêm về vấn đề...",
+    "submit": "Gửi báo cáo",
+    "success": "Đã gửi báo cáo thành công",
+    "error": "Không thể gửi báo cáo"
   }
 }

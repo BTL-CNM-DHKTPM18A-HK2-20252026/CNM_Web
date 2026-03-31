@@ -118,6 +118,9 @@
     "search_overlay": {
       "close": "Close",
       "recent": "Recent searches",
+      "no_results": "No results found",
+      "contacts": "Contacts",
+      "messages": "Messages",
       "filters": {
         "title": "Message filters",
         "mention": "Mention you",
@@ -227,7 +230,16 @@
     "ctx_menu": {
       "edit": "Edit",
       "recall": "Recall",
-      "delete_local": "Delete on my side"
+      "delete_local": "Delete on my side",
+      "pin": "Pin message",
+      "unpin": "Unpin message"
+    },
+    "pin": {
+      "pin_success": "Message pinned",
+      "unpin_success": "Message unpinned",
+      "pin_error": "Cannot pin message",
+      "unpin_error": "Cannot unpin message",
+      "pinned": "pinned messages"
     },
     "reactions": {
       "title": "Reactions",
@@ -246,6 +258,7 @@
       "mark_unread": "Mark as unread",
       "mute": "Mute notifications",
       "hide": "Hide conversation",
+      "hide_success": "Conversation hidden",
       "auto_delete": "Auto-delete messages",
       "delete": "Delete conversation",
       "delete_confirm": "Delete conversation \"{{name}}\"?",
@@ -253,21 +266,31 @@
       "confirm_delete": "Confirm delete",
       "delete_success": "Conversation deleted",
       "delete_error": "Cannot delete conversation",
-      "report": "Report"
+      "report": "Report",
+      "marked_unread": "Marked as unread",
+      "unmarked_unread": "Unmarked as unread"
     },
     "mute": {
       "1h": "For 1 hour",
       "4h": "For 4 hours",
       "8am": "Until 8:00 AM",
-      "forever": "Until turned back on"
+      "forever": "Until turned back on",
+      "off": "Turn on notifications",
+      "success": "Notifications muted",
+      "off_success": "Notifications turned on"
     },
     "auto_delete": {
       "off": "Off",
       "1d": "1 day",
       "7d": "7 days",
-      "30d": "30 days"
+      "30d": "30 days",
+      "success": "Auto-delete updated"
     },
     "stranger_warning": "This person is not in your contacts. Be careful with suspicious links.",
+    "hidden_conversations": "Hidden conversations",
+    "hidden_empty": "No hidden conversations",
+    "unhide": "Unhide",
+    "unhide_success": "Conversation restored",
     "choose_file": "Choose File",
     "recording_cancel": "Cancel",
     "recording_send": "Send",
@@ -447,6 +470,8 @@
       "no_media": "No photos/videos yet",
       "no_files": "No attachments yet",
       "no_links": "No links yet",
+      "pinned_messages": "Pinned messages",
+      "no_pinned": "No pinned messages",
       "file_attachment": "Attachment",
       "just_now": "Just now"
     },
@@ -533,6 +558,7 @@
       "select_member_desc": "Select a member to transfer Admin role."
     },
     "disband": {
+      "title": "Disband Group",
       "confirm": "Are you sure you want to disband this group?",
       "desc": "All members will be removed and group data will be deleted.",
       "success": "Group disbanded",
@@ -642,5 +668,22 @@
       }
     },
     "development": "Feature {{name}} is under development"
+  },
+  "report": {
+    "reporting": "Reporting conversation",
+    "reason": "Reason",
+    "select_reason": "Select a reason",
+    "reasons": {
+      "spam": "Spam",
+      "harassment": "Harassment / Bullying",
+      "inappropriate": "Inappropriate content",
+      "scam": "Scam / Fraud",
+      "other": "Other"
+    },
+    "description": "Description (optional)",
+    "description_placeholder": "Enter more details about the issue...",
+    "submit": "Submit Report",
+    "success": "Report submitted successfully",
+    "error": "Cannot submit report"
   }
 }

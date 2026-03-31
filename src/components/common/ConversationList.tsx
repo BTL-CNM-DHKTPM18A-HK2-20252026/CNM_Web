@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SearchIcon, AddUserIcon, PinIcon, ImagePickerIcon, CreateGroupIcon, ChevronDownIcon, MoreHorizontalIcon } from '@/components/ui/Icons';
 import Image from 'next/image';
@@ -22,6 +22,9 @@ interface Conversation {
   conversationStatus?: string;
   isRequest?: boolean;
   conversationTag?: string;
+  mutedUntil?: string | null;
+  isMarkedUnread?: boolean;
+  autoDeleteDuration?: string | null;
 }
 
 interface ConversationListProps {
@@ -32,6 +35,10 @@ interface ConversationListProps {
   onPinConversation?: (id: string | number, pinned: boolean) => void;
   onDeleteConversation?: (id: string | number) => void;
   onTagConversation?: (id: string | number, tag: string | null) => void;
+  onMuteConversation?: (id: string | number, mutedUntil: string | null) => void;
+  onMarkUnread?: (id: string | number, isMarkedUnread: boolean) => void;
+  onAutoDeleteConversation?: (id: string | number, duration: string | null) => void;
+  onUnhideConversation?: (id: string | number) => void;
 }
 
 interface SearchItem {
@@ -49,7 +56,7 @@ interface SearchItem {
   isIcon?: boolean;
 }
 
-export function ConversationList({ conversations, onAddFriend, onCreateGroup, onSelectConversation, onPinConversation, onDeleteConversation, onTagConversation }: ConversationListProps) {
+export function ConversationList({ conversations, onAddFriend, onCreateGroup, onSelectConversation, onPinConversation, onDeleteConversation, onTagConversation, onMuteConversation, onMarkUnread, onAutoDeleteConversation, onUnhideConversation }: ConversationListProps) {
   const { t, i18n } = useTranslation();
   const { isOnline, getTimeAgo } = usePresence();
 
@@ -65,9 +72,67 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [filterTab, setFilterTab] = useState<'all' | 'unread'>('all');
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchUsers, setSearchUsers] = useState<{ userId: string; displayName: string; phoneNumber?: string; email?: string; avatarUrl?: string }[]>([]);
+  const [searchMessages, setSearchMessages] = useState<{ messageId: string; conversationId: string; senderId: string; senderName: string; content: string; messageType: string; createdAt: string }[]>([]);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
+  const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+
+    if (!value.trim()) {
+      setSearchUsers([]);
+      setSearchMessages([]);
+      setIsSearchLoading(false);
+      return;
+    }
+
+    setIsSearchLoading(true);
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        // Wrap each call to prevent apiClient's internal throw from propagating
+        const safeGet = (url: string) => apiClient.get(url).catch(() => null);
+
+        const [usersData, ...messagesData] = await Promise.all([
+          safeGet(`/search/users?q=${encodeURIComponent(value.trim())}&size=5`),
+          ...conversations.slice(0, 10).map(c =>
+            safeGet(`/search/messages?q=${encodeURIComponent(value.trim())}&conversationId=${c.id}&size=3`)
+          ),
+        ]);
+
+        // Extract users — apiClient unwraps ApiResponse, so result is Page<UserDocument> directly
+        if (usersData) {
+          const data = usersData?.content || (Array.isArray(usersData) ? usersData : []);
+          setSearchUsers(Array.isArray(data) ? data : []);
+        } else {
+          setSearchUsers([]);
+        }
+
+        // Extract messages from all conversation searches
+        const allMessages: typeof searchMessages = [];
+        for (const res of messagesData) {
+          if (res) {
+            const data = res?.content || (Array.isArray(res) ? res : []);
+            if (Array.isArray(data)) allMessages.push(...data);
+          }
+        }
+        // Sort by date desc and take top 10
+        allMessages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setSearchMessages(allMessages.slice(0, 10));
+      } catch (e) {
+        console.error('Search failed:', e);
+      } finally {
+        setIsSearchLoading(false);
+      }
+    }, 400);
+  }, [conversations]);
+
   const filteredConversations = (() => {
     let result = filterTab === 'unread'
-      ? conversations.filter(c => (c.unreadCount && c.unreadCount > 0) || c.isRequest)
+      ? conversations.filter(c => (c.unreadCount && c.unreadCount > 0) || c.isRequest || c.isMarkedUnread)
       : conversations;
     if (selectedTags.length > 0) {
       result = result.filter(c => c.conversationTag && selectedTags.includes(c.conversationTag));
@@ -76,6 +141,28 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
   })();
   const [contextMenu, setContextMenu] = useState<{ id: string | number; x: number; y: number } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const [reportModal, setReportModal] = useState<{ conversationId: string; conversationName: string } | null>(null);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
+  const [reportLoading, setReportLoading] = useState(false);
+
+  const [showHiddenModal, setShowHiddenModal] = useState(false);
+  const [hiddenConversations, setHiddenConversations] = useState<any[]>([]);
+  const [hiddenLoading, setHiddenLoading] = useState(false);
+
+  const fetchHiddenConversations = async () => {
+    setHiddenLoading(true);
+    try {
+      const res = await apiClient.get<any>('/conversations/hidden');
+      const list = res?.data || res || [];
+      setHiddenConversations(Array.isArray(list) ? list : []);
+    } catch (e) {
+      console.error('Failed to fetch hidden conversations:', e);
+      setHiddenConversations([]);
+    } finally {
+      setHiddenLoading(false);
+    }
+  };
 
   const classifyMenuRef = useRef<HTMLDivElement>(null);
 
@@ -251,7 +338,18 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
 
         {/* Đánh dấu chưa đọc */}
         <button
-          onClick={() => { setContextMenu(null); }}
+          onClick={async () => {
+            const convId = contextMenu.id;
+            setContextMenu(null);
+            try {
+              const res = await apiClient.post<any>(`/conversations/${convId}/mark-unread`, {});
+              const newMarked = res?.data?.isMarkedUnread ?? res?.isMarkedUnread ?? true;
+              onMarkUnread?.(convId, newMarked);
+              toast.success(newMarked ? t('chat.ctx.marked_unread') : t('chat.ctx.unmarked_unread'));
+            } catch (e: any) {
+              toast.error(e.message || 'Error');
+            }
+          }}
           className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center gap-3 text-[var(--text)] transition-colors cursor-pointer"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h9" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /><circle cx="19" cy="19" r="3" /></svg>
@@ -272,6 +370,7 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
             <div className="flex items-center gap-3">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
               <span>{t('chat.ctx.mute')}</span>
+              {contextConv.mutedUntil && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>}
             </div>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="opacity-40"><path d="m9 18 6-6-6-6" /></svg>
           </button>
@@ -280,15 +379,43 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
           {showSubMenu === 'mute' && (
             <div className="absolute left-full top-0 z-50 pl-1 pointer-events-auto">
               <div className="w-[180px] bg-white dark:bg-[var(--card-bg)] rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.18)] border border-gray-200 dark:border-[var(--border)] py-1 animate-in fade-in duration-100">
+                {contextConv.mutedUntil && (
+                  <>
+                    <button
+                      onClick={async () => {
+                        const convId = contextMenu!.id;
+                        setContextMenu(null);
+                        try {
+                          await apiClient.post(`/conversations/${convId}/mute`, { duration: 'off' });
+                          onMuteConversation?.(convId, null);
+                          toast.success(t('chat.mute.off_success'));
+                        } catch (e: any) { toast.error(e.message || 'Error'); }
+                      }}
+                      className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 text-[var(--text)] transition-colors cursor-pointer font-medium"
+                    >
+                      {t('chat.mute.off')}
+                    </button>
+                    <div className="h-[1px] bg-gray-100 dark:bg-white/5 mx-2 my-0.5" />
+                  </>
+                )}
                 {[
                   { label: t('chat.mute.1h'), value: '1h' },
                   { label: t('chat.mute.4h'), value: '4h' },
-                  { label: t('chat.mute.8am'), value: '8am' },
+                  { label: t('chat.mute.8am'), value: 'until_8am' },
                   { label: t('chat.mute.forever'), value: 'forever' },
                 ].map((item) => (
                   <button
                     key={item.value}
-                    onClick={() => { setContextMenu(null); }}
+                    onClick={async () => {
+                      const convId = contextMenu!.id;
+                      setContextMenu(null);
+                      try {
+                        const res = await apiClient.post<any>(`/conversations/${convId}/mute`, { duration: item.value });
+                        const newMutedUntil = res?.data?.mutedUntil ?? res?.mutedUntil ?? null;
+                        onMuteConversation?.(convId, newMutedUntil);
+                        toast.success(t('chat.mute.success'));
+                      } catch (e: any) { toast.error(e.message || 'Error'); }
+                    }}
                     className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 text-[var(--text)] transition-colors cursor-pointer"
                   >
                     {item.label}
@@ -301,7 +428,17 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
 
         {/* Ẩn trò chuyện */}
         <button
-          onClick={() => { setContextMenu(null); }}
+          onClick={async () => {
+            const convId = contextMenu.id;
+            setContextMenu(null);
+            try {
+              await apiClient.delete(`/conversations/${convId}`);
+              onDeleteConversation?.(convId);
+              toast.success(t('chat.ctx.hide_success'));
+            } catch (e: any) {
+              toast.error(e.message || 'Error');
+            }
+          }}
           className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center gap-3 text-[var(--text)] transition-colors cursor-pointer"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
@@ -320,7 +457,7 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
             <div className="flex items-center gap-3">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
               <span>{t('chat.ctx.auto_delete')}</span>
-              <span className="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
+              {contextConv.autoDeleteDuration && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>}
             </div>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="opacity-40"><path d="m9 18 6-6-6-6" /></svg>
           </button>
@@ -334,15 +471,28 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
                   { label: t('chat.auto_delete.1d'), value: '1d' },
                   { label: t('chat.auto_delete.7d'), value: '7d' },
                   { label: t('chat.auto_delete.30d'), value: '30d' },
-                ].map((item) => (
-                  <button
-                    key={item.value}
-                    onClick={() => { setContextMenu(null); }}
-                    className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 text-[var(--text)] transition-colors cursor-pointer"
-                  >
-                    {item.label}
-                  </button>
-                ))}
+                ].map((item) => {
+                  const isActive = (item.value === 'off' && !contextConv.autoDeleteDuration) || contextConv.autoDeleteDuration === item.value;
+                  return (
+                    <button
+                      key={item.value}
+                      onClick={async () => {
+                        const convId = contextMenu!.id;
+                        setContextMenu(null);
+                        try {
+                          const res = await apiClient.patch<any>(`/conversations/${convId}/auto-delete`, { duration: item.value });
+                          const newDuration = res?.data?.autoDeleteDuration ?? res?.autoDeleteDuration ?? null;
+                          onAutoDeleteConversation?.(convId, newDuration);
+                          toast.success(t('chat.auto_delete.success'));
+                        } catch (e: any) { toast.error(e.message || 'Error'); }
+                      }}
+                      className={`w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 text-[var(--text)] transition-colors cursor-pointer flex items-center justify-between ${isActive ? 'bg-[#e5efff] dark:bg-white/10' : ''}`}
+                    >
+                      <span>{item.label}</span>
+                      {isActive && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="opacity-70"><polyline points="20 6 9 17 4 12" /></svg>}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -382,7 +532,14 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
 
         {/* Báo xấu */}
         <button
-          onClick={() => { setContextMenu(null); }}
+          onClick={() => {
+            const convId = String(contextMenu.id);
+            const convName = contextConv?.name || '';
+            setContextMenu(null);
+            setReportReason('');
+            setReportDescription('');
+            setReportModal({ conversationId: convId, conversationName: convName });
+          }}
           className="w-full px-4 py-2 text-left text-[13px] hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-3 text-red-500 transition-colors cursor-pointer"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
@@ -403,6 +560,8 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
             <input
               type="text"
               placeholder={t('chat.search')}
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
               onFocus={() => setIsSearching(true)}
               className={`w-full ${isSearching ? 'bg-[var(--card-bg)] border-[#0068FF]' : 'bg-[var(--search-bg)] border-transparent'} rounded-lg py-1.5 pl-9 pr-3 text-[14px] text-[var(--text)] outline-none border transition-all placeholder:text-[var(--search-placeholder)]`}
             />
@@ -410,7 +569,7 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
           </div>
           {isSearching ? (
             <button
-              onClick={() => setIsSearching(false)}
+              onClick={() => { setIsSearching(false); setSearchQuery(''); setSearchUsers([]); setSearchMessages([]); }}
               className="text-[15px] font-bold text-[var(--text)] px-1 cursor-pointer hover:opacity-80 active:scale-95"
             >
               {t('chat.search_overlay.close')}
@@ -565,63 +724,149 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
       </div>
 
       {isSearching ? (
-        /* Search Backdrop / Overlay Content */
+        /* Search Overlay Content */
         <div className="flex-1 bg-[var(--card-bg)] overflow-y-auto custom-scrollbar animate-in fade-in duration-200">
-          <div className="px-4 py-3 pb-2">
-            <h3 className="text-[14px] font-bold text-[var(--text)] mb-4">{t('chat.search_overlay.recent')}</h3>
-
-            <div className="space-y-1">
-              {recentSearches.map(item => (
-                <div key={item.id} className="flex items-center gap-3 p-2 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors">
-                  {/* Mock Avatars */}
-                  <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center border border-black/5">
-                    {item.isInitial ? (
-                      <div className="w-full h-full flex items-center justify-center text-white font-bold text-[14px]" style={{ backgroundColor: item.bgColor }}>
-                        {item.initial}
-                      </div>
-                    ) : item.isGroup ? (
-                      <div className="grid grid-cols-2 w-full h-full bg-gray-100">
-                        {item.avatars?.slice(0, 3).map((a, i) => (
-                          <div key={i} className="relative w-full h-full border-[0.5px] border-white/50 overflow-hidden">
-                            <Image src={a} alt="av" fill className="object-cover" sizes="20px" />
+          {searchQuery.trim() ? (
+            /* Search Results */
+            <div className="px-4 py-3">
+              {isSearchLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="w-6 h-6 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (searchUsers.length === 0 && searchMessages.length === 0) ? (
+                <div className="flex flex-col items-center justify-center py-12 text-[var(--sub-text)] opacity-60">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="opacity-30 mb-3">
+                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <p className="text-[14px]">{t('chat.search_overlay.no_results') || 'Không tìm thấy kết quả'}</p>
+                </div>
+              ) : (
+                <>
+                  {/* User Results */}
+                  {searchUsers.length > 0 && (
+                    <div className="mb-4">
+                      <h3 className="text-[13px] font-bold text-[var(--sub-text)] mb-2 uppercase tracking-wide">{t('chat.search_overlay.contacts') || 'Liên hệ'}</h3>
+                      <div className="space-y-0.5">
+                        {searchUsers.map(user => (
+                          <div
+                            key={user.userId}
+                            onClick={() => {
+                              // Find existing conversation with this user
+                              const conv = conversations.find(c => c.otherUserId === user.userId);
+                              if (conv) {
+                                onSelectConversation(conv.id);
+                                setIsSearching(false);
+                                setSearchQuery('');
+                                setSearchUsers([]);
+                                setSearchMessages([]);
+                              }
+                            }}
+                            className="flex items-center gap-3 p-2 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors"
+                          >
+                            <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-black/5">
+                              {user.avatarUrl ? (
+                                <Image src={user.avatarUrl} alt={user.displayName} width={40} height={40} className="object-cover w-full h-full" />
+                              ) : (
+                                <span className="text-[14px] font-bold text-white bg-[#0068FF] w-full h-full flex items-center justify-center">
+                                  {user.displayName?.charAt(0)?.toUpperCase() || '?'}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[14px] font-medium text-[var(--text)] truncate">{user.displayName}</p>
+                              {user.phoneNumber && <p className="text-[12px] text-[var(--sub-text)] truncate">{user.phoneNumber}</p>}
+                            </div>
                           </div>
                         ))}
-                        {item.more && (
-                          <div className="flex items-center justify-center bg-gray-200 text-[10px] text-gray-500 font-bold">
-                            {item.more}
-                          </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Message Results */}
+                  {searchMessages.length > 0 && (
+                    <div>
+                      <h3 className="text-[13px] font-bold text-[var(--sub-text)] mb-2 uppercase tracking-wide">{t('chat.search_overlay.messages') || 'Tin nhắn'}</h3>
+                      <div className="space-y-0.5">
+                        {searchMessages.map(msg => {
+                          const conv = conversations.find(c => String(c.id) === msg.conversationId);
+                          return (
+                            <div
+                              key={msg.messageId}
+                              onClick={() => {
+                                if (conv) {
+                                  onSelectConversation(conv.id);
+                                  setIsSearching(false);
+                                  setSearchQuery('');
+                                  setSearchUsers([]);
+                                  setSearchMessages([]);
+                                }
+                              }}
+                              className="flex items-center gap-3 p-2 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors"
+                            >
+                              <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-black/5">
+                                {conv?.avatar ? (
+                                  <Image src={conv.avatar} alt={conv.name} width={40} height={40} className="object-cover w-full h-full" />
+                                ) : (
+                                  <span className="text-[14px] font-bold text-white bg-[#0068FF] w-full h-full flex items-center justify-center">
+                                    {(conv?.name || msg.senderName)?.charAt(0)?.toUpperCase() || '?'}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[14px] font-medium text-[var(--text)] truncate">{conv?.name || msg.senderName}</p>
+                                <p className="text-[12px] text-[var(--sub-text)] truncate">
+                                  <span className="font-medium">{msg.senderName}: </span>
+                                  {msg.content}
+                                </p>
+                              </div>
+                              <span className="text-[11px] text-[var(--sub-text)] shrink-0">
+                                {msg.createdAt ? new Date(msg.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : ''}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          ) : (
+            /* Default: Recent + Filters */
+            <>
+              <div className="px-4 py-3 pb-2">
+                <h3 className="text-[14px] font-bold text-[var(--text)] mb-4">{t('chat.search_overlay.recent')}</h3>
+                <div className="space-y-1">
+                  {recentSearches.map(item => (
+                    <div key={item.id} className="flex items-center gap-3 p-2 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors">
+                      <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center border border-black/5">
+                        {item.avatar ? (
+                          <Image src={item.avatar} alt={item.name} width={40} height={40} className="object-cover" />
+                        ) : (
+                          <span className="text-[14px] font-bold text-white bg-[#0068FF] w-full h-full flex items-center justify-center">
+                            {item.name?.charAt(0)?.toUpperCase() || '?'}
+                          </span>
                         )}
                       </div>
-                    ) : item.isCircle ? (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-[8px] text-white leading-[1.1] p-1 font-bold text-center" style={{ backgroundColor: item.color }}>
-                        <span>Tạp Hóa</span>
-                        <span>MMO</span>
-                      </div>
-                    ) : item.isIcon ? (
-                      <div className="w-full h-full flex items-center justify-center p-2" style={{ backgroundColor: item.bgColor }}>
-                        <svg viewBox="0 0 24 24" className="text-blue-900 fill-current"><path d="M12 2L1 21h22L12 2zm0 3.45l8.15 14.1H3.85L12 5.45zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z" /></svg>
-                      </div>
-                    ) : (
-                      <Image src={item.avatar || ''} alt={item.name} width={40} height={40} className="object-cover" />
-                    )}
-                  </div>
-                  <span className="text-[15px] text-[var(--text)] truncate">{item.name}</span>
+                      <span className="text-[15px] text-[var(--text)] truncate">{item.name}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
 
-          <div className="border-t border-[var(--border)] mt-2 pt-4 px-4 pb-8">
-            <h3 className="text-[14px] font-bold text-[var(--text)] mb-4">{t('chat.search_overlay.filters.title')}</h3>
-            <div className="flex gap-2">
-              <button className="px-4 py-1.5 bg-[var(--hover-bg)] rounded-full text-[13.5px] text-[var(--text)] cursor-pointer hover:bg-[var(--border)] transition-colors">
-                {t('chat.search_overlay.filters.mention')}
-              </button>
-              <button className="px-4 py-1.5 bg-[var(--hover-bg)] rounded-full text-[13.5px] text-[var(--text)] cursor-pointer hover:bg-[var(--border)] transition-colors">
-                {t('chat.search_overlay.filters.reactions')}
-              </button>
-            </div>
-          </div>
+              <div className="border-t border-[var(--border)] mt-2 pt-4 px-4 pb-8">
+                <h3 className="text-[14px] font-bold text-[var(--text)] mb-4">{t('chat.search_overlay.filters.title')}</h3>
+                <div className="flex gap-2">
+                  <button className="px-4 py-1.5 bg-[var(--hover-bg)] rounded-full text-[13.5px] text-[var(--text)] cursor-pointer hover:bg-[var(--border)] transition-colors">
+                    {t('chat.search_overlay.filters.mention')}
+                  </button>
+                  <button className="px-4 py-1.5 bg-[var(--hover-bg)] rounded-full text-[13.5px] text-[var(--text)] cursor-pointer hover:bg-[var(--border)] transition-colors">
+                    {t('chat.search_overlay.filters.reactions')}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       ) : (
         /* Normal List */
@@ -678,6 +923,11 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
                           <PinIcon size={12} />
                         </div>
                       )}
+                      {conv.mutedUntil && (
+                        <div className="text-[#708090] opacity-80 shrink-0 mr-1">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex justify-between items-center h-5">
@@ -700,6 +950,8 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
                       <div className="min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-sm shrink-0 bg-[#EF4444]">
                         {conv.unreadCount > 99 ? '99+' : conv.unreadCount}
                       </div>
+                    ) : conv.isMarkedUnread ? (
+                      <div className="w-[10px] h-[10px] rounded-full bg-[#0068FF] shrink-0" />
                     ) : null}
 
                     <button
@@ -716,8 +968,159 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
         </div>
       )}
 
+      {/* Hidden Conversations Link */}
+      {!isSearching && (
+        <button
+          onClick={() => { setShowHiddenModal(true); fetchHiddenConversations(); }}
+          className="w-full px-4 py-2.5 text-[12px] text-[var(--sub-text)] hover:text-[var(--text)] hover:bg-[var(--hover-bg)] flex items-center justify-center gap-2 transition-colors cursor-pointer border-t border-[var(--border)]"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-60"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+          <span>{t('chat.hidden_conversations')}</span>
+        </button>
+      )}
+
       {/* Conversation Context Menu */}
       {renderContextMenu()}
+
+      {/* Report Modal */}
+      {reportModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/45 animate-in fade-in duration-200" onClick={() => setReportModal(null)} />
+          <div className="w-full max-w-[420px] bg-[var(--card-bg)] rounded-xl shadow-2xl relative z-[10000] animate-in zoom-in-95 duration-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+              <h3 className="text-[16px] font-bold text-[var(--text)]">{t('chat.ctx.report')}</h3>
+              <button onClick={() => setReportModal(null)} className="p-1 rounded-md hover:bg-[var(--hover-bg)] text-[var(--sub-text)] cursor-pointer">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="text-[13px] text-[var(--sub-text)]">
+                {t('report.reporting')}: <span className="font-semibold text-[var(--text)]">{reportModal.conversationName}</span>
+              </div>
+              <div>
+                <label className="block text-[13px] font-semibold text-[var(--text)] mb-1.5">{t('report.reason')}</label>
+                <select
+                  value={reportReason}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  className="w-full bg-[var(--hover-bg)] border border-[var(--border)] rounded-lg px-3 py-2 text-[13px] text-[var(--text)] outline-none focus:border-[#0068FF] transition-colors"
+                >
+                  <option value="">{t('report.select_reason')}</option>
+                  <option value="spam">{t('report.reasons.spam')}</option>
+                  <option value="harassment">{t('report.reasons.harassment')}</option>
+                  <option value="inappropriate">{t('report.reasons.inappropriate')}</option>
+                  <option value="scam">{t('report.reasons.scam')}</option>
+                  <option value="other">{t('report.reasons.other')}</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[13px] font-semibold text-[var(--text)] mb-1.5">{t('report.description')}</label>
+                <textarea
+                  value={reportDescription}
+                  onChange={(e) => setReportDescription(e.target.value)}
+                  placeholder={t('report.description_placeholder')}
+                  rows={3}
+                  className="w-full bg-[var(--hover-bg)] border border-[var(--border)] rounded-lg px-3 py-2 text-[13px] text-[var(--text)] outline-none focus:border-[#0068FF] transition-colors resize-none"
+                />
+              </div>
+            </div>
+            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+              <button onClick={() => setReportModal(null)} className="px-4 py-1.5 text-[13px] text-[var(--sub-text)] hover:text-[var(--text)] rounded-md hover:bg-[var(--hover-bg)] transition-colors cursor-pointer">
+                {t('common.cancel')}
+              </button>
+              <button
+                disabled={!reportReason || reportLoading}
+                onClick={async () => {
+                  setReportLoading(true);
+                  try {
+                    await apiClient.post('/reports', {
+                      conversationId: reportModal.conversationId,
+                      reason: reportReason,
+                      description: reportDescription,
+                    });
+                    toast.success(t('report.success'));
+                    setReportModal(null);
+                  } catch (e: any) {
+                    toast.error(e.message || t('report.error'));
+                  } finally {
+                    setReportLoading(false);
+                  }
+                }}
+                className="px-4 py-1.5 text-[13px] font-semibold text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors cursor-pointer"
+              >
+                {reportLoading ? '...' : t('report.submit')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden Conversations Modal */}
+      {showHiddenModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/45 animate-in fade-in duration-200" onClick={() => setShowHiddenModal(false)} />
+          <div className="w-full max-w-[420px] max-h-[70vh] bg-[var(--card-bg)] rounded-xl shadow-2xl relative z-[10000] animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col">
+            <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between shrink-0">
+              <h3 className="text-[16px] font-bold text-[var(--text)]">{t('chat.hidden_conversations')}</h3>
+              <button onClick={() => setShowHiddenModal(false)} className="p-1 rounded-md hover:bg-[var(--hover-bg)] text-[var(--sub-text)] cursor-pointer">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3">
+              {hiddenLoading ? (
+                <div className="flex items-center justify-center py-8 text-[var(--sub-text)]">
+                  <span className="text-[13px]">...</span>
+                </div>
+              ) : hiddenConversations.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-[var(--sub-text)]">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="opacity-30 mb-2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <span className="text-[13px]">{t('chat.hidden_empty')}</span>
+                </div>
+              ) : (
+                hiddenConversations.map((conv: any) => {
+                  const convId = conv.conversationId || conv.conversation_id;
+                  const name = conv.conversationName || conv.conversation_name || 'Unknown';
+                  const avatar = conv.conversationAvatarUrl || conv.conversation_avatar_url;
+                  const lastMsg = conv.lastMessageContent || conv.last_message_content || '';
+                  return (
+                    <div key={convId} className="flex items-center gap-3 p-3 rounded-lg hover:bg-[var(--hover-bg)] transition-colors">
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 shrink-0">
+                        {avatar ? (
+                          <Image src={avatar} alt={name} width={40} height={40} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-white bg-[#0068FF] text-[14px] font-bold">
+                            {name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[14px] font-medium text-[var(--text)] truncate">{name}</div>
+                        <div className="text-[12px] text-[var(--sub-text)] truncate">{lastMsg}</div>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await apiClient.post(`/conversations/${convId}/unhide`, {});
+                            setHiddenConversations(prev => prev.filter(c => (c.conversationId || c.conversation_id) !== convId));
+                            onUnhideConversation?.(convId);
+                            toast.success(t('chat.unhide_success'));
+                          } catch (e: any) {
+                            toast.error(e.message || 'Error');
+                          }
+                        }}
+                        className="px-3 py-1.5 text-[12px] font-medium text-[#0068FF] bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 rounded-lg transition-colors cursor-pointer shrink-0"
+                      >
+                        {t('chat.unhide')}
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

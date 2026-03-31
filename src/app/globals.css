@@ -20,36 +20,41 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar — hidden by default, visible on hover/scroll */
+.custom-scrollbar {
+  scrollbar-gutter: stable;
+}
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
+  background: transparent;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.03); /* Light track like Zalo */
+  background: transparent;
   border-radius: 10px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background-color: transparent;
-  background-clip: padding-box;
-  border-top: 4px solid transparent; /* Small padding at top */
-  border-bottom: 4px solid transparent; /* Small padding at bottom */
   border-radius: 10px;
-  min-height: 40px; /* IMPORTANT: Never shrinks smaller than 40px */
-  transition: background-color 0.2s ease;
+  min-height: 40px;
+  transition: background-color 0.3s ease;
 }
 
-/* When scrolling or hovering the container, show the thumb in Zalo's gray */
-.custom-scrollbar.is-scrolling::-webkit-scrollbar-thumb,
-.custom-scrollbar:hover::-webkit-scrollbar-thumb {
-  background-color: #c1c1c1; /* Zalo thumb color */
+/* Show scrollbar only when actively scrolling */
+.custom-scrollbar.is-scrolling::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.03);
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: #a8a8a8 !important; /* Slightly darker on direct hover */
+.custom-scrollbar.is-scrolling::-webkit-scrollbar-thumb {
+  background-color: #c1c1c1;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb:active {
-  background-color: #888888 !important;
+.custom-scrollbar.is-scrolling::-webkit-scrollbar-thumb:hover {
+  background-color: #a8a8a8;
+}
+
+.custom-scrollbar.is-scrolling::-webkit-scrollbar-thumb:active {
+  background-color: #888888;
 }

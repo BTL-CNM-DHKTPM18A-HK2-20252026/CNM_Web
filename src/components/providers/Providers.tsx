@@ -10,6 +10,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     const handleScroll = (e: Event) => {
       const target = e.target as HTMLElement;
       if (target && target.classList && target.classList.contains('custom-scrollbar')) {
+        // Skip programmatic scrolls (flagged via data attribute)
+        if (target.dataset.programmaticScroll) return;
+
         target.classList.add('is-scrolling');
         
         clearTimeout(scrollTimeout);
