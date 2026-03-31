@@ -292,7 +292,13 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
                                 <span className="text-[12px] text-[var(--sub-text)] mt-0.5">{new Date(req.createdAt).toLocaleDateString()}</span>
                               </div>
                             </div>
-                            <button className="text-[var(--sub-text)] hover:text-blue-500 p-1 cursor-pointer"><MoreHorizontalIcon size={18} /></button>
+                            <button
+                              onClick={() => onSelectUser?.({ id: req.senderId, user_id: req.senderId, display_name: req.senderName, avatar_url: req.senderAvatarUrl })}
+                              title="Nhắn tin"
+                              className="text-[var(--sub-text)] hover:text-[#0068FF] hover:bg-blue-50 dark:hover:bg-blue-500/10 p-1.5 rounded-full cursor-pointer transition-all"
+                            >
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+                            </button>
                           </div>
 
                           <div className="bg-[var(--hover-bg)] p-3 rounded-lg text-[13.5px] text-[var(--text)] leading-relaxed italic">
@@ -342,7 +348,13 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
                                 <span className="text-[11px] text-[var(--sub-text)] opacity-60 underline italic">{new Date(req.createdAt).toLocaleDateString()}</span>
                               </div>
                             </div>
-                            <button className="text-[var(--sub-text)] hover:text-blue-500 p-1 cursor-pointer"><MoreHorizontalIcon size={18} /></button>
+                            <button
+                              onClick={() => onSelectUser?.({ id: req.receiverId, user_id: req.receiverId, display_name: req.receiverName, avatar_url: req.receiverAvatarUrl })}
+                              title="Nhắn tin"
+                              className="text-[var(--sub-text)] hover:text-[#0068FF] hover:bg-blue-50 dark:hover:bg-blue-500/10 p-1.5 rounded-full cursor-pointer transition-all"
+                            >
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+                            </button>
                           </div>
 
                           <div className="bg-[var(--hover-bg)] p-3 rounded-lg text-[13.2px] text-[var(--text)] leading-relaxed italic opacity-85">

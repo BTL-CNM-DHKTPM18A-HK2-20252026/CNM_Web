@@ -113,9 +113,12 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
 
           // Lấy userId của người chat cùng (dùng cho presence indicator)
           let otherUserId = '';
+          let myNickname = '';
           if ((c.conversationType === 'PRIVATE' || c.conversation_type === 'PRIVATE') && c.members) {
             const other = c.members.find((m: any) => (m.userId || m.user_id) !== currentUser?.id);
             if (other) otherUserId = other.userId || other.user_id || '';
+            const me = c.members.find((m: any) => (m.userId || m.user_id) === currentUser?.id);
+            if (me) myNickname = me.nickname || '';
           }
 
           return {
@@ -129,6 +132,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
             pinned: c.isPinned || c.is_pinned || false,
             unreadCount: c.unreadCount || c.unread_count || 0,
             otherUserId,
+            nickname: myNickname || undefined,
             conversationStatus: c.conversationStatus || c.conversation_status || 'NORMAL',
             isRequest: (c.conversationStatus || c.conversation_status) === 'PENDING',
           };

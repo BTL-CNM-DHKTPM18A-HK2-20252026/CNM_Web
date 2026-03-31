@@ -60,14 +60,11 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
   const [isSearching, setIsSearching] = useState(false);
   const [showClassifyMenu, setShowClassifyMenu] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [filterTab, setFilterTab] = useState<'all' | 'unread' | 'requests'>('all');
+  const [filterTab, setFilterTab] = useState<'all' | 'unread'>('all');
 
-  const requestCount = conversations.filter(c => c.isRequest).length;
-  const filteredConversations = filterTab === 'requests'
-    ? conversations.filter(c => c.isRequest)
-    : filterTab === 'unread'
-      ? conversations.filter(c => c.unreadCount && c.unreadCount > 0)
-      : conversations.filter(c => !c.isRequest);
+  const filteredConversations = filterTab === 'unread'
+    ? conversations.filter(c => (c.unreadCount && c.unreadCount > 0) || c.isRequest)
+    : conversations;
   const [contextMenu, setContextMenu] = useState<{ id: string | number; x: number; y: number } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
 
@@ -415,29 +412,18 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
         {!isSearching && (
           /* Tabs and Filters */
           <div className="flex items-center justify-between px-4 pb-0.5 border-b border-[var(--border)] relative">
-            <div className="flex gap-6 text-[14px] font-medium transition-colors duration-200">
+            <div className="flex gap-4 text-[13px] font-medium transition-colors duration-200">
               <button
                 onClick={() => setFilterTab('all')}
-                className={`py-2.5 cursor-pointer transition-colors relative ${filterTab === 'all' ? 'border-b-2 border-[var(--primary)] text-[var(--primary)]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
+                className={`py-2.5 cursor-pointer transition-colors relative whitespace-nowrap ${filterTab === 'all' ? 'border-b-2 border-[var(--primary)] text-[var(--primary)]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
               >
                 {t('chat.tabs.all')}
               </button>
               <button
                 onClick={() => setFilterTab('unread')}
-                className={`py-2.5 cursor-pointer transition-colors relative ${filterTab === 'unread' ? 'border-b-2 border-[var(--primary)] text-[var(--primary)]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
+                className={`py-2.5 cursor-pointer transition-colors relative whitespace-nowrap ${filterTab === 'unread' ? 'border-b-2 border-[var(--primary)] text-[var(--primary)]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
               >
                 {t('chat.tabs.unread')}
-              </button>
-              <button
-                onClick={() => setFilterTab('requests')}
-                className={`py-2.5 cursor-pointer transition-colors relative flex items-center gap-1.5 ${filterTab === 'requests' ? 'border-b-2 border-[var(--primary)] text-[var(--primary)]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
-              >
-                Tin nhắn chờ
-                {requestCount > 0 && (
-                  <span className="min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-bold text-white bg-[#EF4444]">
-                    {requestCount > 99 ? '99+' : requestCount}
-                  </span>
-                )}
               </button>
             </div>
             <div className="flex items-center gap-4 text-[13px] text-[var(--sub-text)]">

@@ -19,6 +19,7 @@ import { StickerPicker } from '@/components/common/StickerPicker';
 import { NicknameModal } from '@/components/common/NicknameModal';
 import { apiClient } from '@/services/api';
 import { websocketService } from '@/services/websocketService';
+import { friendService } from '@/services/friendService';
 import { useInView } from 'react-intersection-observer';
 import { StatusIndicator } from './StatusIndicator';
 
@@ -36,6 +37,7 @@ interface ChatWindowProps {
     otherUserId?: string;
     isRequest?: boolean;
     conversationStatus?: string;
+    nickname?: string;
   };
   currentUser?: any;
   onUpdateConversation?: (id: string | number, lastMsg: string, time?: string) => void;
@@ -93,9 +95,52 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
   const [message, setMessage] = React.useState("");
   const [isPickerOpen, setIsPickerOpen] = React.useState(false);
   const [pickerTab, setPickerTab] = React.useState<'sticker' | 'emoji' | 'gif'>('sticker');
+
+  // Nickname state
+  const [nickname, setNickname] = useState<string | null>(null);
+
+  // Message management states (Edit / Recall / Delete)
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [contextMenu, setContextMenu] = useState<{ msgId: string; x: number; y: number; isMe: boolean; type: string } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ type: 'recall' | 'delete'; msgId: string } | null>(null);
+
+  // Friend request state for stranger chats
+  const [friendRequestStatus, setFriendRequestStatus] = useState<'none' | 'received' | 'sent' | 'friend'>('none');
+  const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
+  const [friendActionLoading, setFriendActionLoading] = useState(false);
+
+  useEffect(() => {
+    const checkFriendStatus = async () => {
+      if (!selectedChat.otherUserId || !currentUser?.id || selectedChat.isCloud || selectedChat.isGroup) {
+        setFriendRequestStatus('none');
+        return;
+      }
+      try {
+        const [received, sent, friends] = await Promise.all([
+          friendService.getReceivedRequests(),
+          friendService.getSentRequests(),
+          friendService.getFriends(),
+        ]);
+        const isFriend = friends.some((f: any) => (f.user_id || f.id) === selectedChat.otherUserId);
+        if (isFriend) { setFriendRequestStatus('friend'); return; }
+        const receivedReq = received.find(r => r.senderId === selectedChat.otherUserId);
+        if (receivedReq) { setFriendRequestStatus('received'); setPendingRequestId(receivedReq.requestId); return; }
+        const sentReq = sent.find(r => r.receiverId === selectedChat.otherUserId);
+        if (sentReq) { setFriendRequestStatus('sent'); return; }
+        setFriendRequestStatus('none');
+      } catch { setFriendRequestStatus('none'); }
+    };
+    checkFriendStatus();
+  }, [selectedChat.otherUserId, selectedChat.isCloud, selectedChat.isGroup, currentUser?.id]);
   const [isNicknameModalOpen, setIsNicknameModalOpen] = React.useState(false);
   const [isFilePopoverOpen, setIsFilePopoverOpen] = React.useState(false);
   const [isUserDataModalOpen, setIsUserDataModalOpen] = useState(false);
+
+  // Fetch nickname for current conversation member
+  useEffect(() => {
+    setNickname(selectedChat?.nickname || null);
+  }, [selectedChat?.id, selectedChat?.nickname]);
 
   // Voice Recording
   const [isRecording, setIsRecording] = useState(false);
@@ -469,7 +514,34 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
   const [readReceipts, setReadReceipts] = React.useState<Record<string, { displayName: string; avatarUrl?: string; messageId: string }>>({});
   const lastSentReadRef = useRef<string | null>(null);
 
-  // Subscribe to read receipt events
+  // Load initial read status from DB when opening a conversation
+  React.useEffect(() => {
+    if (!selectedChat?.id || selectedChat.isNew) return;
+    const fetchReadStatus = async () => {
+      try {
+        const res = await apiClient.get(`/conversations/${selectedChat.id}/read-status`);
+        const data = res?.success ? res.data : (Array.isArray(res) ? res : []);
+        if (Array.isArray(data)) {
+          const initial: Record<string, { displayName: string; avatarUrl?: string; messageId: string }> = {};
+          data.forEach((entry: any) => {
+            if (entry.userId && entry.messageId) {
+              initial[entry.userId] = {
+                displayName: entry.displayName || 'User',
+                avatarUrl: entry.avatarUrl || undefined,
+                messageId: entry.messageId,
+              };
+            }
+          });
+          setReadReceipts(initial);
+        }
+      } catch (e) {
+        console.error("Failed to fetch read status:", e);
+      }
+    };
+    fetchReadStatus();
+  }, [selectedChat?.id]);
+
+  // Subscribe to read receipt events (real-time updates)
   React.useEffect(() => {
     if (!selectedChat?.id || selectedChat.isNew) return;
 
@@ -493,7 +565,6 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
 
     return () => {
       readSub?.unsubscribe();
-      setReadReceipts({});
       lastSentReadRef.current = null;
     };
   }, [selectedChat?.id, currentUser?.id]);
@@ -574,7 +645,9 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
               }
               return { emoji, userId: r.userId, id: r.id || r.reactionId, userName: r.userName, userAvatar: r.userAvatar };
             }),
-            rawDate: m.createdAt ? new Date(m.createdAt) : undefined
+            rawDate: m.createdAt ? new Date(m.createdAt) : undefined,
+            isEdited: m.isEdited || false,
+            isRecalled: m.isRecalled || false,
           }));
 
           setMessages(mapped);
@@ -622,6 +695,31 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
             return;
           }
 
+          // Handle MESSAGE_EDIT event
+          if (newMsg.type === 'MESSAGE_EDIT') {
+            setMessages(prev => prev.map(m => {
+              if (m.id === newMsg.messageId) {
+                return { ...m, text: newMsg.content, isEdited: true };
+              }
+              return m;
+            }));
+            return;
+          }
+
+          // Handle MESSAGE_RECALL event
+          if (newMsg.type === 'MESSAGE_RECALL') {
+            setMessages(prev => prev.map(m => {
+              if (m.id === newMsg.messageId) {
+                return { ...m, isRecalled: true, text: '' };
+              }
+              return m;
+            }));
+            if (onUpdateConversation) {
+              onUpdateConversation(selectedChat.id, 'Tin nhắn đã được thu hồi');
+            }
+            return;
+          }
+
           if (onUpdateConversation) {
             onUpdateConversation(selectedChat.id, getSnippet(newMsg.content, newMsg.messageType), newMsg.createdAt ? new Date(newMsg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }) : undefined);
           }
@@ -638,7 +736,9 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
               time: newMsg.createdAt ? new Date(newMsg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }) : new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
               avatar: newMsg.senderAvatarUrl,
               reactions: [],
-              rawDate: newMsg.createdAt ? new Date(newMsg.createdAt) : new Date()
+              rawDate: newMsg.createdAt ? new Date(newMsg.createdAt) : new Date(),
+              isEdited: newMsg.isEdited || false,
+              isRecalled: newMsg.isRecalled || false,
             };
             setShouldScrollToBottom(true);
             return [...prev, mappedMsg];
@@ -722,7 +822,9 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
             }
             return { emoji, userId: r.userId, id: r.id || r.reactionId, userName: r.userName, userAvatar: r.userAvatar };
           }),
-          rawDate: m.createdAt ? new Date(m.createdAt) : undefined
+          rawDate: m.createdAt ? new Date(m.createdAt) : undefined,
+          isEdited: m.isEdited || false,
+          isRecalled: m.isRecalled || false,
         }));
 
         setMessages(prev => {
@@ -849,6 +951,61 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
     } catch (e) { console.error("React failed", e); }
   };
 
+  // === Message management handlers ===
+  const handleEditMessage = async (messageId: string) => {
+    if (!editContent.trim()) return;
+    try {
+      await apiClient.put(`/messages/${messageId}?content=${encodeURIComponent(editContent.trim())}`, {});
+      setEditingMessageId(null);
+      setEditContent('');
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || 'Không thể chỉnh sửa tin nhắn';
+      toast.error(msg);
+    }
+  };
+
+  const handleRecallMessage = async (messageId: string) => {
+    try {
+      await apiClient.post(`/messages/${messageId}/recall`, {});
+      setConfirmDialog(null);
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || 'Không thể thu hồi tin nhắn';
+      toast.error(msg);
+      setConfirmDialog(null);
+    }
+  };
+
+  const handleDeleteLocal = async (messageId: string) => {
+    try {
+      await apiClient.delete(`/messages/${messageId}/local`);
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+      setConfirmDialog(null);
+      toast.success('Đã xóa tin nhắn ở phía bạn');
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || 'Không thể xóa tin nhắn';
+      toast.error(msg);
+      setConfirmDialog(null);
+    }
+  };
+
+  const startEditMessage = (msg: any) => {
+    setEditingMessageId(msg.id);
+    setEditContent(msg.text);
+    setContextMenu(null);
+  };
+
+  const openContextMenu = (e: React.MouseEvent, msg: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({
+      msgId: msg.id,
+      x: e.clientX,
+      y: e.clientY,
+      isMe: msg.sender === 'Me',
+      type: msg.type,
+    });
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-[var(--background)] transition-colors duration-200">
       {/* HEADER */}
@@ -876,7 +1033,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           <div className="min-w-0 group/info cursor-pointer flex items-center gap-2">
             <div>
               <h3 className="text-[18px] font-bold leading-none mb-1.5 text-[var(--text)] truncate flex items-center gap-1.5">
-                {selectedChat.name}
+                {nickname || selectedChat.name}
                 <button onClick={() => setIsNicknameModalOpen(true)} className="p-1 hover:bg-[var(--hover-bg)] rounded-md opacity-0 group-hover/info:opacity-100 transition-all text-gray-400 hover:text-[var(--text)]">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                 </button>
@@ -911,17 +1068,58 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       </div>
 
       {/* STRANGER WARNING BANNER */}
-      {selectedChat.isRequest && (
-        <div className="px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 flex items-center gap-2.5">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
-          <span className="text-[13px] text-amber-800 dark:text-amber-200">
-            Người này không có trong danh bạ của bạn. Hãy cẩn thận với các đường link lạ.
-          </span>
+      {!selectedChat.isCloud && !selectedChat.isGroup && friendRequestStatus !== 'friend' && (
+        <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 flex items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+            <span className="text-[13px] text-amber-800 dark:text-amber-200">
+              Người này không có trong danh bạ của bạn. Hãy cẩn thận với các đường link lạ.
+            </span>
+          </div>
+          <div className="shrink-0">
+            {friendRequestStatus === 'received' ? (
+              <button
+                disabled={friendActionLoading}
+                onClick={async () => {
+                  if (!pendingRequestId) return;
+                  setFriendActionLoading(true);
+                  try {
+                    await friendService.acceptRequest(pendingRequestId);
+                    toast.success('Đã chấp nhận lời mời kết bạn!');
+                    setFriendRequestStatus('friend');
+                  } catch { toast.error('Không thể chấp nhận lời mời'); }
+                  setFriendActionLoading(false);
+                }}
+                className="px-3 py-1.5 bg-[#0068FF] hover:bg-[#0052CC] text-white text-[13px] font-semibold rounded-md transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50"
+              >
+                Đồng ý
+              </button>
+            ) : friendRequestStatus === 'sent' ? (
+              <span className="text-[12px] text-amber-700 dark:text-amber-300 italic whitespace-nowrap">Đã gửi lời mời</span>
+            ) : (
+              <button
+                disabled={friendActionLoading}
+                onClick={async () => {
+                  if (!selectedChat.otherUserId) return;
+                  setFriendActionLoading(true);
+                  try {
+                    await friendService.sendRequest(selectedChat.otherUserId);
+                    toast.success('Đã gửi lời mời kết bạn!');
+                    setFriendRequestStatus('sent');
+                  } catch { toast.error('Không thể gửi lời mời'); }
+                  setFriendActionLoading(false);
+                }}
+                className="px-3 py-1.5 bg-[#0068FF] hover:bg-[#0052CC] text-white text-[13px] font-semibold rounded-md transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50"
+              >
+                Kết bạn
+              </button>
+            )}
+          </div>
         </div>
       )}
 
       {/* MESSAGES */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar px-4 pt-4 pb-8 bg-[var(--chat-bg)]">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar px-4 pt-4 pb-8 bg-[var(--chat-bg)]" onScroll={() => setContextMenu(null)}>
         {hasMore && <div ref={loadMoreRef} className="h-4 opacity-0" />}
         {isLoadingMore && <div className="flex justify-center p-2"><div className="w-5 h-5 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" /></div>}
 
@@ -961,15 +1159,39 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                           <span className="text-[12px] font-semibold text-[var(--sub-text)] mb-0.5 ml-1">{msg.sender}</span>
                         )}
                         <div className={`relative group w-fit min-w-[100px] 
-                    ${msg.type === 'MEDIA' || msg.type === 'IMAGE' || msg.type === 'VIDEO'
-                            ? ''
-                            : `px-3 pt-2 pb-2 rounded-lg shadow-sm text-[15px] border ${msg.sender === 'Me'
-                              ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)] border-[var(--message-me-border)]'
-                              : 'bg-[var(--message-other-bg)] text-[var(--message-other-text)] border-[var(--message-other-border)]'
-                            }`
-                          }`}>
+                    ${msg.isRecalled
+                            ? `px-3 pt-2 pb-2 rounded-lg shadow-sm text-[15px] border border-dashed ${msg.sender === 'Me' ? 'border-gray-300 dark:border-gray-600' : 'border-gray-300 dark:border-gray-600'}`
+                            : msg.type === 'MEDIA' || msg.type === 'IMAGE' || msg.type === 'VIDEO'
+                              ? ''
+                              : `px-3 pt-2 pb-2 rounded-lg shadow-sm text-[15px] border ${msg.sender === 'Me'
+                                ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)] border-[var(--message-me-border)]'
+                                : 'bg-[var(--message-other-bg)] text-[var(--message-other-text)] border-[var(--message-other-border)]'
+                              }`
+                          }`}
+                          onContextMenu={(e) => openContextMenu(e, msg)}
+                        >
                           <div className="leading-relaxed">
-                            {msg.type === 'IMAGE' || msg.type === 'VIDEO' ? (
+                            {msg.isRecalled ? (
+                              <div className="flex items-center gap-2 py-1 text-[var(--sub-text)] italic opacity-70">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
+                                <span className="text-[14px]">Tin nhắn đã được thu hồi</span>
+                              </div>
+                            ) : editingMessageId === msg.id ? (
+                              <div className="flex flex-col gap-2 min-w-[250px]">
+                                <input
+                                  type="text"
+                                  value={editContent}
+                                  onChange={(e) => setEditContent(e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') handleEditMessage(msg.id); if (e.key === 'Escape') { setEditingMessageId(null); setEditContent(''); } }}
+                                  className="w-full bg-transparent outline-none border-b-2 border-[#0068FF] text-[15px] py-1 text-[var(--text)]"
+                                  autoFocus
+                                />
+                                <div className="flex items-center gap-2 justify-end">
+                                  <button onClick={() => { setEditingMessageId(null); setEditContent(''); }} className="text-[12px] text-[var(--sub-text)] hover:text-[var(--text)] px-2 py-1 rounded cursor-pointer">Hủy</button>
+                                  <button onClick={() => handleEditMessage(msg.id)} className="text-[12px] text-white bg-[#0068FF] hover:bg-[#0052CC] px-3 py-1 rounded font-medium cursor-pointer">Lưu</button>
+                                </div>
+                              </div>
+                            ) : msg.type === 'IMAGE' || msg.type === 'VIDEO' ? (
                               <div className="relative group/media-content w-fit max-w-full">
                                 {msg.type === 'IMAGE' ? (
                                   <img src={msg.text} alt="Shared" onLoad={scrollToBottom} className="max-w-[320px] max-h-[360px] rounded-md cursor-pointer hover:opacity-90 transition-all shadow-sm object-contain" onClick={() => window.open(msg.text, '_blank')} />
@@ -1011,7 +1233,10 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                                     </>
                                   )}
                                 </div>
-                                <div className="absolute bottom-1.5 right-0 text-[11.5px] text-[var(--sub-text)] opacity-90 font-medium leading-none">{msg.time}</div>
+                                <div className="absolute bottom-1.5 right-0 text-[11.5px] text-[var(--sub-text)] opacity-90 font-medium leading-none flex items-center gap-1">
+                                  {msg.isEdited && <span className="italic opacity-70">Đã chỉnh sửa</span>}
+                                  {msg.time}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -1048,50 +1273,79 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                         </div>
 
                         {/* Status & Time (Outside and below) */}
-                        {(msg.type !== 'TEXT' || (msg.sender === 'Me' && index === messages.length - 1)) && (
-                          <div className={`mt-6 flex items-center gap-2 ${msg.sender === 'Me' ? 'justify-end' : 'justify-start'}`}>
-                            {msg.type !== 'TEXT' && (
-                              <span className="text-[11px] text-[var(--sub-text)] opacity-100 font-medium">{msg.time}</span>
-                            )}
-                            {msg.sender === 'Me' && index === messages.length - 1 && (() => {
-                              const readers = Object.values(readReceipts).filter(r => r.messageId === msg.id);
-                              const anyReaders = Object.keys(readReceipts).length > 0;
-                              if (anyReaders) {
-                                return (
-                                  <div className="flex items-center gap-1">
-                                    {readers.length > 0 && readers.slice(0, 3).map((r, i) => (
-                                      <div key={i} className="w-4 h-4 rounded-full overflow-hidden border border-white">
-                                        {r.avatarUrl ? (
-                                          <img src={r.avatarUrl} alt="" className="w-full h-full object-cover" />
-                                        ) : (
-                                          <div className="w-full h-full bg-blue-500 flex items-center justify-center text-[8px] text-white font-bold">{r.displayName?.charAt(0)}</div>
-                                        )}
+                        {(() => {
+                          // Compute who has read up to this message
+                          const isLastMyMsg = msg.sender === 'Me' && (() => {
+                            for (let k = index + 1; k < messages.length; k++) {
+                              if (messages[k].sender === 'Me') return false;
+                            }
+                            return true;
+                          })();
+                          const showReadStatus = msg.sender === 'Me' && isLastMyMsg;
+
+                          // Collect readers who have read up to or past this message
+                          const readersForThisMsg = showReadStatus ? Object.values(readReceipts).filter(r => {
+                            const readerIdx = messages.findIndex(m => m.id === r.messageId);
+                            return readerIdx >= index;
+                          }) : [];
+                          const anyReaders = Object.keys(readReceipts).length > 0;
+
+                          const showSection = msg.type !== 'TEXT' || showReadStatus;
+                          if (!showSection) return null;
+
+                          return (
+                            <div className={`mt-6 flex items-center gap-2 ${msg.sender === 'Me' ? 'justify-end' : 'justify-start'}`}>
+                              {msg.type !== 'TEXT' && (
+                                <span className="text-[11px] text-[var(--sub-text)] opacity-100 font-medium">{msg.time}</span>
+                              )}
+                              {showReadStatus && (() => {
+                                if (readersForThisMsg.length > 0) {
+                                  return (
+                                    <div className="flex items-center gap-1">
+                                      {readersForThisMsg.slice(0, 3).map((r, i) => (
+                                        <div key={i} className="w-4 h-4 rounded-full overflow-hidden border border-white">
+                                          {r.avatarUrl ? (
+                                            <img src={r.avatarUrl} alt="" className="w-full h-full object-cover" />
+                                          ) : (
+                                            <div className="w-full h-full bg-blue-500 flex items-center justify-center text-[8px] text-white font-bold">{r.displayName?.charAt(0)}</div>
+                                          )}
+                                        </div>
+                                      ))}
+                                      <div className="bg-blue-500/10 rounded-full px-2 py-0.5 flex items-center gap-1 text-[11px] text-blue-500 font-medium">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /><polyline points="14 6 3 17" /></svg>
+                                        <span>Đã xem</span>
                                       </div>
-                                    ))}
+                                    </div>
+                                  );
+                                }
+                                if (anyReaders) {
+                                  return (
                                     <div className="bg-blue-500/10 rounded-full px-2 py-0.5 flex items-center gap-1 text-[11px] text-blue-500 font-medium">
                                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /><polyline points="14 6 3 17" /></svg>
                                       <span>Đã xem</span>
                                     </div>
+                                  );
+                                }
+                                return (
+                                  <div className="bg-black/5 dark:bg-white/10 rounded-full px-2 py-0.5 flex items-center gap-1 text-[11px] text-[var(--sub-text)] font-medium">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--sub-text)] opacity-70"><polyline points="20 6 9 17 4 12" /></svg>
+                                    <span>Đã gửi</span>
                                   </div>
                                 );
-                              }
-                              return (
-                                <div className="bg-black/5 dark:bg-white/10 rounded-full px-2 py-0.5 flex items-center gap-1 text-[11px] text-[var(--sub-text)] font-medium">
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--sub-text)] opacity-70"><polyline points="20 6 9 17 4 12" /></svg>
-                                  <span>Đã gửi</span>
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        )}
+                              })()}
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {/* Actions on hover */}
-                      <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity h-fit ${msg.sender === 'Me' ? 'mr-0.5 flex-row-reverse self-center' : 'ml-0.5 self-center'}`}>
-                        <button className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg></button>
-                        <button className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 10l5-5 5 5M8 6v8a4 4 0 004 4h9" /></svg></button>
-                        <button className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg></button>
-                      </div>
+                      {!msg.isRecalled && (
+                        <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity h-fit ${msg.sender === 'Me' ? 'mr-0.5 flex-row-reverse self-center' : 'ml-0.5 self-center'}`}>
+                          <button title="Trả lời" className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg></button>
+                          <button title="Chuyển tiếp" className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 10l5-5 5 5M8 6v8a4 4 0 004 4h9" /></svg></button>
+                          <button title="Thêm" onClick={(e) => openContextMenu(e, msg)} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg></button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1103,144 +1357,185 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       </div>
 
       {/* INPUT BAR */}
-      {selectedChat.isRequest ? (
-        /* Message Request Action Bar */
-        <div className="bg-[var(--card-bg)] border-t border-[var(--border)] flex-shrink-0 px-4 py-3 flex items-center justify-center gap-3">
-          <button
-            onClick={async () => {
-              try {
-                await apiClient.post(`/conversations/${selectedChat.id}/block`, {});
-                toast.success('Đã chặn người dùng này');
-                if (onUpdateConversation) onUpdateConversation(selectedChat.id, '', '');
-              } catch (e: any) { toast.error(e.message || 'Không thể chặn'); }
-            }}
-            className="px-5 py-2 rounded-lg bg-red-50 dark:bg-red-500/10 text-red-500 font-semibold text-[14px] hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors cursor-pointer border border-red-200 dark:border-red-500/20"
-          >
-            Chặn
-          </button>
-          <button
-            onClick={async () => {
-              try {
-                await apiClient.delete(`/conversations/${selectedChat.id}/decline`);
-                toast.success('Đã từ chối tin nhắn');
-                if (onUpdateConversation) onUpdateConversation(selectedChat.id, '', '');
-              } catch (e: any) { toast.error(e.message || 'Không thể từ chối'); }
-            }}
-            className="px-5 py-2 rounded-lg bg-gray-100 dark:bg-white/10 text-[var(--text)] font-semibold text-[14px] hover:bg-gray-200 dark:hover:bg-white/15 transition-colors cursor-pointer border border-[var(--border)]"
-          >
-            Xóa
-          </button>
-          <button
-            onClick={async () => {
-              try {
-                await apiClient.post(`/conversations/${selectedChat.id}/accept`, {});
-                toast.success('Đã chấp nhận tin nhắn');
-                if (onUpdateConversation) onUpdateConversation(selectedChat.id, '', '');
-              } catch (e: any) { toast.error(e.message || 'Không thể chấp nhận'); }
-            }}
-            className="px-5 py-2 rounded-lg bg-[#0068FF] text-white font-semibold text-[14px] hover:bg-[#0052CC] transition-colors cursor-pointer"
-          >
-            Chấp nhận
-          </button>
-        </div>
-      ) : (
-        <div className="bg-[var(--card-bg)] border-t border-[var(--border)] flex-shrink-0 transition-colors duration-200">
-          <div className="flex items-center px-4 py-1.5 gap-1.5 border-b border-[var(--border)] relative h-[46px]">
-            {isRecording ? (
-              <div className="flex-1 flex items-center justify-between animate-in slide-in-from-bottom-2 duration-300">
-                <div className="flex items-center gap-3 px-3 py-1.5 bg-red-50 dark:bg-red-500/10 text-red-500 rounded-lg border border-red-100 dark:border-red-500/20">
-                  <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                  <div className="flex flex-col leading-none">
-                    <span className="text-[13px] font-bold font-mono">
-                      {Math.floor(recordingTime / 60)}:{String(recordingTime % 60).padStart(2, '0')}
-                    </span>
-                    <span className="text-[10px] opacity-70 font-medium mt-0.5">Đang ghi âm...</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => stopRecording(true)}
-                    className="text-[13px] font-bold text-[var(--sub-text)] hover:text-red-500 px-3 py-2 cursor-pointer transition-colors"
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    onClick={() => stopRecording(false)}
-                    className="h-8 px-4 flex items-center gap-2 rounded-md bg-red-500 text-white animate-pulse cursor-pointer shadow-lg shadow-red-500/20"
-                  >
-                    <VoiceIcon size={18} />
-                    <span className="text-[13px] font-bold">Gửi</span>
-                  </button>
+      <div className="bg-[var(--card-bg)] border-t border-[var(--border)] flex-shrink-0 transition-colors duration-200">
+        <div className="flex items-center px-4 py-1.5 gap-1.5 border-b border-[var(--border)] relative h-[46px]">
+          {isRecording ? (
+            <div className="flex-1 flex items-center justify-between animate-in slide-in-from-bottom-2 duration-300">
+              <div className="flex items-center gap-3 px-3 py-1.5 bg-red-50 dark:bg-red-500/10 text-red-500 rounded-lg border border-red-100 dark:border-red-500/20">
+                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                <div className="flex flex-col leading-none">
+                  <span className="text-[13px] font-bold font-mono">
+                    {Math.floor(recordingTime / 60)}:{String(recordingTime % 60).padStart(2, '0')}
+                  </span>
+                  <span className="text-[10px] opacity-70 font-medium mt-0.5">Đang ghi âm...</span>
                 </div>
               </div>
-            ) : (
-              <>
-                <button onClick={() => togglePicker('sticker')} className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer ${isPickerOpen && pickerTab === 'sticker' ? 'bg-[var(--hover-bg)] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}><StickerIcon size={20} /></button>
-                <button onClick={handleImageClick} className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] cursor-pointer"><ImagePickerIcon size={20} /></button>
-                <input type="file" ref={imageInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
-                <button onClick={handleVideoClick} className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] cursor-pointer"><VideoPickerIcon size={20} /></button>
-                <input type="file" ref={videoInputRef} onChange={handleVideoChange} accept="video/*" className="hidden" />
-                <div className="relative">
-                  <button onClick={handleFileIconClick} className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer ${isFilePopoverOpen ? 'bg-[var(--hover-bg)] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}><FilePickerIcon size={20} /></button>
-                  {isFilePopoverOpen && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setIsFilePopoverOpen(false)} />
-                      <div className="absolute bottom-[calc(100%+14px)] left-[-10px] bg-[var(--card-bg)] border border-[var(--border)] rounded-lg shadow-xl z-50 p-0 overflow-hidden min-w-[140px]">
-                        <button onClick={handleFileClick} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-[var(--hover-bg)] w-full text-left text-[var(--text)] text-[14px] font-medium cursor-pointer"><FilePickerIcon size={18} />Chọn File</button>
-                        <div className="absolute top-[calc(100%-1px)] left-4 w-4 h-4 overflow-hidden"><div className="w-2.5 h-2.5 bg-[var(--card-bg)] border-b border-r border-[var(--border)] rotate-45 -translate-y-1.5 mx-auto" /></div>
-                      </div>
-                    </>
-                  )}
-                </div>
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
-                <button className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] cursor-pointer"><ScreenShotIcon size={20} /></button>
-                <button className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] cursor-pointer"><BusinessCardIcon size={20} /></button>
-                <button className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] cursor-pointer"><LightningIcon size={20} /></button>
+
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (isRecording) stopRecording();
-                    else startRecording();
-                  }}
-                  disabled={isInitializingMic}
-                  className={`w-8 h-8 flex items-center justify-center rounded-md transition-all cursor-pointer ${isInitializingMic ? 'opacity-50 cursor-not-allowed' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}
+                  onClick={() => stopRecording(true)}
+                  className="text-[13px] font-bold text-[var(--sub-text)] hover:text-red-500 px-3 py-2 cursor-pointer transition-colors"
                 >
-                  {isInitializingMic ? (
-                    <div className="w-4 h-4 border-2 border-[var(--text)] border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <VoiceIcon size={20} />
-                  )}
+                  Hủy
                 </button>
-              </>
-            )}
-            <StickerPicker isOpen={isPickerOpen} onClose={() => setIsPickerOpen(false)} onSelect={onSelectSticker} activeTab={pickerTab} />
-          </div>
-          {/* Typing indicator */}
-          {typingUsers.length > 0 && (
-            <div className="px-4 py-1 text-[12px] text-[var(--sub-text)] italic animate-pulse">
-              {typingUsers.length === 1
-                ? `${typingUsers[0].displayName} đang soạn tin...`
-                : `${typingUsers.map(u => u.displayName).join(', ')} đang soạn tin...`}
+                <button
+                  onClick={() => stopRecording(false)}
+                  className="h-8 px-4 flex items-center gap-2 rounded-md bg-red-500 text-white animate-pulse cursor-pointer shadow-lg shadow-red-500/20"
+                >
+                  <VoiceIcon size={18} />
+                  <span className="text-[13px] font-bold">Gửi</span>
+                </button>
+              </div>
             </div>
+          ) : (
+            <>
+              <button onClick={() => togglePicker('sticker')} className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer ${isPickerOpen && pickerTab === 'sticker' ? 'bg-[var(--hover-bg)] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}><StickerIcon size={20} /></button>
+              <button onClick={handleImageClick} className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] cursor-pointer"><ImagePickerIcon size={20} /></button>
+              <input type="file" ref={imageInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
+              <button onClick={handleVideoClick} className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] cursor-pointer"><VideoPickerIcon size={20} /></button>
+              <input type="file" ref={videoInputRef} onChange={handleVideoChange} accept="video/*" className="hidden" />
+              <div className="relative">
+                <button onClick={handleFileIconClick} className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer ${isFilePopoverOpen ? 'bg-[var(--hover-bg)] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}><FilePickerIcon size={20} /></button>
+                {isFilePopoverOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsFilePopoverOpen(false)} />
+                    <div className="absolute bottom-[calc(100%+14px)] left-[-10px] bg-[var(--card-bg)] border border-[var(--border)] rounded-lg shadow-xl z-50 p-0 overflow-hidden min-w-[140px]">
+                      <button onClick={handleFileClick} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-[var(--hover-bg)] w-full text-left text-[var(--text)] text-[14px] font-medium cursor-pointer"><FilePickerIcon size={18} />Chọn File</button>
+                      <div className="absolute top-[calc(100%-1px)] left-4 w-4 h-4 overflow-hidden"><div className="w-2.5 h-2.5 bg-[var(--card-bg)] border-b border-r border-[var(--border)] rotate-45 -translate-y-1.5 mx-auto" /></div>
+                    </div>
+                  </>
+                )}
+              </div>
+              <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+              <button className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] cursor-pointer"><ScreenShotIcon size={20} /></button>
+              <button className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] cursor-pointer"><BusinessCardIcon size={20} /></button>
+              <button className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] cursor-pointer"><LightningIcon size={20} /></button>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (isRecording) stopRecording();
+                  else startRecording();
+                }}
+                disabled={isInitializingMic}
+                className={`w-8 h-8 flex items-center justify-center rounded-md transition-all cursor-pointer ${isInitializingMic ? 'opacity-50 cursor-not-allowed' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}
+              >
+                {isInitializingMic ? (
+                  <div className="w-4 h-4 border-2 border-[var(--text)] border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <VoiceIcon size={20} />
+                )}
+              </button>
+            </>
           )}
-          <div className="flex items-center px-4 py-3 gap-3">
-            <div className="flex-1">
-              <input type="text" value={message} onChange={(e) => { setMessage(e.target.value); sendTypingIndicator(); }} onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); }} placeholder={t('chat.input_placeholder')} className="w-full bg-transparent outline-none text-[15px] placeholder:text-[var(--sub-text)] placeholder:opacity-50 py-1 text-[var(--text)]" />
+          <StickerPicker isOpen={isPickerOpen} onClose={() => setIsPickerOpen(false)} onSelect={onSelectSticker} activeTab={pickerTab} />
+        </div>
+        {/* Typing indicator */}
+        {typingUsers.length > 0 && (
+          <div className="px-4 py-1 text-[12px] text-[var(--sub-text)] italic animate-pulse">
+            {typingUsers.length === 1
+              ? `${typingUsers[0].displayName} đang soạn tin...`
+              : `${typingUsers.map(u => u.displayName).join(', ')} đang soạn tin...`}
+          </div>
+        )}
+        <div className="flex items-center px-4 py-3 gap-3">
+          <div className="flex-1">
+            <input type="text" value={message} onChange={(e) => { setMessage(e.target.value); sendTypingIndicator(); }} onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); }} placeholder={t('chat.input_placeholder')} className="w-full bg-transparent outline-none text-[15px] placeholder:text-[var(--sub-text)] placeholder:opacity-50 py-1 text-[var(--text)]" />
+          </div>
+          <div className="flex items-center gap-2 pr-1 shrink-0">
+            <button onClick={() => togglePicker('emoji')} className={`transition-colors cursor-pointer ${isPickerOpen && pickerTab === 'emoji' ? 'text-[#0068FF]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}><EmojiIcon size={22} /></button>
+            {message.trim() ? (
+              <button onClick={() => handleSendMessage()} className="text-[#0068FF] flex items-center justify-center transform translate-y-[-1px] cursor-pointer"><SendIcon size={22} /></button>
+            ) : (
+              <button onClick={() => handleSendMessage('👍')} className="text-[#0068FF] hover:scale-110 active:scale-90 flex items-center justify-center transform translate-y-[-1.5px] cursor-pointer"><LikeIcon size={22} /></button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <NicknameModal isOpen={isNicknameModalOpen} onClose={() => setIsNicknameModalOpen(false)} currentName={nickname || selectedChat.name} avatar={selectedChat.avatar} onConfirm={async (newName) => {
+        try {
+          await apiClient.patch(`/conversations/${selectedChat.id}/nickname`, { nickname: newName });
+          setNickname(newName && newName !== selectedChat.name ? newName : null);
+          toast.success('Đã cập nhật biệt danh');
+        } catch (e) {
+          toast.error('Không thể cập nhật biệt danh');
+        }
+      }} />
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <>
+          <div className="fixed inset-0 z-[150]" onClick={() => setContextMenu(null)} />
+          <div
+            className="fixed z-[151] bg-[var(--card-bg)] border border-[var(--border)] rounded-lg shadow-2xl py-1 min-w-[180px] animate-in fade-in zoom-in-95 duration-150"
+            style={{ top: contextMenu.y, left: contextMenu.x, transform: 'translate(-50%, 4px)' }}
+          >
+            {contextMenu.isMe && contextMenu.type === 'TEXT' && (
+              <button
+                onClick={() => {
+                  const msg = messages.find(m => m.id === contextMenu.msgId);
+                  if (msg) startEditMessage(msg);
+                }}
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-[14px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                Chỉnh sửa
+              </button>
+            )}
+            {contextMenu.isMe && (
+              <button
+                onClick={() => { setConfirmDialog({ type: 'recall', msgId: contextMenu.msgId }); setContextMenu(null); }}
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-[14px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
+                Thu hồi
+              </button>
+            )}
+            <button
+              onClick={() => { setConfirmDialog({ type: 'delete', msgId: contextMenu.msgId }); setContextMenu(null); }}
+              className="flex items-center gap-3 w-full px-4 py-2.5 text-[14px] text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+              Xóa ở phía tôi
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Confirmation Dialog */}
+      {confirmDialog && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-[1px]">
+          <div className="bg-[var(--card-bg)] w-[380px] max-w-[90vw] rounded-lg shadow-2xl overflow-hidden border border-[var(--border)]">
+            <div className="px-5 pt-5 pb-3">
+              <h3 className="text-[16px] font-bold text-[var(--text)] mb-2">
+                {confirmDialog.type === 'recall' ? 'Thu hồi tin nhắn' : 'Xóa tin nhắn'}
+              </h3>
+              <p className="text-[14px] text-[var(--sub-text)]">
+                {confirmDialog.type === 'recall'
+                  ? 'Tin nhắn sẽ bị thu hồi với tất cả mọi người trong cuộc trò chuyện. Bạn có chắc không?'
+                  : 'Tin nhắn sẽ chỉ bị xóa ở phía bạn. Người khác vẫn có thể xem. Bạn có chắc không?'}
+              </p>
             </div>
-            <div className="flex items-center gap-2 pr-1 shrink-0">
-              <button onClick={() => togglePicker('emoji')} className={`transition-colors cursor-pointer ${isPickerOpen && pickerTab === 'emoji' ? 'text-[#0068FF]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}><EmojiIcon size={22} /></button>
-              {message.trim() ? (
-                <button onClick={() => handleSendMessage()} className="text-[#0068FF] flex items-center justify-center transform translate-y-[-1px] cursor-pointer"><SendIcon size={22} /></button>
-              ) : (
-                <button onClick={() => handleSendMessage('👍')} className="text-[#0068FF] hover:scale-110 active:scale-90 flex items-center justify-center transform translate-y-[-1.5px] cursor-pointer"><LikeIcon size={22} /></button>
-              )}
+            <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-[var(--border)]">
+              <button
+                onClick={() => setConfirmDialog(null)}
+                className="px-4 py-2 text-[14px] font-medium text-[var(--sub-text)] hover:bg-[var(--hover-bg)] rounded-md transition-colors cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => {
+                  if (confirmDialog.type === 'recall') handleRecallMessage(confirmDialog.msgId);
+                  else handleDeleteLocal(confirmDialog.msgId);
+                }}
+                className={`px-4 py-2 text-[14px] font-medium text-white rounded-md transition-colors cursor-pointer ${confirmDialog.type === 'recall' ? 'bg-[#0068FF] hover:bg-[#0052CC]' : 'bg-red-500 hover:bg-red-600'}`}
+              >
+                {confirmDialog.type === 'recall' ? 'Thu hồi' : 'Xóa'}
+              </button>
             </div>
           </div>
         </div>
       )}
-
-      <NicknameModal isOpen={isNicknameModalOpen} onClose={() => setIsNicknameModalOpen(false)} currentName={selectedChat.name} avatar={selectedChat.avatar} onConfirm={(newName) => { }} />
 
       {reactionModalMessageId && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-[1px]">
