@@ -212,7 +212,9 @@
     },
     "typing": {
       "one": "{{name}} is typing...",
-      "many": "{{names}} are typing..."
+      "many": "{{names}} are typing...",
+      "suffix_one": "is typing",
+      "suffix_many": "are typing"
     },
     "nickname": {
       "update_success": "Nickname updated",

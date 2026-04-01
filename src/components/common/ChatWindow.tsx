@@ -53,6 +53,7 @@ type AiThemeType = 'GENERAL' | 'SALES' | 'OFFICE' | 'GLOBAL' | 'CREATIVE' | 'STU
 
 const AI_ACCESS_SETTINGS_STORAGE_KEY = 'fruvia.ai.access-settings.v1';
 const AI_THEME_STORAGE_KEY = 'fruvia.ai.theme.v1';
+const AI_TYPING_USER_ID = 'FRUVIA_AI_ASSISTANT';
 
 const getAiFullAccessGranted = (): boolean => {
   if (typeof window === 'undefined') return false;
@@ -554,7 +555,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
 
   // Subscribe to typing events
   React.useEffect(() => {
-    if (!selectedChat?.id || selectedChat.isNew || selectedChat.isAi) return;
+    if (!selectedChat?.id || selectedChat.isNew) return;
 
     const typingSub = websocketService.subscribe(
       `/topic/chat/${selectedChat.id}/typing`,
@@ -563,10 +564,13 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           const data = JSON.parse(msg.body);
           if (data.userId === currentUser?.id) return; // Ignore self
 
+          const resolvedDisplayName = data.displayName
+            || (data.userId === AI_TYPING_USER_ID ? (selectedChat.name || t('chat.ai_name')) : t('common.unknown_user'));
+
           if (data.typing) {
             setTypingUsers(prev => {
               if (prev.some(u => u.userId === data.userId)) return prev;
-              return [...prev, { userId: data.userId, displayName: data.displayName }];
+              return [...prev, { userId: data.userId, displayName: resolvedDisplayName }];
             });
             // Auto-remove after 3s if no new typing event
             const existing = typingTimeoutRef.current.get(data.userId);
@@ -590,7 +594,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       typingTimeoutRef.current.forEach(t => clearTimeout(t));
       typingTimeoutRef.current.clear();
     };
-  }, [selectedChat?.id, selectedChat?.isAi, currentUser?.id]);
+  }, [selectedChat?.id, selectedChat?.isNew, selectedChat?.name, currentUser?.id, t]);
 
   // Send typing indicator (throttled to once per 2s)
   const sendTypingIndicator = React.useCallback(() => {
@@ -604,6 +608,15 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       typing: true,
     });
   }, [selectedChat?.id, selectedChat?.isAi, currentUser?.id]);
+
+  const sendStopTypingIndicator = React.useCallback(() => {
+    if (!selectedChat?.id || selectedChat.isNew || selectedChat.isAi || !currentUser?.id) return;
+    websocketService.send(`/app/chat/${selectedChat.id}/typing`, {
+      userId: currentUser.id,
+      displayName: currentUser.full_name || currentUser.display_name || 'User',
+      typing: false,
+    });
+  }, [selectedChat?.id, selectedChat?.isAi, selectedChat?.isNew, currentUser?.id]);
 
   // Read receipts state: map of userId -> { displayName, avatarUrl, messageId }
   const [readReceipts, setReadReceipts] = React.useState<Record<string, { displayName: string; avatarUrl?: string; messageId: string }>>({});
@@ -1023,6 +1036,11 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           setShouldScrollToBottom(true);
           setReplyingTo(null);
 
+          setTypingUsers(prev => {
+            if (prev.some(u => u.userId === AI_TYPING_USER_ID)) return prev;
+            return [...prev, { userId: AI_TYPING_USER_ID, displayName: selectedChat.name || t('chat.ai_name') }];
+          });
+
           const aiPayload: any = {
             content: contentToUse,
             useRag: true,
@@ -1131,9 +1149,18 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
             if (!customContent) setMessage(contentToUse);
             toast.error(t('common.action_failed'));
             console.error('AI send failed', aiError);
+          } finally {
+            setTypingUsers(prev => prev.filter(u => u.userId !== AI_TYPING_USER_ID));
+            const existing = typingTimeoutRef.current.get(AI_TYPING_USER_ID);
+            if (existing) {
+              clearTimeout(existing);
+              typingTimeoutRef.current.delete(AI_TYPING_USER_ID);
+            }
           }
           return;
         }
+
+        sendStopTypingIndicator();
 
         const isNewConv = !!selectedChat.isNew;
         const payload: any = {
@@ -1187,8 +1214,8 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           });
           setReplyingTo(null);
         }
-      } catch (err) {
-        console.error("Send failed", err);
+      } catch (e) {
+        console.error("Send failed", e);
       }
     }
   };
@@ -1807,6 +1834,26 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
 
       {/* INPUT BAR */}
       <div className="bg-[var(--card-bg)] border-t border-[var(--border)] flex-shrink-0 transition-colors duration-200">
+        {/* Typing indicator */}
+        {typingUsers.length > 0 && (
+          <div className="px-4 py-1.5 border-b border-[var(--border)] bg-[var(--hover-bg)]">
+            <div className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-[var(--card-bg)] border border-[var(--border)] px-2.5 py-1 text-[12px] leading-4 shadow-sm select-none">
+              <span className="max-w-[50vw] truncate font-semibold text-[var(--text)]">
+                {typingUsers.length === 1
+                  ? typingUsers[0].displayName
+                  : typingUsers.map((u) => u.displayName).join(', ')}
+              </span>
+              <span className="text-[var(--sub-text)]">
+                {typingUsers.length === 1 ? t('chat.typing.suffix_one') : t('chat.typing.suffix_many')}
+              </span>
+              <span className="inline-flex items-center gap-0.5" aria-hidden="true">
+                <span className="h-1 w-1 rounded-full bg-[var(--sub-text)] opacity-70 animate-pulse" style={{ animationDelay: '0ms' }} />
+                <span className="h-1 w-1 rounded-full bg-[var(--sub-text)] opacity-70 animate-pulse" style={{ animationDelay: '120ms' }} />
+                <span className="h-1 w-1 rounded-full bg-[var(--sub-text)] opacity-70 animate-pulse" style={{ animationDelay: '240ms' }} />
+              </span>
+            </div>
+          </div>
+        )}
         <div className="flex items-center px-4 py-1.5 gap-1.5 border-b border-[var(--border)] relative h-[46px]">
           {isRecording ? (
             <div className="flex-1 flex items-center justify-between animate-in slide-in-from-bottom-2 duration-300">
@@ -1875,14 +1922,6 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           )}
           <StickerPicker isOpen={isPickerOpen} onClose={() => setIsPickerOpen(false)} onSelect={onSelectSticker} activeTab={pickerTab} />
         </div>
-        {/* Typing indicator */}
-        {typingUsers.length > 0 && (
-          <div className="px-4 py-1 text-[12px] text-[var(--sub-text)] italic animate-pulse">
-            {typingUsers.length === 1
-              ? t('chat.typing.one', { name: typingUsers[0].displayName })
-              : t('chat.typing.many', { names: typingUsers.map(u => u.displayName).join(', ') })}
-          </div>
-        )}
         <div className="flex items-center px-4 py-3 gap-3">
           <div className="flex-1">
             <input ref={messageInputRef} type="text" value={message} onChange={(e) => { setMessage(e.target.value); sendTypingIndicator(); }} onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); if (e.key === 'Escape' && replyingTo) setReplyingTo(null); }} placeholder={selectedChat.isAi ? t('chat.ai_input_placeholder') : t('chat.input_placeholder')} className="w-full bg-transparent outline-none text-[15px] placeholder:text-[var(--sub-text)] placeholder:opacity-50 py-1 text-[var(--text)]" />

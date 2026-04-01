@@ -211,8 +211,10 @@
       "forwarded_from": "Chuyển tiếp từ {{name}}"
     },
     "typing": {
-      "one": "{{name}} đang soạn tin...",
-      "many": "{{names}} đang soạn tin..."
+      "one": "{{name}} đang nhập tin nhắn...",
+      "many": "{{names}} đang nhập tin nhắn...",
+      "suffix_one": "đang nhập tin nhắn",
+      "suffix_many": "đang nhập tin nhắn"
     },
     "nickname": {
       "update_success": "Đã cập nhật biệt danh",
