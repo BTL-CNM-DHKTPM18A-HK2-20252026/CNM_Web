@@ -86,6 +86,54 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
   const selectedChat = conversations.find(c => c.id === selectedChatId) || conversations[0];
   const [invitationCount, setInvitationCount] = useState(0);
 
+  const parseEsMessageResults = (payload: any) => {
+    const list = payload?.content || (Array.isArray(payload) ? payload : []);
+    if (!Array.isArray(list)) return [];
+
+    return list
+      .map((item: any) => {
+        const doc = item?.document || item;
+        if (!doc?.messageId) return null;
+
+        const highlightedContent = item?.highlights?.content?.[0];
+        const normalizedContent = typeof highlightedContent === 'string'
+          ? highlightedContent.replace(/<[^>]+>/g, '')
+          : doc.content;
+
+        return {
+          messageId: doc.messageId,
+          senderId: doc.senderId,
+          senderName: doc.senderName,
+          content: normalizedContent,
+          messageType: doc.messageType,
+          createdAt: doc.createdAt,
+        };
+      })
+      .filter(Boolean);
+  };
+
+  const ensureSelfConversation = useCallback(async () => {
+    try {
+      const res = await apiClient.get('/conversations/self');
+      const data = (res && res.success && res.data) ? res.data : res;
+      return data?.conversationId || data?.conversation_id || null;
+    } catch (error) {
+      console.error("Failed to get/create self chat:", error);
+      return null;
+    }
+  }, []);
+
+  const ensureAiConversation = useCallback(async () => {
+    try {
+      const res = await apiClient.get('/messages/ai/conversation');
+      const data = (res && res.success && res.data) ? res.data : res;
+      return data?.conversationId || data?.conversation_id || null;
+    } catch (error) {
+      console.error("Failed to get/create AI chat:", error);
+      return null;
+    }
+  }, []);
+
   const handleSidebarSearch = useCallback((value: string) => {
     setSidebarSearchQuery(value);
     if (sidebarSearchTimerRef.current) clearTimeout(sidebarSearchTimerRef.current);
@@ -100,8 +148,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
     sidebarSearchTimerRef.current = setTimeout(async () => {
       try {
         const res = await apiClient.get(`/search/messages?q=${encodeURIComponent(value.trim())}&conversationId=${selectedChat.id}&size=20`);
-        const data = res?.content || (Array.isArray(res) ? res : []);
-        setSidebarSearchResults(Array.isArray(data) ? data : []);
+        setSidebarSearchResults(parseEsMessageResults(res) as any);
       } catch {
         setSidebarSearchResults([]);
       } finally {
@@ -109,6 +156,14 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
       }
     }, 400);
   }, [selectedChat?.id]);
+
+  useEffect(() => {
+    return () => {
+      if (sidebarSearchTimerRef.current) {
+        clearTimeout(sidebarSearchTimerRef.current);
+      }
+    };
+  }, []);
 
   // Clear sidebar search when switching conversations or closing
   useEffect(() => {
@@ -153,7 +208,12 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
       if (Array.isArray(data)) {
         const mapped = data.map((c: any) => {
           const isSelf = c.conversationType === 'SELF' || c.conversation_type === 'SELF';
-          const name = c.conversationName || c.conversation_name || (isSelf ? t('chat.self_cloud') : 'Conversation');
+          const rawName = c.conversationName || c.conversation_name || '';
+          const isAi = isSelf && rawName.trim().toLowerCase() === 'fruvia ai';
+          const isCloud = isSelf && !isAi;
+          const name = isAi
+            ? t('chat.ai_name')
+            : (rawName || (isCloud ? t('chat.self_cloud') : 'Conversation'));
           const id = c.conversationId || c.conversation_id;
           const avatar = c.conversationAvatarUrl || c.conversation_avatar_url || '';
 
@@ -181,10 +241,13 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
           return {
             id,
             name: displayName,
-            lastMsg: c.lastMessageContent || c.last_message_content || t('chat.start_conversation'),
+            lastMsg: c.lastMessageContent
+              || c.last_message_content
+              || (isAi ? t('chat.ai_subheading') : t('chat.start_conversation')),
             time: (c.lastMessageTime || c.last_message_time) ? new Date(c.lastMessageTime || c.last_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
             lastMessageAt: c.lastMessageTime || c.last_message_time || null,
-            isCloud: isSelf,
+            isCloud,
+            isAi,
             isGroup: (c.conversationType === 'GROUP' || c.conversation_type === 'GROUP'),
             avatar: displayAvatar,
             pinned: c.isPinned || c.is_pinned || false,
@@ -216,8 +279,16 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
 
   useEffect(() => {
     if (currentUser?.id) {
-      fetchInvitationCount();
-      fetchConversations();
+      const initializeData = async () => {
+        await fetchInvitationCount();
+        // Ensure My Documents (SELF) exists as a default conversation on first open.
+        await ensureSelfConversation();
+        // Ensure AI conversation exists so user always sees "Chat with AI" in list.
+        await ensureAiConversation();
+        await fetchConversations();
+      };
+
+      initializeData();
 
       const subEvents = websocketService.subscribeToFriendEvents(currentUser.id, (msg) => {
         fetchInvitationCount();
@@ -317,7 +388,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
         subConvEvents?.unsubscribe();
       };
     }
-  }, [currentUser?.id]);
+  }, [currentUser?.id, ensureSelfConversation, ensureAiConversation]);
 
   const handleStartP2PChat = async (user: any) => {
     const friendId = user.user_id || user.id;
@@ -354,24 +425,19 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
 
   useEffect(() => {
     if (activeTab === 'cloud') {
-      const getOrCreateSelfChat = async () => {
-        try {
-          const res = await apiClient.get('/conversations/self');
-          if (res.success && res.data) {
-            const newId = res.data.conversationId || res.data.conversation_id;
-            setSelectedChatId(newId);
-            setActiveTab('chat');
-            fetchConversations();
-          }
-        } catch (error) {
-          console.error("Failed to get/create self chat:", error);
+      const openSelfChat = async () => {
+        const newId = await ensureSelfConversation();
+        if (newId) {
+          setSelectedChatId(newId);
+          await fetchConversations();
+        } else {
           toast.error(t('dashboard.cloud_open_error'));
-          setActiveTab('chat');
         }
+        setActiveTab('chat');
       };
-      getOrCreateSelfChat();
+      openSelfChat();
     }
-  }, [activeTab]);
+  }, [activeTab, ensureSelfConversation]);
 
   return (
     <PresenceProvider currentUserId={currentUser?.id || null}>
@@ -560,6 +626,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
                     conversationId={selectedChat.id}
                     isGroup={!!(selectedChat as any).isGroup}
                     isCloud={!!(selectedChat as any).isCloud}
+                    isAi={!!(selectedChat as any).isAi}
                     conversationName={(selectedChat as any).name}
                     conversationAvatar={(selectedChat as any).avatar}
                     currentUser={currentUser}

@@ -5,10 +5,8 @@ import {
   StickerIcon,
   ImagePickerIcon,
   FilePickerIcon,
-  ScreenShotIcon,
-  BusinessCardIcon,
-  LightningIcon,
   EmojiIcon,
+  SparklesIcon,
   LikeIcon,
   SendIcon,
   VideoPickerIcon,
@@ -31,6 +29,7 @@ interface ChatWindowProps {
     id: string | number;
     name: string;
     isCloud?: boolean;
+    isAi?: boolean;
     isGroup?: boolean;
     avatar?: string;
     isNew?: boolean;
@@ -45,6 +44,55 @@ interface ChatWindowProps {
   onSelectConversation?: (id: string | number) => void;
   onNicknameChange?: (id: string | number, nickname: string | null) => void;
 }
+
+type AiAccessSettings = {
+  allowFullDataAccess: boolean;
+};
+
+type AiThemeType = 'GENERAL' | 'SALES' | 'OFFICE' | 'GLOBAL' | 'CREATIVE' | 'STUDY' | 'DEV' | 'CODE_REVIEW';
+
+const AI_ACCESS_SETTINGS_STORAGE_KEY = 'fruvia.ai.access-settings.v1';
+const AI_THEME_STORAGE_KEY = 'fruvia.ai.theme.v1';
+
+const getAiFullAccessGranted = (): boolean => {
+  if (typeof window === 'undefined') return false;
+
+  try {
+    const raw = window.localStorage.getItem(AI_ACCESS_SETTINGS_STORAGE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as Partial<AiAccessSettings>;
+    return Boolean(parsed.allowFullDataAccess);
+  } catch {
+    return false;
+  }
+};
+
+const getAiThemeType = (): AiThemeType => {
+  if (typeof window === 'undefined') return 'GENERAL';
+
+  try {
+    const raw = (window.localStorage.getItem(AI_THEME_STORAGE_KEY) || '').trim().toUpperCase();
+    if (raw === 'WORK') return 'OFFICE';
+    if (raw === 'CHILL') return 'CREATIVE';
+    if (raw === 'JAPANESE') return 'GLOBAL';
+
+    if (
+      raw === 'DEV' ||
+      raw === 'CODE_REVIEW' ||
+      raw === 'SALES' ||
+      raw === 'OFFICE' ||
+      raw === 'GLOBAL' ||
+      raw === 'CREATIVE' ||
+      raw === 'STUDY'
+    ) {
+      return raw as AiThemeType;
+    }
+
+    return 'GENERAL';
+  } catch {
+    return 'GENERAL';
+  }
+};
 
 const getFileNameFromUrl = (url: string) => {
   try {
@@ -93,7 +141,7 @@ const formatDateSeparator = (date?: Date, t?: (key: string) => string) => {
 };
 
 export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, currentUser, onUpdateConversation, onSelectConversation, onNicknameChange }: ChatWindowProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [message, setMessage] = React.useState("");
   const [isPickerOpen, setIsPickerOpen] = React.useState(false);
   const [pickerTab, setPickerTab] = React.useState<'sticker' | 'emoji' | 'gif'>('sticker');
@@ -126,7 +174,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
   useEffect(() => {
     const checkFriendStatus = async () => {
       const peerId = selectedChat.otherUserId || selectedChat.recipientId;
-      if (!peerId || !currentUser?.id || selectedChat.isCloud || selectedChat.isGroup) {
+      if (!peerId || !currentUser?.id || selectedChat.isCloud || selectedChat.isAi || selectedChat.isGroup) {
         setFriendRequestStatus('none');
         return;
       }
@@ -161,7 +209,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
     };
     setFriendRequestStatus('loading');
     checkFriendStatus();
-  }, [selectedChat.otherUserId, selectedChat.recipientId, selectedChat.isCloud, selectedChat.isGroup, currentUser?.id]);
+  }, [selectedChat.otherUserId, selectedChat.recipientId, selectedChat.isCloud, selectedChat.isAi, selectedChat.isGroup, currentUser?.id]);
   const [isNicknameModalOpen, setIsNicknameModalOpen] = React.useState(false);
   const [isFilePopoverOpen, setIsFilePopoverOpen] = React.useState(false);
   const [isUserDataModalOpen, setIsUserDataModalOpen] = useState(false);
@@ -479,6 +527,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
 
   const handleVideoClick = () => {
     videoInputRef.current?.click();
+    setIsFilePopoverOpen(false);
   };
 
   const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -505,7 +554,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
 
   // Subscribe to typing events
   React.useEffect(() => {
-    if (!selectedChat?.id || selectedChat.isNew) return;
+    if (!selectedChat?.id || selectedChat.isNew || selectedChat.isAi) return;
 
     const typingSub = websocketService.subscribe(
       `/topic/chat/${selectedChat.id}/typing`,
@@ -541,11 +590,11 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       typingTimeoutRef.current.forEach(t => clearTimeout(t));
       typingTimeoutRef.current.clear();
     };
-  }, [selectedChat?.id, currentUser?.id]);
+  }, [selectedChat?.id, selectedChat?.isAi, currentUser?.id]);
 
   // Send typing indicator (throttled to once per 2s)
   const sendTypingIndicator = React.useCallback(() => {
-    if (!selectedChat?.id || selectedChat.isNew || !currentUser?.id) return;
+    if (!selectedChat?.id || selectedChat.isNew || selectedChat.isAi || !currentUser?.id) return;
     const now = Date.now();
     if (now - lastTypingSentRef.current < 2000) return;
     lastTypingSentRef.current = now;
@@ -554,7 +603,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       displayName: currentUser.full_name || currentUser.display_name || 'User',
       typing: true,
     });
-  }, [selectedChat?.id, currentUser?.id]);
+  }, [selectedChat?.id, selectedChat?.isAi, currentUser?.id]);
 
   // Read receipts state: map of userId -> { displayName, avatarUrl, messageId }
   const [readReceipts, setReadReceipts] = React.useState<Record<string, { displayName: string; avatarUrl?: string; messageId: string }>>({});
@@ -562,7 +611,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
 
   // Load initial read status from DB when opening a conversation
   React.useEffect(() => {
-    if (!selectedChat?.id || selectedChat.isNew) return;
+    if (!selectedChat?.id || selectedChat.isNew || selectedChat.isAi) return;
     const fetchReadStatus = async () => {
       try {
         const res = await apiClient.get(`/conversations/${selectedChat.id}/read-status`);
@@ -585,11 +634,11 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       }
     };
     fetchReadStatus();
-  }, [selectedChat?.id]);
+  }, [selectedChat?.id, selectedChat?.isAi]);
 
   // Subscribe to read receipt events (real-time updates)
   React.useEffect(() => {
-    if (!selectedChat?.id || selectedChat.isNew) return;
+    if (!selectedChat?.id || selectedChat.isNew || selectedChat.isAi) return;
 
     const readSub = websocketService.subscribe(
       `/topic/chat/${selectedChat.id}/read`,
@@ -613,11 +662,11 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       readSub?.unsubscribe();
       lastSentReadRef.current = null;
     };
-  }, [selectedChat?.id, currentUser?.id]);
+  }, [selectedChat?.id, selectedChat?.isAi, currentUser?.id]);
 
   // Send read receipt when new messages arrive or conversation is opened
   const sendReadReceipt = React.useCallback((messageId: string) => {
-    if (!selectedChat?.id || selectedChat.isNew || !currentUser?.id) return;
+    if (!selectedChat?.id || selectedChat.isNew || selectedChat.isAi || !currentUser?.id) return;
     if (lastSentReadRef.current === messageId) return;
     lastSentReadRef.current = messageId;
     websocketService.send(`/app/chat/${selectedChat.id}/read`, {
@@ -626,7 +675,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       avatarUrl: currentUser.avatar_url || '',
       messageId,
     });
-  }, [selectedChat?.id, currentUser?.id]);
+  }, [selectedChat?.id, selectedChat?.isAi, currentUser?.id]);
 
   // Auto-send read receipt when messages load or new messages arrive
   React.useEffect(() => {
@@ -949,6 +998,143 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       try {
         if (!customContent) setMessage("");
 
+        if (selectedChat.isAi) {
+          const locale = (i18n.resolvedLanguage || i18n.language || 'vi').toLowerCase();
+          const tempUserMessageId = `temp-ai-user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+          // Optimistic render: show user's message immediately, do not wait for AI roundtrip.
+          setMessages(prev => ([
+            ...prev,
+            {
+              id: tempUserMessageId,
+              text: contentToUse,
+              type: msgType,
+              replyToMessageId: replyingTo?.id || null,
+              sender: 'Me',
+              senderId: currentUser?.id,
+              time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+              reactions: [],
+              rawDate: new Date(),
+              isEdited: false,
+              isRecalled: false,
+              forwardedFromSenderName: null,
+            }
+          ]));
+          setShouldScrollToBottom(true);
+          setReplyingTo(null);
+
+          const aiPayload: any = {
+            content: contentToUse,
+            useRag: true,
+            language: locale.startsWith('en') ? 'en' : 'vi',
+            fullAccessGranted: getAiFullAccessGranted(),
+            themeType: getAiThemeType(),
+          };
+          if (!selectedChat.isNew) {
+            aiPayload.conversationId = selectedChat.id.toString();
+          }
+
+          try {
+            const aiRes = await apiClient.post<any>('/messages/ai', aiPayload);
+            const aiData = aiRes?.success ? aiRes.data : aiRes;
+            const userMessage = aiData?.userMessage;
+            const imageMessage = aiData?.imageMessage;
+            const assistantMessage = aiData?.assistantMessage;
+            const aiConversation = aiData?.conversation;
+            const finalConvId = aiConversation?.conversationId || aiConversation?.id || selectedChat.id;
+
+            if (onSelectConversation && finalConvId !== selectedChat.id) {
+              onSelectConversation(finalConvId);
+            }
+
+            if (onUpdateConversation && assistantMessage?.content) {
+              onUpdateConversation(
+                finalConvId,
+                getSnippet(assistantMessage.content, assistantMessage.messageType || 'TEXT'),
+                new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
+              );
+            }
+
+            setMessages(prev => {
+              let next = [...prev];
+
+              if (userMessage) {
+                const userMessageId = userMessage.messageId || userMessage.id;
+                next = next.map(m => {
+                  if (m.id !== tempUserMessageId) return m;
+                  return {
+                    ...m,
+                    id: userMessageId || m.id,
+                    text: userMessage.content ?? m.text,
+                    type: userMessage.messageType || m.type,
+                    senderId: userMessage.senderId || m.senderId,
+                    avatar: userMessage.senderAvatarUrl,
+                    isEdited: userMessage.isEdited || false,
+                    isRecalled: userMessage.isRecalled || false,
+                    forwardedFromSenderName: userMessage.forwardedFromSenderName || null,
+                    rawDate: userMessage.createdAt ? new Date(userMessage.createdAt) : m.rawDate,
+                  };
+                });
+              }
+
+              if (imageMessage) {
+                const imageMessageId = imageMessage.messageId || imageMessage.id;
+                const exists = next.some(m => m.id === imageMessageId);
+                if (!exists) {
+                  next.push({
+                    id: imageMessageId,
+                    text: imageMessage.content,
+                    type: imageMessage.messageType || 'IMAGE',
+                    replyToMessageId: imageMessage.replyToMessageId || null,
+                    sender: imageMessage.senderName || 'Fruvia AI',
+                    senderId: imageMessage.senderId,
+                    time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+                    avatar: imageMessage.senderAvatarUrl,
+                    reactions: [],
+                    rawDate: imageMessage.createdAt ? new Date(imageMessage.createdAt) : new Date(),
+                    isEdited: imageMessage.isEdited || false,
+                    isRecalled: imageMessage.isRecalled || false,
+                    forwardedFromSenderName: imageMessage.forwardedFromSenderName || null,
+                  });
+                }
+              }
+
+              if (assistantMessage) {
+                const assistantMessageId = assistantMessage.messageId || assistantMessage.id;
+                const exists = next.some(m => m.id === assistantMessageId);
+                if (!exists) {
+                  next.push({
+                    id: assistantMessageId,
+                    text: assistantMessage.content,
+                    type: assistantMessage.messageType || 'TEXT',
+                    replyToMessageId: assistantMessage.replyToMessageId || null,
+                    sender: assistantMessage.senderName || 'Fruvia AI',
+                    senderId: assistantMessage.senderId,
+                    time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+                    avatar: assistantMessage.senderAvatarUrl,
+                    reactions: [],
+                    rawDate: assistantMessage.createdAt ? new Date(assistantMessage.createdAt) : new Date(),
+                    isEdited: assistantMessage.isEdited || false,
+                    isRecalled: assistantMessage.isRecalled || false,
+                    forwardedFromSenderName: assistantMessage.forwardedFromSenderName || null,
+                  });
+                }
+              }
+
+              return next;
+            });
+
+            setShouldScrollToBottom(true);
+          } catch (aiError) {
+            // Rollback optimistic message on failure so UI doesn't keep unsent text.
+            setMessages(prev => prev.filter(m => m.id !== tempUserMessageId));
+            if (!customContent) setMessage(contentToUse);
+            toast.error(t('common.action_failed'));
+            console.error('AI send failed', aiError);
+          }
+          return;
+        }
+
         const isNewConv = !!selectedChat.isNew;
         const payload: any = {
           content: contentToUse,
@@ -1142,7 +1328,11 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       {/* HEADER */}
       <div className="h-[76px] bg-[var(--card-bg)] border-b border-[var(--border)] px-5 flex items-center justify-between shadow-sm flex-shrink-0 transition-colors duration-200">
         <div className="flex items-center gap-4">
-          {selectedChat.isCloud ? (
+          {selectedChat.isAi ? (
+            <div className="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold shrink-0 shadow-sm">
+              <SparklesIcon size={24} />
+            </div>
+          ) : selectedChat.isCloud ? (
             <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center text-[#0068FF] font-bold shrink-0">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14l-4-4 1.41-1.41L10 13.17l7.59-7.59L19 7l-8 9z" /></svg>
             </div>
@@ -1170,20 +1360,22 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                 </button>
               </h3>
               <p className="text-[13px] text-[var(--sub-text)] truncate">
-                {selectedChat.isCloud
+                {selectedChat.isAi
+                  ? t('chat.ai_subheading')
+                  : selectedChat.isCloud
                   ? t('chat.cloud_subheading')
                   : selectedChat.otherUserId
                     ? undefined
                     : (selectedChat.isGroup ? `${t('chat.header.group_prefix')} · ${selectedChat.name}` : '')}
               </p>
-              {!selectedChat.isCloud && selectedChat.otherUserId && (
+              {!selectedChat.isCloud && !selectedChat.isAi && selectedChat.otherUserId && (
                 <StatusIndicator userId={selectedChat.otherUserId} />
               )}
             </div>
           </div>
         </div>
         <div className="flex items-center gap-6 text-[var(--sub-text)] pr-2 shrink-0">
-          {!selectedChat.isCloud && (
+          {!selectedChat.isCloud && !selectedChat.isAi && (
             <>
               <button className="cursor-pointer transition-all p-1.5 rounded-md hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70" title={t('chat.header.add_to_group')}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" /></svg>
@@ -1199,7 +1391,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       </div>
 
       {/* STRANGER WARNING BANNER */}
-      {!selectedChat.isCloud && !selectedChat.isGroup && (selectedChat.otherUserId || selectedChat.recipientId) && friendRequestStatus !== 'friend' && friendRequestStatus !== 'loading' && (
+      {!selectedChat.isCloud && !selectedChat.isAi && !selectedChat.isGroup && (selectedChat.otherUserId || selectedChat.recipientId) && friendRequestStatus !== 'friend' && friendRequestStatus !== 'loading' && (
         <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 flex items-center justify-between gap-2.5">
           <div className="flex items-center gap-2.5 min-w-0">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
@@ -1362,6 +1554,10 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                         <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 mt-1 border-[1px] border-[#DBDFE6] dark:border-white/10 shadow-sm flex items-center justify-center bg-blue-50">
                           {(msg as any).avatar ? (
                             <img src={(msg as any).avatar} alt="Avatar" className="w-full h-full object-cover" />
+                          ) : selectedChat.isAi || (msg as any).senderId === 'FRUVIA_AI_ASSISTANT' ? (
+                            <div className="w-full h-full rounded-full bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 flex items-center justify-center text-white">
+                              <SparklesIcon size={16} />
+                            </div>
                           ) : selectedChat.avatar ? (
                             <img src={selectedChat.avatar} alt="Avatar" className="w-full h-full object-cover" />
                           ) : (
@@ -1645,7 +1841,6 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
               <button onClick={() => togglePicker('sticker')} className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer ${isPickerOpen && pickerTab === 'sticker' ? 'bg-[var(--hover-bg)] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}><StickerIcon size={20} /></button>
               <button onClick={handleImageClick} className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] cursor-pointer"><ImagePickerIcon size={20} /></button>
               <input type="file" ref={imageInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
-              <button onClick={handleVideoClick} className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] cursor-pointer"><VideoPickerIcon size={20} /></button>
               <input type="file" ref={videoInputRef} onChange={handleVideoChange} accept="video/*" className="hidden" />
               <div className="relative">
                 <button onClick={handleFileIconClick} className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer ${isFilePopoverOpen ? 'bg-[var(--hover-bg)] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}><FilePickerIcon size={20} /></button>
@@ -1653,6 +1848,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsFilePopoverOpen(false)} />
                     <div className="absolute bottom-[calc(100%+14px)] left-[-10px] bg-[var(--card-bg)] border border-[var(--border)] rounded-lg shadow-xl z-50 p-0 overflow-hidden min-w-[140px]">
+                      <button onClick={handleVideoClick} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-[var(--hover-bg)] w-full text-left text-[var(--text)] text-[14px] font-medium cursor-pointer"><VideoPickerIcon size={18} />{t('chat.choose_video')}</button>
                       <button onClick={handleFileClick} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-[var(--hover-bg)] w-full text-left text-[var(--text)] text-[14px] font-medium cursor-pointer"><FilePickerIcon size={18} />{t('chat.choose_file')}</button>
                       <div className="absolute top-[calc(100%-1px)] left-4 w-4 h-4 overflow-hidden"><div className="w-2.5 h-2.5 bg-[var(--card-bg)] border-b border-r border-[var(--border)] rotate-45 -translate-y-1.5 mx-auto" /></div>
                     </div>
@@ -1660,9 +1856,6 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                 )}
               </div>
               <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
-              <button className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] cursor-pointer"><ScreenShotIcon size={20} /></button>
-              <button className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] cursor-pointer"><BusinessCardIcon size={20} /></button>
-              <button className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] cursor-pointer"><LightningIcon size={20} /></button>
               <button
                 onClick={(e) => {
                   e.preventDefault();
@@ -1692,7 +1885,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
         )}
         <div className="flex items-center px-4 py-3 gap-3">
           <div className="flex-1">
-            <input ref={messageInputRef} type="text" value={message} onChange={(e) => { setMessage(e.target.value); sendTypingIndicator(); }} onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); if (e.key === 'Escape' && replyingTo) setReplyingTo(null); }} placeholder={t('chat.input_placeholder')} className="w-full bg-transparent outline-none text-[15px] placeholder:text-[var(--sub-text)] placeholder:opacity-50 py-1 text-[var(--text)]" />
+            <input ref={messageInputRef} type="text" value={message} onChange={(e) => { setMessage(e.target.value); sendTypingIndicator(); }} onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); if (e.key === 'Escape' && replyingTo) setReplyingTo(null); }} placeholder={selectedChat.isAi ? t('chat.ai_input_placeholder') : t('chat.input_placeholder')} className="w-full bg-transparent outline-none text-[15px] placeholder:text-[var(--sub-text)] placeholder:opacity-50 py-1 text-[var(--text)]" />
           </div>
           <div className="flex items-center gap-2 pr-1 shrink-0">
             <button onClick={() => togglePicker('emoji')} className={`transition-colors cursor-pointer ${isPickerOpen && pickerTab === 'emoji' ? 'text-[#0068FF]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}><EmojiIcon size={22} /></button>

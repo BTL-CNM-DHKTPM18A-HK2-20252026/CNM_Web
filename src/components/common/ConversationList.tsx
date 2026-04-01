@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { SearchIcon, AddUserIcon, PinIcon, ImagePickerIcon, CreateGroupIcon, ChevronDownIcon, MoreHorizontalIcon } from '@/components/ui/Icons';
+import { SearchIcon, AddUserIcon, PinIcon, CreateGroupIcon, ChevronDownIcon, MoreHorizontalIcon, SparklesIcon } from '@/components/ui/Icons';
 import Image from 'next/image';
 import { apiClient } from '@/services/api';
 import { toast } from 'sonner';
@@ -16,6 +16,7 @@ interface Conversation {
   active?: boolean;
   pinned?: boolean;
   isCloud?: boolean;
+  isAi?: boolean;
   avatar?: string;
   unreadCount?: number;
   otherUserId?: string;
@@ -56,8 +57,31 @@ interface SearchItem {
   isIcon?: boolean;
 }
 
+interface EsSearchResult<T> {
+  document?: T;
+  highlights?: Record<string, string[]>;
+}
+
+interface SearchUserDocument {
+  userId: string;
+  displayName: string;
+  phoneNumber?: string;
+  email?: string;
+  avatarUrl?: string;
+}
+
+interface SearchMessageDocument {
+  messageId: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  messageType: string;
+  createdAt: string;
+}
+
 export function ConversationList({ conversations, onAddFriend, onCreateGroup, onSelectConversation, onPinConversation, onDeleteConversation, onTagConversation, onMuteConversation, onMarkUnread, onAutoDeleteConversation, onUnhideConversation }: ConversationListProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { isOnline, getTimeAgo } = usePresence();
 
   // Force re-render every 60s so "X minutes ago" text auto-updates
@@ -78,6 +102,12 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
   const [searchMessages, setSearchMessages] = useState<{ messageId: string; conversationId: string; senderId: string; senderName: string; content: string; messageType: string; createdAt: string }[]>([]);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const extractEsDocument = <T,>(item: unknown): T | null => {
+    if (!item || typeof item !== 'object') return null;
+    const wrapped = item as EsSearchResult<T>;
+    return wrapped.document ?? (item as T);
+  };
 
   const handleSearchChange = useCallback((value: string) => {
     setSearchQuery(value);
@@ -106,7 +136,19 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
         // Extract users — apiClient unwraps ApiResponse, so result is Page<UserDocument> directly
         if (usersData) {
           const data = usersData?.content || (Array.isArray(usersData) ? usersData : []);
-          setSearchUsers(Array.isArray(data) ? data : []);
+          const normalizedUsers = Array.isArray(data)
+            ? data
+              .map((item) => extractEsDocument<SearchUserDocument>(item))
+              .filter((doc): doc is SearchUserDocument => Boolean(doc?.userId))
+              .map((doc) => ({
+                userId: doc.userId,
+                displayName: doc.displayName || 'Unknown',
+                phoneNumber: doc.phoneNumber,
+                email: doc.email,
+                avatarUrl: doc.avatarUrl,
+              }))
+            : [];
+          setSearchUsers(normalizedUsers);
         } else {
           setSearchUsers([]);
         }
@@ -116,7 +158,32 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
         for (const res of messagesData) {
           if (res) {
             const data = res?.content || (Array.isArray(res) ? res : []);
-            if (Array.isArray(data)) allMessages.push(...data);
+            if (Array.isArray(data)) {
+              const normalizedMessages = data
+                .map((item) => {
+                  const doc = extractEsDocument<SearchMessageDocument>(item);
+                  if (!doc?.messageId) return null;
+
+                  const wrapped = item as EsSearchResult<SearchMessageDocument>;
+                  const highlightedContent = wrapped.highlights?.content?.[0];
+                  const normalizedContent = typeof highlightedContent === 'string'
+                    ? highlightedContent.replace(/<[^>]+>/g, '')
+                    : doc.content;
+
+                  return {
+                    messageId: doc.messageId,
+                    conversationId: doc.conversationId,
+                    senderId: doc.senderId,
+                    senderName: doc.senderName,
+                    content: normalizedContent,
+                    messageType: doc.messageType,
+                    createdAt: doc.createdAt,
+                  };
+                })
+                .filter(Boolean) as typeof searchMessages;
+
+              allMessages.push(...normalizedMessages);
+            }
           }
         }
         // Sort by date desc and take top 10
@@ -129,6 +196,14 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
       }
     }, 400);
   }, [conversations]);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
+    };
+  }, []);
 
   const filteredConversations = (() => {
     let result = filterTab === 'unread'
@@ -877,7 +952,7 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
               <span className="text-[14px]">
-                {filterTab === 'requests' ? t('chat.empty.requests') : filterTab === 'unread' ? t('chat.empty.unread') : t('chat.empty.conversations')}
+                {filterTab === 'unread' ? t('chat.empty.unread') : t('chat.empty.conversations')}
               </span>
             </div>
           ) : (
@@ -885,12 +960,18 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
               <div
                 key={conv.id}
                 onClick={() => onSelectConversation(conv.id)}
+                onMouseDown={(e) => {
+                  // Prevent browser caret-browsing/text-caret behavior on list item clicks.
+                  if (e.button === 0) e.preventDefault();
+                }}
                 onContextMenu={(e) => handleContextMenu(e, conv.id)}
-                className={`flex items-center p-3 mb-1 gap-3 rounded-xl cursor-pointer transition-all group border ${conv.active ? 'bg-[var(--active-bg)] border-[var(--active-card-border)]' : 'hover:bg-[var(--hover-bg)] border-transparent hover:border-[var(--active-card-border)]'}`}
+                className={`flex items-center p-3 mb-1 gap-3 rounded-xl cursor-pointer transition-all group border select-none caret-transparent ${conv.active ? 'bg-[var(--active-bg)] border-[var(--active-card-border)]' : 'hover:bg-[var(--hover-bg)] border-transparent hover:border-[var(--active-card-border)]'}`}
               >
                 {/* Avatar / Icon */}
-                <div className={`h-12 w-12 rounded-full border-[1px] border-black/[0.06] dark:border-white/10 overflow-hidden shrink-0 flex items-center justify-center relative ${conv.isCloud ? 'bg-[#0068FF]' : 'bg-gray-100 dark:bg-gray-800'}`}>
-                  {conv.isCloud ? (
+                <div className={`h-12 w-12 rounded-full border-[1px] border-black/[0.06] dark:border-white/10 overflow-hidden shrink-0 flex items-center justify-center relative ${conv.isAi ? 'bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 text-white' : conv.isCloud ? 'bg-[#0068FF]' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                  {conv.isAi ? (
+                    <SparklesIcon size={24} />
+                  ) : conv.isCloud ? (
                     /* My Cloud Icon similar to image */
                     <svg width="26" height="26" viewBox="0 0 24 24" fill="white">
                       <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-5 10c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0-6c-2.33 0-4.5 1.17-4.5 2.5V14h9v-1.5c0-1.33-2.17-2.5-4.5-2.5z" />

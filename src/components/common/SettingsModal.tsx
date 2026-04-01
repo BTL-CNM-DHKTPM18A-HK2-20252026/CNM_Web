@@ -6,10 +6,72 @@ import {
   MonitorIcon,
   BellIcon,
   MessageSquareIcon,
-  ToolIcon
+  ToolIcon,
+  SparklesIcon
 } from '@/components/ui/Icons';
+import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/themes';
+
+type AiAccessSettings = {
+  allowFullDataAccess: boolean;
+};
+
+type AiThemeType =
+  | 'GENERAL'
+  | 'SALES'
+  | 'OFFICE'
+  | 'GLOBAL'
+  | 'CREATIVE'
+  | 'STUDY'
+  | 'DEV'
+  | 'CODE_REVIEW';
+
+const AI_ACCESS_SETTINGS_STORAGE_KEY = 'fruvia.ai.access-settings.v1';
+const AI_THEME_STORAGE_KEY = 'fruvia.ai.theme.v1';
+
+const DEFAULT_AI_ACCESS_SETTINGS: AiAccessSettings = {
+  allowFullDataAccess: false,
+};
+
+const getStoredAiAccessSettings = (): AiAccessSettings => {
+  if (typeof window === 'undefined') return DEFAULT_AI_ACCESS_SETTINGS;
+
+  try {
+    const raw = window.localStorage.getItem(AI_ACCESS_SETTINGS_STORAGE_KEY);
+    if (!raw) return DEFAULT_AI_ACCESS_SETTINGS;
+    const parsed = JSON.parse(raw) as Partial<AiAccessSettings>;
+    return {
+      ...DEFAULT_AI_ACCESS_SETTINGS,
+      ...parsed,
+    };
+  } catch {
+    return DEFAULT_AI_ACCESS_SETTINGS;
+  }
+};
+
+const getStoredAiTheme = (): AiThemeType => {
+  if (typeof window === 'undefined') return 'GENERAL';
+
+  const raw = (window.localStorage.getItem(AI_THEME_STORAGE_KEY) || '').trim().toUpperCase();
+  if (raw === 'WORK') return 'OFFICE';
+  if (raw === 'CHILL') return 'CREATIVE';
+  if (raw === 'JAPANESE') return 'GLOBAL';
+
+  if (
+    raw === 'DEV' ||
+    raw === 'CODE_REVIEW' ||
+    raw === 'SALES' ||
+    raw === 'OFFICE' ||
+    raw === 'GLOBAL' ||
+    raw === 'CREATIVE' ||
+    raw === 'STUDY'
+  ) {
+    return raw as AiThemeType;
+  }
+
+  return 'GENERAL';
+};
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -23,11 +85,107 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [contactDisplay, setContactDisplay] = useState('zalo-only');
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
   const [useAvatarAsBg, setUseAvatarAsBg] = useState(false);
+  const [aiAccessSettings, setAiAccessSettings] = useState<AiAccessSettings>(() => getStoredAiAccessSettings());
+  const [aiTheme, setAiTheme] = useState<AiThemeType>(() => getStoredAiTheme());
+  const [aiAccessSavedAt, setAiAccessSavedAt] = useState<number | null>(null);
+
+  const handleSaveAiAccessSettings = () => {
+    try {
+      window.localStorage.setItem(AI_ACCESS_SETTINGS_STORAGE_KEY, JSON.stringify(aiAccessSettings));
+      window.localStorage.setItem(AI_THEME_STORAGE_KEY, aiTheme);
+      setAiAccessSavedAt(Date.now());
+      toast.success(i18n.language === 'vi' ? 'Đã lưu cài đặt AI' : 'AI settings saved');
+    } catch {
+      toast.error(i18n.language === 'vi' ? 'Lưu cài đặt AI thất bại' : 'Failed to save AI settings');
+    }
+  };
+
+  const aiThemeCards = [
+    {
+      value: 'GENERAL' as const,
+      icon: '🤖',
+      group: 'popular' as const,
+      viTitle: 'Trợ lý Đa năng',
+      enTitle: 'General Assistant',
+      viDesc: 'Cân bằng cho mọi nhu cầu hằng ngày',
+      enDesc: 'Balanced support for daily needs',
+    },
+    {
+      value: 'SALES' as const,
+      icon: '🛍️',
+      group: 'work' as const,
+      viTitle: 'Chuyên gia Bán hàng',
+      enTitle: 'Sales Pro',
+      viDesc: 'Caption, tư vấn khách, xử lý khiếu nại',
+      enDesc: 'Captions, customer replies, complaint handling',
+    },
+    {
+      value: 'OFFICE' as const,
+      icon: '📎',
+      group: 'work' as const,
+      viTitle: 'Trợ lý Văn phòng',
+      enTitle: 'Office Hero',
+      viDesc: 'Email, biên bản họp, danh sách việc cần làm',
+      enDesc: 'Emails, meeting notes, to-do lists',
+    },
+    {
+      value: 'GLOBAL' as const,
+      icon: '🌐',
+      group: 'popular' as const,
+      viTitle: 'Thông dịch viên',
+      enTitle: 'Global Friend',
+      viDesc: 'Dịch thuật tự nhiên nhiều ngôn ngữ',
+      enDesc: 'Natural multi-language translation',
+    },
+    {
+      value: 'CREATIVE' as const,
+      icon: '✨',
+      group: 'popular' as const,
+      viTitle: 'Góc Sáng tạo',
+      enTitle: 'Creative Ghostwriter',
+      viDesc: 'Lời chúc, thơ, kịch bản ngắn, bắt trend',
+      enDesc: 'Wishes, poems, short scripts, trendy writing',
+    },
+    {
+      value: 'STUDY' as const,
+      icon: '📚',
+      group: 'work' as const,
+      viTitle: 'Chuyên gia Học tập',
+      enTitle: 'Study Mate',
+      viDesc: 'Giải thích dễ hiểu, tóm tắt kiến thức',
+      enDesc: 'Easy explanations and knowledge summaries',
+    },
+    {
+      value: 'DEV' as const,
+      icon: '💻',
+      group: 'advanced' as const,
+      viTitle: 'Dev Mode',
+      enTitle: 'Dev Mode',
+      viDesc: 'Fix bug, review code cho dân kỹ thuật',
+      enDesc: 'Technical coding assistance',
+    },
+    {
+      value: 'CODE_REVIEW' as const,
+      icon: '🔍',
+      group: 'advanced' as const,
+      viTitle: 'Review Code',
+      enTitle: 'Code Review',
+      viDesc: 'Phân tích mã nguồn theo mức độ lỗi',
+      enDesc: 'Severity-based code review',
+    },
+  ];
+
+  const groupedThemeCards = {
+    popular: aiThemeCards.filter((item) => item.group === 'popular'),
+    work: aiThemeCards.filter((item) => item.group === 'work'),
+    advanced: aiThemeCards.filter((item) => item.group === 'advanced'),
+  };
 
   if (!isOpen) return null;
 
   const sideItems = [
     { id: 'general', label: t('settings.tabs.general'), icon: <SettingsIcon size={18} /> },
+    { id: 'ai', label: t('settings.tabs.ai'), icon: <SparklesIcon size={18} /> },
     { id: 'privacy', label: t('settings.tabs.privacy'), icon: <ShieldIcon size={18} /> },
     { id: 'sync', label: t('settings.tabs.sync'), icon: <SyncIcon size={18} /> },
     { id: 'interface', label: t('settings.tabs.interface'), icon: <MonitorIcon size={18} /> },
@@ -161,10 +319,172 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </div>
             )}
 
-            {activeTab !== 'general' && activeTab !== 'interface' && (
+            {activeTab === 'ai' && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                <section className="space-y-2">
+                  <h4 className="text-[18px] font-semibold text-[var(--text)]">{t('settings.ai.title')}</h4>
+                  <p className="text-[13px] text-[var(--sub-text)]">{t('settings.ai.desc')}</p>
+                </section>
+
+                <section className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] shadow-sm overflow-hidden transition-colors duration-200">
+                  <div className="p-4 px-5 flex items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <p className="text-[14px] font-semibold text-[var(--text)]">{t('settings.ai.full_access.title')}</p>
+                      <p className="text-[12px] text-[var(--sub-text)]">{t('settings.ai.full_access.desc')}</p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setAiAccessSettings((prev) => ({ ...prev, allowFullDataAccess: !prev.allowFullDataAccess }))}
+                      className={`w-10 h-5 shrink-0 rounded-full relative transition-all duration-200 cursor-pointer ${aiAccessSettings.allowFullDataAccess ? 'bg-[#0068FF]' : 'bg-[var(--border)] hover:opacity-80'}`}
+                      aria-label={t('settings.ai.full_access.title')}
+                    >
+                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all duration-200 ${aiAccessSettings.allowFullDataAccess ? 'left-6' : 'left-1'}`}></div>
+                    </button>
+                  </div>
+                </section>
+
+                <section className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-4 px-5 shadow-sm transition-colors duration-200 space-y-3">
+                  <div>
+                    <p className="text-[14px] font-semibold text-[var(--text)]">
+                      {i18n.language === 'vi' ? 'Chế độ AI' : 'AI Mode'}
+                    </p>
+                    <p className="text-[12px] text-[var(--sub-text)] mt-1">
+                      {i18n.language === 'vi'
+                        ? 'Chọn chế độ theo đúng nhu cầu: đời sống, công việc hoặc nâng cao.'
+                        : 'Choose the response style for Fruvia AI based on your current task.'}
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-[12px] font-semibold text-[var(--sub-text)] uppercase tracking-wider mb-2">
+                        {i18n.language === 'vi' ? 'Nhóm phổ thông' : 'General Group'}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        {groupedThemeCards.popular.map((card) => {
+                          const active = aiTheme === card.value;
+                          return (
+                            <button
+                              key={card.value}
+                              type="button"
+                              onClick={() => setAiTheme(card.value)}
+                              className={`rounded-lg border px-3 py-2 text-left transition-all cursor-pointer ${active
+                                ? 'border-[#0068FF] bg-[#E5EFFF] dark:bg-blue-500/10'
+                                : 'border-[var(--border)] hover:border-[#0068FF] hover:bg-[var(--hover-bg)]'
+                                }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-[16px] leading-none">{card.icon}</span>
+                                {active && (
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-[#0068FF] shrink-0"><path d="m20 6-11 11-5-5" /></svg>
+                                )}
+                              </div>
+                              <p className="text-[13px] font-semibold text-[var(--text)] mt-1.5">{i18n.language === 'vi' ? card.viTitle : card.enTitle}</p>
+                              <p className="text-[11px] text-[var(--sub-text)] mt-0.5">{i18n.language === 'vi' ? card.viDesc : card.enDesc}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-[12px] font-semibold text-[var(--sub-text)] uppercase tracking-wider mb-2">
+                        {i18n.language === 'vi' ? 'Nhóm công việc' : 'Work Group'}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        {groupedThemeCards.work.map((card) => {
+                          const active = aiTheme === card.value;
+                          return (
+                            <button
+                              key={card.value}
+                              type="button"
+                              onClick={() => setAiTheme(card.value)}
+                              className={`rounded-lg border px-3 py-2 text-left transition-all cursor-pointer ${active
+                                ? 'border-[#0068FF] bg-[#E5EFFF] dark:bg-blue-500/10'
+                                : 'border-[var(--border)] hover:border-[#0068FF] hover:bg-[var(--hover-bg)]'
+                                }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-[16px] leading-none">{card.icon}</span>
+                                {active && (
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-[#0068FF] shrink-0"><path d="m20 6-11 11-5-5" /></svg>
+                                )}
+                              </div>
+                              <p className="text-[13px] font-semibold text-[var(--text)] mt-1.5">{i18n.language === 'vi' ? card.viTitle : card.enTitle}</p>
+                              <p className="text-[11px] text-[var(--sub-text)] mt-0.5">{i18n.language === 'vi' ? card.viDesc : card.enDesc}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-[12px] font-semibold text-[var(--sub-text)] uppercase tracking-wider mb-2">
+                        {i18n.language === 'vi' ? 'Nhóm nâng cao' : 'Advanced Group'}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        {groupedThemeCards.advanced.map((card) => {
+                          const active = aiTheme === card.value;
+                          return (
+                            <button
+                              key={card.value}
+                              type="button"
+                              onClick={() => setAiTheme(card.value)}
+                              className={`rounded-lg border px-3 py-2 text-left transition-all cursor-pointer ${active
+                                ? 'border-[#0068FF] bg-[#E5EFFF] dark:bg-blue-500/10'
+                                : 'border-[var(--border)] hover:border-[#0068FF] hover:bg-[var(--hover-bg)]'
+                                }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-[16px] leading-none">{card.icon}</span>
+                                {active && (
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-[#0068FF] shrink-0"><path d="m20 6-11 11-5-5" /></svg>
+                                )}
+                              </div>
+                              <p className="text-[13px] font-semibold text-[var(--text)] mt-1.5">{i18n.language === 'vi' ? card.viTitle : card.enTitle}</p>
+                              <p className="text-[11px] text-[var(--sub-text)] mt-0.5">{i18n.language === 'vi' ? card.viDesc : card.enDesc}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-4 px-5 shadow-sm transition-colors duration-200 space-y-3">
+                  <p className="text-[12px] text-[var(--sub-text)]">{t('settings.ai.browser_scope_note')}</p>
+                  <div className="flex items-center justify-end gap-3">
+                    {aiAccessSavedAt && (
+                      <span className="text-[12px] text-[var(--sub-text)]">
+                        {t('settings.ai.actions.saved_at', {
+                          time: new Date(aiAccessSavedAt).toLocaleTimeString(i18n.language === 'vi' ? 'vi-VN' : 'en-US', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          }),
+                        })}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleSaveAiAccessSettings}
+                      className="px-4 py-2 text-[13px] font-semibold rounded-lg text-white bg-[#0068FF] hover:bg-[#0058d8] transition-colors cursor-pointer"
+                    >
+                      {t('settings.ai.actions.save')}
+                    </button>
+                  </div>
+                </section>
+              </div>
+            )}
+
+            {activeTab !== 'general' && activeTab !== 'interface' && activeTab !== 'ai' && (
               <div className="flex flex-col items-center justify-center h-full animate-in fade-in duration-300">
                 <div className="w-16 h-16 rounded-full bg-[var(--active-bg)] text-[var(--active-text)] flex items-center justify-center mb-4 transition-colors duration-200">
-                  {React.cloneElement(sideItems.find(i => i.id === activeTab)?.icon as React.ReactElement, { size: 32 } as any)}
+                  {(() => {
+                    const activeIcon = sideItems.find((item) => item.id === activeTab)?.icon;
+                    if (!activeIcon) return null;
+                    return React.cloneElement(activeIcon, { size: 32 });
+                  })()}
                 </div>
                 <p className="text-[15px] font-medium italic text-[var(--sub-text)]">{t('settings.development', { name: sideItems.find(i => i.id === activeTab)?.label })}</p>
               </div>
@@ -247,7 +567,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     <span className="text-[14px] text-[var(--text)] font-medium">{t('settings.appearance.wallpaper.use_avatar')}</span>
                     <button
                       onClick={() => setUseAvatarAsBg(!useAvatarAsBg)}
-                      className={`w-10 h-5 rounded-full relative transition-all duration-200 cursor-pointer ${useAvatarAsBg ? 'bg-[#0068FF]' : 'bg-[var(--border)] hover:opacity-80'}`}
+                      className={`w-10 h-5 shrink-0 rounded-full relative transition-all duration-200 cursor-pointer ${useAvatarAsBg ? 'bg-[#0068FF]' : 'bg-[var(--border)] hover:opacity-80'}`}
                     >
                       <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all duration-200 ${useAvatarAsBg ? 'left-6' : 'left-1'}`}></div>
                     </button>

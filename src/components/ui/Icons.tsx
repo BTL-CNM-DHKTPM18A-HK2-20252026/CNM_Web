@@ -118,7 +118,8 @@ export const ImagePickerIcon = ({ size = 22 }: { size?: number }) => (
 
 export const VideoPickerIcon = ({ size = 22 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+    <rect x="3" y="5" width="18" height="14" rx="2" ry="2" />
+    <polygon points="11 9 11 15 16 12 11 9" fill="currentColor" stroke="none" />
   </svg>
 );
 

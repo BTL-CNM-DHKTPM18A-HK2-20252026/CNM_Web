@@ -108,7 +108,10 @@
     "tags": "Tags",
     "more": "More",
     "self_cloud": "My Documents",
+    "ai_name": "Chat with AI",
+    "ai_subheading": "Ask anything to Fruvia AI",
     "cloud_subheading": "Transfer files across your devices",
+    "ai_input_placeholder": "Ask Fruvia AI...",
     "input_placeholder": "Enter @, message to My Documents",
     "you": "You",
     "time_unit": "min",
@@ -139,6 +142,9 @@
       "manage": "Manage classification tags"
     },
     "search_panel_title": "Search in Chat",
+    "search_panel_placeholder": "Type a keyword to search",
+    "search_panel_hint": "Enter a keyword to start searching messages and files in this conversation",
+    "search_panel_found": "Found {{count}} results",
     "date": {
       "today": "Today",
       "yesterday": "Yesterday"
@@ -292,6 +298,7 @@
     "hidden_empty": "No hidden conversations",
     "unhide": "Unhide",
     "unhide_success": "Conversation restored",
+    "choose_video": "Choose Video",
     "choose_file": "Choose File",
     "recording_cancel": "Cancel",
     "recording_send": "Send",
@@ -447,6 +454,38 @@
   "info": {
     "title": "Conversation Info",
     "members": "members",
+    "ai": {
+      "desc": "Fruvia AI helps you ask questions, summarize chats, and generate ideas directly in conversation.",
+      "capabilities_title": "What Fruvia AI can do",
+      "capability_1": "Reply in the same language you are using in the app",
+      "capability_2": "Summarize conversations and extract key points",
+      "capability_3": "Suggest content, ideas, and clearer wording quickly",
+      "quick_commands_title": "Quick AI Commands",
+      "quick_commands": {
+        "me_name": "Quickly ask for your current display name",
+        "me_dob": "Quickly ask for your date of birth",
+        "me_profile": "Summarize your available profile information",
+        "files_list": "List your files and suggest fast filtering/search",
+        "files_delete": "Ask AI to guide file deletion by filename",
+        "branch_delete": "Ask AI to guide safe branch deletion",
+        "image": "Generate an image from text description",
+        "image_pro": "Generate a high-quality 4K digital image",
+        "sketch": "Generate a black-and-white sketch from text",
+        "wallpaper": "Generate a high-resolution wallpaper"
+      },
+      "quick_commands_prompt": {
+        "me_name": "My name",
+        "me_dob": "My birthday",
+        "me_profile": "My profile",
+        "files_list": "List my files",
+        "files_delete": "Delete file <file name>",
+        "branch_delete": "Delete branch <branch name>",
+        "image": "/image <description>",
+        "image_pro": "/image_pro <description>",
+        "sketch": "/sketch <description>",
+        "wallpaper": "/wallpaper <description>"
+      }
+    },
     "time": {
       "just_now": "Just now"
     },
@@ -635,12 +674,136 @@
     "title": "Settings",
     "tabs": {
       "general": "General Settings",
+      "ai": "AI Chat",
       "privacy": "Privacy",
       "sync": "Message Sync",
       "interface": "Appearance",
       "notifications": "Notifications",
       "messages": "Messages",
       "utils": "Utilities"
+    },
+    "ai": {
+      "title": "AI Chat",
+      "desc": "Customize privacy, behavior, and productivity controls for Fruvia AI.",
+      "full_access": {
+        "title": "Allow AI to access all your data",
+        "desc": "Give AI permission to access your full chat, document, and profile data for the most complete responses."
+      },
+      "headings": {
+        "intelligence": "Intelligence & Context",
+        "productivity": "Productivity & Quick Commands",
+        "persona": "Persona & Behavior",
+        "security": "Privacy & Safety",
+        "token_budget": "Token Budget"
+      },
+      "categories": {
+        "intelligence": {
+          "answer_general": {
+            "title": "Answer general questions",
+            "desc": "Allow AI to answer common questions and basic conversational requests."
+          },
+          "read_recent_messages": {
+            "title": "Read recent message context",
+            "desc": "Allow AI to use recent chat messages to improve response relevance."
+          },
+          "access_my_documents": {
+            "title": "Access My Documents context",
+            "desc": "Allow AI to use file and folder metadata when discussing your documents."
+          },
+          "use_profile_context": {
+            "title": "Personalize using profile context",
+            "desc": "Allow AI to reference your profile details for tailored suggestions."
+          }
+        },
+        "productivity": {
+          "coding_assistant": {
+            "title": "Coding assistant",
+            "desc": "Optimize answers for coding and technical tasks (Java, NoSQL, APIs, debugging)."
+          },
+          "translation_mode": {
+            "title": "Translation mode",
+            "desc": "Automatically prioritize translation to your preferred language."
+          },
+          "execute_quick_commands": {
+            "title": "Execute AI quick commands",
+            "desc": "Enable quick actions like summarize, TODO extraction, and helper workflows."
+          },
+          "auto_code_formatting": {
+            "title": "Auto code formatting",
+            "desc": "Render cleaner markdown and code blocks for easier copy/paste."
+          },
+          "ai_suggestions": {
+            "title": "AI suggestions",
+            "desc": "Show suggested replies based on current conversation context."
+          }
+        },
+        "security": {
+          "incognito_mode": {
+            "title": "Incognito mode",
+            "desc": "AI still replies, but the conversation is not stored in database or vector memory."
+          },
+          "redact_sensitive_data": {
+            "title": "Redact sensitive data",
+            "desc": "Automatically mask data like passwords or card numbers before AI requests."
+          },
+          "data_opt_out": {
+            "title": "Do not use data for training",
+            "desc": "Request that your chat content is not used for model training purposes."
+          },
+          "auto_delete_history": {
+            "title": "Auto delete history",
+            "desc": "Automatically remove AI history based on your selected retention period.",
+            "period_7d": "Delete after 7 days",
+            "period_30d": "Delete after 30 days"
+          }
+        }
+      },
+      "behavior": {
+        "creativity": {
+          "title": "Creativity / Temperature",
+          "desc": "Low: factual and precise. High: more creative and expressive."
+        },
+        "response_length": {
+          "title": "Response length",
+          "desc": "Choose the default response style for AI replies.",
+          "concise": "Concise (Bullet points)",
+          "detailed": "Detailed (Long-form)"
+        },
+        "preferred_language": {
+          "title": "Preferred language",
+          "desc": "Set your preferred language style for AI responses.",
+          "auto": "Automatic",
+          "vi": "Vietnamese",
+          "en": "English",
+          "bilingual": "Bilingual"
+        },
+        "japanese_learning_mode": {
+          "title": "Japanese learning mode",
+          "desc": "Automatically add Hiragana/Furigana when Japanese text appears."
+        }
+      },
+      "token_budget": {
+        "enable": {
+          "title": "Enable daily token limit",
+          "desc": "Help control AI usage costs for your account."
+        },
+        "daily_limit": {
+          "title": "Max tokens per day",
+          "desc": "Suggested range: 500 to 50,000 tokens/day."
+        }
+      },
+      "browser_scope_note": "These settings are stored in this browser and apply to your account on this device.",
+      "actions": {
+        "reset": "Reset to default",
+        "save": "Save AI settings",
+        "saved_at": "Saved at {{time}}",
+        "clear_context": {
+          "title": "Clear short-term context",
+          "desc": "Tell AI to forget recent session context immediately.",
+          "button": "Clear Context"
+        },
+        "cleared_at": "Context cleared at {{time}}"
+      }
     },
     "general": {
       "contacts": {

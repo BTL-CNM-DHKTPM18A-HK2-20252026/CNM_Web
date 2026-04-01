@@ -3,8 +3,6 @@ import { useTranslation } from 'react-i18next';
 import {
   ChevronDownIcon,
   ClockIcon,
-  InfoIcon,
-  SearchIcon,
 } from '@/components/ui/Icons';
 import Image from 'next/image';
 import { apiClient } from '@/services/api';
@@ -18,13 +16,26 @@ interface ChatInfoSidebarProps {
   conversationId?: string | number;
   isGroup?: boolean;
   isCloud?: boolean;
+  isAi?: boolean;
   conversationName?: string;
   conversationAvatar?: string;
   currentUser?: any;
 }
 
-export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGroup, isCloud, conversationName, conversationAvatar, currentUser }: ChatInfoSidebarProps) {
+export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGroup, isCloud, isAi, conversationName, conversationAvatar, currentUser }: ChatInfoSidebarProps) {
   const { t } = useTranslation();
+  const aiQuickCommands = [
+    { code: t('info.ai.quick_commands_prompt.me_name'), desc: t('info.ai.quick_commands.me_name') },
+    { code: t('info.ai.quick_commands_prompt.me_dob'), desc: t('info.ai.quick_commands.me_dob') },
+    { code: t('info.ai.quick_commands_prompt.me_profile'), desc: t('info.ai.quick_commands.me_profile') },
+    { code: t('info.ai.quick_commands_prompt.files_list'), desc: t('info.ai.quick_commands.files_list') },
+    { code: t('info.ai.quick_commands_prompt.files_delete'), desc: t('info.ai.quick_commands.files_delete') },
+    { code: t('info.ai.quick_commands_prompt.branch_delete'), desc: t('info.ai.quick_commands.branch_delete') },
+    { code: t('info.ai.quick_commands_prompt.image'), desc: t('info.ai.quick_commands.image') },
+    { code: t('info.ai.quick_commands_prompt.image_pro'), desc: t('info.ai.quick_commands.image_pro') },
+    { code: t('info.ai.quick_commands_prompt.sketch'), desc: t('info.ai.quick_commands.sketch') },
+    { code: t('info.ai.quick_commands_prompt.wallpaper'), desc: t('info.ai.quick_commands.wallpaper') },
+  ];
   const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
   const [showMedia, setShowMedia] = React.useState(true);
   const [showFiles, setShowFiles] = React.useState(true);
@@ -39,10 +50,12 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
   const [pinnedMessages, setPinnedMessages] = useState<any[]>([]);
 
   useEffect(() => {
-    if (conversationId) {
+    if (conversationId && !isAi) {
       fetchPinnedMessages();
+    } else {
+      setPinnedMessages([]);
     }
-  }, [conversationId]);
+  }, [conversationId, isAi]);
 
   const fetchPinnedMessages = async () => {
     try {
@@ -366,7 +379,21 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {/* Profile Section */}
         <div className="flex flex-col items-center pt-8 pb-6 px-6 border-b border-[var(--border)] transition-colors duration-200">
-          {isCloud ? (
+          {isAi ? (
+            <>
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg mb-4">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
+                </svg>
+              </div>
+              <h3 className="text-[18px] font-bold text-[var(--text)] mb-2 text-center">
+                {t('chat.ai_name')}
+              </h3>
+              <p className="text-[13px] text-[var(--sub-text)] text-center leading-normal">
+                {t('info.ai.desc')}
+              </p>
+            </>
+          ) : isCloud ? (
             <>
               <div className="w-16 h-16 rounded-full bg-[#0068FF] flex items-center justify-center text-white shadow-lg mb-4">
                 <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor">
@@ -398,6 +425,28 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
             </>
           )}
         </div>
+
+        {isAi && (
+          <div className="p-4 border-b border-[var(--border)] space-y-3 transition-colors duration-200">
+            <h4 className="text-[14px] font-bold text-[var(--text)]">{t('info.ai.capabilities_title')}</h4>
+            <ul className="text-[13px] text-[var(--sub-text)] space-y-1">
+              <li>• {t('info.ai.capability_1')}</li>
+              <li>• {t('info.ai.capability_2')}</li>
+              <li>• {t('info.ai.capability_3')}</li>
+            </ul>
+            <div className="pt-1">
+              <h5 className="text-[13px] font-bold text-[var(--text)] mb-2">{t('info.ai.quick_commands_title')}</h5>
+              <div className="space-y-2">
+                {aiQuickCommands.map((item) => (
+                  <div key={item.code} className="rounded-md border border-[var(--border)] bg-[var(--hover-bg)] px-2.5 py-2">
+                    <div className="text-[12px] font-mono font-semibold text-[#0068FF]">{item.code}</div>
+                    <div className="text-[12px] text-[var(--sub-text)] mt-0.5 leading-relaxed">{item.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
 
 
@@ -667,7 +716,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
         {/* Sections */}
         <div className="divide-y divide-[var(--border)] transition-colors duration-200">
           {/* Pinned Messages Section — Zalo style */}
-          <div className="flex flex-col">
+          {!isAi && <div className="flex flex-col">
             <div
               onClick={() => setShowPinned(!showPinned)}
               className="p-4 flex items-center justify-between hover:bg-[var(--hover-bg)] cursor-pointer transition-colors group"
@@ -724,9 +773,9 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                 ))}
               </div>
             )}
-          </div>
+          </div>}
 
-          <SectionItem icon={<ClockIcon size={18} />} title={t('info.sections.reminders')} />
+          {!isAi && <SectionItem icon={<ClockIcon size={18} />} title={t('info.sections.reminders')} />}
 
           <div className="flex flex-col">
             <div

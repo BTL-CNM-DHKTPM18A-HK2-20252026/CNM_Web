@@ -108,7 +108,10 @@
     "tags": "Thẻ",
     "more": "Thêm",
     "self_cloud": "Cloud của tôi",
+    "ai_name": "Chat với AI",
+    "ai_subheading": "Hỏi đáp với Fruvia AI",
     "cloud_subheading": "Truyền file giữa các thiết bị của bạn",
+    "ai_input_placeholder": "Nhập câu hỏi cho Fruvia AI",
     "input_placeholder": "Nhập @, tin nhắn tới Cloud của tôi",
     "you": "Bạn",
     "time_unit": "phút",
@@ -139,6 +142,9 @@
       "manage": "Quản lý thẻ phân loại"
     },
     "search_panel_title": "Tìm kiếm trong trò chuyện",
+    "search_panel_placeholder": "Nhập từ khóa để tìm kiếm",
+    "search_panel_hint": "Hãy nhập từ khóa để bắt đầu tìm kiếm tin nhắn và file trong trò chuyện",
+    "search_panel_found": "Tìm thấy {{count}} kết quả",
     "date": {
       "today": "Hôm nay",
       "yesterday": "Hôm qua"
@@ -292,6 +298,7 @@
     "hidden_empty": "Không có hội thoại nào bị ẩn",
     "unhide": "Hiện lại",
     "unhide_success": "Đã hiện lại hội thoại",
+    "choose_video": "Chọn Video",
     "choose_file": "Chọn File",
     "recording_cancel": "Hủy",
     "recording_send": "Gửi",
@@ -447,6 +454,38 @@
   "info": {
     "title": "Thông tin hội thoại",
     "members": "thành viên",
+    "ai": {
+      "desc": "Trợ lý AI của Fruvia giúp bạn hỏi đáp, tóm tắt và gợi ý nội dung ngay trong cuộc trò chuyện.",
+      "capabilities_title": "Fruvia AI có thể giúp",
+      "capability_1": "Trả lời theo ngôn ngữ bạn đang sử dụng trong ứng dụng",
+      "capability_2": "Tóm tắt cuộc trò chuyện và rút ý chính",
+      "capability_3": "Gợi ý nội dung, ý tưởng và cách diễn đạt nhanh",
+      "quick_commands_title": "Lệnh nhanh cho AI",
+      "quick_commands": {
+        "me_name": "Hỏi nhanh tên hiển thị hiện tại của bạn",
+        "me_dob": "Hỏi nhanh ngày tháng năm sinh của bạn",
+        "me_profile": "Tóm tắt toàn bộ thông tin hồ sơ hiện có",
+        "files_list": "Liệt kê các file và gợi ý cách lọc/tìm nhanh",
+        "files_delete": "Yêu cầu AI hướng dẫn xóa file theo tên",
+        "branch_delete": "Yêu cầu AI hướng dẫn xóa nhánh an toàn",
+        "image": "Tạo ảnh từ mô tả văn bản",
+        "image_pro": "Tạo ảnh kỹ thuật số chất lượng cao (4K)",
+        "sketch": "Tạo bản phác thảo đen trắng theo mô tả",
+        "wallpaper": "Tạo ảnh nền độ phân giải cao"
+      },
+      "quick_commands_prompt": {
+        "me_name": "Tên tôi",
+        "me_dob": "Ngày sinh của tôi",
+        "me_profile": "Hồ sơ của tôi",
+        "files_list": "Liệt kê file của tôi",
+        "files_delete": "Xóa file <tên file>",
+        "branch_delete": "Xóa nhánh <tên nhánh>",
+        "image": "/image <mô tả>",
+        "image_pro": "/image_pro <mô tả>",
+        "sketch": "/sketch <mô tả>",
+        "wallpaper": "/wallpaper <mô tả>"
+      }
+    },
     "cloud": {
       "desc": "Lưu trữ và truy cập những nội dung quan trọng nhất trên Fruvia Chat",
       "storage": {
@@ -632,12 +671,136 @@
     "title": "Cài đặt",
     "tabs": {
       "general": "Cài đặt chung",
+      "ai": "Chat AI",
       "privacy": "Quyền riêng tư",
       "sync": "Đồng bộ tin nhắn",
       "interface": "Giao diện",
       "notifications": "Thông báo",
       "messages": "Tin nhắn",
       "utils": "Tiện ích"
+    },
+    "ai": {
+      "title": "Chat AI",
+      "desc": "Tùy chỉnh quyền riêng tư, cách phản hồi và năng suất của Fruvia AI theo nhu cầu của bạn.",
+      "full_access": {
+        "title": "Cấp quyền AI truy cập toàn bộ dữ liệu của bạn",
+        "desc": "Cho phép AI truy cập mọi dữ liệu hội thoại, tài liệu và hồ sơ để đưa ra phản hồi đầy đủ nhất."
+      },
+      "headings": {
+        "intelligence": "Trí tuệ & Ngữ cảnh",
+        "productivity": "Năng suất & Lệnh nhanh",
+        "persona": "Tính cách & Hành vi",
+        "security": "Quyền riêng tư & An toàn",
+        "token_budget": "Quản lý Token"
+      },
+      "categories": {
+        "intelligence": {
+          "answer_general": {
+            "title": "Trả lời câu hỏi thông thường",
+            "desc": "Cho phép AI trả lời các câu hỏi kiến thức chung và tác vụ hội thoại cơ bản."
+          },
+          "read_recent_messages": {
+            "title": "Đọc ngữ cảnh tin nhắn gần đây",
+            "desc": "Cho phép AI dùng các tin nhắn gần nhất trong đoạn chat để phản hồi chính xác hơn."
+          },
+          "access_my_documents": {
+            "title": "Truy cập thông tin Cloud của tôi",
+            "desc": "Cho phép AI sử dụng metadata file/thư mục khi bạn hỏi về tài liệu trong Cloud của tôi."
+          },
+          "use_profile_context": {
+            "title": "Cá nhân hóa theo hồ sơ người dùng",
+            "desc": "Cho phép AI tham chiếu thông tin hồ sơ của bạn để gợi ý phù hợp hơn."
+          }
+        },
+        "productivity": {
+          "coding_assistant": {
+            "title": "Trợ lý lập trình",
+            "desc": "Tối ưu câu trả lời cho code và kỹ thuật (Java, NoSQL, API, debug)."
+          },
+          "translation_mode": {
+            "title": "Chế độ dịch thuật",
+            "desc": "Tự động ưu tiên dịch nội dung sang ngôn ngữ bạn chọn."
+          },
+          "execute_quick_commands": {
+            "title": "Thực thi lệnh nhanh AI",
+            "desc": "Hỗ trợ lệnh tóm tắt, trích TODO, và workflow nhanh ngay trong chat."
+          },
+          "auto_code_formatting": {
+            "title": "Tự động định dạng code",
+            "desc": "Khi AI trả code, hiển thị markdown đẹp hơn để sao chép nhanh."
+          },
+          "ai_suggestions": {
+            "title": "AI Suggestions",
+            "desc": "Hiển thị gợi ý trả lời nhanh dựa trên ngữ cảnh hội thoại."
+          }
+        },
+        "security": {
+          "incognito_mode": {
+            "title": "Chế độ ẩn danh",
+            "desc": "AI vẫn trả lời nhưng không lưu hội thoại vào database hoặc vector memory."
+          },
+          "redact_sensitive_data": {
+            "title": "Loại trừ dữ liệu nhạy cảm",
+            "desc": "Tự động che thông tin như mật khẩu, số thẻ trước khi gửi yêu cầu AI."
+          },
+          "data_opt_out": {
+            "title": "Không dùng dữ liệu để huấn luyện",
+            "desc": "Yêu cầu không sử dụng nội dung hội thoại của bạn cho mục đích huấn luyện mô hình."
+          },
+          "auto_delete_history": {
+            "title": "Xóa lịch sử định kỳ",
+            "desc": "Tự động xóa lịch sử AI theo chu kỳ bạn chọn.",
+            "period_7d": "Xóa sau 7 ngày",
+            "period_30d": "Xóa sau 30 ngày"
+          }
+        }
+      },
+      "behavior": {
+        "creativity": {
+          "title": "Độ sáng tạo (Creativity)",
+          "desc": "Thấp: chính xác, thực tế. Cao: sáng tạo, đa dạng cách diễn đạt."
+        },
+        "response_length": {
+          "title": "Độ dài câu trả lời",
+          "desc": "Chọn phong cách phản hồi mặc định của AI.",
+          "concise": "Ngắn gọn (Bullet points)",
+          "detailed": "Chi tiết (Long-form)"
+        },
+        "preferred_language": {
+          "title": "Ngôn ngữ ưu tiên",
+          "desc": "Đặt ngôn ngữ phản hồi ưu tiên cho AI.",
+          "auto": "Tự động",
+          "vi": "Tiếng Việt",
+          "en": "Tiếng Anh",
+          "bilingual": "Song ngữ"
+        },
+        "japanese_learning_mode": {
+          "title": "Chế độ hỗ trợ học tập tiếng Nhật",
+          "desc": "Tự động thêm Hiragana/Furigana khi AI dùng tiếng Nhật."
+        }
+      },
+      "token_budget": {
+        "enable": {
+          "title": "Bật giới hạn token hằng ngày",
+          "desc": "Giúp kiểm soát chi phí sử dụng AI cho tài khoản của bạn."
+        },
+        "daily_limit": {
+          "title": "Token tối đa mỗi ngày",
+          "desc": "Phạm vi đề xuất: 500 đến 50,000 token/ngày."
+        }
+      },
+      "browser_scope_note": "Cài đặt này được lưu trên trình duyệt hiện tại và áp dụng cho tài khoản của bạn trên thiết bị này.",
+      "actions": {
+        "reset": "Khôi phục mặc định",
+        "save": "Lưu cài đặt AI",
+        "saved_at": "Đã lưu lúc {{time}}",
+        "clear_context": {
+          "title": "Xóa bộ nhớ ngắn hạn",
+          "desc": "Yêu cầu AI quên ngay ngữ cảnh gần nhất của phiên hiện tại.",
+          "button": "Clear Context"
+        },
+        "cleared_at": "Đã xóa ngữ cảnh lúc {{time}}"
+      }
     },
     "general": {
       "contacts": {
