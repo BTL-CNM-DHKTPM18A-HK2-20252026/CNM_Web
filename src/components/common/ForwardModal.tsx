@@ -83,6 +83,7 @@ export function ForwardModal({ message, currentConversationId, currentUserId, on
                     conversationId: convId,
                     content: message.text,
                     messageType: message.type,
+                    forwardedFromMessageId: message.id,
                 };
                 await apiClient.post('/messages', payload);
                 onForwarded?.(convId);

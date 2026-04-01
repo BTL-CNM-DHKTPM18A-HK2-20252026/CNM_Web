@@ -431,7 +431,17 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
             conversations={conversations.map(c => ({ ...c, active: c.id === selectedChatId }))}
             onAddFriend={() => setIsAddFriendModalOpen(true)}
             onCreateGroup={() => setIsCreateGroupModalOpen(true)}
-            onSelectConversation={(id) => setSelectedChatId(id)}
+            onSelectConversation={(id) => {
+              setSelectedChatId(id);
+              // Auto-clear "marked unread" when opening conversation
+              const conv = conversations.find(c => c.id === id);
+              if (conv?.isMarkedUnread) {
+                apiClient.post(`/conversations/${id}/mark-unread`, {}).catch(() => {});
+                setConversations(prev =>
+                  prev.map(c => c.id === id ? { ...c, isMarkedUnread: false } : c)
+                );
+              }
+            }}
             onPinConversation={(id, pinned) => {
               setConversations(prev =>
                 sortConversations(

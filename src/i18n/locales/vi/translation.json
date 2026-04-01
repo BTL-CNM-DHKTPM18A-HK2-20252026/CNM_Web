@@ -201,7 +201,8 @@
       "send_btn": "Chuyển tiếp",
       "sending": "Đang gửi...",
       "success": "Đã chuyển tiếp đến {{count}} cuộc trò chuyện",
-      "error": "Không thể chuyển tiếp tin nhắn"
+      "error": "Không thể chuyển tiếp tin nhắn",
+      "forwarded_from": "Chuyển tiếp từ {{name}}"
     },
     "typing": {
       "one": "{{name}} đang soạn tin...",

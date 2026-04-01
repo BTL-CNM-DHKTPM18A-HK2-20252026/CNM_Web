@@ -447,7 +447,22 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       if (file.type.startsWith('image/')) msgType = 'IMAGE';
       else if (file.type.startsWith('video/')) msgType = 'VIDEO';
 
-      await handleSendMessage(s3Url, msgType, file.name, file.size);
+      // Extract video duration if it's a video
+      let videoDur: number | undefined;
+      if (msgType === 'VIDEO') {
+        videoDur = await new Promise<number>((resolve) => {
+          const video = document.createElement('video');
+          video.preload = 'metadata';
+          video.onloadedmetadata = () => {
+            URL.revokeObjectURL(video.src);
+            resolve(Math.round(video.duration));
+          };
+          video.onerror = () => resolve(0);
+          video.src = URL.createObjectURL(file);
+        });
+      }
+
+      await handleSendMessage(s3Url, msgType, file.name, file.size, undefined, videoDur);
       toast.dismiss(uploadToast);
       toast.success(t('chat.upload.success'));
     } catch (error) {
@@ -669,6 +684,9 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
             linkTitle: m.linkTitle,
             linkThumbnail: m.linkThumbnail,
             voiceDuration: m.voiceDuration,
+            videoDuration: m.videoDuration,
+            fileName: m.fileName,
+            fileSize: m.fileSize,
             replyToMessageId: m.replyToMessageId || null,
             sender: m.senderId === 'SYSTEM' ? 'SYSTEM' : m.senderId === currentUser?.id ? 'Me' : m.senderName,
             senderId: m.senderId,
@@ -689,6 +707,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
             rawDate: m.createdAt ? new Date(m.createdAt) : undefined,
             isEdited: m.isEdited || false,
             isRecalled: m.isRecalled || false,
+            forwardedFromSenderName: m.forwardedFromSenderName || null,
           }));
 
           setMessages(mapped);
@@ -789,6 +808,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
               rawDate: newMsg.createdAt ? new Date(newMsg.createdAt) : new Date(),
               isEdited: newMsg.isEdited || false,
               isRecalled: newMsg.isRecalled || false,
+              forwardedFromSenderName: newMsg.forwardedFromSenderName || null,
             };
             setShouldScrollToBottom(true);
             return [...prev, mappedMsg];
@@ -880,6 +900,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           rawDate: m.createdAt ? new Date(m.createdAt) : undefined,
           isEdited: m.isEdited || false,
           isRecalled: m.isRecalled || false,
+          forwardedFromSenderName: m.forwardedFromSenderName || null,
         }));
 
         setMessages(prev => {
@@ -922,7 +943,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
     }
   };
 
-  const handleSendMessage = async (customContent?: string, msgType: string = 'TEXT', fileName?: string, fileSize?: number, voiceDuration?: number) => {
+  const handleSendMessage = async (customContent?: string, msgType: string = 'TEXT', fileName?: string, fileSize?: number, voiceDuration?: number, videoDuration?: number) => {
     const contentToUse = customContent || message?.trim();
     if (contentToUse && selectedChat?.id) {
       try {
@@ -935,6 +956,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           fileName,
           fileSize,
           voiceDuration,
+          videoDuration,
           replyToMessageId: replyingTo?.id || undefined
         };
 
@@ -1386,6 +1408,12 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                           onContextMenu={(e) => openContextMenu(e, msg)}
                         >
                           <div className="leading-relaxed">
+                            {msg.forwardedFromSenderName && !msg.isRecalled && (
+                              <div className="flex items-center gap-1 mb-1 text-[11px] text-[var(--sub-text)] italic">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10l5-5 5 5M8 6v8a4 4 0 004 4h9" /></svg>
+                                <span>{t('chat.forward.forwarded_from', { name: msg.forwardedFromSenderName })}</span>
+                              </div>
+                            )}
                             {msg.isRecalled ? (
                               <div className="flex items-center gap-2 py-1 text-[var(--sub-text)] italic opacity-70">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>

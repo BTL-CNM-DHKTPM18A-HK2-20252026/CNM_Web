@@ -41,6 +41,11 @@ const nextConfig: NextConfig = {
         hostname: 'api.dicebear.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'fruvia-chat-storage.s3.ap-southeast-1.amazonaws.com',
+        pathname: '/**',
+      },
     ],
   },
 };

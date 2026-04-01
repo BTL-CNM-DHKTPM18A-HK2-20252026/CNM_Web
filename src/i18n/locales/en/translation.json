@@ -201,7 +201,8 @@
       "send_btn": "Forward",
       "sending": "Sending...",
       "success": "Forwarded to {{count}} conversation(s)",
-      "error": "Failed to forward message"
+      "error": "Failed to forward message",
+      "forwarded_from": "Forwarded from {{name}}"
     },
     "typing": {
       "one": "{{name}} is typing...",

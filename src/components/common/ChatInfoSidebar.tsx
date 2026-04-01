@@ -311,6 +311,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
   const totalPossibleSizeMB = 500;
   const currentTotalMB = stats?.totalSize ? (stats.totalSize / (1024 * 1024)) : 0;
   const usagePercentage = Math.min((currentTotalMB / totalPossibleSizeMB) * 100, 100);
+  const isSelectedVideo = selectedImage ? /\.(mp4|webm|ogg)(\?|#|$)/i.test(selectedImage) : false;
 
   const imagePercentage = stats?.imageSize ? (stats.imageSize / stats.totalSize) * usagePercentage : 0;
   const videoPercentage = stats?.videoSize ? (stats.videoSize / stats.totalSize) * usagePercentage : 0;
@@ -337,13 +338,22 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
             className="relative w-[90vw] h-[90vh] flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
           >
-            <Image
-              src={selectedImage}
-              alt="Zoomed Media"
-              width={1200}
-              height={1200}
-              className="object-contain max-w-full max-h-full transition-all duration-300 animate-in zoom-in-95"
-            />
+            {isSelectedVideo ? (
+              <video
+                src={selectedImage}
+                controls
+                autoPlay
+                className="max-w-full max-h-full transition-all duration-300 animate-in zoom-in-95"
+              />
+            ) : (
+              <Image
+                src={selectedImage}
+                alt="Zoomed Media"
+                width={1200}
+                height={1200}
+                className="object-contain max-w-full max-h-full transition-all duration-300 animate-in zoom-in-95"
+              />
+            )}
           </div>
         </div>
       )}
