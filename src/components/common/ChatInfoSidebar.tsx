@@ -9,6 +9,7 @@ import { apiClient } from '@/services/api';
 import { friendService } from '@/services/friendService';
 import { toast } from 'sonner';
 import { websocketService } from '@/services/websocketService';
+import PinInputModal from './PinInputModal';
 
 interface ChatInfoSidebarProps {
   onClose: () => void;
@@ -20,9 +21,11 @@ interface ChatInfoSidebarProps {
   conversationName?: string;
   conversationAvatar?: string;
   currentUser?: any;
+  onClearChat?: () => void;
+  onHideConversation?: () => void;
 }
 
-export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGroup, isCloud, isAi, conversationName, conversationAvatar, currentUser }: ChatInfoSidebarProps) {
+export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGroup, isCloud, isAi, conversationName, conversationAvatar, currentUser, onClearChat, onHideConversation }: ChatInfoSidebarProps) {
   const { t } = useTranslation();
   const aiQuickCommands = [
     { code: t('info.ai.quick_commands_prompt.me_name'), desc: t('info.ai.quick_commands.me_name') },
@@ -48,6 +51,12 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
   // Pinned messages
   const [showPinned, setShowPinned] = React.useState(true);
   const [pinnedMessages, setPinnedMessages] = useState<any[]>([]);
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [showQuickCommands, setShowQuickCommands] = useState(false);
+  const [showHideModal, setShowHideModal] = useState(false);
+  const [hideAsSetup, setHideAsSetup] = useState(false); // true = first-time PIN setup before hide
+  const [hideLoading, setHideLoading] = useState(false);
+  const [hideError, setHideError] = useState<string | null>(null);
 
   useEffect(() => {
     if (conversationId && !isAi) {
@@ -75,6 +84,68 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
     } catch (e: any) {
       toast.error(e?.message || t('chat.pin.unpin_error'));
     }
+  };
+
+  const handleClearChat = async () => {
+    try {
+      await apiClient.delete(`/messages/conversations/${conversationId}/all`);
+      toast.success(t('info.ai.clear_chat.success'));
+      onClearChat?.();
+    } catch (e: any) {
+      toast.error(e?.message || t('info.ai.clear_chat.error'));
+    } finally {
+      setShowClearModal(false);
+    }
+  };
+
+  const handleHideConversation = async (pin: string) => {
+    if (hideAsSetup) {
+      // Step 1: set up PIN for the first time
+      setHideLoading(true);
+      setHideError(null);
+      try {
+        await apiClient.post('/users/me/pin', { pin });
+        // PIN set up — now proceed to hide using the same PIN
+        setHideAsSetup(false);
+        await apiClient.post(`/conversations/${conversationId}/hide`, { pinCode: pin });
+        toast.success(t('info.hide.success'));
+        setShowHideModal(false);
+        onHideConversation?.();
+      } catch (e: any) {
+        setHideError(e?.message || t('info.hide.wrong_pin'));
+      } finally {
+        setHideLoading(false);
+      }
+      return;
+    }
+    setHideLoading(true);
+    setHideError(null);
+    try {
+      await apiClient.post(`/conversations/${conversationId}/hide`, { pinCode: pin });
+      toast.success(t('info.hide.success'));
+      setShowHideModal(false);
+      onHideConversation?.();
+    } catch (e: any) {
+      const msg = e?.message || t('info.hide.wrong_pin');
+      setHideError(msg);
+    } finally {
+      setHideLoading(false);
+    }
+  };
+
+  const handleOpenHideModal = () => {
+    setHideError(null);
+    setHideAsSetup(false); // default: assume user has PIN
+    setShowHideModal(true); // show modal ngay lập tức, không await API
+    // Check PIN status in background
+    apiClient.get('/users/me/pin/status')
+      .then((res: any) => {
+        const hasPin = Boolean(res?.hasPin ?? res?.data?.hasPin);
+        setHideAsSetup(!hasPin);
+      })
+      .catch(() => {
+        // giữ default false (confirm mode) nếu check thất bại
+      });
   };
 
   // Group member management state
@@ -435,15 +506,34 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
               <li>• {t('info.ai.capability_3')}</li>
             </ul>
             <div className="pt-1">
-              <h5 className="text-[13px] font-bold text-[var(--text)] mb-2">{t('info.ai.quick_commands_title')}</h5>
-              <div className="space-y-2">
-                {aiQuickCommands.map((item) => (
-                  <div key={item.code} className="rounded-md border border-[var(--border)] bg-[var(--hover-bg)] px-2.5 py-2">
-                    <div className="text-[12px] font-mono font-semibold text-[#0068FF]">{item.code}</div>
-                    <div className="text-[12px] text-[var(--sub-text)] mt-0.5 leading-relaxed">{item.desc}</div>
-                  </div>
-                ))}
-              </div>
+              <button
+                onClick={() => setShowQuickCommands(prev => !prev)}
+                className="w-full flex items-center justify-between px-2.5 py-2 rounded-md hover:bg-[var(--hover-bg)] transition-colors cursor-pointer group"
+              >
+                <span className="text-[13px] font-bold text-[var(--text)]">{t('info.ai.quick_commands_title')}</span>
+                <span className={`text-[var(--sub-text)] transition-transform duration-200 ${showQuickCommands ? '' : '-rotate-90'}`}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </span>
+              </button>
+              {showQuickCommands && (
+                <div className="mt-2 space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                  {aiQuickCommands.map((item) => (
+                    <div key={item.code} className="rounded-md border border-[var(--border)] bg-[var(--hover-bg)] px-2.5 py-2">
+                      <div className="text-[12px] font-mono font-semibold text-[#0068FF]">{item.code}</div>
+                      <div className="text-[12px] text-[var(--sub-text)] mt-0.5 leading-relaxed">{item.desc}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="pt-2">
+              <button
+                onClick={() => setShowClearModal(true)}
+                className="w-full py-2 flex items-center justify-center gap-2 text-[13px] font-bold text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-md transition-colors cursor-pointer"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
+                {t('info.ai.clear_chat.button')}
+              </button>
             </div>
           </div>
         )}
@@ -803,7 +893,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                           alt="Gallery Image"
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src = '/broken-image.png'; // Fallback if you have it
+                            (e.target as HTMLImageElement).style.display = 'none';
                           }}
                         />
                       ) : (
@@ -931,7 +1021,65 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
             )}
           </div>
         </div>
+
+        {/* Hide Conversation button — for regular (non-AI, non-Cloud) conversations */}
+        {!isAi && !isCloud && (
+          <div className="px-4 py-4 border-t border-[var(--border)]">
+            <button
+              onClick={() => handleOpenHideModal()}
+              className="w-full py-2 flex items-center justify-center gap-2 text-[13px] font-semibold text-[var(--sub-text)] bg-[var(--hover-bg)] hover:bg-[var(--border)] rounded-lg transition-colors cursor-pointer"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8A18.45 18.45 0 0 1 5.06 5.06"/>
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+              {t('info.hide.button')}
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Hide Conversation PIN Modal */}
+      {showHideModal && (
+        <PinInputModal
+          title={hideAsSetup ? t('pin.setup_for_hide_title') : t('info.hide.modal_title')}
+          subtitle={hideAsSetup ? t('pin.setup_for_hide_subtitle') : t('info.hide.modal_subtitle')}
+          error={hideError}
+          loading={hideLoading}
+          onConfirm={handleHideConversation}
+          onClose={() => { setShowHideModal(false); setHideAsSetup(false); }}
+        />
+      )}
+
+      {/* Clear Chat Confirmation Modal */}
+      {showClearModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/45 animate-in fade-in duration-200" onClick={() => setShowClearModal(false)} />
+          <div className="w-full max-w-[400px] bg-[var(--card-bg)] rounded-lg shadow-2xl relative z-[101] animate-in zoom-in-95 duration-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-[var(--border)]">
+              <h3 className="text-[16px] font-bold text-[var(--text)]">{t('info.ai.clear_chat.title')}</h3>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-[13px] text-[var(--sub-text)] leading-relaxed">{t('info.ai.clear_chat.body')}</p>
+            </div>
+            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+              <button
+                onClick={() => setShowClearModal(false)}
+                className="px-4 py-1.5 text-[13px] font-bold text-[var(--text)] bg-[var(--hover-bg)] hover:bg-[var(--border)] rounded-md transition-colors cursor-pointer"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleClearChat}
+                className="px-4 py-1.5 text-[13px] font-bold text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors cursor-pointer"
+              >
+                {t('info.ai.clear_chat.confirm')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

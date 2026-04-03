@@ -77,7 +77,7 @@ export default function Home() {
   const fetchQrSession = async () => {
     setQrLoading(true);
     setScannedUser(null); // Reset scanned user when refreshing QR
-    try {
+      try {
       const uuid = await authService.getQrSession();
       setQrUuid(uuid);
       // Start listening for WebSocket updates for this UUID

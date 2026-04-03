@@ -41,6 +41,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
   const sidebarSearchTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const hasToasted = React.useRef(false);
+  const [chatRefreshTrigger, setChatRefreshTrigger] = useState(0);
 
   const fetchUserProfile = async () => {
     try {
@@ -550,6 +551,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
             onUnhideConversation={() => {
               fetchConversations();
             }}
+            currentUser={currentUser}
           />
         ) : activeTab === 'contacts' ? (
           <ContactList
@@ -618,6 +620,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
                       prev.map(c => c.id === id ? { ...c, nickname: nickname || undefined } : c)
                     );
                   }}
+                  refreshTrigger={chatRefreshTrigger}
                 />
                 {activeSidebar === 'info' && (
                   <ChatInfoSidebar
@@ -630,6 +633,11 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
                     conversationName={(selectedChat as any).name}
                     conversationAvatar={(selectedChat as any).avatar}
                     currentUser={currentUser}
+                    onClearChat={() => setChatRefreshTrigger(prev => prev + 1)}
+                    onHideConversation={() => {
+                      setSelectedChat(null);
+                      setConversations(prev => prev.filter(c => c.id !== selectedChat?.id));
+                    }}
                   />
                 )}
                 {activeSidebar === 'search' && (

@@ -43,6 +43,7 @@ interface ChatWindowProps {
   onUpdateConversation?: (id: string | number, lastMsg: string, time?: string) => void;
   onSelectConversation?: (id: string | number) => void;
   onNicknameChange?: (id: string | number, nickname: string | null) => void;
+  refreshTrigger?: number;
 }
 
 type AiAccessSettings = {
@@ -141,7 +142,7 @@ const formatDateSeparator = (date?: Date, t?: (key: string) => string) => {
   return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, currentUser, onUpdateConversation, onSelectConversation, onNicknameChange }: ChatWindowProps) {
+export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, currentUser, onUpdateConversation, onSelectConversation, onNicknameChange, refreshTrigger }: ChatWindowProps) {
   const { t, i18n } = useTranslation();
   const [message, setMessage] = React.useState("");
   const [isPickerOpen, setIsPickerOpen] = React.useState(false);
@@ -149,6 +150,9 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
 
   // Nickname state
   const [nickname, setNickname] = useState<string | null>(null);
+
+  // AI send lock – prevents concurrent AI requests
+  const [isSendingAi, setIsSendingAi] = useState(false);
 
   // Reply state
   const [replyingTo, setReplyingTo] = useState<{ id: string; text: string; sender: string; type: string } | null>(null);
@@ -549,7 +553,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Typing indicator state
-  const [typingUsers, setTypingUsers] = React.useState<{ userId: string; displayName: string }[]>([]);
+  const [typingUsers, setTypingUsers] = React.useState<{ userId: string; displayName: string; avatarUrl?: string }[]>([]);
   const typingTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const lastTypingSentRef = useRef<number>(0);
 
@@ -565,12 +569,12 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           if (data.userId === currentUser?.id) return; // Ignore self
 
           const resolvedDisplayName = data.displayName
-            || (data.userId === AI_TYPING_USER_ID ? (selectedChat.name || t('chat.ai_name')) : t('common.unknown_user'));
+            || (data.userId === AI_TYPING_USER_ID ? (selectedChat.name || 'Fruvia AI') : t('common.unknown_user'));
 
           if (data.typing) {
             setTypingUsers(prev => {
               if (prev.some(u => u.userId === data.userId)) return prev;
-              return [...prev, { userId: data.userId, displayName: resolvedDisplayName }];
+              return [...prev, { userId: data.userId, displayName: resolvedDisplayName, avatarUrl: data.avatarUrl }];
             });
             // Auto-remove after 3s if no new typing event
             const existing = typingTimeoutRef.current.get(data.userId);
@@ -595,6 +599,13 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       typingTimeoutRef.current.clear();
     };
   }, [selectedChat?.id, selectedChat?.isNew, selectedChat?.name, currentUser?.id, t]);
+
+  // Auto-scroll when someone starts typing
+  React.useEffect(() => {
+    if (typingUsers.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [typingUsers.length]);
 
   // Send typing indicator (throttled to once per 2s)
   const sendTypingIndicator = React.useCallback(() => {
@@ -862,7 +873,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
               text: newMsg.content,
               type: newMsg.messageType || 'TEXT',
               replyToMessageId: newMsg.replyToMessageId || null,
-              sender: newMsg.senderId === 'SYSTEM' ? 'SYSTEM' : newMsg.senderId === currentUser?.id ? 'Me' : newMsg.senderName,
+              sender: newMsg.senderId === 'SYSTEM' ? 'SYSTEM' : newMsg.senderId === currentUser?.id ? 'Me' : (newMsg.senderId === AI_TYPING_USER_ID ? (newMsg.senderName || 'Fruvia AI') : newMsg.senderName),
               senderId: newMsg.senderId,
               time: newMsg.createdAt ? new Date(newMsg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }) : new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
               avatar: newMsg.senderAvatarUrl,
@@ -884,7 +895,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
     return () => {
       if (subscription) subscription.unsubscribe();
     };
-  }, [selectedChat?.id, currentUser?.id]);
+  }, [selectedChat?.id, currentUser?.id, refreshTrigger]);
 
   const [shouldScrollToBottom, setShouldScrollToBottom] = React.useState(false);
   const isInitialLoadRef = useRef(true);
@@ -1012,6 +1023,8 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
         if (!customContent) setMessage("");
 
         if (selectedChat.isAi) {
+          if (isSendingAi) return; // Prevent concurrent AI requests
+          setIsSendingAi(true);
           const locale = (i18n.resolvedLanguage || i18n.language || 'vi').toLowerCase();
           const tempUserMessageId = `temp-ai-user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -1038,7 +1051,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
 
           setTypingUsers(prev => {
             if (prev.some(u => u.userId === AI_TYPING_USER_ID)) return prev;
-            return [...prev, { userId: AI_TYPING_USER_ID, displayName: selectedChat.name || t('chat.ai_name') }];
+            return [...prev, { userId: AI_TYPING_USER_ID, displayName: selectedChat.name || t('chat.ai_name'), avatarUrl: undefined }];
           });
 
           const aiPayload: any = {
@@ -1143,13 +1156,33 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
             });
 
             setShouldScrollToBottom(true);
-          } catch (aiError) {
-            // Rollback optimistic message on failure so UI doesn't keep unsent text.
-            setMessages(prev => prev.filter(m => m.id !== tempUserMessageId));
-            if (!customContent) setMessage(contentToUse);
-            toast.error(t('common.action_failed'));
+          } catch (aiError: any) {
             console.error('AI send failed', aiError);
+            // Keep the user message (it's already saved in backend) and show an error AI response
+            const errorText = aiError?.response?.data?.message
+              || (locale.startsWith('en')
+                ? 'Sorry, AI is temporarily unavailable. Please try again in a moment.'
+                : 'Xin lỗi, AI tạm thời không phản hồi được. Bạn thử lại sau vài giây nhé.');
+            setMessages(prev => [
+              ...prev,
+              {
+                id: `ai-error-${Date.now()}`,
+                text: errorText,
+                type: 'TEXT',
+                replyToMessageId: null,
+                sender: 'Fruvia AI',
+                senderId: AI_TYPING_USER_ID,
+                time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+                reactions: [],
+                rawDate: new Date(),
+                isEdited: false,
+                isRecalled: false,
+                forwardedFromSenderName: null,
+              }
+            ]);
+            setShouldScrollToBottom(true);
           } finally {
+            setIsSendingAi(false);
             setTypingUsers(prev => prev.filter(u => u.userId !== AI_TYPING_USER_ID));
             const existing = typingTimeoutRef.current.get(AI_TYPING_USER_ID);
             if (existing) {
@@ -1816,6 +1849,30 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
         </>)}
       </div>
 
+      {/* Typing indicator — outside scroll, above reply bar and input bar */}
+      {typingUsers.length > 0 && (
+        <div className="flex flex-col gap-1 px-4 py-2 bg-[var(--chat-bg)] border-t border-[var(--border)]/20 flex-shrink-0">
+          {typingUsers.map((u) => (
+            <div key={u.userId} className="flex items-center gap-2 animate-in fade-in slide-in-from-bottom-1 duration-200">
+              <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 border border-[var(--border)] flex items-center justify-center bg-blue-50">
+                {u.userId === AI_TYPING_USER_ID ? (
+                  <div className="w-full h-full rounded-full bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 flex items-center justify-center text-white">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L9.09 8.26 2 9.27l5 4.87L5.82 21 12 17.77 18.18 21l-1.18-6.86L22 9.27l-7.09-1.01L12 2z"/></svg>
+                  </div>
+                ) : u.avatarUrl ? (
+                  <img src={u.avatarUrl} alt={u.displayName} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-blue-600 font-bold text-[10px]">{u.displayName?.charAt(0)?.toUpperCase() || '?'}</span>
+                )}
+              </div>
+              <span className="text-[13px] italic text-[var(--sub-text)] opacity-80 select-none">
+                {u.displayName} {t('chat.typing.suffix_one')}...
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* REPLY PREVIEW BAR */}
       {replyingTo && (
         <div className="bg-[var(--card-bg)] border-t border-[var(--border)] px-4 py-2 flex items-center gap-3 animate-in slide-in-from-bottom-2 duration-200">
@@ -1834,26 +1891,6 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
 
       {/* INPUT BAR */}
       <div className="bg-[var(--card-bg)] border-t border-[var(--border)] flex-shrink-0 transition-colors duration-200">
-        {/* Typing indicator */}
-        {typingUsers.length > 0 && (
-          <div className="px-4 py-1.5 border-b border-[var(--border)] bg-[var(--hover-bg)]">
-            <div className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-[var(--card-bg)] border border-[var(--border)] px-2.5 py-1 text-[12px] leading-4 shadow-sm select-none">
-              <span className="max-w-[50vw] truncate font-semibold text-[var(--text)]">
-                {typingUsers.length === 1
-                  ? typingUsers[0].displayName
-                  : typingUsers.map((u) => u.displayName).join(', ')}
-              </span>
-              <span className="text-[var(--sub-text)]">
-                {typingUsers.length === 1 ? t('chat.typing.suffix_one') : t('chat.typing.suffix_many')}
-              </span>
-              <span className="inline-flex items-center gap-0.5" aria-hidden="true">
-                <span className="h-1 w-1 rounded-full bg-[var(--sub-text)] opacity-70 animate-pulse" style={{ animationDelay: '0ms' }} />
-                <span className="h-1 w-1 rounded-full bg-[var(--sub-text)] opacity-70 animate-pulse" style={{ animationDelay: '120ms' }} />
-                <span className="h-1 w-1 rounded-full bg-[var(--sub-text)] opacity-70 animate-pulse" style={{ animationDelay: '240ms' }} />
-              </span>
-            </div>
-          </div>
-        )}
         <div className="flex items-center px-4 py-1.5 gap-1.5 border-b border-[var(--border)] relative h-[46px]">
           {isRecording ? (
             <div className="flex-1 flex items-center justify-between animate-in slide-in-from-bottom-2 duration-300">
@@ -1924,12 +1961,12 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
         </div>
         <div className="flex items-center px-4 py-3 gap-3">
           <div className="flex-1">
-            <input ref={messageInputRef} type="text" value={message} onChange={(e) => { setMessage(e.target.value); sendTypingIndicator(); }} onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); if (e.key === 'Escape' && replyingTo) setReplyingTo(null); }} placeholder={selectedChat.isAi ? t('chat.ai_input_placeholder') : t('chat.input_placeholder')} className="w-full bg-transparent outline-none text-[15px] placeholder:text-[var(--sub-text)] placeholder:opacity-50 py-1 text-[var(--text)]" />
+            <input ref={messageInputRef} type="text" value={message} onChange={(e) => { setMessage(e.target.value); sendTypingIndicator(); }} onKeyDown={(e) => { if (e.key === 'Enter' && !(selectedChat.isAi && isSendingAi)) handleSendMessage(); if (e.key === 'Escape' && replyingTo) setReplyingTo(null); }} placeholder={selectedChat.isAi && isSendingAi ? (t('chat.ai_thinking') || 'AI đang suy nghĩ...') : (selectedChat.isAi ? t('chat.ai_input_placeholder') : t('chat.input_placeholder'))} disabled={selectedChat.isAi && isSendingAi} className="w-full bg-transparent outline-none text-[15px] placeholder:text-[var(--sub-text)] placeholder:opacity-50 py-1 text-[var(--text)] disabled:opacity-50" />
           </div>
           <div className="flex items-center gap-2 pr-1 shrink-0">
             <button onClick={() => togglePicker('emoji')} className={`transition-colors cursor-pointer ${isPickerOpen && pickerTab === 'emoji' ? 'text-[#0068FF]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}><EmojiIcon size={22} /></button>
             {message.trim() ? (
-              <button onClick={() => handleSendMessage()} className="text-[#0068FF] flex items-center justify-center transform translate-y-[-1px] cursor-pointer"><SendIcon size={22} /></button>
+              <button onClick={() => handleSendMessage()} disabled={selectedChat.isAi && isSendingAi} className={`flex items-center justify-center transform translate-y-[-1px] cursor-pointer ${selectedChat.isAi && isSendingAi ? 'text-gray-400 cursor-not-allowed' : 'text-[#0068FF]'}`}><SendIcon size={22} /></button>
             ) : (
               <button onClick={() => handleSendMessage('👍')} className="text-[#0068FF] hover:scale-110 active:scale-90 flex items-center justify-center transform translate-y-[-1.5px] cursor-pointer"><LikeIcon size={22} /></button>
             )}

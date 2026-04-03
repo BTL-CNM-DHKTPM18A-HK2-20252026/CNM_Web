@@ -6,6 +6,7 @@ import { apiClient } from '@/services/api';
 import { toast } from 'sonner';
 import { StatusIndicator } from './StatusIndicator';
 import { usePresence } from '@/components/providers/PresenceProvider';
+import PinInputModal from './PinInputModal';
 
 interface Conversation {
   id: string | number;
@@ -40,6 +41,7 @@ interface ConversationListProps {
   onMarkUnread?: (id: string | number, isMarkedUnread: boolean) => void;
   onAutoDeleteConversation?: (id: string | number, duration: string | null) => void;
   onUnhideConversation?: (id: string | number) => void;
+  currentUser?: any;
 }
 
 interface SearchItem {
@@ -80,7 +82,7 @@ interface SearchMessageDocument {
   createdAt: string;
 }
 
-export function ConversationList({ conversations, onAddFriend, onCreateGroup, onSelectConversation, onPinConversation, onDeleteConversation, onTagConversation, onMuteConversation, onMarkUnread, onAutoDeleteConversation, onUnhideConversation }: ConversationListProps) {
+export function ConversationList({ conversations, onAddFriend, onCreateGroup, onSelectConversation, onPinConversation, onDeleteConversation, onTagConversation, onMuteConversation, onMarkUnread, onAutoDeleteConversation, onUnhideConversation, currentUser }: ConversationListProps) {
   const { t } = useTranslation();
   const { isOnline, getTimeAgo } = usePresence();
 
@@ -102,6 +104,137 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
   const [searchMessages, setSearchMessages] = useState<{ messageId: string; conversationId: string; senderId: string; senderName: string; content: string; messageType: string; createdAt: string }[]>([]);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Private mode — unlock hidden conversations in search
+  const [isPrivateMode, setIsPrivateMode] = useState(false);
+  const [privateModePin, setPrivateModePin] = useState<string | null>(null);
+  const [showPrivatePinModal, setShowPrivatePinModal] = useState(false);
+  const [privatePinError, setPrivatePinError] = useState<string | null>(null);
+  const [privatePinLoading, setPrivatePinLoading] = useState(false);
+  const [hiddenSearchResults, setHiddenSearchResults] = useState<any[]>([]);
+  const privateModeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const PRIVATE_MODE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+
+  // Context-menu hide with PIN
+  const [showCtxHidePinModal, setShowCtxHidePinModal] = useState(false);
+  const [ctxHideConvId, setCtxHideConvId] = useState<string | number | null>(null);
+  const [ctxHidePinError, setCtxHidePinError] = useState<string | null>(null);
+  const [ctxHidePinLoading, setCtxHidePinLoading] = useState(false);
+  const [ctxHideIsSetup, setCtxHideIsSetup] = useState(false);
+
+  // Unhide with PIN
+  const [showUnhidePinModal, setShowUnhidePinModal] = useState(false);
+  const [unhidePinTarget, setUnhidePinTarget] = useState<string | number | 'all' | null>(null);
+  const [unhidePinError, setUnhidePinError] = useState<string | null>(null);
+  const [unhidePinLoading, setUnhidePinLoading] = useState(false);
+
+  const resetPrivateMode = useCallback(() => {
+    setIsPrivateMode(false);
+    setPrivateModePin(null);
+    setHiddenSearchResults([]);
+    if (privateModeTimerRef.current) clearTimeout(privateModeTimerRef.current);
+  }, []);
+
+  const activatePrivateMode = useCallback((pin: string) => {
+    setIsPrivateMode(true);
+    setPrivateModePin(pin);
+    setShowPrivatePinModal(false);
+    setPrivatePinError(null);
+    if (privateModeTimerRef.current) clearTimeout(privateModeTimerRef.current);
+    privateModeTimerRef.current = setTimeout(resetPrivateMode, PRIVATE_MODE_TIMEOUT);
+  }, [resetPrivateMode]);
+
+  const handlePrivatePinConfirm = async (pin: string) => {
+    setPrivatePinLoading(true);
+    setPrivatePinError(null);
+    try {
+      // Verify PIN by calling search with it (empty query — will return [] if wrong, list if correct)
+      // We verify cheaply by relying on the search endpoint returning [] for wrong PIN
+      await apiClient.get(`/conversations/hidden/search?q=&pinCode=${encodeURIComponent(pin)}`);
+      activatePrivateMode(pin);
+    } catch (e: any) {
+      setPrivatePinError(t('pin.wrong') || 'Mã PIN không chính xác');
+    } finally {
+      setPrivatePinLoading(false);
+    }
+  };
+
+  const openCtxHidePinModal = (convId: string | number) => {
+    setCtxHideConvId(convId);
+    setCtxHidePinError(null);
+    setCtxHideIsSetup(false);
+    setShowCtxHidePinModal(true);
+    // Check PIN status in background
+    apiClient.get('/users/me/pin/status')
+      .then((res: any) => {
+        const hasPin = Boolean(res?.hasPin ?? res?.data?.hasPin);
+        setCtxHideIsSetup(!hasPin);
+      })
+      .catch(() => { /* keep default */ });
+  };
+
+  const handleCtxHidePinConfirm = async (pin: string) => {
+    if (!ctxHideConvId) return;
+    setCtxHidePinLoading(true);
+    setCtxHidePinError(null);
+    try {
+      if (ctxHideIsSetup) {
+        await apiClient.post('/users/me/pin', { pin });
+        setCtxHideIsSetup(false);
+      }
+      await apiClient.post(`/conversations/${ctxHideConvId}/hide`, { pinCode: pin });
+      onDeleteConversation?.(ctxHideConvId);
+      toast.success(t('chat.ctx.hide_success'));
+      setShowCtxHidePinModal(false);
+      setCtxHideConvId(null);
+    } catch (e: any) {
+      setCtxHidePinError(e?.message || t('pin.wrong'));
+    } finally {
+      setCtxHidePinLoading(false);
+    }
+  };
+
+  const handleUnhidePinConfirm = async (pin: string) => {
+    if (!unhidePinTarget) return;
+    setUnhidePinLoading(true);
+    setUnhidePinError(null);
+    try {
+      if (unhidePinTarget === 'all') {
+        await Promise.all(
+          hiddenConversations.map(conv =>
+            apiClient.post(`/conversations/${conv.conversationId || conv.conversation_id}/unhide`, { pinCode: pin })
+          )
+        );
+        const ids = hiddenConversations.map(c => c.conversationId || c.conversation_id);
+        ids.forEach(id => onUnhideConversation?.(id));
+        setHiddenConversations([]);
+        toast.success(t('chat.unhide_all_success') || 'Đã hiện lại tất cả hội thoại');
+      } else {
+        await apiClient.post(`/conversations/${unhidePinTarget}/unhide`, { pinCode: pin });
+        setHiddenConversations(prev => prev.filter(c => (c.conversationId || c.conversation_id) !== unhidePinTarget));
+        onUnhideConversation?.(unhidePinTarget);
+        toast.success(t('chat.unhide_success'));
+      }
+      setShowUnhidePinModal(false);
+      setUnhidePinTarget(null);
+    } catch (e: any) {
+      setUnhidePinError(e?.message || t('pin.wrong'));
+    } finally {
+      setUnhidePinLoading(false);
+    }
+  };
+
+  // Auto-lock on tab close/hide
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') resetPrivateMode();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (privateModeTimerRef.current) clearTimeout(privateModeTimerRef.current);
+    };
+  }, [resetPrivateMode]);
 
   const extractEsDocument = <T,>(item: unknown): T | null => {
     if (!item || typeof item !== 'object') return null;
@@ -126,11 +259,10 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
         // Wrap each call to prevent apiClient's internal throw from propagating
         const safeGet = (url: string) => apiClient.get(url).catch(() => null);
 
-        const [usersData, ...messagesData] = await Promise.all([
+        // Single request for users + single request across ALL user conversations
+        const [usersData, messagesData] = await Promise.all([
           safeGet(`/search/users?q=${encodeURIComponent(value.trim())}&size=5`),
-          ...conversations.slice(0, 10).map(c =>
-            safeGet(`/search/messages?q=${encodeURIComponent(value.trim())}&conversationId=${c.id}&size=3`)
-          ),
+          safeGet(`/search/my-messages?q=${encodeURIComponent(value.trim())}&size=10`),
         ]);
 
         // Extract users — apiClient unwraps ApiResponse, so result is Page<UserDocument> directly
@@ -153,49 +285,62 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
           setSearchUsers([]);
         }
 
-        // Extract messages from all conversation searches
+        // Extract messages from /search/my-messages (single call covering all conversations)
         const allMessages: typeof searchMessages = [];
-        for (const res of messagesData) {
-          if (res) {
-            const data = res?.content || (Array.isArray(res) ? res : []);
-            if (Array.isArray(data)) {
-              const normalizedMessages = data
-                .map((item) => {
-                  const doc = extractEsDocument<SearchMessageDocument>(item);
-                  if (!doc?.messageId) return null;
+        if (messagesData) {
+          const data = messagesData?.content || (Array.isArray(messagesData) ? messagesData : []);
+          if (Array.isArray(data)) {
+            const normalizedMessages = data
+              .map((item) => {
+                const doc = extractEsDocument<SearchMessageDocument>(item);
+                if (!doc?.messageId) return null;
 
-                  const wrapped = item as EsSearchResult<SearchMessageDocument>;
-                  const highlightedContent = wrapped.highlights?.content?.[0];
-                  const normalizedContent = typeof highlightedContent === 'string'
-                    ? highlightedContent.replace(/<[^>]+>/g, '')
-                    : doc.content;
+                const wrapped = item as EsSearchResult<SearchMessageDocument>;
+                const highlightedContent = wrapped.highlights?.content?.[0];
+                const normalizedContent = typeof highlightedContent === 'string'
+                  ? highlightedContent.replace(/<[^>]+>/g, '')
+                  : doc.content;
 
-                  return {
-                    messageId: doc.messageId,
-                    conversationId: doc.conversationId,
-                    senderId: doc.senderId,
-                    senderName: doc.senderName,
-                    content: normalizedContent,
-                    messageType: doc.messageType,
-                    createdAt: doc.createdAt,
-                  };
-                })
-                .filter(Boolean) as typeof searchMessages;
+                return {
+                  messageId: doc.messageId,
+                  conversationId: doc.conversationId,
+                  senderId: doc.senderId,
+                  senderName: doc.senderName,
+                  content: normalizedContent,
+                  messageType: doc.messageType,
+                  createdAt: doc.createdAt,
+                };
+              })
+              .filter(Boolean) as typeof searchMessages;
 
-              allMessages.push(...normalizedMessages);
-            }
+            allMessages.push(...normalizedMessages);
           }
         }
-        // Sort by date desc and take top 10
+        // Already sorted by ES score/date, but sort by date desc for consistency
         allMessages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        setSearchMessages(allMessages.slice(0, 10));
+        setSearchMessages(allMessages);
+
+        // If private mode is active, also search hidden conversations
+        if (isPrivateMode && privateModePin) {
+          try {
+            const hiddenData: any = await apiClient.get(
+              `/conversations/hidden/search?q=${encodeURIComponent(value.trim())}&pinCode=${encodeURIComponent(privateModePin)}`
+            );
+            const list = Array.isArray(hiddenData) ? hiddenData : (hiddenData?.data || []);
+            setHiddenSearchResults(list);
+          } catch {
+            setHiddenSearchResults([]);
+          }
+        } else {
+          setHiddenSearchResults([]);
+        }
       } catch (e) {
         console.error('Search failed:', e);
       } finally {
         setIsSearchLoading(false);
       }
     }, 400);
-  }, [conversations]);
+  }, [conversations, isPrivateMode, privateModePin]);
 
   useEffect(() => {
     return () => {
@@ -224,6 +369,29 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
   const [showHiddenModal, setShowHiddenModal] = useState(false);
   const [hiddenConversations, setHiddenConversations] = useState<any[]>([]);
   const [hiddenLoading, setHiddenLoading] = useState(false);
+  const [showAllHidden, setShowAllHidden] = useState(false);
+  const HIDDEN_PAGE_SIZE = 5;
+
+  // PIN gate to open hidden list
+  const [showOpenHiddenPinModal, setShowOpenHiddenPinModal] = useState(false);
+  const [openHiddenPinError, setOpenHiddenPinError] = useState<string | null>(null);
+  const [openHiddenPinLoading, setOpenHiddenPinLoading] = useState(false);
+
+  const handleOpenHiddenPinConfirm = async (pin: string) => {
+    setOpenHiddenPinLoading(true);
+    setOpenHiddenPinError(null);
+    try {
+      // Verify PIN via search endpoint
+      await apiClient.get(`/conversations/hidden/search?q=&pinCode=${encodeURIComponent(pin)}`);
+      setShowOpenHiddenPinModal(false);
+      setShowHiddenModal(true);
+      fetchHiddenConversations();
+    } catch {
+      setOpenHiddenPinError(t('pin.wrong'));
+    } finally {
+      setOpenHiddenPinLoading(false);
+    }
+  };
 
   const fetchHiddenConversations = async () => {
     setHiddenLoading(true);
@@ -503,16 +671,10 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
 
         {/* Ẩn trò chuyện */}
         <button
-          onClick={async () => {
+          onClick={() => {
             const convId = contextMenu.id;
             setContextMenu(null);
-            try {
-              await apiClient.delete(`/conversations/${convId}`);
-              onDeleteConversation?.(convId);
-              toast.success(t('chat.ctx.hide_success'));
-            } catch (e: any) {
-              toast.error(e.message || 'Error');
-            }
+            openCtxHidePinModal(convId);
           }}
           className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center gap-3 text-[var(--text)] transition-colors cursor-pointer"
         >
@@ -634,11 +796,11 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
           <div className="relative flex-1 flex items-center">
             <input
               type="text"
-              placeholder={t('chat.search')}
+              placeholder={isPrivateMode ? (t('pin.search_placeholder') || '🔓 Tìm kiếm (bao gồm ẩn)') : t('chat.search')}
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
               onFocus={() => setIsSearching(true)}
-              className={`w-full ${isSearching ? 'bg-[var(--card-bg)] border-[#0068FF]' : 'bg-[var(--search-bg)] border-transparent'} rounded-lg py-1.5 pl-9 pr-3 text-[14px] text-[var(--text)] outline-none border transition-all placeholder:text-[var(--search-placeholder)]`}
+              className={`w-full ${isSearching ? 'bg-[var(--card-bg)] border-[#0068FF]' : 'bg-[var(--search-bg)] border-transparent'} rounded-lg py-1.5 pl-9 pr-8 text-[14px] text-[var(--text)] outline-none border transition-all placeholder:text-[var(--search-placeholder)]`}
             />
             <div className={`absolute left-3 ${isSearching ? 'text-[#0068FF]' : 'text-gray-400'}`}><SearchIcon size={16} /></div>
           </div>
@@ -903,6 +1065,46 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
                       </div>
                     </div>
                   )}
+
+                  {/* Hidden Conversation Results (private mode) */}
+                  {isPrivateMode && hiddenSearchResults.length > 0 && (
+                    <div className={searchMessages.length > 0 ? 'mt-4' : ''}>
+                      <h3 className="text-[13px] font-bold text-[#0068FF] mb-2 uppercase tracking-wide flex items-center gap-1.5">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        {t('pin.hidden_results') || 'Hội thoại ẩn'}
+                      </h3>
+                      <div className="space-y-0.5">
+                        {hiddenSearchResults.map((conv: any) => {
+                          const convId = conv.conversationId || conv.id;
+                          const name = conv.conversationName || conv.name || 'Unknown';
+                          const avatar = conv.conversationAvatarUrl || conv.avatarUrl || '';
+                          return (
+                            <div
+                              key={convId}
+                              className="flex items-center gap-3 p-2 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors opacity-80"
+                            >
+                              <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-black/5">
+                                {avatar ? (
+                                  <Image src={avatar} alt={name} width={40} height={40} className="object-cover w-full h-full" />
+                                ) : (
+                                  <span className="text-[14px] font-bold text-white bg-gray-400 w-full h-full flex items-center justify-center">
+                                    {name?.charAt(0)?.toUpperCase() || '?'}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[14px] font-medium text-[var(--text)] truncate flex items-center gap-1">
+                                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                  {name}
+                                </p>
+                                <p className="text-[12px] text-[var(--sub-text)] truncate">{conv.lastMessageContent || ''}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -1052,7 +1254,7 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
       {/* Hidden Conversations Link */}
       {!isSearching && (
         <button
-          onClick={() => { setShowHiddenModal(true); fetchHiddenConversations(); }}
+          onClick={() => { setOpenHiddenPinError(null); setShowOpenHiddenPinModal(true); }}
           className="w-full px-4 py-2.5 text-[12px] text-[var(--sub-text)] hover:text-[var(--text)] hover:bg-[var(--hover-bg)] flex items-center justify-center gap-2 transition-colors cursor-pointer border-t border-[var(--border)]"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-60"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
@@ -1135,14 +1337,62 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
         </div>
       )}
 
+      {/* Private mode PIN modal */}
+      {showPrivatePinModal && (
+        <PinInputModal
+          title={t('pin.unlock_title') || 'Nhập mã PIN'}
+          subtitle={t('pin.unlock_subtitle') || 'Nhập mã PIN để xem hội thoại ẩn trong kết quả tìm kiếm'}
+          error={privatePinError}
+          loading={privatePinLoading}
+          onConfirm={handlePrivatePinConfirm}
+          onClose={() => { setShowPrivatePinModal(false); setPrivatePinError(null); }}
+        />
+      )}
+
+      {/* Context-menu hide PIN modal */}
+      {showCtxHidePinModal && (
+        <PinInputModal
+          title={ctxHideIsSetup ? t('pin.setup_for_hide_title') : t('info.hide.modal_title')}
+          subtitle={ctxHideIsSetup ? t('pin.setup_for_hide_subtitle') : t('info.hide.modal_subtitle')}
+          error={ctxHidePinError}
+          loading={ctxHidePinLoading}
+          onConfirm={handleCtxHidePinConfirm}
+          onClose={() => { setShowCtxHidePinModal(false); setCtxHidePinError(null); setCtxHideConvId(null); }}
+        />
+      )}
+
+      {/* Unhide PIN modal */}
+      {showUnhidePinModal && (
+        <PinInputModal
+          title={t('info.hide.modal_title')}
+          subtitle={t('chat.unhide_pin_subtitle') || 'Nhập mã PIN để hiện lại hội thoại'}
+          error={unhidePinError}
+          loading={unhidePinLoading}
+          onConfirm={handleUnhidePinConfirm}
+          onClose={() => { setShowUnhidePinModal(false); setUnhidePinError(null); setUnhidePinTarget(null); }}
+        />
+      )}
+
+      {/* Open hidden list PIN modal */}
+      {showOpenHiddenPinModal && (
+        <PinInputModal
+          title={t('info.hide.modal_title')}
+          subtitle={t('chat.open_hidden_pin_subtitle') || 'Nhập mã PIN để xem danh sách hội thoại đã ẩn'}
+          error={openHiddenPinError}
+          loading={openHiddenPinLoading}
+          onConfirm={handleOpenHiddenPinConfirm}
+          onClose={() => { setShowOpenHiddenPinModal(false); setOpenHiddenPinError(null); }}
+        />
+      )}
+
       {/* Hidden Conversations Modal */}
       {showHiddenModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/45 animate-in fade-in duration-200" onClick={() => setShowHiddenModal(false)} />
+          <div className="absolute inset-0 bg-black/45 animate-in fade-in duration-200" onClick={() => { setShowHiddenModal(false); setShowAllHidden(false); }} />
           <div className="w-full max-w-[420px] max-h-[70vh] bg-[var(--card-bg)] rounded-xl shadow-2xl relative z-[10000] animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col">
             <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between shrink-0">
               <h3 className="text-[16px] font-bold text-[var(--text)]">{t('chat.hidden_conversations')}</h3>
-              <button onClick={() => setShowHiddenModal(false)} className="p-1 rounded-md hover:bg-[var(--hover-bg)] text-[var(--sub-text)] cursor-pointer">
+              <button onClick={() => { setShowHiddenModal(false); setShowAllHidden(false); }} className="p-1 rounded-md hover:bg-[var(--hover-bg)] text-[var(--sub-text)] cursor-pointer">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
               </button>
             </div>
@@ -1159,46 +1409,93 @@ export function ConversationList({ conversations, onAddFriend, onCreateGroup, on
                   <span className="text-[13px]">{t('chat.hidden_empty')}</span>
                 </div>
               ) : (
-                hiddenConversations.map((conv: any) => {
-                  const convId = conv.conversationId || conv.conversation_id;
-                  const name = conv.conversationName || conv.conversation_name || 'Unknown';
-                  const avatar = conv.conversationAvatarUrl || conv.conversation_avatar_url;
-                  const lastMsg = conv.lastMessageContent || conv.last_message_content || '';
-                  return (
-                    <div key={convId} className="flex items-center gap-3 p-3 rounded-lg hover:bg-[var(--hover-bg)] transition-colors">
-                      <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 shrink-0">
-                        {avatar ? (
-                          <Image src={avatar} alt={name} width={40} height={40} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-white bg-[#0068FF] text-[14px] font-bold">
-                            {name.charAt(0).toUpperCase()}
-                          </div>
-                        )}
+                <>
+                  {(showAllHidden ? hiddenConversations : hiddenConversations.slice(0, HIDDEN_PAGE_SIZE)).map((conv: any) => {
+                    const convId = conv.conversationId || conv.conversation_id;
+                    const convType = conv.conversationType || conv.conversation_type;
+                    const isPrivate = convType === 'PRIVATE';
+                    const isSelf = convType === 'SELF';
+                    const rawName = conv.conversationName || conv.conversation_name || '';
+                    const isAiConv = isSelf && rawName === 'Fruvia AI';
+                    const isCloudConv = isSelf && !isAiConv;
+                    let name = rawName;
+                    let avatar = conv.conversationAvatarUrl || conv.conversation_avatar_url || '';
+                    if (isPrivate && conv.members) {
+                      const other = conv.members.find((m: any) =>
+                        (m.userId || m.user_id) !== (currentUser?.id)
+                      );
+                      if (other) {
+                        name = other.displayName || other.display_name || other.userName || other.user_name || name;
+                        avatar = other.avatarUrl || other.avatar_url || avatar;
+                      }
+                    }
+                    if (!name) name = 'Unknown';
+                    const lastMsg = conv.lastMessageContent || conv.last_message_content || '';
+                    return (
+                      <div key={convId} className="flex items-center gap-3 p-3 rounded-lg hover:bg-[var(--hover-bg)] transition-colors">
+                        <div className={`w-10 h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center ${isAiConv ? 'bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500' : isCloudConv ? 'bg-[#0068FF]' : 'bg-gray-200'}`}>
+                          {isAiConv ? (
+                            <SparklesIcon size={20} />
+                          ) : isCloudConv ? (
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+                              <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-5 10c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0-6c-2.33 0-4.5 1.17-4.5 2.5V14h9v-1.5c0-1.33-2.17-2.5-4.5-2.5z" />
+                            </svg>
+                          ) : avatar ? (
+                            <Image src={avatar} alt={name} width={40} height={40} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-white bg-[#0068FF] text-[14px] font-bold">
+                              {name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[14px] font-medium text-[var(--text)] truncate">{name}</div>
+                          <div className="text-[12px] text-[var(--sub-text)] truncate">{lastMsg}</div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setUnhidePinError(null);
+                            setUnhidePinTarget(convId);
+                            setShowUnhidePinModal(true);
+                          }}
+                          className="px-3 py-1.5 text-[12px] font-medium text-[#0068FF] bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 rounded-lg transition-colors cursor-pointer shrink-0"
+                        >
+                          {t('chat.unhide')}
+                        </button>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[14px] font-medium text-[var(--text)] truncate">{name}</div>
-                        <div className="text-[12px] text-[var(--sub-text)] truncate">{lastMsg}</div>
-                      </div>
-                      <button
-                        onClick={async () => {
-                          try {
-                            await apiClient.post(`/conversations/${convId}/unhide`, {});
-                            setHiddenConversations(prev => prev.filter(c => (c.conversationId || c.conversation_id) !== convId));
-                            onUnhideConversation?.(convId);
-                            toast.success(t('chat.unhide_success'));
-                          } catch (e: any) {
-                            toast.error(e.message || 'Error');
-                          }
-                        }}
-                        className="px-3 py-1.5 text-[12px] font-medium text-[#0068FF] bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 rounded-lg transition-colors cursor-pointer shrink-0"
-                      >
-                        {t('chat.unhide')}
-                      </button>
-                    </div>
-                  );
-                })
+                    );
+                  })}
+                  {hiddenConversations.length > HIDDEN_PAGE_SIZE && (
+                    <button
+                      onClick={() => setShowAllHidden(prev => !prev)}
+                      className="w-full mt-1 py-2 flex items-center justify-center gap-1.5 text-[13px] font-medium text-[var(--sub-text)] hover:text-[var(--text)] hover:bg-[var(--hover-bg)] rounded-lg transition-colors cursor-pointer"
+                    >
+                      <span className={`transition-transform duration-200 ${showAllHidden ? 'rotate-180' : ''}`}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                      </span>
+                      {showAllHidden
+                        ? t('common.show_less') || 'Thu gọn'
+                        : `${t('common.show_more') || 'Xem thêm'} (${hiddenConversations.length - HIDDEN_PAGE_SIZE})`}
+                    </button>
+                  )}
+                </>
               )}
             </div>
+            {!hiddenLoading && hiddenConversations.length > 1 && (
+              <div className="px-3 pb-3 border-t border-[var(--border)] pt-3 shrink-0">
+                <button
+                  onClick={() => {
+                    setUnhidePinError(null);
+                    setUnhidePinTarget('all');
+                    setShowUnhidePinModal(true);
+                  }}
+                  className="w-full py-2 flex items-center justify-center gap-2 text-[13px] font-semibold text-[#0068FF] bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 rounded-lg transition-colors cursor-pointer"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  {t('chat.unhide_all') || 'Hiện lại tất cả'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

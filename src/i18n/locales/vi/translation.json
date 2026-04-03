@@ -13,7 +13,9 @@
     "saving": "Đang lưu...",
     "uploading": "Đang tải lên...",
     "select_all": "Chọn tất cả",
-    "you": "Bạn"
+    "you": "Bạn",
+    "show_more": "Xem thêm",
+    "show_less": "Thu gọn"
   },
   "login": {
     "title": "Fruvia Chat",
@@ -300,6 +302,10 @@
     "hidden_empty": "Không có hội thoại nào bị ẩn",
     "unhide": "Hiện lại",
     "unhide_success": "Đã hiện lại hội thoại",
+    "unhide_all": "Hiện lại tất cả",
+    "unhide_all_success": "Đã hiện lại tất cả hội thoại",
+    "unhide_pin_subtitle": "Nhập mã PIN để hiện lại hội thoại",
+    "open_hidden_pin_subtitle": "Nhập mã PIN để xem danh sách hội thoại đã ẩn",
     "choose_video": "Chọn Video",
     "choose_file": "Chọn File",
     "recording_cancel": "Hủy",
@@ -486,7 +492,31 @@
         "image_pro": "/image_pro <mô tả>",
         "sketch": "/sketch <mô tả>",
         "wallpaper": "/wallpaper <mô tả>"
+      },
+      "clear_chat": {
+        "title": "Xóa lịch sử trò chuyện?",
+        "body": "Hành động này không thể hoàn tác. Bạn có chắc muốn xóa toàn bộ tin nhắn?",
+        "button": "Xóa cuộc hội thoại",
+        "confirm": "Xác nhận xóa",
+        "success": "Đã xóa lịch sử trò chuyện",
+        "error": "Không thể xóa lịch sử trò chuyện"
+      },
+      "hide": {
+        "button": "Ẩn cuộc trò chuyện",
+        "modal_title": "Xác nhận mã PIN",
+        "modal_subtitle": "Nhập mã PIN 6 số của bạn để ẩn cuộc trò chuyện này",
+        "success": "Đã ẩn cuộc trò chuyện",
+        "wrong_pin": "Mã PIN không chính xác",
+        "no_pin": "Bạn chưa thiết lập mã PIN"
       }
+    },
+    "hide": {
+      "button": "Ẩn cuộc trò chuyện",
+      "modal_title": "Xác nhận mã PIN",
+      "modal_subtitle": "Nhập mã PIN 6 số của bạn để ẩn cuộc trò chuyện này",
+      "success": "Đã ẩn cuộc trò chuyện",
+      "wrong_pin": "Mã PIN không chính xác",
+      "no_pin": "Bạn chưa thiết lập mã PIN"
     },
     "cloud": {
       "desc": "Lưu trữ và truy cập những nội dung quan trọng nhất trên Fruvia Chat",
@@ -521,6 +551,28 @@
       "voice": "Tin nhắn thoại",
       "other": "Khác"
     }
+  },
+  "pin": {
+    "show_pin": "Hiện mã PIN",
+    "hide_pin": "Ẩn mã PIN",
+    "wrong": "Mã PIN không chính xác",
+    "unlock_title": "Mở chế độ riêng tư",
+    "unlock_subtitle": "Nhập mã PIN để tìm kiếm cả hội thoại đã ẩn",
+    "lock_active": "Chế độ riêng tư đang bật — nhấn để khóa",
+    "lock_inactive": "Mở khóa hội thoại ẩn",
+    "search_placeholder": "Tìm kiếm (bao gồm ẩn)...",
+    "hidden_results": "Hội thoại ẩn",
+    "setup_title": "Thiết lập mã PIN",
+    "setup_subtitle": "Nhập 6 chữ số làm mã PIN bảo vệ hội thoại ẩn",
+    "setup_for_hide_title": "Thiết lập mã PIN",
+    "setup_for_hide_subtitle": "Bạn chưa có mã PIN. Nhập 6 chữ số để thiết lập trước khi ẩn hội thoại",
+    "change_current_title": "Xác nhận mã PIN hiện tại",
+    "change_current_subtitle": "Nhập mã PIN hiện tại để tiếp tục",
+    "change_new_title": "Nhập mã PIN mới",
+    "change_new_subtitle": "Nhập 6 chữ số mới cho mã PIN của bạn",
+    "setup_success": "Đã thiết lập mã PIN thành công",
+    "change_success": "Đã đổi mã PIN thành công",
+    "error_wrong_current": "Mã PIN hiện tại không chính xác"
   },
   "group": {
     "members_title": "Thành viên nhóm",
@@ -816,6 +868,14 @@
         "change": "Thay đổi ngôn ngữ",
         "vi": "Tiếng Việt",
         "en": "English"
+      },
+      "pin": {
+        "title": "Quản lý mã PIN",
+        "desc": "Mã PIN dùng để bảo vệ các hội thoại đã ẩn",
+        "status_set": "Đã thiết lập",
+        "status_not_set": "Chưa thiết lập",
+        "setup_btn": "Thiết lập",
+        "change_btn": "Đổi PIN"
       }
     },
     "appearance": {

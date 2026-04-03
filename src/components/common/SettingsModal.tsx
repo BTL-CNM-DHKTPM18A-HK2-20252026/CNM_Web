@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   SettingsIcon,
   ShieldIcon,
@@ -12,6 +12,8 @@ import {
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/themes';
+import { apiClient } from '@/services/api';
+import PinInputModal from './PinInputModal';
 
 type AiAccessSettings = {
   allowFullDataAccess: boolean;
@@ -88,6 +90,71 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [aiAccessSettings, setAiAccessSettings] = useState<AiAccessSettings>(() => getStoredAiAccessSettings());
   const [aiTheme, setAiTheme] = useState<AiThemeType>(() => getStoredAiTheme());
   const [aiAccessSavedAt, setAiAccessSavedAt] = useState<number | null>(null);
+
+  // PIN management state
+  const [hasPinConfigured, setHasPinConfigured] = useState<boolean | null>(null);
+  type PinModalMode = null | 'setup' | 'change_current' | 'change_new';
+  const [pinModalMode, setPinModalMode] = useState<PinModalMode>(null);
+  const [pinModalError, setPinModalError] = useState<string | null>(null);
+  const [pinModalLoading, setPinModalLoading] = useState(false);
+  const [pendingCurrentPin, setPendingCurrentPin] = useState('');
+
+  // Load PIN status when modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+    apiClient.get('/users/me/pin/status')
+      .then((res: any) => setHasPinConfigured(Boolean(res?.hasPin ?? res?.data?.hasPin)))
+      .catch(() => setHasPinConfigured(false));
+  }, [isOpen]);
+
+  const handlePinModalClose = () => {
+    setPinModalMode(null);
+    setPinModalError(null);
+    setPendingCurrentPin('');
+  };
+
+  const handlePinConfirm = async (pin: string) => {
+    if (pinModalMode === 'setup') {
+      setPinModalLoading(true);
+      setPinModalError(null);
+      try {
+        await apiClient.post('/users/me/pin', { pin });
+        toast.success(t('pin.setup_success'));
+        setHasPinConfigured(true);
+        handlePinModalClose();
+      } catch (e: any) {
+        setPinModalError(e?.message || t('pin.wrong'));
+      } finally {
+        setPinModalLoading(false);
+      }
+    } else if (pinModalMode === 'change_current') {
+      // Store current PIN, advance to new PIN step
+      setPendingCurrentPin(pin);
+      setPinModalError(null);
+      setPinModalMode('change_new');
+    } else if (pinModalMode === 'change_new') {
+      setPinModalLoading(true);
+      setPinModalError(null);
+      try {
+        await apiClient.post('/users/me/pin', { pin, currentPin: pendingCurrentPin });
+        toast.success(t('pin.change_success'));
+        setHasPinConfigured(true);
+        handlePinModalClose();
+      } catch (e: any) {
+        const msg = e?.message || '';
+        if (msg.toLowerCase().includes('incorrect') || msg.toLowerCase().includes('wrong') || msg.toLowerCase().includes('không chính xác')) {
+          // Wrong current PIN — go back to current PIN step
+          setPendingCurrentPin('');
+          setPinModalMode('change_current');
+          setPinModalError(t('pin.error_wrong_current'));
+        } else {
+          setPinModalError(msg || t('pin.wrong'));
+        }
+      } finally {
+        setPinModalLoading(false);
+      }
+    }
+  };
 
   const handleSaveAiAccessSettings = () => {
     try {
@@ -313,6 +380,38 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                           </div>
                         </>
                       )}
+                    </div>
+                  </div>
+                </section>
+
+                {/* PIN Management Section */}
+                <section className="space-y-4">
+                  <div>
+                    <h4 className="text-[16px] font-semibold text-[var(--text)]">{t('settings.general.pin.title')}</h4>
+                    <p className="text-[13px] text-[var(--sub-text)] mt-1">{t('settings.general.pin.desc')}</p>
+                  </div>
+                  <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] shadow-sm overflow-hidden transition-colors duration-200">
+                    <div className="p-4 px-5 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-[#0068FF]/10 flex items-center justify-center flex-shrink-0">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-[14px] font-medium text-[var(--text)]">{t('settings.general.pin.title')}</p>
+                          <p className={`text-[12px] font-medium mt-0.5 ${hasPinConfigured ? 'text-green-500' : 'text-[var(--sub-text)]'}`}>
+                            {hasPinConfigured === null ? '...' : hasPinConfigured ? t('settings.general.pin.status_set') : t('settings.general.pin.status_not_set')}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => { setPinModalError(null); setPinModalMode(hasPinConfigured ? 'change_current' : 'setup'); }}
+                        className="px-4 py-1.5 rounded-lg text-[13px] font-semibold bg-[#0068FF] text-white hover:bg-[#0055CC] transition-colors cursor-pointer"
+                      >
+                        {hasPinConfigured ? t('settings.general.pin.change_btn') : t('settings.general.pin.setup_btn')}
+                      </button>
                     </div>
                   </div>
                 </section>
@@ -578,6 +677,26 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </div>
         </div>
       </div>
+
+      {/* PIN Modal — single persistent instance, title/subtitle change per step */}
+      {pinModalMode !== null && (
+        <PinInputModal
+          title={
+            pinModalMode === 'setup' ? t('pin.setup_title') :
+            pinModalMode === 'change_current' ? t('pin.change_current_title') :
+            t('pin.change_new_title')
+          }
+          subtitle={
+            pinModalMode === 'setup' ? t('pin.setup_subtitle') :
+            pinModalMode === 'change_current' ? t('pin.change_current_subtitle') :
+            t('pin.change_new_subtitle')
+          }
+          error={pinModalError}
+          loading={pinModalLoading}
+          onConfirm={handlePinConfirm}
+          onClose={handlePinModalClose}
+        />
+      )}
     </div>
   );
 }

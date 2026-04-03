@@ -13,7 +13,9 @@
     "saving": "Saving...",
     "uploading": "Uploading...",
     "select_all": "Select all",
-    "you": "You"
+    "you": "You",
+    "show_more": "Show more",
+    "show_less": "Show less"
   },
   "login": {
     "title": "Fruvia Chat",
@@ -300,6 +302,10 @@
     "hidden_empty": "No hidden conversations",
     "unhide": "Unhide",
     "unhide_success": "Conversation restored",
+    "unhide_all": "Restore all",
+    "unhide_all_success": "All conversations restored",
+    "unhide_pin_subtitle": "Enter your PIN to restore this conversation",
+    "open_hidden_pin_subtitle": "Enter your PIN to view hidden conversations",
     "choose_video": "Choose Video",
     "choose_file": "Choose File",
     "recording_cancel": "Cancel",
@@ -486,7 +492,31 @@
         "image_pro": "/image_pro <description>",
         "sketch": "/sketch <description>",
         "wallpaper": "/wallpaper <description>"
+      },
+      "clear_chat": {
+        "title": "Clear Chat History?",
+        "body": "This action cannot be undone. Are you sure you want to delete all messages?",
+        "button": "Clear Conversation",
+        "confirm": "Confirm Delete",
+        "success": "Chat history cleared",
+        "error": "Failed to clear chat history"
+      },
+      "hide": {
+        "button": "Hide conversation",
+        "modal_title": "Verify PIN",
+        "modal_subtitle": "Enter your 6-digit PIN to hide this conversation",
+        "success": "Conversation hidden",
+        "wrong_pin": "Incorrect PIN",
+        "no_pin": "You haven't set up a PIN yet"
       }
+    },
+    "hide": {
+      "button": "Hide conversation",
+      "modal_title": "Verify PIN",
+      "modal_subtitle": "Enter your 6-digit PIN to hide this conversation",
+      "success": "Conversation hidden",
+      "wrong_pin": "Incorrect PIN",
+      "no_pin": "You haven't set up a PIN yet"
     },
     "time": {
       "just_now": "Just now"
@@ -524,6 +554,28 @@
       "voice": "Voice messages",
       "other": "Other"
     }
+  },
+  "pin": {
+    "show_pin": "Show PIN",
+    "hide_pin": "Hide PIN",
+    "wrong": "Incorrect PIN",
+    "unlock_title": "Unlock private mode",
+    "unlock_subtitle": "Enter your PIN to include hidden conversations in search results",
+    "lock_active": "Private mode is on — click to lock",
+    "lock_inactive": "Unlock hidden conversations",
+    "search_placeholder": "Search (includes hidden)...",
+    "hidden_results": "Hidden conversations",
+    "setup_title": "Set up PIN",
+    "setup_subtitle": "Enter 6 digits as your PIN to protect hidden conversations",
+    "setup_for_hide_title": "Set up PIN",
+    "setup_for_hide_subtitle": "You don't have a PIN yet. Enter 6 digits to set one before hiding this conversation",
+    "change_current_title": "Confirm current PIN",
+    "change_current_subtitle": "Enter your current PIN to continue",
+    "change_new_title": "Enter new PIN",
+    "change_new_subtitle": "Enter 6 new digits for your PIN",
+    "setup_success": "PIN set up successfully",
+    "change_success": "PIN changed successfully",
+    "error_wrong_current": "Current PIN is incorrect"
   },
   "group": {
     "members_title": "Group Members",
@@ -819,6 +871,14 @@
         "change": "Change language",
         "vi": "Vietnamese",
         "en": "English"
+      },
+      "pin": {
+        "title": "PIN Management",
+        "desc": "PIN used to protect hidden conversations",
+        "status_set": "Configured",
+        "status_not_set": "Not configured",
+        "setup_btn": "Set up",
+        "change_btn": "Change PIN"
       }
     },
     "appearance": {
