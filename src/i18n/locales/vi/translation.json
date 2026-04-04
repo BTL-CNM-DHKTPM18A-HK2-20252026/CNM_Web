@@ -120,6 +120,10 @@
     "today": "Hôm nay",
     "start_conversation": "Bắt đầu trò chuyện",
     "file_attachment": "File đính kèm",
+    "paste_preview": {
+      "image": "Ảnh vừa dán",
+      "remove": "Xóa ảnh"
+    },
     "search_overlay": {
       "close": "Đóng",
       "recent": "Tìm gần đây",
@@ -176,7 +180,8 @@
       "video": "[Video]",
       "file": "[File]",
       "voice": "[Tin nhắn thoại]",
-      "sticker": "[Sticker]"
+      "sticker": "[Sticker]",
+      "contact": "[Danh thiếp]"
     },
     "header": {
       "group_prefix": "Nhóm",
@@ -908,5 +913,24 @@
     "submit": "Gửi báo cáo",
     "success": "Đã gửi báo cáo thành công",
     "error": "Không thể gửi báo cáo"
+  },
+  "share_contact": {
+    "title": "Gửi danh thiếp",
+    "subtitle": "Chọn tối đa {{max}} người để gửi",
+    "search_placeholder": "Tìm danh thiếp theo tên",
+    "no_results": "Không tìm thấy bạn bè",
+    "selected_label": "Đã chọn",
+    "include_phone": "Gửi kèm số điện thoại",
+    "send_btn": "Gửi danh thiếp",
+    "sending": "Đang gửi...",
+    "success": "Đã gửi danh thiếp",
+    "snippet": "Danh thiếp",
+    "message_btn": "Nhắn Tin",
+    "toolbar_tooltip": "Gửi danh thiếp",
+    "max_warn": "Tối đa {{count}} danh thiếp mỗi lần",
+    "will_send": "Sẽ gửi {{count}} danh thiếp",
+    "hint": "Chọn bạn bè bên trái",
+    "error_load": "Không thể tải danh sách bạn bè",
+    "error_send": "Không thể gửi danh thiếp"
   }
 }

@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { StickerPicker } from '@/components/common/StickerPicker';
 import { NicknameModal } from '@/components/common/NicknameModal';
 import { ForwardModal } from '@/components/common/ForwardModal';
+import { ShareContactModal } from '@/components/common/ShareContactModal';
 import { apiClient } from '@/services/api';
 import { websocketService } from '@/services/websocketService';
 import { friendService } from '@/services/friendService';
@@ -161,11 +162,61 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
   // Forward state
   const [forwardingMsg, setForwardingMsg] = useState<{ id: string; text: string; type: string; sender: string } | null>(null);
 
+  // Share contact state
+  const [isShareContactOpen, setIsShareContactOpen] = useState(false);
+
   // Message management states (Edit / Recall / Delete)
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [contextMenu, setContextMenu] = useState<{ msgId: string; x: number; y: number; isMe: boolean; type: string } | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ type: 'recall' | 'delete'; msgId: string } | null>(null);
+
+  // Image preview queue (inline Zalo-style thumbnail strip)
+  const [imageQueue, setImageQueue] = useState<{ file: File; previewUrl: string; caption: string }[]>([]);
+  const [captionModalIdx, setCaptionModalIdx] = useState<number | null>(null);
+  const [captionDraft, setCaptionDraft] = useState('');
+
+  const openImageQueue = (files: File[]) => {
+    if (!files.length) return;
+    const entries = files.map(f => ({ file: f, previewUrl: URL.createObjectURL(f), caption: '' }));
+    setImageQueue(prev => [...prev, ...entries]);
+  };
+
+  const closeImageQueue = () => {
+    imageQueue.forEach(e => { if (e.previewUrl.startsWith('blob:')) URL.revokeObjectURL(e.previewUrl); });
+    setImageQueue([]);
+    setCaptionModalIdx(null);
+  };
+
+  const handleSendImageQueue = () => {
+    const items = [...imageQueue];
+    closeImageQueue();
+    items.forEach(({ file, caption }) => {
+      handleFileUpload(file, caption || undefined);
+    });
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    // Prefer known formats first to avoid raw/native clipboard variants
+    const PREFERRED = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+    const arr = Array.from(items);
+    const target = arr.find(it => PREFERRED.includes(it.type)) ?? arr.find(it => it.type.startsWith('image/'));
+    if (!target) return;
+    const file = target.getAsFile();
+    if (!file) return;
+    e.preventDefault();
+    // Read into a data URL immediately — blob URLs referencing clipboard Files
+    // can appear white if the browser clears clipboard data after the event.
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      if (!dataUrl) return;
+      setImageQueue(prev => [...prev, { file, previewUrl: dataUrl, caption: '' }]);
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Pinned messages state
   const [pinnedMessages, setPinnedMessages] = useState<{ id: string; messageId: string; content: string; senderName: string; messageType: string; pinnedAt: string }[]>([]);
@@ -478,27 +529,53 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
     }
   };
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = async (file: File, caption?: string) => {
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+    const localPreviewUrl = (isImage || isVideo) ? URL.createObjectURL(file) : undefined;
+    const tempId = `temp-upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const capturedReplyTo = replyingTo;
+
+    // Show optimistic message immediately for images/videos — no loading state
+    if (localPreviewUrl) {
+      const optimisticType = isImage ? 'IMAGE' : 'VIDEO';
+      setMessages(prev => [...prev, {
+        id: tempId,
+        text: localPreviewUrl,
+        type: optimisticType,
+        replyToMessageId: capturedReplyTo?.id || null,
+        sender: 'Me',
+        senderId: currentUser?.id,
+        time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        reactions: [],
+        rawDate: new Date(),
+        isEdited: false,
+        isRecalled: false,
+        forwardedFromSenderName: null,
+        isUploading: true,
+      }]);
+      setShouldScrollToBottom(true);
+      setReplyingTo(null);
+    }
+
     try {
-      const { toast } = await import('sonner');
-      const uploadToast = toast.loading(t('chat.upload.loading', { name: file.name }));
       const res = await apiClient.get<any>(`/messages/presigned-url?fileName=${encodeURIComponent(file.name)}&fileType=${encodeURIComponent(file.type)}`);
       const presignedUrl = typeof res === 'string' ? res : (res?.data || res?.url || res);
 
       if (!presignedUrl || typeof presignedUrl !== 'string') throw new Error('Invalid presigned URL');
 
-      const response = await fetch(presignedUrl, {
+      const uploadResponse = await fetch(presignedUrl, {
         method: 'PUT',
         body: file,
         headers: { 'Content-Type': file.type },
       });
 
-      if (!response.ok) throw new Error('S3 upload failed');
+      if (!uploadResponse.ok) throw new Error('S3 upload failed');
 
       const s3Url = presignedUrl.split('?')[0];
       let msgType = 'MEDIA';
-      if (file.type.startsWith('image/')) msgType = 'IMAGE';
-      else if (file.type.startsWith('video/')) msgType = 'VIDEO';
+      if (isImage) msgType = 'IMAGE';
+      else if (isVideo) msgType = 'VIDEO';
 
       // Extract video duration if it's a video
       let videoDur: number | undefined;
@@ -515,19 +592,29 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
         });
       }
 
-      await handleSendMessage(s3Url, msgType, file.name, file.size, undefined, videoDur);
-      toast.dismiss(uploadToast);
-      toast.success(t('chat.upload.success'));
+      await handleSendMessage(s3Url, msgType, file.name, file.size, undefined, videoDur, localPreviewUrl ? tempId : undefined);
+      // Send caption as a separate text message if provided
+      if (caption?.trim()) {
+        await handleSendMessage(caption.trim());
+      }
+      // Revoke blob URL shortly after real S3 URL takes over
+      if (localPreviewUrl) setTimeout(() => URL.revokeObjectURL(localPreviewUrl), 2000);
     } catch (error) {
+      // Remove optimistic placeholder on failure
+      if (localPreviewUrl) {
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+        URL.revokeObjectURL(localPreviewUrl);
+      }
       console.error('Upload error:', error);
-      const { toast } = await import('sonner');
       toast.error(t('chat.upload.error'));
     }
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleFileUpload(file);
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    if (files.length) openImageQueue(files);
+    // Reset input so the same files can be re-selected
+    e.target.value = '';
   };
 
   const handleVideoClick = () => {
@@ -551,6 +638,10 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
   const [isInitialLoading, setIsInitialLoading] = React.useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // Tracks which conversation is currently active (updated every render, not via effect)
+  // Used to guard stale async callbacks (e.g. AI response that arrives after user switched conv)
+  const currentConversationIdRef = useRef<typeof selectedChat.id | null>(selectedChat?.id ?? null);
+  currentConversationIdRef.current = selectedChat?.id ?? null;
 
   // Typing indicator state
   const [typingUsers, setTypingUsers] = React.useState<{ userId: string; displayName: string; avatarUrl?: string }[]>([]);
@@ -735,6 +826,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
         }
 
         try {
+          setMessages([]);
           setIsInitialLoading(true);
           setIsLoadingMore(true);
           const res = await apiClient.get(`/messages/conversation/${selectedChat.id}?size=20&page=0`);
@@ -784,6 +876,8 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           }));
 
           setMessages(mapped);
+          // Persist lastReadAt to DB so unread count resets correctly on next load
+          apiClient.patch(`/conversations/${selectedChat.id}/mark-as-read`, {}).catch(() => {});
           setHasMore(hasMoreData);
           setIsLoadingMore(false);
           setIsInitialLoading(false);
@@ -882,7 +976,23 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
               isEdited: newMsg.isEdited || false,
               isRecalled: newMsg.isRecalled || false,
               forwardedFromSenderName: newMsg.forwardedFromSenderName || null,
+              isUploading: false,
             };
+
+            // Replace optimistic self-uploading media to avoid temporary duplicate
+            // (local blob preview + server message) that causes visual jumping.
+            if (newMsg.senderId === currentUser?.id && ['IMAGE', 'VIDEO', 'MEDIA'].includes(mappedMsg.type)) {
+              const optimisticIdx = prev.findIndex(
+                m => m.sender === 'Me' && m.isUploading && ['IMAGE', 'VIDEO', 'MEDIA'].includes(m.type)
+              );
+              if (optimisticIdx !== -1) {
+                const next = [...prev];
+                next[optimisticIdx] = mappedMsg;
+                setShouldScrollToBottom(true);
+                return next;
+              }
+            }
+
             setShouldScrollToBottom(true);
             return [...prev, mappedMsg];
           });
@@ -900,10 +1010,12 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
   const [shouldScrollToBottom, setShouldScrollToBottom] = React.useState(false);
   const isInitialLoadRef = useRef(true);
 
-  // Reset initial load flag when conversation changes
+  // Reset initial load flag and clear image queue when conversation changes
   React.useEffect(() => {
     isInitialLoadRef.current = true;
     setIsInitialLoading(true);
+    closeImageQueue();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChat?.id]);
 
   React.useLayoutEffect(() => {
@@ -1011,18 +1123,87 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
       case 'MEDIA': return t('chat.snippet.file');
       case 'VOICE': return t('chat.snippet.voice');
       case 'STICKER': return t('chat.snippet.sticker');
+      case 'SHARE_CONTACT': return `📇 ${t('share_contact.snippet')}`;
       case 'SYSTEM': return content;
       default: return content;
     }
   };
 
-  const handleSendMessage = async (customContent?: string, msgType: string = 'TEXT', fileName?: string, fileSize?: number, voiceDuration?: number, videoDuration?: number) => {
+  const handleSendMessage = async (customContent?: string, msgType: string = 'TEXT', fileName?: string, fileSize?: number, voiceDuration?: number, videoDuration?: number, optimisticId?: string) => {
     const contentToUse = customContent || message?.trim();
     if (contentToUse && selectedChat?.id) {
       try {
         if (!customContent) setMessage("");
 
         if (selectedChat.isAi) {
+          // AI endpoint currently handles textual prompts. For uploaded media/files,
+          // send as a normal message so UI keeps IMAGE/VIDEO/MEDIA rendering.
+          if (msgType !== 'TEXT') {
+            const payload: any = {
+              content: contentToUse,
+              messageType: msgType,
+              fileName,
+              fileSize,
+              voiceDuration,
+              videoDuration,
+              replyToMessageId: replyingTo?.id || undefined,
+              conversationId: selectedChat.id.toString(),
+            };
+
+            const res = await apiClient.post<any>('/messages', payload);
+            const data = res.success ? res.data : res;
+            const newMsg = data.message || data;
+
+            if (newMsg?.messageId || newMsg?.id) {
+              const realId = newMsg.messageId || newMsg.id;
+
+              if (onUpdateConversation) {
+                onUpdateConversation(
+                  selectedChat.id,
+                  getSnippet(newMsg.content, newMsg.messageType || msgType),
+                  new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
+                );
+              }
+
+              setMessages(prev => {
+                const realMsg = {
+                  id: realId,
+                  text: newMsg.content,
+                  type: newMsg.messageType || msgType,
+                  replyToMessageId: newMsg.replyToMessageId || replyingTo?.id || null,
+                  sender: 'Me',
+                  senderId: currentUser?.id,
+                  time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+                  reactions: [],
+                  rawDate: new Date(),
+                  isEdited: false,
+                  isRecalled: false,
+                  forwardedFromSenderName: null,
+                  isUploading: false,
+                };
+
+                if (optimisticId) {
+                  const idx = prev.findIndex(m => m.id === optimisticId);
+                  if (idx !== -1) {
+                    setShouldScrollToBottom(true);
+                    if (prev.some(m => m.id === realId)) {
+                      return prev.filter(m => m.id !== optimisticId);
+                    }
+                    const next = [...prev];
+                    next[idx] = realMsg;
+                    return next;
+                  }
+                }
+
+                if (prev.some(m => m.id === realId)) return prev;
+                setShouldScrollToBottom(true);
+                return [...prev, realMsg];
+              });
+              setReplyingTo(null);
+            }
+            return;
+          }
+
           if (isSendingAi) return; // Prevent concurrent AI requests
           setIsSendingAi(true);
           const locale = (i18n.resolvedLanguage || i18n.language || 'vi').toLowerCase();
@@ -1064,6 +1245,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           if (!selectedChat.isNew) {
             aiPayload.conversationId = selectedChat.id.toString();
           }
+          const convIdAtSend = selectedChat.id;
 
           try {
             const aiRes = await apiClient.post<any>('/messages/ai', aiPayload);
@@ -1084,6 +1266,15 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                 getSnippet(assistantMessage.content, assistantMessage.messageType || 'TEXT'),
                 new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
               );
+            }
+
+            // Guard: if the user navigated to a different conversation while AI was loading,
+            // skip the UI update — messages are already saved in DB and will load on return.
+            if (
+              currentConversationIdRef.current !== finalConvId &&
+              currentConversationIdRef.current !== convIdAtSend
+            ) {
+              return;
             }
 
             setMessages(prev => {
@@ -1232,18 +1423,39 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           }
 
           setMessages(prev => {
-            if (prev.some(m => (m.id === newMsg.messageId || m.id === newMsg.id))) return prev;
-            setShouldScrollToBottom(true);
-            return [...prev, {
-              id: newMsg.messageId || newMsg.id,
+            const realId = newMsg.messageId || newMsg.id;
+            const realMsg = {
+              id: realId,
               text: newMsg.content,
               type: newMsg.messageType || msgType,
               replyToMessageId: newMsg.replyToMessageId || replyingTo?.id || null,
               sender: 'Me',
+              senderId: currentUser?.id,
               time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
               reactions: [],
-              rawDate: new Date()
-            }];
+              rawDate: new Date(),
+              isEdited: false,
+              isRecalled: false,
+              forwardedFromSenderName: null,
+              isUploading: false,
+            };
+            // Replace optimistic placeholder if present
+            if (optimisticId) {
+              const idx = prev.findIndex(m => m.id === optimisticId);
+              if (idx !== -1) {
+                setShouldScrollToBottom(true);
+                // If WS already added the real message, just drop the optimistic placeholder
+                if (prev.some(m => m.id === realId)) {
+                  return prev.filter(m => m.id !== optimisticId);
+                }
+                const next = [...prev];
+                next[idx] = realMsg;
+                return next;
+              }
+            }
+            if (prev.some(m => m.id === realId)) return prev;
+            setShouldScrollToBottom(true);
+            return [...prev, realMsg];
           });
           setReplyingTo(null);
         }
@@ -1654,7 +1866,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                         <div className={`relative group w-fit min-w-[100px] 
                     ${msg.isRecalled
                             ? `px-3 pt-2 pb-2 rounded-lg shadow-sm text-[15px] border border-dashed ${msg.sender === 'Me' ? 'border-gray-300 dark:border-gray-600' : 'border-gray-300 dark:border-gray-600'}`
-                            : msg.type === 'MEDIA' || msg.type === 'IMAGE' || msg.type === 'VIDEO'
+                            : msg.type === 'MEDIA' || msg.type === 'IMAGE' || msg.type === 'VIDEO' || msg.type === 'SHARE_CONTACT'
                               ? ''
                               : `px-3 pt-2 pb-2 rounded-lg shadow-sm text-[15px] border ${msg.sender === 'Me'
                                 ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)] border-[var(--message-me-border)]'
@@ -1698,7 +1910,13 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                             ) : msg.type === 'IMAGE' || msg.type === 'VIDEO' ? (
                               <div className="relative group/media-content w-fit max-w-full">
                                 {msg.type === 'IMAGE' ? (
-                                  <img src={msg.text} alt="Shared" onLoad={() => scrollToBottom()} className="max-w-[320px] max-h-[360px] rounded-md cursor-pointer hover:opacity-90 transition-all shadow-sm object-contain" onClick={() => window.open(msg.text, '_blank')} />
+                                  <img
+                                    src={msg.text}
+                                    alt="Shared"
+                                    onLoad={() => scrollToBottom()}
+                                    className="max-w-[320px] max-h-[360px] rounded-md cursor-pointer hover:opacity-90 transition-all shadow-sm object-contain"
+                                    onClick={() => window.open(msg.text, '_blank')}
+                                  />
                                 ) : (
                                   <video src={msg.text} controls className="max-w-[320px] max-h-[360px] rounded-md shadow-sm object-contain" />
                                 )}
@@ -1707,7 +1925,58 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" /></svg>
                                 </div>
                               </div>
-                            ) : msg.type === 'MEDIA' ? (
+                            ) : msg.type === 'SHARE_CONTACT' ? (() => {
+                              let contact: any = {};
+                              try { contact = JSON.parse(msg.text || '{}'); } catch { contact = {}; }
+                              return (
+                                <div className="w-[320px] rounded-xl overflow-hidden border border-[var(--border)] shadow-sm">
+                                  {/* Blue header */}
+                                  <div className="relative bg-[#0068FF] px-5 pt-4 pb-5 min-h-[110px] overflow-hidden">
+                                    {/* Decorative circle background */}
+                                    <div className="absolute right-16 top-1/2 -translate-y-1/2 w-36 h-36 rounded-full border-[28px] border-white/10 pointer-events-none" />
+                                    {/* Avatar + name/phone */}
+                                    <div className="flex items-center gap-3 pr-28">
+                                      <div className="w-14 h-14 rounded-full overflow-hidden shrink-0 border-2 border-white/30 bg-white/20 flex items-center justify-center">
+                                        {contact.avatar ? (
+                                          <img src={contact.avatar} alt="" className="w-full h-full object-cover" />
+                                        ) : (
+                                          <span className="text-white font-bold text-2xl">{(contact.fullName || '?').charAt(0)}</span>
+                                        )}
+                                      </div>
+                                      <div className="min-w-0">
+                                        <div className="font-bold text-[16px] text-white break-words leading-tight">{contact.fullName || t('common.unknown_user')}</div>
+                                        {contact.phoneNumber && (
+                                          <div className="text-[13px] text-white/80 mt-1">{contact.phoneNumber}</div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {/* QR code - absolute bottom right */}
+                                    {contact.userId && (
+                                      <div className="absolute bottom-3 right-4 bg-white rounded-md p-1 w-20 h-20 flex items-center justify-center">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                          src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(contact.phoneNumber || contact.userId)}`}
+                                          alt="QR"
+                                          className="w-[72px] h-[72px] object-contain"
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                  {/* Footer button */}
+                                  <button
+                                    className="w-full py-3 text-[15px] font-semibold text-[#0068FF] hover:bg-[var(--hover-bg)] transition-colors border-t border-[var(--border)] bg-[var(--card-bg)] cursor-pointer"
+                                    onClick={() => {
+                                      if (contact.userId) {
+                                        // Navigate or open DM — trigger via onSelectConversation pattern
+                                        toast.info(`${contact.fullName}: ${contact.phoneNumber || contact.userId}`);
+                                      }
+                                    }}
+                                  >
+                                    {t('share_contact.message_btn')}
+                                  </button>
+                                </div>
+                              );
+                            })() : msg.type === 'MEDIA' ? (
                               <div className={`border rounded-lg p-3 flex items-center gap-3.5 min-w-[270px] hover:shadow-md transition-all cursor-pointer group/file relative ${msg.sender === 'Me' ? 'bg-[var(--message-me-bg)] border-[var(--message-me-border)]' : 'bg-[var(--message-other-bg)] border-[var(--message-other-border)]'}`} onClick={() => window.open(getPreviewUrl(msg.text), '_blank')}>
                                 <div className={`h-11 w-9 rounded-md flex items-center justify-center text-white font-bold text-[12px] shadow-sm shrink-0 ${['pdf'].includes(getFileExtension(msg.text).toLowerCase()) ? 'bg-[#F40F02]' : ['doc', 'docx'].includes(getFileExtension(msg.text).toLowerCase()) ? 'bg-[#0068FF]' : ['xls', 'xlsx'].includes(getFileExtension(msg.text).toLowerCase()) ? 'bg-[#217346]' : 'bg-gray-500'}`}>{getFileExtension(msg.text).toUpperCase().slice(0, 3) || 'FILE'}</div>
                                 <div className="flex-1 min-w-0">
@@ -1833,6 +2102,15 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                       {/* Actions on hover */}
                       {!msg.isRecalled && (
                         <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity h-fit ${msg.sender === 'Me' ? 'mr-0.5 flex-row-reverse self-center' : 'ml-0.5 self-center'}`}>
+                          {/* Quick emoji reaction picker */}
+                          <div className="relative group/react">
+                            <div className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer text-[13px] select-none leading-none">😊</div>
+                            <div className={`absolute ${msg.sender === 'Me' ? 'right-0' : 'left-0'} bottom-full opacity-0 invisible group-hover/react:opacity-100 group-hover/react:visible transition-all duration-150 flex items-center gap-0.5 bg-[var(--card-bg)] rounded-full px-2 py-1 shadow-xl border border-[var(--border)] z-50 whitespace-nowrap`}>
+                              {(['👍', '❤️', '😂', '😲', '😭', '😡'] as const).map((emj) => (
+                                <button key={emj} onClick={(e) => { e.stopPropagation(); handleReactMessage(String(msg.id), emj); }} className="w-7 h-7 text-[20px] hover:scale-125 transition-transform cursor-pointer flex items-center justify-center rounded-full hover:bg-[var(--hover-bg)]">{emj}</button>
+                              ))}
+                            </div>
+                          </div>
                           <button title={t('chat.actions.reply')} onClick={() => { setReplyingTo({ id: msg.id, text: msg.text, sender: msg.sender, type: msg.type }); setTimeout(() => messageInputRef.current?.focus(), 50); }} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg></button>
                           <button title={t('chat.actions.forward')} onClick={() => setForwardingMsg({ id: msg.id, text: msg.text, type: msg.type, sender: msg.sender })} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 10l5-5 5 5M8 6v8a4 4 0 004 4h9" /></svg></button>
                           <button title={t('chat.actions.more')} onClick={(e) => openContextMenu(e, msg)} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg></button>
@@ -1924,7 +2202,8 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
             <>
               <button onClick={() => togglePicker('sticker')} className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer ${isPickerOpen && pickerTab === 'sticker' ? 'bg-[var(--hover-bg)] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}><StickerIcon size={20} /></button>
               <button onClick={handleImageClick} className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] cursor-pointer"><ImagePickerIcon size={20} /></button>
-              <input type="file" ref={imageInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
+              <button onClick={() => setIsShareContactOpen(true)} title={t('share_contact.toolbar_tooltip')} className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] cursor-pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4"/><path d="M4 20c0-2.5 1.8-4 4-4"/><line x1="15" y1="8" x2="21" y2="8"/><line x1="15" y1="12" x2="21" y2="12"/></svg></button>
+              <input type="file" ref={imageInputRef} onChange={handleImageChange} accept="image/*" multiple className="hidden" />
               <input type="file" ref={videoInputRef} onChange={handleVideoChange} accept="video/*" className="hidden" />
               <div className="relative">
                 <button onClick={handleFileIconClick} className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer ${isFilePopoverOpen ? 'bg-[var(--hover-bg)] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}><FilePickerIcon size={20} /></button>
@@ -1959,20 +2238,165 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           )}
           <StickerPicker isOpen={isPickerOpen} onClose={() => setIsPickerOpen(false)} onSelect={onSelectSticker} activeTab={pickerTab} />
         </div>
+        {/* Inline image thumbnail strip (Zalo-style) */}
+        {imageQueue.length > 0 && (
+          <div className="px-4 pt-3 pb-1 border-t border-[var(--border)]">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[13px] font-semibold text-[var(--sub-text)]">{imageQueue.length} ảnh</span>
+              <button
+                onClick={closeImageQueue}
+                className="text-[13px] text-[var(--sub-text)] hover:text-red-500 transition-colors cursor-pointer"
+              >
+                Xoá tất cả
+              </button>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {imageQueue.map((item, idx) => (
+                <div key={idx} className="relative group shrink-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={item.previewUrl}
+                    alt=""
+                    className="w-[72px] h-[72px] object-cover rounded-lg border border-[var(--border)] shadow-sm"
+                  />
+                  {/* Caption indicator bar */}
+                  {item.caption?.trim() && (
+                    <div className="absolute bottom-0 inset-x-0 bg-black/50 rounded-b-lg px-1 py-0.5">
+                      <span className="text-[10px] text-white truncate block">{item.caption}</span>
+                    </div>
+                  )}
+                  {/* Hover action buttons */}
+                  <div className="absolute inset-0 rounded-lg bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                    {/* Pencil - open caption modal */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setCaptionDraft(item.caption); setCaptionModalIdx(idx); }}
+                      className="w-7 h-7 rounded-full bg-white/90 flex items-center justify-center hover:bg-white transition-colors cursor-pointer shadow"
+                      title="Thêm mô tả"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                    </button>
+                    {/* X - remove this image */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        URL.revokeObjectURL(item.previewUrl);
+                        setImageQueue(prev => prev.filter((_, i) => i !== idx));
+                      }}
+                      className="w-7 h-7 rounded-full bg-white/90 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors cursor-pointer shadow"
+                      title="Xoá ảnh"
+                    >
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {/* + Add more */}
+              <label className="w-[72px] h-[72px] rounded-lg border-2 border-dashed border-[var(--border)] flex items-center justify-center text-[var(--sub-text)] hover:border-[#0068FF] hover:text-[#0068FF] transition-colors cursor-pointer shrink-0">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    const files = e.target.files ? Array.from(e.target.files) : [];
+                    if (!files.length) return;
+                    const newEntries = files.map(f => ({ file: f, previewUrl: URL.createObjectURL(f), caption: '' }));
+                    setImageQueue(prev => [...prev, ...newEntries]);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            </div>
+          </div>
+        )}
         <div className="flex items-center px-4 py-3 gap-3">
           <div className="flex-1">
-            <input ref={messageInputRef} type="text" value={message} onChange={(e) => { setMessage(e.target.value); sendTypingIndicator(); }} onKeyDown={(e) => { if (e.key === 'Enter' && !(selectedChat.isAi && isSendingAi)) handleSendMessage(); if (e.key === 'Escape' && replyingTo) setReplyingTo(null); }} placeholder={selectedChat.isAi && isSendingAi ? (t('chat.ai_thinking') || 'AI đang suy nghĩ...') : (selectedChat.isAi ? t('chat.ai_input_placeholder') : t('chat.input_placeholder'))} disabled={selectedChat.isAi && isSendingAi} className="w-full bg-transparent outline-none text-[15px] placeholder:text-[var(--sub-text)] placeholder:opacity-50 py-1 text-[var(--text)] disabled:opacity-50" />
+            <input
+              ref={messageInputRef}
+              type="text"
+              value={message}
+              onChange={(e) => { setMessage(e.target.value); sendTypingIndicator(); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !(selectedChat.isAi && isSendingAi)) {
+                  handleSendMessage();
+                }
+                if (e.key === 'Escape' && replyingTo) setReplyingTo(null);
+              }}
+              onPaste={handlePaste}
+              placeholder={selectedChat.isAi && isSendingAi ? (t('chat.ai_thinking') || 'AI đang suy nghĩ...') : (selectedChat.isAi ? t('chat.ai_input_placeholder') : t('chat.input_placeholder'))}
+              disabled={selectedChat.isAi && isSendingAi}
+              className="w-full bg-transparent outline-none text-[15px] placeholder:text-[var(--sub-text)] placeholder:opacity-50 py-1 text-[var(--text)] disabled:opacity-50"
+            />
           </div>
           <div className="flex items-center gap-2 pr-1 shrink-0">
             <button onClick={() => togglePicker('emoji')} className={`transition-colors cursor-pointer ${isPickerOpen && pickerTab === 'emoji' ? 'text-[#0068FF]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}><EmojiIcon size={22} /></button>
-            {message.trim() ? (
-              <button onClick={() => handleSendMessage()} disabled={selectedChat.isAi && isSendingAi} className={`flex items-center justify-center transform translate-y-[-1px] cursor-pointer ${selectedChat.isAi && isSendingAi ? 'text-gray-400 cursor-not-allowed' : 'text-[#0068FF]'}`}><SendIcon size={22} /></button>
+            {(message.trim() || imageQueue.length > 0) ? (
+              <button
+                onClick={() => { if (imageQueue.length > 0) handleSendImageQueue(); else handleSendMessage(); }}
+                disabled={selectedChat.isAi && isSendingAi}
+                className={`flex items-center justify-center transform translate-y-[-1px] cursor-pointer ${selectedChat.isAi && isSendingAi ? 'text-gray-400 cursor-not-allowed' : 'text-[#0068FF]'}`}
+              >
+                <SendIcon size={22} />
+              </button>
             ) : (
               <button onClick={() => handleSendMessage('👍')} className="text-[#0068FF] hover:scale-110 active:scale-90 flex items-center justify-center transform translate-y-[-1.5px] cursor-pointer"><LikeIcon size={22} /></button>
             )}
           </div>
         </div>
       </div>
+
+      {/* Caption modal (pencil click on thumbnail) */}
+      {captionModalIdx !== null && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-[2px]">
+          <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-2xl w-[420px] max-w-[92vw] overflow-hidden">
+            {/* Preview */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imageQueue[captionModalIdx!]?.previewUrl}
+              alt=""
+              className="w-full max-h-[260px] object-contain bg-black/5"
+            />
+            <div className="px-5 py-4">
+              <p className="text-[13px] font-semibold text-[var(--sub-text)] mb-2">Thêm mô tả</p>
+              <input
+                type="text"
+                autoFocus
+                value={captionDraft}
+                onChange={(e) => setCaptionDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const idx = captionModalIdx!;
+                    setImageQueue(prev => prev.map((item, i) => i === idx ? { ...item, caption: captionDraft } : item));
+                    setCaptionModalIdx(null);
+                  }
+                  if (e.key === 'Escape') setCaptionModalIdx(null);
+                }}
+                placeholder="Nhập mô tả ảnh..."
+                className="w-full bg-[var(--hover-bg)] text-[var(--text)] text-[14px] rounded-lg px-3 py-2.5 outline-none border border-[var(--border)] focus:border-[#0068FF] transition-colors"
+              />
+              <div className="flex items-center justify-end gap-2 mt-3">
+                <button
+                  onClick={() => setCaptionModalIdx(null)}
+                  className="px-4 py-2 text-[13px] font-medium text-[var(--sub-text)] hover:bg-[var(--hover-bg)] rounded-lg transition-colors cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={() => {
+                    const idx = captionModalIdx!;
+                    setImageQueue(prev => prev.map((item, i) => i === idx ? { ...item, caption: captionDraft } : item));
+                    setCaptionModalIdx(null);
+                  }}
+                  className="px-4 py-2 text-[13px] font-semibold bg-[#0068FF] hover:bg-[#0052CC] text-white rounded-lg transition-colors cursor-pointer"
+                >
+                  Xác nhận
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Forward Modal */}
       {forwardingMsg && (
@@ -1985,6 +2409,24 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
             if (onUpdateConversation) {
               const snippet = forwardingMsg.type === 'IMAGE' ? t('chat.snippet.image') : forwardingMsg.type === 'VIDEO' ? t('chat.snippet.video') : forwardingMsg.type === 'MEDIA' ? t('chat.snippet.file') : forwardingMsg.type === 'VOICE' ? t('chat.snippet.voice') : forwardingMsg.text;
               onUpdateConversation(convId, snippet, new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }));
+            }
+          }}
+        />
+      )}
+
+      {/* Share Contact Modal */}
+      {isShareContactOpen && !selectedChat.isNew && (
+        <ShareContactModal
+          conversationId={String(selectedChat.id)}
+          currentUserId={currentUser?.id}
+          onClose={() => setIsShareContactOpen(false)}
+          onSent={() => {
+            if (onUpdateConversation) {
+              onUpdateConversation(
+                selectedChat.id,
+                `📇 ${t('share_contact.snippet')}`,
+                new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
+              );
             }
           }}
         />

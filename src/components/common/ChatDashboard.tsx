@@ -83,6 +83,10 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
 
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<string | number>('');
+  // Refs for stale-closure-safe access inside WebSocket callbacks
+  const selectedChatIdRef = useRef<string | number>('');
+  const currentUserRef = useRef<any>(null);
+  const dashboardConvSubsRef = useRef<Map<string, any>>(new Map());
   const [isConversationsLoaded, setIsConversationsLoaded] = useState(false);
   const selectedChat = conversations.find(c => c.id === selectedChatId) || conversations[0];
   const [invitationCount, setInvitationCount] = useState(0);
@@ -391,6 +395,100 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
     }
   }, [currentUser?.id, ensureSelfConversation, ensureAiConversation]);
 
+  // Keep refs in sync so subscription callbacks always see the latest values
+  useEffect(() => { selectedChatIdRef.current = selectedChatId; }, [selectedChatId]);
+  useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
+
+  // Global real-time subscriptions for EVERY conversation —
+  // keeps Sidebar lastMsg, time, and unreadCount up to date without page reload.
+  const convIdsKey = conversations.map(c => c.id).join(',');
+  useEffect(() => {
+    if (!currentUser?.id || conversations.length === 0) return;
+
+    // Subscribe to conversations not yet tracked
+    conversations.forEach(conv => {
+      const id = String(conv.id);
+      if (dashboardConvSubsRef.current.has(id)) return;
+
+      const sub = websocketService.subscribe(`/topic/chat/${conv.id}`, (msg) => {
+        try {
+          const raw = JSON.parse(msg.body);
+          const newMsg = raw.message || raw;
+
+          // Skip non-new-message events
+          if (
+            newMsg.type &&
+            ['REACTION_UPDATE', 'MESSAGE_EDIT', 'MESSAGE_RECALL', 'MESSAGE_PIN', 'MESSAGE_UNPIN'].includes(
+              newMsg.type
+            )
+          ) {
+            return;
+          }
+
+          const user = currentUserRef.current;
+          const isCurrentConversation = String(selectedChatIdRef.current) === String(conv.id);
+          const isFromMe = newMsg.senderId === user?.id;
+
+          const getSnippet = (content: string, type?: string) => {
+            switch (type) {
+              case 'IMAGE': return t('chat.snippet.image');
+              case 'VIDEO': return t('chat.snippet.video');
+              case 'MEDIA': return t('chat.snippet.file');
+              case 'VOICE': return t('chat.snippet.voice');
+              case 'STICKER': return t('chat.snippet.sticker');
+              case 'SHARE_CONTACT': return `📇 ${t('share_contact.snippet')}`;
+              default: return content;
+            }
+          };
+          const snippet = getSnippet(newMsg.content || '', newMsg.messageType);
+          const time = newMsg.createdAt
+            ? new Date(newMsg.createdAt).toLocaleTimeString('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+              })
+            : new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+          setConversations(prev => {
+            const updated = prev.map(c => {
+              if (String(c.id) !== String(conv.id)) return c;
+              return {
+                ...c,
+                lastMsg: snippet || c.lastMsg,
+                time,
+                lastMessageAt: newMsg.createdAt || new Date().toISOString(),
+                // Only increment unreadCount when message is from someone else AND not in this conversation
+                unreadCount:
+                  !isCurrentConversation && !isFromMe ? (c.unreadCount || 0) + 1 : c.unreadCount,
+              };
+            });
+            return sortConversations(updated);
+          });
+        } catch (e) {
+          console.error('[Dashboard] Failed to parse WS message for sidebar update:', e);
+        }
+      });
+
+      dashboardConvSubsRef.current.set(id, sub);
+    });
+
+    // Unsubscribe from conversations removed from the list
+    const currentIds = new Set(conversations.map(c => String(c.id)));
+    dashboardConvSubsRef.current.forEach((sub, id) => {
+      if (!currentIds.has(id)) {
+        sub?.unsubscribe();
+        dashboardConvSubsRef.current.delete(id);
+      }
+    });
+
+    // Capture the map reference so the cleanup function uses the same object
+    const convSubs = dashboardConvSubsRef.current;
+    return () => {
+      convSubs.forEach(sub => sub?.unsubscribe());
+      convSubs.clear();
+    };
+  }, [convIdsKey, currentUser?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleStartP2PChat = async (user: any) => {
     const friendId = user.user_id || user.id;
     try {
@@ -500,13 +598,14 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
             onCreateGroup={() => setIsCreateGroupModalOpen(true)}
             onSelectConversation={(id) => {
               setSelectedChatId(id);
+              // Optimistically clear unreadCount when opening a conversation
+              setConversations(prev =>
+                prev.map(c => c.id === id ? { ...c, unreadCount: 0, isMarkedUnread: false } : c)
+              );
               // Auto-clear "marked unread" when opening conversation
               const conv = conversations.find(c => c.id === id);
               if (conv?.isMarkedUnread) {
                 apiClient.post(`/conversations/${id}/mark-unread`, {}).catch(() => {});
-                setConversations(prev =>
-                  prev.map(c => c.id === id ? { ...c, isMarkedUnread: false } : c)
-                );
               }
             }}
             onPinConversation={(id, pinned) => {
@@ -555,7 +654,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
           />
         ) : activeTab === 'contacts' ? (
           <ContactList
-            selectedCategory={contactCategory}
+            selectedCategory={contactCategory}  
             onSelectCategory={setContactCategory}
             onAddFriend={() => setIsAddFriendModalOpen(true)}
             onCreateGroup={() => setIsCreateGroupModalOpen(true)}
@@ -635,7 +734,7 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
                     currentUser={currentUser}
                     onClearChat={() => setChatRefreshTrigger(prev => prev + 1)}
                     onHideConversation={() => {
-                      setSelectedChat(null);
+                      setSelectedChatId('');
                       setConversations(prev => prev.filter(c => c.id !== selectedChat?.id));
                     }}
                   />

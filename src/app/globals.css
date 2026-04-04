@@ -23,40 +23,84 @@ body {
 /* Custom Scrollbar — hidden by default, visible on hover/scroll */
 .custom-scrollbar {
   scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0) transparent;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
   background: transparent;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
-  border-radius: 10px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background-color: transparent;
-  border-radius: 10px;
-  min-height: 40px;
-  transition: background-color 0.3s ease;
+  border-radius: 99px;
+  min-height: 32px;
+  transition: background-color 200ms ease;
 }
 
-/* Show scrollbar only when actively scrolling */
-.custom-scrollbar.is-scrolling::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.03);
+/* Show on hover of the scroll container */
+.custom-scrollbar:hover {
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.13);
+}
+
+.custom-scrollbar:hover::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.22);
+}
+
+/* Also show when actively scrolling (JS adds this class) */
+.custom-scrollbar.is-scrolling {
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
 }
 
 .custom-scrollbar.is-scrolling::-webkit-scrollbar-thumb {
-  background-color: #c1c1c1;
+  background-color: rgba(0, 0, 0, 0.13);
 }
 
-.custom-scrollbar.is-scrolling::-webkit-scrollbar-thumb:hover {
-  background-color: #a8a8a8;
+/* Modal scrollbar — always visible, compact & polished */
+.modal-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
 }
 
-.custom-scrollbar.is-scrolling::-webkit-scrollbar-thumb:active {
-  background-color: #888888;
+.modal-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.modal-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 4px 0;
+}
+
+.modal-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 99px;
+  min-height: 28px;
+  transition: background-color 150ms ease;
+}
+
+.modal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.22);
+}
+
+[data-theme="dark"] .modal-scrollbar {
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+[data-theme="dark"] .modal-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .modal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 /* Zalo-style typing indicator bounce animation */

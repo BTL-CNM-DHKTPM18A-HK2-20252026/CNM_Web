@@ -120,6 +120,10 @@
     "today": "Today",
     "start_conversation": "Start a conversation",
     "file_attachment": "Attachment",
+    "paste_preview": {
+      "image": "Pasted image",
+      "remove": "Remove image"
+    },
     "search_overlay": {
       "close": "Close",
       "recent": "Recent searches",
@@ -176,7 +180,8 @@
       "video": "[Video]",
       "file": "[File]",
       "voice": "[Voice message]",
-      "sticker": "[Sticker]"
+      "sticker": "[Sticker]",
+      "contact": "[Contact card]"
     },
     "header": {
       "group_prefix": "Group",
@@ -911,5 +916,24 @@
     "submit": "Submit Report",
     "success": "Report submitted successfully",
     "error": "Cannot submit report"
+  },
+  "share_contact": {
+    "title": "Send Contact Card",
+    "subtitle": "Select up to {{max}} people to send",
+    "search_placeholder": "Search contacts by name",
+    "no_results": "No friends found",
+    "selected_label": "Selected",
+    "include_phone": "Include phone number",
+    "send_btn": "Send Contact",
+    "sending": "Sending...",
+    "success": "Contact card sent",
+    "snippet": "Contact card",
+    "message_btn": "Message",
+    "toolbar_tooltip": "Send contact card",
+    "max_warn": "Maximum {{count}} contacts at once",
+    "will_send": "Will send {{count}} card(s)",
+    "hint": "Select friends from the left",
+    "error_load": "Cannot load friends list",
+    "error_send": "Cannot send contact card"
   }
 }
