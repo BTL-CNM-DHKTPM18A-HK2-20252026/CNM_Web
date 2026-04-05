@@ -1,0 +1,98 @@
+import React from 'react';
+import { SearchIcon, SparklesIcon } from '@/components/ui/Icons';
+import { StatusIndicator } from '@/features/user';
+import type { ChatHeaderProps } from '@/features/chat/components/ChatWindow/types';
+
+export function ChatHeader({ vm }: ChatHeaderProps) {
+  const {
+    t,
+    selectedChat,
+    nickname,
+    activeSidebar,
+    onToggleSidebar,
+    setIsNicknameModalOpen,
+  } = vm;
+
+  return (
+    <div className="h-[76px] bg-[var(--card-bg)] border-b border-[var(--border)] px-5 flex items-center justify-between shadow-sm flex-shrink-0 transition-colors duration-200">
+      <div className="flex items-center gap-4">
+        {selectedChat.isAi ? (
+          <div className="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold shrink-0 shadow-sm">
+            <SparklesIcon size={24} />
+          </div>
+        ) : selectedChat.isCloud ? (
+          <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center text-[#0068FF] font-bold shrink-0">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14l-4-4 1.41-1.41L10 13.17l7.59-7.59L19 7l-8 9z" /></svg>
+          </div>
+        ) : selectedChat.avatar ? (
+          <div className="h-12 w-12 rounded-full overflow-hidden shrink-0 relative">
+            <img src={selectedChat.avatar} alt={selectedChat.name} className="w-full h-full object-cover" />
+            {selectedChat.otherUserId && (
+              <StatusIndicator userId={selectedChat.otherUserId} dotOnly dotSize={12} className="absolute bottom-0 right-0" />
+            )}
+          </div>
+        ) : (
+          <div className="h-12 w-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0 relative">
+            <span className="text-[#0068FF] font-bold text-lg">{selectedChat.name?.charAt(0) || '?'}</span>
+            {selectedChat.otherUserId && (
+              <StatusIndicator userId={selectedChat.otherUserId} dotOnly dotSize={12} className="absolute bottom-0 right-0" />
+            )}
+          </div>
+        )}
+
+        <div className="min-w-0 group/info cursor-pointer flex items-center gap-2">
+          <div>
+            <h3 className="text-[18px] font-bold leading-none mb-1.5 text-[var(--text)] truncate flex items-center gap-1.5">
+              {nickname || selectedChat.name}
+              <button
+                onClick={() => setIsNicknameModalOpen(true)}
+                className="p-1 hover:bg-[var(--hover-bg)] rounded-md opacity-0 group-hover/info:opacity-100 transition-all text-gray-400 hover:text-[var(--text)]"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+              </button>
+            </h3>
+            <p className="text-[13px] text-[var(--sub-text)] truncate">
+              {selectedChat.isAi
+                ? t('chat.ai_subheading')
+                : selectedChat.isCloud
+                ? t('chat.cloud_subheading')
+                : selectedChat.otherUserId
+                ? undefined
+                : (selectedChat.isGroup ? `${t('chat.header.group_prefix')} · ${selectedChat.name}` : '')}
+            </p>
+            {!selectedChat.isCloud && !selectedChat.isAi && selectedChat.otherUserId && (
+              <StatusIndicator userId={selectedChat.otherUserId} />
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-6 text-[var(--sub-text)] pr-2 shrink-0">
+        {!selectedChat.isCloud && !selectedChat.isAi && (
+          <>
+            <button className="cursor-pointer transition-all p-1.5 rounded-md hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70" title={t('chat.header.add_to_group')}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" /></svg>
+            </button>
+            <button className="cursor-pointer transition-all p-1.5 rounded-md hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70" title={t('chat.header.video_call')}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></svg>
+            </button>
+          </>
+        )}
+
+        <button
+          onClick={() => onToggleSidebar('search')}
+          className={`cursor-pointer transition-all p-1.5 rounded-md ${activeSidebar === 'search' ? 'text-[#0068FF] bg-[var(--hover-bg)]' : 'hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70'}`}
+        >
+          <SearchIcon size={24} />
+        </button>
+
+        <button
+          onClick={() => onToggleSidebar('info')}
+          className={`cursor-pointer transition-all p-1.5 rounded-md ${activeSidebar === 'info' ? 'text-[#0068FF] bg-[var(--hover-bg)]' : 'hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70'}`}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="9" y1="3" x2="9" y2="21" /></svg>
+        </button>
+      </div>
+    </div>
+  );
+}

@@ -1,3 +1,5 @@
+import { clearAccessToken, getAccessToken } from '@/features/auth/services/authToken';
+
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
 
 /**
@@ -13,7 +15,7 @@ export const apiClient = {
     };
 
     if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('accessToken');
+      const token = getAccessToken();
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
@@ -52,7 +54,7 @@ export const apiClient = {
         // Auto logout on 401 (Unauthorized) or 404 on profile endpoint (User no longer exists in DB)
         if (typeof window !== 'undefined' && (response.status === 401 || (response.status === 404 && endpoint.includes('/users/me')))) {
           console.warn("Session expired or user not found. Logging out...");
-          localStorage.removeItem('accessToken');
+          clearAccessToken();
           // Optional: trigger a full page reload or a custom event to update app state
           if (endpoint.includes('/users/me')) {
             window.location.href = '/'; // Simple hard redirect to login

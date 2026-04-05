@@ -8,8 +8,8 @@ import React, {
     useRef,
     useState,
 } from 'react';
-import { websocketService } from '@/services/websocketService';
-import { apiClient } from '@/services/api';
+import { websocketService } from '@/lib/realtime/websocketService';
+import { apiClient } from '@/lib/http/apiClient';
 import { useTranslation } from 'react-i18next';
 
 // ──────────────────────────────────────────────────────────────

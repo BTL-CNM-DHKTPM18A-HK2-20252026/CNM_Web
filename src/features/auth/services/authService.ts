@@ -1,4 +1,5 @@
-import { apiClient } from './api';
+import { apiClient } from '@/lib/http/apiClient';
+import { clearAccessToken, getAccessToken, setAccessToken } from './authToken';
 
 export const authService = {
   /**
@@ -12,7 +13,7 @@ export const authService = {
 
       // Cleaned up: result is already the data field from ApiResponse
       if (result && result.access_token) {
-        localStorage.setItem('accessToken', result.access_token);
+        setAccessToken(result.access_token);
       }
 
       return result;
@@ -35,17 +36,22 @@ export const authService = {
         // Still clear local even if API fails
       }
     }
-    localStorage.removeItem('accessToken');
+    clearAccessToken();
+  },
+
+  setToken(token: string) {
+    setAccessToken(token);
+  },
+
+  clearToken() {
+    clearAccessToken();
   },
 
   /**
    * Get the stored access token
    */
   getToken() {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('accessToken');
-    }
-    return null;
+    return getAccessToken();
   },
 
   /**
@@ -72,6 +78,54 @@ export const authService = {
       return result; 
     } catch (error) {
       console.error('Registration Error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Verify email OTP.
+   */
+  async verifyOtp(email: string, otp: string) {
+    try {
+      return await apiClient.post('/auth/verify-otp', { email, otp });
+    } catch (error) {
+      console.error('Verify OTP Error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Resend verification OTP.
+   */
+  async resendOtp(email: string) {
+    try {
+      return await apiClient.post('/auth/resend-otp', { email });
+    } catch (error) {
+      console.error('Resend OTP Error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Send OTP for forgot-password flow.
+   */
+  async sendPasswordResetOtp(email: string) {
+    try {
+      return await apiClient.post('/auth/forgot-password/send-otp', { email });
+    } catch (error) {
+      console.error('Send Password Reset OTP Error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Reset password using email + OTP.
+   */
+  async resetPassword(email: string, otp: string, newPassword: string) {
+    try {
+      return await apiClient.post('/auth/forgot-password/reset', { email, otp, newPassword });
+    } catch (error) {
+      console.error('Reset Password Error:', error);
       throw error;
     }
   },

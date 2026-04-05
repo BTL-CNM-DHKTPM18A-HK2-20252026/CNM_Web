@@ -1,0 +1,1455 @@
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { SearchIcon, AddUserIcon, CreateGroupIcon, ChevronDownIcon, MoreHorizontalIcon, SparklesIcon } from '@/components/ui/Icons';
+import Image from 'next/image';
+import { apiClient } from '@/lib/http/apiClient';
+import { toast } from 'sonner';
+import { usePresence } from '@/features/user';
+import PinInputModal from '@/components/ui/PinInputModal';
+import { SidebarItem } from '@/features/chat';
+
+interface Conversation {
+  id: string | number;
+  name: string;
+  nickname?: string;
+  lastMsg: string;
+  time: string;
+  active?: boolean;
+  pinned?: boolean;
+  isCloud?: boolean;
+  isAi?: boolean;
+  avatar?: string;
+  unreadCount?: number;
+  otherUserId?: string;
+  conversationStatus?: string;
+  isRequest?: boolean;
+  conversationTag?: string;
+  mutedUntil?: string | null;
+  isMarkedUnread?: boolean;
+  autoDeleteDuration?: string | null;
+}
+
+export interface ConversationListProps {
+  conversations: Conversation[];
+  onAddFriend: () => void;
+  onCreateGroup: () => void;
+  onSelectConversation: (id: string | number) => void;
+  onPinConversation?: (id: string | number, pinned: boolean) => void;
+  onDeleteConversation?: (id: string | number) => void;
+  onTagConversation?: (id: string | number, tag: string | null) => void;
+  onMuteConversation?: (id: string | number, mutedUntil: string | null) => void;
+  onMarkUnread?: (id: string | number, isMarkedUnread: boolean) => void;
+  onAutoDeleteConversation?: (id: string | number, duration: string | null) => void;
+  onUnhideConversation?: (id: string | number) => void;
+  currentUser?: any;
+}
+
+interface SearchItem {
+  id: number;
+  name: string;
+  avatar?: string;
+  isGroup?: boolean;
+  avatars?: string[];
+  more?: number;
+  isInitial?: boolean;
+  initial?: string;
+  bgColor?: string;
+  isCircle?: boolean;
+  color?: string;
+  isIcon?: boolean;
+}
+
+interface EsSearchResult<T> {
+  document?: T;
+  highlights?: Record<string, string[]>;
+}
+
+interface SearchUserDocument {
+  userId: string;
+  displayName: string;
+  phoneNumber?: string;
+  email?: string;
+  avatarUrl?: string;
+}
+
+interface SearchMessageDocument {
+  messageId: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  messageType: string;
+  createdAt: string;
+}
+
+export function ConversationListLegacy({ conversations, onAddFriend, onCreateGroup, onSelectConversation, onPinConversation, onDeleteConversation, onTagConversation, onMuteConversation, onMarkUnread, onAutoDeleteConversation, onUnhideConversation, currentUser }: ConversationListProps) {
+  const { t } = useTranslation();
+  const { isOnline, getTimeAgo } = usePresence();
+
+  // Force re-render every 60s so "X minutes ago" text auto-updates
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((n) => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const [isSearching, setIsSearching] = useState(false);
+  const [showClassifyMenu, setShowClassifyMenu] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [filterTab, setFilterTab] = useState<'all' | 'unread'>('all');
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchUsers, setSearchUsers] = useState<{ userId: string; displayName: string; phoneNumber?: string; email?: string; avatarUrl?: string }[]>([]);
+  const [searchMessages, setSearchMessages] = useState<{ messageId: string; conversationId: string; senderId: string; senderName: string; content: string; messageType: string; createdAt: string }[]>([]);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
+  const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Private mode — unlock hidden conversations in search
+  const [isPrivateMode, setIsPrivateMode] = useState(false);
+  const [privateModePin, setPrivateModePin] = useState<string | null>(null);
+  const [showPrivatePinModal, setShowPrivatePinModal] = useState(false);
+  const [privatePinError, setPrivatePinError] = useState<string | null>(null);
+  const [privatePinLoading, setPrivatePinLoading] = useState(false);
+  const [hiddenSearchResults, setHiddenSearchResults] = useState<any[]>([]);
+  const privateModeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const PRIVATE_MODE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+
+  // Context-menu hide with PIN
+  const [showCtxHidePinModal, setShowCtxHidePinModal] = useState(false);
+  const [ctxHideConvId, setCtxHideConvId] = useState<string | number | null>(null);
+  const [ctxHidePinError, setCtxHidePinError] = useState<string | null>(null);
+  const [ctxHidePinLoading, setCtxHidePinLoading] = useState(false);
+  const [ctxHideIsSetup, setCtxHideIsSetup] = useState(false);
+
+  // Unhide with PIN
+  const [showUnhidePinModal, setShowUnhidePinModal] = useState(false);
+  const [unhidePinTarget, setUnhidePinTarget] = useState<string | number | 'all' | null>(null);
+  const [unhidePinError, setUnhidePinError] = useState<string | null>(null);
+  const [unhidePinLoading, setUnhidePinLoading] = useState(false);
+
+  const resetPrivateMode = useCallback(() => {
+    setIsPrivateMode(false);
+    setPrivateModePin(null);
+    setHiddenSearchResults([]);
+    if (privateModeTimerRef.current) clearTimeout(privateModeTimerRef.current);
+  }, []);
+
+  const activatePrivateMode = useCallback((pin: string) => {
+    setIsPrivateMode(true);
+    setPrivateModePin(pin);
+    setShowPrivatePinModal(false);
+    setPrivatePinError(null);
+    if (privateModeTimerRef.current) clearTimeout(privateModeTimerRef.current);
+    privateModeTimerRef.current = setTimeout(resetPrivateMode, PRIVATE_MODE_TIMEOUT);
+  }, [resetPrivateMode]);
+
+  const handlePrivatePinConfirm = async (pin: string) => {
+    setPrivatePinLoading(true);
+    setPrivatePinError(null);
+    try {
+      // Verify PIN by calling search with it (empty query — will return [] if wrong, list if correct)
+      // We verify cheaply by relying on the search endpoint returning [] for wrong PIN
+      await apiClient.get(`/conversations/hidden/search?q=&pinCode=${encodeURIComponent(pin)}`);
+      activatePrivateMode(pin);
+    } catch (e: any) {
+      setPrivatePinError(t('pin.wrong') || 'Mã PIN không chính xác');
+    } finally {
+      setPrivatePinLoading(false);
+    }
+  };
+
+  const openCtxHidePinModal = (convId: string | number) => {
+    setCtxHideConvId(convId);
+    setCtxHidePinError(null);
+    setCtxHideIsSetup(false);
+    setShowCtxHidePinModal(true);
+    // Check PIN status in background
+    apiClient.get('/users/me/pin/status')
+      .then((res: any) => {
+        const hasPin = Boolean(res?.hasPin ?? res?.data?.hasPin);
+        setCtxHideIsSetup(!hasPin);
+      })
+      .catch(() => { /* keep default */ });
+  };
+
+  const handleCtxHidePinConfirm = async (pin: string) => {
+    if (!ctxHideConvId) return;
+    setCtxHidePinLoading(true);
+    setCtxHidePinError(null);
+    try {
+      if (ctxHideIsSetup) {
+        await apiClient.post('/users/me/pin', { pin });
+        setCtxHideIsSetup(false);
+      }
+      await apiClient.post(`/conversations/${ctxHideConvId}/hide`, { pinCode: pin });
+      onDeleteConversation?.(ctxHideConvId);
+      toast.success(t('chat.ctx.hide_success'));
+      setShowCtxHidePinModal(false);
+      setCtxHideConvId(null);
+    } catch (e: any) {
+      setCtxHidePinError(e?.message || t('pin.wrong'));
+    } finally {
+      setCtxHidePinLoading(false);
+    }
+  };
+
+  const handleUnhidePinConfirm = async (pin: string) => {
+    if (!unhidePinTarget) return;
+    setUnhidePinLoading(true);
+    setUnhidePinError(null);
+    try {
+      if (unhidePinTarget === 'all') {
+        await Promise.all(
+          hiddenConversations.map(conv =>
+            apiClient.post(`/conversations/${conv.conversationId || conv.conversation_id}/unhide`, { pinCode: pin })
+          )
+        );
+        const ids = hiddenConversations.map(c => c.conversationId || c.conversation_id);
+        ids.forEach(id => onUnhideConversation?.(id));
+        setHiddenConversations([]);
+        toast.success(t('chat.unhide_all_success') || 'Đã hiện lại tất cả hội thoại');
+      } else {
+        await apiClient.post(`/conversations/${unhidePinTarget}/unhide`, { pinCode: pin });
+        setHiddenConversations(prev => prev.filter(c => (c.conversationId || c.conversation_id) !== unhidePinTarget));
+        onUnhideConversation?.(unhidePinTarget);
+        toast.success(t('chat.unhide_success'));
+      }
+      setShowUnhidePinModal(false);
+      setUnhidePinTarget(null);
+    } catch (e: any) {
+      setUnhidePinError(e?.message || t('pin.wrong'));
+    } finally {
+      setUnhidePinLoading(false);
+    }
+  };
+
+  // Auto-lock on tab close/hide
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') resetPrivateMode();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (privateModeTimerRef.current) clearTimeout(privateModeTimerRef.current);
+    };
+  }, [resetPrivateMode]);
+
+  const extractEsDocument = <T,>(item: unknown): T | null => {
+    if (!item || typeof item !== 'object') return null;
+    const wrapped = item as EsSearchResult<T>;
+    return wrapped.document ?? (item as T);
+  };
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+
+    if (!value.trim()) {
+      setSearchUsers([]);
+      setSearchMessages([]);
+      setIsSearchLoading(false);
+      return;
+    }
+
+    setIsSearchLoading(true);
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        // Wrap each call to prevent apiClient's internal throw from propagating
+        const safeGet = (url: string) => apiClient.get(url).catch(() => null);
+
+        // Single request for users + single request across ALL user conversations
+        const [usersData, messagesData] = await Promise.all([
+          safeGet(`/search/users?q=${encodeURIComponent(value.trim())}&size=5`),
+          safeGet(`/search/my-messages?q=${encodeURIComponent(value.trim())}&size=10`),
+        ]);
+
+        // Extract users — apiClient unwraps ApiResponse, so result is Page<UserDocument> directly
+        if (usersData) {
+          const data = usersData?.content || (Array.isArray(usersData) ? usersData : []);
+          const normalizedUsers = Array.isArray(data)
+            ? data
+              .map((item) => extractEsDocument<SearchUserDocument>(item))
+              .filter((doc): doc is SearchUserDocument => Boolean(doc?.userId))
+              .map((doc) => ({
+                userId: doc.userId,
+                displayName: doc.displayName || 'Unknown',
+                phoneNumber: doc.phoneNumber,
+                email: doc.email,
+                avatarUrl: doc.avatarUrl,
+              }))
+            : [];
+          setSearchUsers(normalizedUsers);
+        } else {
+          setSearchUsers([]);
+        }
+
+        // Extract messages from /search/my-messages (single call covering all conversations)
+        const allMessages: typeof searchMessages = [];
+        if (messagesData) {
+          const data = messagesData?.content || (Array.isArray(messagesData) ? messagesData : []);
+          if (Array.isArray(data)) {
+            const normalizedMessages = data
+              .map((item) => {
+                const doc = extractEsDocument<SearchMessageDocument>(item);
+                if (!doc?.messageId) return null;
+
+                const wrapped = item as EsSearchResult<SearchMessageDocument>;
+                const highlightedContent = wrapped.highlights?.content?.[0];
+                const normalizedContent = typeof highlightedContent === 'string'
+                  ? highlightedContent.replace(/<[^>]+>/g, '')
+                  : doc.content;
+
+                return {
+                  messageId: doc.messageId,
+                  conversationId: doc.conversationId,
+                  senderId: doc.senderId,
+                  senderName: doc.senderName,
+                  content: normalizedContent,
+                  messageType: doc.messageType,
+                  createdAt: doc.createdAt,
+                };
+              })
+              .filter(Boolean) as typeof searchMessages;
+
+            allMessages.push(...normalizedMessages);
+          }
+        }
+        // Already sorted by ES score/date, but sort by date desc for consistency
+        allMessages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setSearchMessages(allMessages);
+
+        // If private mode is active, also search hidden conversations
+        if (isPrivateMode && privateModePin) {
+          try {
+            const hiddenData: any = await apiClient.get(
+              `/conversations/hidden/search?q=${encodeURIComponent(value.trim())}&pinCode=${encodeURIComponent(privateModePin)}`
+            );
+            const list = Array.isArray(hiddenData) ? hiddenData : (hiddenData?.data || []);
+            setHiddenSearchResults(list);
+          } catch {
+            setHiddenSearchResults([]);
+          }
+        } else {
+          setHiddenSearchResults([]);
+        }
+      } catch (e) {
+        console.error('Search failed:', e);
+      } finally {
+        setIsSearchLoading(false);
+      }
+    }, 400);
+  }, [conversations, isPrivateMode, privateModePin]);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
+    };
+  }, []);
+
+  const filteredConversations = (() => {
+    let result = filterTab === 'unread'
+      ? conversations.filter(c => (c.unreadCount && c.unreadCount > 0) || c.isRequest || c.isMarkedUnread)
+      : conversations;
+    if (selectedTags.length > 0) {
+      result = result.filter(c => c.conversationTag && selectedTags.includes(c.conversationTag));
+    }
+    return result;
+  })();
+  const [contextMenu, setContextMenu] = useState<{ id: string | number; x: number; y: number } | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+  const [reportModal, setReportModal] = useState<{ conversationId: string; conversationName: string } | null>(null);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
+  const [reportLoading, setReportLoading] = useState(false);
+
+  const [showHiddenModal, setShowHiddenModal] = useState(false);
+  const [hiddenConversations, setHiddenConversations] = useState<any[]>([]);
+  const [hiddenLoading, setHiddenLoading] = useState(false);
+  const [showAllHidden, setShowAllHidden] = useState(false);
+  const HIDDEN_PAGE_SIZE = 5;
+
+  // PIN gate to open hidden list
+  const [showOpenHiddenPinModal, setShowOpenHiddenPinModal] = useState(false);
+  const [openHiddenPinError, setOpenHiddenPinError] = useState<string | null>(null);
+  const [openHiddenPinLoading, setOpenHiddenPinLoading] = useState(false);
+
+  const handleOpenHiddenPinConfirm = async (pin: string) => {
+    setOpenHiddenPinLoading(true);
+    setOpenHiddenPinError(null);
+    try {
+      // Verify PIN via search endpoint
+      await apiClient.get(`/conversations/hidden/search?q=&pinCode=${encodeURIComponent(pin)}`);
+      setShowOpenHiddenPinModal(false);
+      setShowHiddenModal(true);
+      fetchHiddenConversations();
+    } catch {
+      setOpenHiddenPinError(t('pin.wrong'));
+    } finally {
+      setOpenHiddenPinLoading(false);
+    }
+  };
+
+  const fetchHiddenConversations = async () => {
+    setHiddenLoading(true);
+    try {
+      const res = await apiClient.get<any>('/conversations/hidden');
+      const list = res?.data || res || [];
+      setHiddenConversations(Array.isArray(list) ? list : []);
+    } catch (e) {
+      console.error('Failed to fetch hidden conversations:', e);
+      setHiddenConversations([]);
+    } finally {
+      setHiddenLoading(false);
+    }
+  };
+
+  const classifyMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (classifyMenuRef.current && !classifyMenuRef.current.contains(event.target as Node)) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('.classify-button')) {
+          setShowClassifyMenu(false);
+        }
+      }
+      if (contextMenuRef.current && !contextMenuRef.current.contains(event.target as Node)) {
+        setContextMenu(null);
+        setShowSubMenu(null);
+      }
+    }
+
+    if (showClassifyMenu || contextMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showClassifyMenu, contextMenu]);
+
+  const classifyItems = [
+    { key: 'customer', color: '#EF4444' }, // Red
+    { key: 'family', color: '#4ADE80' },   // Green
+    { key: 'work', color: '#F97316' },     // Orange
+    { key: 'friends', color: '#8B5CF6' },  // Purple
+    { key: 'reply_later', color: '#FACC15' }, // Yellow
+    { key: 'colleagues', color: '#0068FF' }, // Blue
+  ];
+
+  const recentSearches: SearchItem[] = [];
+
+  const toggleTag = (key: string) => {
+    setSelectedTags(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
+  };
+
+  const clearTags = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedTags([]);
+    setShowClassifyMenu(false);
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, convId: string | number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Clamp menu position within viewport
+    const menuWidth = 220;
+    const menuHeight = 380;
+    const x = Math.min(e.clientX, window.innerWidth - menuWidth);
+    const y = Math.min(e.clientY, window.innerHeight - menuHeight);
+    setContextMenu({ id: convId, x, y });
+  };
+
+  const openContextMenuFromButton = (e: React.MouseEvent, convId: string | number) => {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const menuWidth = 220;
+    const menuHeight = 380;
+    const x = Math.min(rect.right, window.innerWidth - menuWidth);
+    const y = Math.min(rect.bottom + 4, window.innerHeight - menuHeight);
+    setContextMenu({ id: convId, x, y });
+  };
+
+  const [showSubMenu, setShowSubMenu] = useState<string | null>(null);
+
+  const contextConv = contextMenu ? conversations.find(c => c.id === contextMenu.id) : null;
+
+  const subMenuItems = [
+    { key: 'customer', label: t('chat.classify_menu.customer'), color: '#EF4444' },
+    { key: 'family', label: t('chat.classify_menu.family'), color: '#4ADE80' },
+    { key: 'work', label: t('chat.classify_menu.work'), color: '#F97316' },
+    { key: 'friends', label: t('chat.classify_menu.friends'), color: '#8B5CF6' },
+    { key: 'reply_later', label: t('chat.classify_menu.reply_later'), color: '#FACC15' },
+    { key: 'colleagues', label: t('chat.classify_menu.colleagues'), color: '#0068FF' },
+  ];
+
+  const renderContextMenu = () => {
+    if (!contextMenu || !contextConv) return null;
+    const isPinned = contextConv.pinned;
+
+    return (
+      <div
+        ref={contextMenuRef}
+        className="fixed z-[9999] w-[220px] bg-white dark:bg-[var(--card-bg)] rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.18)] border border-gray-200 dark:border-[var(--border)] py-1 animate-in fade-in zoom-in-95 duration-100"
+        style={{ left: contextMenu.x, top: contextMenu.y }}
+      >
+        {/* Ghim / Bỏ ghim */}
+        <button
+          onClick={async () => {
+            const convId = contextMenu.id;
+            setContextMenu(null);
+            try {
+              const res = await apiClient.post<any>(`/conversations/${convId}/pin`, {});
+              const newPinned = res?.data?.isPinned ?? res?.isPinned ?? !isPinned;
+              onPinConversation?.(convId, newPinned);
+              toast.success(newPinned ? t('chat.ctx.pin_success') : t('chat.ctx.unpin_success'));
+            } catch (e: any) {
+              toast.error(e.message || t('chat.ctx.pin_error'));
+            }
+          }}
+          className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center gap-3 text-[var(--text)] transition-colors cursor-pointer"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><line x1="12" y1="17" x2="12" y2="22" /><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" /></svg>
+          <span>{isPinned ? t('chat.ctx.unpin') : t('chat.ctx.pin')}</span>
+        </button>
+
+        {/* Phân loại — with submenu */}
+        <div
+          className="relative"
+          onMouseEnter={() => setShowSubMenu('classify')}
+          onMouseLeave={() => setShowSubMenu(null)}
+        >
+          <button
+            className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center justify-between text-[var(--text)] transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" /><circle cx="7.5" cy="7.5" r=".5" fill="currentColor" /></svg>
+              <span>{t('chat.ctx.classify')}</span>
+            </div>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="opacity-40"><path d="m9 18 6-6-6-6" /></svg>
+          </button>
+
+          {/* Sub-menu */}
+          {showSubMenu === 'classify' && (
+            <div className="absolute left-full top-0 z-50 pl-1 pointer-events-auto">
+              <div className="w-[210px] bg-white dark:bg-[var(--card-bg)] rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.18)] border border-gray-200 dark:border-[var(--border)] py-1 animate-in fade-in duration-100">
+                {subMenuItems.map((item) => {
+                  const isActive = contextConv?.conversationTag === item.key;
+                  return (
+                    <button
+                      key={item.key}
+                      onClick={async () => {
+                        const convId = contextMenu!.id;
+                        const newTag = isActive ? null : item.key;
+                        setContextMenu(null);
+                        try {
+                          await apiClient.patch(`/conversations/${convId}/tag`, { tag: newTag });
+                          onTagConversation?.(convId, newTag);
+                          toast.success(newTag ? t('chat.ctx.classify_success', { label: item.label }) : t('chat.ctx.classify_removed'));
+                        } catch (e: any) {
+                          toast.error(e.message || t('chat.ctx.classify_error'));
+                        }
+                      }}
+                      className={`w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center gap-3 text-[var(--text)] transition-colors cursor-pointer ${isActive ? 'bg-[#e5efff] dark:bg-white/10' : ''}`}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill={item.color} stroke={item.color} strokeWidth="1.5" className="shrink-0">
+                        <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" />
+                      </svg>
+                      <span>{item.label}</span>
+                      {isActive && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="ml-auto opacity-70"><polyline points="20 6 9 17 4 12" /></svg>}
+                    </button>
+                  );
+                })}
+                <div className="h-[1px] bg-gray-100 dark:bg-white/5 mx-2 my-0.5" />
+                <button
+                  onClick={() => { setContextMenu(null); }}
+                  className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center gap-3 text-[var(--text)] transition-colors cursor-pointer"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>
+                  <span>{t('chat.classify_menu.manage')}</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Đánh dấu chưa đọc */}
+        <button
+          onClick={async () => {
+            const convId = contextMenu.id;
+            setContextMenu(null);
+            try {
+              const res = await apiClient.post<any>(`/conversations/${convId}/mark-unread`, {});
+              const newMarked = res?.data?.isMarkedUnread ?? res?.isMarkedUnread ?? true;
+              onMarkUnread?.(convId, newMarked);
+              toast.success(newMarked ? t('chat.ctx.marked_unread') : t('chat.ctx.unmarked_unread'));
+            } catch (e: any) {
+              toast.error(e.message || 'Error');
+            }
+          }}
+          className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center gap-3 text-[var(--text)] transition-colors cursor-pointer"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h9" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /><circle cx="19" cy="19" r="3" /></svg>
+          <span>{t('chat.ctx.mark_unread')}</span>
+        </button>
+
+        <div className="h-[1px] bg-gray-100 dark:bg-white/5 mx-2" />
+
+        {/* Tắt thông báo */}
+        <div
+          className="relative"
+          onMouseEnter={() => setShowSubMenu('mute')}
+          onMouseLeave={() => setShowSubMenu(null)}
+        >
+          <button
+            className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center justify-between text-[var(--text)] transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+              <span>{t('chat.ctx.mute')}</span>
+              {contextConv.mutedUntil && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>}
+            </div>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="opacity-40"><path d="m9 18 6-6-6-6" /></svg>
+          </button>
+
+          {/* Mute sub-menu */}
+          {showSubMenu === 'mute' && (
+            <div className="absolute left-full top-0 z-50 pl-1 pointer-events-auto">
+              <div className="w-[180px] bg-white dark:bg-[var(--card-bg)] rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.18)] border border-gray-200 dark:border-[var(--border)] py-1 animate-in fade-in duration-100">
+                {contextConv.mutedUntil && (
+                  <>
+                    <button
+                      onClick={async () => {
+                        const convId = contextMenu!.id;
+                        setContextMenu(null);
+                        try {
+                          await apiClient.post(`/conversations/${convId}/mute`, { duration: 'off' });
+                          onMuteConversation?.(convId, null);
+                          toast.success(t('chat.mute.off_success'));
+                        } catch (e: any) { toast.error(e.message || 'Error'); }
+                      }}
+                      className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 text-[var(--text)] transition-colors cursor-pointer font-medium"
+                    >
+                      {t('chat.mute.off')}
+                    </button>
+                    <div className="h-[1px] bg-gray-100 dark:bg-white/5 mx-2 my-0.5" />
+                  </>
+                )}
+                {[
+                  { label: t('chat.mute.1h'), value: '1h' },
+                  { label: t('chat.mute.4h'), value: '4h' },
+                  { label: t('chat.mute.8am'), value: 'until_8am' },
+                  { label: t('chat.mute.forever'), value: 'forever' },
+                ].map((item) => (
+                  <button
+                    key={item.value}
+                    onClick={async () => {
+                      const convId = contextMenu!.id;
+                      setContextMenu(null);
+                      try {
+                        const res = await apiClient.post<any>(`/conversations/${convId}/mute`, { duration: item.value });
+                        const newMutedUntil = res?.data?.mutedUntil ?? res?.mutedUntil ?? null;
+                        onMuteConversation?.(convId, newMutedUntil);
+                        toast.success(t('chat.mute.success'));
+                      } catch (e: any) { toast.error(e.message || 'Error'); }
+                    }}
+                    className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 text-[var(--text)] transition-colors cursor-pointer"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Ẩn trò chuyện */}
+        <button
+          onClick={() => {
+            const convId = contextMenu.id;
+            setContextMenu(null);
+            openCtxHidePinModal(convId);
+          }}
+          className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center gap-3 text-[var(--text)] transition-colors cursor-pointer"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+          <span>{t('chat.ctx.hide')}</span>
+        </button>
+
+        {/* Tin nhắn tự xóa */}
+        <div
+          className="relative"
+          onMouseEnter={() => setShowSubMenu('autodelete')}
+          onMouseLeave={() => setShowSubMenu(null)}
+        >
+          <button
+            className="w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 flex items-center justify-between text-[var(--text)] transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+              <span>{t('chat.ctx.auto_delete')}</span>
+              {contextConv.autoDeleteDuration && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>}
+            </div>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="opacity-40"><path d="m9 18 6-6-6-6" /></svg>
+          </button>
+
+          {/* Auto-delete sub-menu */}
+          {showSubMenu === 'autodelete' && (
+            <div className="absolute left-full top-0 z-50 pl-1 pointer-events-auto">
+              <div className="w-[180px] bg-white dark:bg-[var(--card-bg)] rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.18)] border border-gray-200 dark:border-[var(--border)] py-1 animate-in fade-in duration-100">
+                {[
+                  { label: t('chat.auto_delete.off'), value: 'off' },
+                  { label: t('chat.auto_delete.1d'), value: '1d' },
+                  { label: t('chat.auto_delete.7d'), value: '7d' },
+                  { label: t('chat.auto_delete.30d'), value: '30d' },
+                ].map((item) => {
+                  const isActive = (item.value === 'off' && !contextConv.autoDeleteDuration) || contextConv.autoDeleteDuration === item.value;
+                  return (
+                    <button
+                      key={item.value}
+                      onClick={async () => {
+                        const convId = contextMenu!.id;
+                        setContextMenu(null);
+                        try {
+                          const res = await apiClient.patch<any>(`/conversations/${convId}/auto-delete`, { duration: item.value });
+                          const newDuration = res?.data?.autoDeleteDuration ?? res?.autoDeleteDuration ?? null;
+                          onAutoDeleteConversation?.(convId, newDuration);
+                          toast.success(t('chat.auto_delete.success'));
+                        } catch (e: any) { toast.error(e.message || 'Error'); }
+                      }}
+                      className={`w-full px-4 py-2 text-left text-[13px] hover:bg-[#e5efff] dark:hover:bg-white/10 text-[var(--text)] transition-colors cursor-pointer flex items-center justify-between ${isActive ? 'bg-[#e5efff] dark:bg-white/10' : ''}`}
+                    >
+                      <span>{item.label}</span>
+                      {isActive && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="opacity-70"><polyline points="20 6 9 17 4 12" /></svg>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="h-[1px] bg-gray-100 dark:bg-white/5 mx-2" />
+
+        {/* Xóa hội thoại */}
+        <button
+          onClick={() => {
+            const convId = contextMenu.id;
+            const convName = contextConv.name;
+            setContextMenu(null);
+            toast(t('chat.ctx.delete_confirm', { name: convName }), {
+              description: t('chat.ctx.delete_desc'),
+              duration: 10000,
+              action: {
+                label: t('chat.ctx.confirm_delete'),
+                onClick: async () => {
+                  try {
+                    await apiClient.delete(`/conversations/${convId}`);
+                    onDeleteConversation?.(convId);
+                    toast.success(t('chat.ctx.delete_success'));
+                  } catch (e: any) {
+                    toast.error(e.message || t('chat.ctx.delete_error'));
+                  }
+                },
+              },
+              cancel: { label: t('common.cancel'), onClick: () => { } },
+            });
+          }}
+          className="w-full px-4 py-2 text-left text-[13px] hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-3 text-red-500 transition-colors cursor-pointer"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
+          <span>{t('chat.ctx.delete')}</span>
+        </button>
+
+        {/* Báo xấu */}
+        <button
+          onClick={() => {
+            const convId = String(contextMenu.id);
+            const convName = contextConv?.name || '';
+            setContextMenu(null);
+            setReportReason('');
+            setReportDescription('');
+            setReportModal({ conversationId: convId, conversationName: convName });
+          }}
+          className="w-full px-4 py-2 text-left text-[13px] hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-3 text-red-500 transition-colors cursor-pointer"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+          <span>{t('chat.ctx.report')}</span>
+        </button>
+      </div>
+    );
+  };
+
+  return (
+    <div className="w-[340px] border-r border-[var(--border)] flex flex-col bg-[var(--card-bg)] transition-colors duration-200 relative h-full">
+
+      {/* Header Container (Search + Tabs) */}
+      <div className="flex flex-col relative z-20 bg-[var(--card-bg)]">
+        {/* Search Header */}
+        <div className="p-4 py-3 flex items-center gap-2">
+          <div className="relative flex-1 flex items-center">
+            <input
+              type="text"
+              placeholder={isPrivateMode ? (t('pin.search_placeholder') || '🔓 Tìm kiếm (bao gồm ẩn)') : t('chat.search')}
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              onFocus={() => setIsSearching(true)}
+              className={`w-full ${isSearching ? 'bg-[var(--card-bg)] border-[#0068FF]' : 'bg-[var(--search-bg)] border-transparent'} rounded-lg py-1.5 pl-9 pr-8 text-[14px] text-[var(--text)] outline-none border transition-all placeholder:text-[var(--search-placeholder)]`}
+            />
+            <div className={`absolute left-3 ${isSearching ? 'text-[#0068FF]' : 'text-gray-400'}`}><SearchIcon size={16} /></div>
+          </div>
+          {isSearching ? (
+            <button
+              onClick={() => { setIsSearching(false); setSearchQuery(''); setSearchUsers([]); setSearchMessages([]); }}
+              className="text-[15px] font-bold text-[var(--text)] px-1 cursor-pointer hover:opacity-80 active:scale-95"
+            >
+              {t('chat.search_overlay.close')}
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={onAddFriend}
+                className="p-1.5 cursor-pointer hover:bg-[var(--hover-bg)] text-[var(--text)] opacity-80 rounded-md transition-colors"
+              >
+                <AddUserIcon size={20} />
+              </button>
+              <button
+                onClick={onCreateGroup}
+                className="p-1.5 cursor-pointer hover:bg-[var(--hover-bg)] text-[var(--text)] opacity-80 rounded-md transition-colors"
+              >
+                <CreateGroupIcon size={22} />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {!isSearching && (
+          /* Tabs and Filters */
+          <div className="flex items-center justify-between px-4 pb-0.5 border-b border-[var(--border)] relative">
+            <div className="flex gap-4 text-[13px] font-medium transition-colors duration-200">
+              <button
+                onClick={() => setFilterTab('all')}
+                className={`py-2.5 cursor-pointer transition-colors relative whitespace-nowrap ${filterTab === 'all' ? 'border-b-2 border-[var(--primary)] text-[var(--primary)]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
+              >
+                {t('chat.tabs.all')}
+              </button>
+              <button
+                onClick={() => setFilterTab('unread')}
+                className={`py-2.5 cursor-pointer transition-colors relative whitespace-nowrap ${filterTab === 'unread' ? 'border-b-2 border-[var(--primary)] text-[var(--primary)]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
+              >
+                {t('chat.tabs.unread')}
+              </button>
+            </div>
+            <div className="flex items-center gap-4 text-[13px] text-[var(--sub-text)]">
+              <div className="relative">
+                <button
+                  onClick={() => setShowClassifyMenu(!showClassifyMenu)}
+                  className={`classify-button flex items-center gap-1 px-2 py-0.5 rounded-full transition-colors cursor-pointer ${selectedTags.length > 0 ? 'bg-blue-50 text-[var(--primary)] border border-blue-100' : showClassifyMenu ? 'text-[var(--primary)] font-bold' : 'hover:text-[var(--text)]'}`}
+                >
+                  {selectedTags.length > 0 ? (
+                    <>
+                      <span className="font-bold text-[var(--primary)] text-[13px]">
+                        {selectedTags.length === 1
+                          ? (selectedTags[0] === 'strangers' ? t('chat.classify_menu.strangers') : t(`chat.classify_menu.${selectedTags[0]}`))
+                          : `${selectedTags.length} ${t('chat.tags')}`
+                        }
+                      </span>
+                      <div
+                        onClick={clearTags}
+                        className="w-[18px] h-[18px] rounded-full border border-[var(--primary)] flex items-center justify-center ml-1 hover:bg-blue-100 transition-colors"
+                      >
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0056D2" strokeWidth="4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {showClassifyMenu ? t('chat.tags') : t('chat.classify')} <ChevronDownIcon size={14} />
+                    </>
+                  )}
+                </button>
+
+                {/* Classify Dropdown Menu */}
+                {showClassifyMenu && (
+                  <div
+                    ref={classifyMenuRef}
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute top-full right-[-50px] mt-2 w-[260px] bg-[var(--card-bg)] border border-[var(--border)] rounded-lg shadow-xl z-50 py-1.5 animate-in fade-in zoom-in-95 duration-150"
+                  >
+                    <div className="px-4 py-2 text-[13px] font-medium text-[var(--sub-text)]">
+                      {t('chat.classify_menu.title')}
+                    </div>
+
+                    <div className="py-1 px-1">
+                      {classifyItems.map((item) => (
+                        <div
+                          key={item.key}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleTag(item.key);
+                          }}
+                          className={`px-3 py-2 flex items-center gap-3 cursor-pointer group transition-colors rounded-lg mb-0.5
+                            ${selectedTags.includes(item.key)
+                              ? 'bg-[#E7F2FF] dark:bg-[#0068FF]/10'
+                              : 'hover:bg-[var(--hover-bg)]'
+                            }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedTags.includes(item.key)}
+                            readOnly
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-4 h-4 rounded-sm border-gray-300 text-[#0068FF] focus:ring-[#0068FF] cursor-pointer"
+                          />
+                          <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill={item.color} stroke={item.color} strokeWidth="2">
+                              <path d="M21 12l-5 8H8l-5-8 5-8h8l5 8z" />
+                            </svg>
+                          </div>
+                          <span className={`text-[14px] flex-1 ${selectedTags.includes(item.key) ? 'text-[var(--text)] font-medium' : 'text-[var(--text)]'}`}>{t(`chat.classify_menu.${item.key}`)}</span>
+                        </div>
+                      ))}
+
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleTag('strangers');
+                        }}
+                        className={`px-3 py-2 flex items-center gap-3 cursor-pointer transition-colors rounded-lg
+                          ${selectedTags.includes('strangers')
+                            ? 'bg-[#E7F2FF] dark:bg-[#0068FF]/10'
+                            : 'hover:bg-[var(--hover-bg)]'
+                          } border-b border-[var(--border)] mb-1 pb-3`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedTags.includes('strangers')}
+                          readOnly
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 rounded-sm border-gray-300 text-[#0068FF] focus:ring-[#0068FF] cursor-pointer"
+                        />
+                        <div className="w-5 h-5 flex items-center justify-center text-[var(--text)] shrink-0">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
+                          </svg>
+                        </div>
+                        <span className={`text-[14px] flex-1 ${selectedTags.includes('strangers') ? 'text-[var(--text)] font-medium' : 'text-[var(--text)]'}`}>{t('chat.classify_menu.strangers')}</span>
+                      </div>
+                    </div>
+
+                    <button className="w-full text-center py-2.5 text-[15px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer">
+                      {t('chat.classify_menu.manage')}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <button
+                title={t('chat.more')}
+                className="p-1 cursor-pointer hover:bg-[var(--hover-bg)] rounded-md text-[var(--sub-text)] hover:text-[var(--text)] transition-colors"
+              >
+                <MoreHorizontalIcon size={18} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {isSearching ? (
+        /* Search Overlay Content */
+        <div className="flex-1 bg-[var(--card-bg)] overflow-y-auto custom-scrollbar animate-in fade-in duration-200">
+          {searchQuery.trim() ? (
+            /* Search Results */
+            <div className="px-4 py-3">
+              {isSearchLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="w-6 h-6 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (searchUsers.length === 0 && searchMessages.length === 0) ? (
+                <div className="flex flex-col items-center justify-center py-12 text-[var(--sub-text)] opacity-60">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="opacity-30 mb-3">
+                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <p className="text-[14px]">{t('chat.search_overlay.no_results') || 'Không tìm thấy kết quả'}</p>
+                </div>
+              ) : (
+                <>
+                  {/* User Results */}
+                  {searchUsers.length > 0 && (
+                    <div className="mb-4">
+                      <h3 className="text-[13px] font-bold text-[var(--sub-text)] mb-2 uppercase tracking-wide">{t('chat.search_overlay.contacts') || 'Liên hệ'}</h3>
+                      <div className="space-y-0.5">
+                        {searchUsers.map(user => (
+                          <div
+                            key={user.userId}
+                            onClick={() => {
+                              // Find existing conversation with this user
+                              const conv = conversations.find(c => c.otherUserId === user.userId);
+                              if (conv) {
+                                onSelectConversation(conv.id);
+                                setIsSearching(false);
+                                setSearchQuery('');
+                                setSearchUsers([]);
+                                setSearchMessages([]);
+                              }
+                            }}
+                            className="flex items-center gap-3 p-2 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors"
+                          >
+                            <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-black/5">
+                              {user.avatarUrl ? (
+                                <Image src={user.avatarUrl} alt={user.displayName} width={40} height={40} className="object-cover w-full h-full" />
+                              ) : (
+                                <span className="text-[14px] font-bold text-white bg-[#0068FF] w-full h-full flex items-center justify-center">
+                                  {user.displayName?.charAt(0)?.toUpperCase() || '?'}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[14px] font-medium text-[var(--text)] truncate">{user.displayName}</p>
+                              {user.phoneNumber && <p className="text-[12px] text-[var(--sub-text)] truncate">{user.phoneNumber}</p>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Message Results */}
+                  {searchMessages.length > 0 && (
+                    <div>
+                      <h3 className="text-[13px] font-bold text-[var(--sub-text)] mb-2 uppercase tracking-wide">{t('chat.search_overlay.messages') || 'Tin nhắn'}</h3>
+                      <div className="space-y-0.5">
+                        {searchMessages.map(msg => {
+                          const conv = conversations.find(c => String(c.id) === msg.conversationId);
+                          return (
+                            <div
+                              key={msg.messageId}
+                              onClick={() => {
+                                if (conv) {
+                                  onSelectConversation(conv.id);
+                                  setIsSearching(false);
+                                  setSearchQuery('');
+                                  setSearchUsers([]);
+                                  setSearchMessages([]);
+                                }
+                              }}
+                              className="flex items-center gap-3 p-2 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors"
+                            >
+                              <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-black/5">
+                                {conv?.avatar ? (
+                                  <Image src={conv.avatar} alt={conv.name} width={40} height={40} className="object-cover w-full h-full" />
+                                ) : (
+                                  <span className="text-[14px] font-bold text-white bg-[#0068FF] w-full h-full flex items-center justify-center">
+                                    {(conv?.name || msg.senderName)?.charAt(0)?.toUpperCase() || '?'}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[14px] font-medium text-[var(--text)] truncate">{conv?.name || msg.senderName}</p>
+                                <p className="text-[12px] text-[var(--sub-text)] truncate">
+                                  <span className="font-medium">{msg.senderName}: </span>
+                                  {msg.content}
+                                </p>
+                              </div>
+                              <span className="text-[11px] text-[var(--sub-text)] shrink-0">
+                                {msg.createdAt ? new Date(msg.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : ''}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Hidden Conversation Results (private mode) */}
+                  {isPrivateMode && hiddenSearchResults.length > 0 && (
+                    <div className={searchMessages.length > 0 ? 'mt-4' : ''}>
+                      <h3 className="text-[13px] font-bold text-[#0068FF] mb-2 uppercase tracking-wide flex items-center gap-1.5">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        {t('pin.hidden_results') || 'Hội thoại ẩn'}
+                      </h3>
+                      <div className="space-y-0.5">
+                        {hiddenSearchResults.map((conv: any) => {
+                          const convId = conv.conversationId || conv.id;
+                          const name = conv.conversationName || conv.name || 'Unknown';
+                          const avatar = conv.conversationAvatarUrl || conv.avatarUrl || '';
+                          return (
+                            <div
+                              key={convId}
+                              className="flex items-center gap-3 p-2 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors opacity-80"
+                            >
+                              <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-black/5">
+                                {avatar ? (
+                                  <Image src={avatar} alt={name} width={40} height={40} className="object-cover w-full h-full" />
+                                ) : (
+                                  <span className="text-[14px] font-bold text-white bg-gray-400 w-full h-full flex items-center justify-center">
+                                    {name?.charAt(0)?.toUpperCase() || '?'}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[14px] font-medium text-[var(--text)] truncate flex items-center gap-1">
+                                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                  {name}
+                                </p>
+                                <p className="text-[12px] text-[var(--sub-text)] truncate">{conv.lastMessageContent || ''}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          ) : (
+            /* Default: Recent + Filters */
+            <>
+              <div className="px-4 py-3 pb-2">
+                <h3 className="text-[14px] font-bold text-[var(--text)] mb-4">{t('chat.search_overlay.recent')}</h3>
+                <div className="space-y-1">
+                  {recentSearches.map(item => (
+                    <div key={item.id} className="flex items-center gap-3 p-2 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors">
+                      <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center border border-black/5">
+                        {item.avatar ? (
+                          <Image src={item.avatar} alt={item.name} width={40} height={40} className="object-cover" />
+                        ) : (
+                          <span className="text-[14px] font-bold text-white bg-[#0068FF] w-full h-full flex items-center justify-center">
+                            {item.name?.charAt(0)?.toUpperCase() || '?'}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[15px] text-[var(--text)] truncate">{item.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-[var(--border)] mt-2 pt-4 px-4 pb-8">
+                <h3 className="text-[14px] font-bold text-[var(--text)] mb-4">{t('chat.search_overlay.filters.title')}</h3>
+                <div className="flex gap-2">
+                  <button className="px-4 py-1.5 bg-[var(--hover-bg)] rounded-full text-[13.5px] text-[var(--text)] cursor-pointer hover:bg-[var(--border)] transition-colors">
+                    {t('chat.search_overlay.filters.mention')}
+                  </button>
+                  <button className="px-4 py-1.5 bg-[var(--hover-bg)] rounded-full text-[13.5px] text-[var(--text)] cursor-pointer hover:bg-[var(--border)] transition-colors">
+                    {t('chat.search_overlay.filters.reactions')}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      ) : (
+        /* Normal List */
+        <div className="flex-1 overflow-y-auto px-2 pt-2 custom-scrollbar">
+          {filteredConversations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-[var(--sub-text)]">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="opacity-30 mb-3">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              <span className="text-[14px]">
+                {filterTab === 'unread' ? t('chat.empty.unread') : t('chat.empty.conversations')}
+              </span>
+            </div>
+          ) : (
+            filteredConversations.map((conv) => (
+              <SidebarItem
+                key={conv.id}
+                id={conv.id}
+                name={conv.name}
+                nickname={conv.nickname}
+                lastMsg={conv.lastMsg}
+                subtitle={
+                  conv.otherUserId && conv.lastMsg === t('chat.start_conversation') ? (
+                    isOnline(conv.otherUserId) ? (
+                      <span className="text-green-500 font-medium">{t('presence.online')}</span>
+                    ) : getTimeAgo(conv.otherUserId) ? (
+                      <span className="truncate">{getTimeAgo(conv.otherUserId)}</span>
+                    ) : (
+                      <span className="truncate">{conv.lastMsg}</span>
+                    )
+                  ) : (
+                    <span className="truncate">{conv.lastMsg}</span>
+                  )
+                }
+                time={conv.time}
+                active={conv.active}
+                pinned={conv.pinned}
+                avatar={conv.avatar}
+                isCloud={conv.isCloud}
+                isAi={conv.isAi}
+                unreadCount={conv.unreadCount}
+                otherUserId={conv.otherUserId}
+                conversationTagColor={
+                  conv.conversationTag
+                    ? subMenuItems.find((tag) => tag.key === conv.conversationTag)?.color
+                    : undefined
+                }
+                mutedUntil={conv.mutedUntil}
+                isMarkedUnread={conv.isMarkedUnread}
+                onClick={onSelectConversation}
+                onContextMenu={(event) => handleContextMenu(event, conv.id)}
+                onMoreClick={(event) => openContextMenuFromButton(event, conv.id)}
+              />
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Hidden Conversations Link */}
+      {!isSearching && (
+        <button
+          onClick={() => { setOpenHiddenPinError(null); setShowOpenHiddenPinModal(true); }}
+          className="w-full px-4 py-2.5 text-[12px] text-[var(--sub-text)] hover:text-[var(--text)] hover:bg-[var(--hover-bg)] flex items-center justify-center gap-2 transition-colors cursor-pointer border-t border-[var(--border)]"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-60"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+          <span>{t('chat.hidden_conversations')}</span>
+        </button>
+      )}
+
+      {/* Conversation Context Menu */}
+      {renderContextMenu()}
+
+      {/* Report Modal */}
+      {reportModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/45 animate-in fade-in duration-200" onClick={() => setReportModal(null)} />
+          <div className="w-full max-w-[420px] bg-[var(--card-bg)] rounded-xl shadow-2xl relative z-[10000] animate-in zoom-in-95 duration-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+              <h3 className="text-[16px] font-bold text-[var(--text)]">{t('chat.ctx.report')}</h3>
+              <button onClick={() => setReportModal(null)} className="p-1 rounded-md hover:bg-[var(--hover-bg)] text-[var(--sub-text)] cursor-pointer">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="text-[13px] text-[var(--sub-text)]">
+                {t('report.reporting')}: <span className="font-semibold text-[var(--text)]">{reportModal.conversationName}</span>
+              </div>
+              <div>
+                <label className="block text-[13px] font-semibold text-[var(--text)] mb-1.5">{t('report.reason')}</label>
+                <select
+                  value={reportReason}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  className="w-full bg-[var(--hover-bg)] border border-[var(--border)] rounded-lg px-3 py-2 text-[13px] text-[var(--text)] outline-none focus:border-[#0068FF] transition-colors"
+                >
+                  <option value="">{t('report.select_reason')}</option>
+                  <option value="spam">{t('report.reasons.spam')}</option>
+                  <option value="harassment">{t('report.reasons.harassment')}</option>
+                  <option value="inappropriate">{t('report.reasons.inappropriate')}</option>
+                  <option value="scam">{t('report.reasons.scam')}</option>
+                  <option value="other">{t('report.reasons.other')}</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[13px] font-semibold text-[var(--text)] mb-1.5">{t('report.description')}</label>
+                <textarea
+                  value={reportDescription}
+                  onChange={(e) => setReportDescription(e.target.value)}
+                  placeholder={t('report.description_placeholder')}
+                  rows={3}
+                  className="w-full bg-[var(--hover-bg)] border border-[var(--border)] rounded-lg px-3 py-2 text-[13px] text-[var(--text)] outline-none focus:border-[#0068FF] transition-colors resize-none"
+                />
+              </div>
+            </div>
+            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+              <button onClick={() => setReportModal(null)} className="px-4 py-1.5 text-[13px] text-[var(--sub-text)] hover:text-[var(--text)] rounded-md hover:bg-[var(--hover-bg)] transition-colors cursor-pointer">
+                {t('common.cancel')}
+              </button>
+              <button
+                disabled={!reportReason || reportLoading}
+                onClick={async () => {
+                  setReportLoading(true);
+                  try {
+                    await apiClient.post('/reports', {
+                      conversationId: reportModal.conversationId,
+                      reason: reportReason,
+                      description: reportDescription,
+                    });
+                    toast.success(t('report.success'));
+                    setReportModal(null);
+                  } catch (e: any) {
+                    toast.error(e.message || t('report.error'));
+                  } finally {
+                    setReportLoading(false);
+                  }
+                }}
+                className="px-4 py-1.5 text-[13px] font-semibold text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors cursor-pointer"
+              >
+                {reportLoading ? '...' : t('report.submit')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Private mode PIN modal */}
+      {showPrivatePinModal && (
+        <PinInputModal
+          title={t('pin.unlock_title') || 'Nhập mã PIN'}
+          subtitle={t('pin.unlock_subtitle') || 'Nhập mã PIN để xem hội thoại ẩn trong kết quả tìm kiếm'}
+          error={privatePinError}
+          loading={privatePinLoading}
+          onConfirm={handlePrivatePinConfirm}
+          onClose={() => { setShowPrivatePinModal(false); setPrivatePinError(null); }}
+        />
+      )}
+
+      {/* Context-menu hide PIN modal */}
+      {showCtxHidePinModal && (
+        <PinInputModal
+          title={ctxHideIsSetup ? t('pin.setup_for_hide_title') : t('info.hide.modal_title')}
+          subtitle={ctxHideIsSetup ? t('pin.setup_for_hide_subtitle') : t('info.hide.modal_subtitle')}
+          error={ctxHidePinError}
+          loading={ctxHidePinLoading}
+          onConfirm={handleCtxHidePinConfirm}
+          onClose={() => { setShowCtxHidePinModal(false); setCtxHidePinError(null); setCtxHideConvId(null); }}
+        />
+      )}
+
+      {/* Unhide PIN modal */}
+      {showUnhidePinModal && (
+        <PinInputModal
+          title={t('info.hide.modal_title')}
+          subtitle={t('chat.unhide_pin_subtitle') || 'Nhập mã PIN để hiện lại hội thoại'}
+          error={unhidePinError}
+          loading={unhidePinLoading}
+          onConfirm={handleUnhidePinConfirm}
+          onClose={() => { setShowUnhidePinModal(false); setUnhidePinError(null); setUnhidePinTarget(null); }}
+        />
+      )}
+
+      {/* Open hidden list PIN modal */}
+      {showOpenHiddenPinModal && (
+        <PinInputModal
+          title={t('info.hide.modal_title')}
+          subtitle={t('chat.open_hidden_pin_subtitle') || 'Nhập mã PIN để xem danh sách hội thoại đã ẩn'}
+          error={openHiddenPinError}
+          loading={openHiddenPinLoading}
+          onConfirm={handleOpenHiddenPinConfirm}
+          onClose={() => { setShowOpenHiddenPinModal(false); setOpenHiddenPinError(null); }}
+        />
+      )}
+
+      {/* Hidden Conversations Modal */}
+      {showHiddenModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/45 animate-in fade-in duration-200" onClick={() => { setShowHiddenModal(false); setShowAllHidden(false); }} />
+          <div className="w-full max-w-[420px] max-h-[70vh] bg-[var(--card-bg)] rounded-xl shadow-2xl relative z-[10000] animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col">
+            <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between shrink-0">
+              <h3 className="text-[16px] font-bold text-[var(--text)]">{t('chat.hidden_conversations')}</h3>
+              <button onClick={() => { setShowHiddenModal(false); setShowAllHidden(false); }} className="p-1 rounded-md hover:bg-[var(--hover-bg)] text-[var(--sub-text)] cursor-pointer">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3">
+              {hiddenLoading ? (
+                <div className="flex items-center justify-center py-8 text-[var(--sub-text)]">
+                  <span className="text-[13px]">...</span>
+                </div>
+              ) : hiddenConversations.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-[var(--sub-text)]">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="opacity-30 mb-2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <span className="text-[13px]">{t('chat.hidden_empty')}</span>
+                </div>
+              ) : (
+                <>
+                  {(showAllHidden ? hiddenConversations : hiddenConversations.slice(0, HIDDEN_PAGE_SIZE)).map((conv: any) => {
+                    const convId = conv.conversationId || conv.conversation_id;
+                    const convType = conv.conversationType || conv.conversation_type;
+                    const isPrivate = convType === 'PRIVATE';
+                    const isSelf = convType === 'SELF';
+                    const rawName = conv.conversationName || conv.conversation_name || '';
+                    const isAiConv = isSelf && rawName === 'Fruvia AI';
+                    const isCloudConv = isSelf && !isAiConv;
+                    let name = rawName;
+                    let avatar = conv.conversationAvatarUrl || conv.conversation_avatar_url || '';
+                    if (isPrivate && conv.members) {
+                      const other = conv.members.find((m: any) =>
+                        (m.userId || m.user_id) !== (currentUser?.id)
+                      );
+                      if (other) {
+                        name = other.displayName || other.display_name || other.userName || other.user_name || name;
+                        avatar = other.avatarUrl || other.avatar_url || avatar;
+                      }
+                    }
+                    if (!name) name = 'Unknown';
+                    const lastMsg = conv.lastMessageContent || conv.last_message_content || '';
+                    return (
+                      <div key={convId} className="flex items-center gap-3 p-3 rounded-lg hover:bg-[var(--hover-bg)] transition-colors">
+                        <div className={`w-10 h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center ${isAiConv ? 'bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500' : isCloudConv ? 'bg-[#0068FF]' : 'bg-gray-200'}`}>
+                          {isAiConv ? (
+                            <SparklesIcon size={20} />
+                          ) : isCloudConv ? (
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+                              <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-5 10c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0-6c-2.33 0-4.5 1.17-4.5 2.5V14h9v-1.5c0-1.33-2.17-2.5-4.5-2.5z" />
+                            </svg>
+                          ) : avatar ? (
+                            <Image src={avatar} alt={name} width={40} height={40} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-white bg-[#0068FF] text-[14px] font-bold">
+                              {name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[14px] font-medium text-[var(--text)] truncate">{name}</div>
+                          <div className="text-[12px] text-[var(--sub-text)] truncate">{lastMsg}</div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setUnhidePinError(null);
+                            setUnhidePinTarget(convId);
+                            setShowUnhidePinModal(true);
+                          }}
+                          className="px-3 py-1.5 text-[12px] font-medium text-[#0068FF] bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 rounded-lg transition-colors cursor-pointer shrink-0"
+                        >
+                          {t('chat.unhide')}
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {hiddenConversations.length > HIDDEN_PAGE_SIZE && (
+                    <button
+                      onClick={() => setShowAllHidden(prev => !prev)}
+                      className="w-full mt-1 py-2 flex items-center justify-center gap-1.5 text-[13px] font-medium text-[var(--sub-text)] hover:text-[var(--text)] hover:bg-[var(--hover-bg)] rounded-lg transition-colors cursor-pointer"
+                    >
+                      <span className={`transition-transform duration-200 ${showAllHidden ? 'rotate-180' : ''}`}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                      </span>
+                      {showAllHidden
+                        ? t('common.show_less') || 'Thu gọn'
+                        : `${t('common.show_more') || 'Xem thêm'} (${hiddenConversations.length - HIDDEN_PAGE_SIZE})`}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+            {!hiddenLoading && hiddenConversations.length > 1 && (
+              <div className="px-3 pb-3 border-t border-[var(--border)] pt-3 shrink-0">
+                <button
+                  onClick={() => {
+                    setUnhidePinError(null);
+                    setUnhidePinTarget('all');
+                    setShowUnhidePinModal(true);
+                  }}
+                  className="w-full py-2 flex items-center justify-center gap-2 text-[13px] font-semibold text-[#0068FF] bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 rounded-lg transition-colors cursor-pointer"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  {t('chat.unhide_all') || 'Hiện lại tất cả'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,291 @@
+import React from 'react';
+import {
+  FilePickerIcon,
+  ImagePickerIcon,
+  StickerIcon,
+  VideoPickerIcon,
+  VoiceIcon,
+} from '@/components/ui/Icons';
+import { StickerPicker } from '@/features/chat/components/StickerPicker';
+import { ChatImageUpload } from '@/features/chat/components/ChatImageUpload';
+import { ChatInput } from '@/features/chat';
+import type { ChatComposerProps } from '@/features/chat/components/ChatWindow/types';
+
+export function ChatComposer({ vm }: ChatComposerProps) {
+  const {
+    t,
+    selectedChat,
+    isSendingAi,
+    replyingTo,
+    setReplyingTo,
+    isRecording,
+    recordingTime,
+    isInitializingMic,
+    stopRecording,
+    startRecording,
+    isPickerOpen,
+    pickerTab,
+    togglePicker,
+    handleImageClick,
+    isChatImageUploadOpen,
+    setIsShareContactOpen,
+    imageInputRef,
+    handleImageChange,
+    videoInputRef,
+    handleVideoChange,
+    isFilePopoverOpen,
+    handleFileIconClick,
+    handleVideoClick,
+    handleFileClick,
+    fileInputRef,
+    handleFileChange,
+    onSelectSticker,
+    imageQueue,
+    closeImageQueue,
+    setCaptionDraft,
+    setCaptionModalIdx,
+    messageInputRef,
+    message,
+    setMessage,
+    sendTypingIndicator,
+    handlePaste,
+    handleSendImageQueue,
+    handleSendMessage,
+    setIsChatImageUploadOpen,
+  } = vm;
+
+  return (
+    <>
+      {replyingTo && (
+        <div className="bg-[var(--card-bg)] border-t border-[var(--border)] px-4 py-2 flex items-center gap-3 animate-in slide-in-from-bottom-2 duration-200">
+          <div className="w-1 h-10 rounded-full bg-[#0068FF] shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-[12px] font-bold text-[#0068FF]">{t('chat.reply.replying_to')} {replyingTo.sender === 'Me' ? t('common.you') : replyingTo.sender}</div>
+            <div className="text-[13px] text-[var(--sub-text)] truncate">
+              {replyingTo.type === 'IMAGE' ? `📷 ${t('chat.snippet.image')}` : replyingTo.type === 'VIDEO' ? `🎬 ${t('chat.snippet.video')}` : replyingTo.type === 'VOICE' ? `🎤 ${t('chat.snippet.voice')}` : replyingTo.type === 'MEDIA' ? `📎 ${t('chat.snippet.file')}` : replyingTo.text?.length > 60 ? `${replyingTo.text.slice(0, 60)}...` : replyingTo.text}
+            </div>
+          </div>
+          <button onClick={() => setReplyingTo(null)} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full hover:bg-[var(--hover-bg)] text-[var(--sub-text)] transition-colors cursor-pointer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+          </button>
+        </div>
+      )}
+
+      <div className="bg-[var(--card-bg)] border-t border-[var(--border)] flex-shrink-0 transition-colors duration-200">
+        <div className="flex items-center px-4 py-1.5 gap-1.5 border-b border-[var(--border)] relative h-[46px]">
+          {isRecording ? (
+            <div className="flex-1 flex items-center justify-between animate-in slide-in-from-bottom-2 duration-300">
+              <div className="flex items-center gap-3 px-3 py-1.5 bg-red-50 dark:bg-red-500/10 text-red-500 rounded-lg border border-red-100 dark:border-red-500/20">
+                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                <div className="flex flex-col leading-none">
+                  <span className="text-[13px] font-bold font-mono">
+                    {Math.floor(recordingTime / 60)}:{String(recordingTime % 60).padStart(2, '0')}
+                  </span>
+                  <span className="text-[10px] opacity-70 font-medium mt-0.5">{t('chat.voice.recording')}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => stopRecording(true)}
+                  className="text-[13px] font-bold text-[var(--sub-text)] hover:text-red-500 px-3 py-2 cursor-pointer transition-colors"
+                >
+                  {t('chat.recording_cancel')}
+                </button>
+                <button
+                  onClick={() => stopRecording(false)}
+                  className="h-8 px-4 flex items-center gap-2 rounded-md bg-red-500 text-white animate-pulse cursor-pointer shadow-lg shadow-red-500/20"
+                >
+                  <VoiceIcon size={18} />
+                  <span className="text-[13px] font-bold">{t('chat.recording_send')}</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <button onClick={() => togglePicker('sticker')} className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer ${isPickerOpen && pickerTab === 'sticker' ? 'bg-[var(--hover-bg)] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}><StickerIcon size={20} /></button>
+
+              <button
+                onClick={handleImageClick}
+                className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer ${isChatImageUploadOpen ? 'bg-[var(--hover-bg)] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}
+              >
+                <ImagePickerIcon size={20} />
+              </button>
+
+              <button onClick={() => setIsShareContactOpen(true)} title={t('share_contact.toolbar_tooltip')} className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] cursor-pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4" /><path d="M4 20c0-2.5 1.8-4 4-4" /><line x1="15" y1="8" x2="21" y2="8" /><line x1="15" y1="12" x2="21" y2="12" /></svg></button>
+
+              <input type="file" ref={imageInputRef} onChange={handleImageChange} accept="image/*" multiple className="hidden" />
+              <input type="file" ref={videoInputRef} onChange={handleVideoChange} accept="video/*" className="hidden" />
+
+              <div className="relative">
+                <button onClick={handleFileIconClick} className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer ${isFilePopoverOpen ? 'bg-[var(--hover-bg)] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}><FilePickerIcon size={20} /></button>
+                {isFilePopoverOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => vm.setIsFilePopoverOpen(false)} />
+                    <div className="absolute bottom-[calc(100%+14px)] left-[-10px] bg-[var(--card-bg)] border border-[var(--border)] rounded-lg shadow-xl z-50 p-0 overflow-hidden min-w-[140px]">
+                      <button onClick={handleVideoClick} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-[var(--hover-bg)] w-full text-left text-[var(--text)] text-[14px] font-medium cursor-pointer"><VideoPickerIcon size={18} />{t('chat.choose_video')}</button>
+                      <button onClick={handleFileClick} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-[var(--hover-bg)] w-full text-left text-[var(--text)] text-[14px] font-medium cursor-pointer"><FilePickerIcon size={18} />{t('chat.choose_file')}</button>
+                      <div className="absolute top-[calc(100%-1px)] left-4 w-4 h-4 overflow-hidden"><div className="w-2.5 h-2.5 bg-[var(--card-bg)] border-b border-r border-[var(--border)] rotate-45 -translate-y-1.5 mx-auto" /></div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (isRecording) stopRecording();
+                  else startRecording();
+                }}
+                disabled={isInitializingMic}
+                className={`w-8 h-8 flex items-center justify-center rounded-md transition-all cursor-pointer ${isInitializingMic ? 'opacity-50 cursor-not-allowed' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}
+              >
+                {isInitializingMic ? (
+                  <div className="w-4 h-4 border-2 border-[var(--text)] border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <VoiceIcon size={20} />
+                )}
+              </button>
+            </>
+          )}
+
+          <StickerPicker isOpen={isPickerOpen} onClose={() => vm.setIsPickerOpen(false)} onSelect={onSelectSticker} activeTab={pickerTab} />
+        </div>
+
+        {isChatImageUploadOpen && (
+          <div className="border-t border-[var(--border)] px-4 py-3">
+            <ChatImageUpload
+              className="max-w-[360px]"
+              onUploadDone={async (optimisticMsg, metadata) => {
+                try {
+                  await handleSendMessage(
+                    metadata.s3Url,
+                    'IMAGE',
+                    metadata.originalName,
+                    optimisticMsg.fileSize,
+                    undefined,
+                    undefined,
+                    undefined,
+                    metadata.width,
+                    metadata.height
+                  );
+                  setIsChatImageUploadOpen(false);
+                } catch {
+                  // handleSendMessage already handles notifications.
+                }
+              }}
+            />
+          </div>
+        )}
+
+        {imageQueue.length > 0 && (
+          <div className="px-4 pt-3 pb-1 border-t border-[var(--border)]">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[13px] font-semibold text-[var(--sub-text)]">{imageQueue.length} ảnh</span>
+              <button
+                onClick={closeImageQueue}
+                className="text-[13px] text-[var(--sub-text)] hover:text-red-500 transition-colors cursor-pointer"
+              >
+                Xoá tất cả
+              </button>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {imageQueue.map((item, idx) => (
+                <div key={`image-${idx}`} className="relative group shrink-0">
+                  <img
+                    src={item.previewUrl}
+                    alt=""
+                    className="w-[72px] h-[72px] object-cover rounded-lg border border-[var(--border)] shadow-sm"
+                  />
+                  {item.caption?.trim() && (
+                    <div className="absolute bottom-0 inset-x-0 bg-black/50 rounded-b-lg px-1 py-0.5">
+                      <span className="text-[10px] text-white truncate block">{item.caption}</span>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 rounded-lg bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCaptionDraft(item.caption);
+                        setCaptionModalIdx(idx);
+                      }}
+                      className="w-7 h-7 rounded-full bg-white/90 flex items-center justify-center hover:bg-white transition-colors cursor-pointer shadow"
+                      title="Thêm mô tả"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (item.previewUrl.startsWith('blob:')) {
+                          URL.revokeObjectURL(item.previewUrl);
+                        }
+                        vm.setImageQueue((prev) => prev.filter((_, i) => i !== idx));
+                      }}
+                      className="w-7 h-7 rounded-full bg-white/90 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors cursor-pointer shadow"
+                      title="Xoá ảnh"
+                    >
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              <label className="w-[72px] h-[72px] rounded-lg border-2 border-dashed border-[var(--border)] flex items-center justify-center text-[var(--sub-text)] hover:border-[#0068FF] hover:text-[#0068FF] transition-colors cursor-pointer shrink-0">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    const files = e.target.files ? Array.from(e.target.files) : [];
+                    if (!files.length) return;
+                    const newEntries = files.map(file => ({ file, previewUrl: URL.createObjectURL(file), caption: '' }));
+                    vm.setImageQueue(prev => [...prev, ...newEntries]);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            </div>
+          </div>
+        )}
+
+        <ChatInput
+          inputRef={messageInputRef}
+          value={message}
+          onChange={(value) => {
+            setMessage(value);
+            sendTypingIndicator();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !(selectedChat.isAi && isSendingAi)) {
+              handleSendMessage();
+            }
+            if (event.key === 'Escape' && replyingTo) {
+              setReplyingTo(null);
+            }
+          }}
+          onPaste={handlePaste}
+          placeholder={selectedChat.isAi && isSendingAi
+            ? (t('chat.ai_thinking') || 'AI đang suy nghĩ...')
+            : (selectedChat.isAi ? t('chat.ai_input_placeholder') : t('chat.input_placeholder'))}
+          disabled={selectedChat.isAi && isSendingAi}
+          isEmojiOpen={isPickerOpen && pickerTab === 'emoji'}
+          showSendButton={Boolean(message.trim() || imageQueue.length > 0)}
+          onToggleEmoji={() => togglePicker('emoji')}
+          onSend={() => {
+            if (imageQueue.length > 0) {
+              handleSendImageQueue();
+            } else {
+              handleSendMessage();
+            }
+          }}
+          onSendLike={() => handleSendMessage('👍')}
+        />
+      </div>
+    </>
+  );
+}

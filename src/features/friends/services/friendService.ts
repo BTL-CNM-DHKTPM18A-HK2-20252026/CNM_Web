@@ -1,5 +1,5 @@
-import { apiClient } from './api';
-import { UserResponse } from './userService';
+import { apiClient } from '@/lib/http/apiClient';
+import type { UserResponse } from '@/features/user';
 
 export interface FriendRequestResponse {
   requestId: string;

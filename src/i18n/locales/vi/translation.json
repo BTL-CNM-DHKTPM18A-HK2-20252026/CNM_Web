@@ -41,7 +41,7 @@
       "submit": "Đăng nhập với mật khẩu",
       "forgot_password": "Quên mật khẩu?",
       "qr_back": "Đăng nhập qua mã QR",
-      "remember_me": "Ghi nhớ hồ sơ"
+      "remember_me": "Ghi nhớ đăng nhập"
     },
     "register": {
       "header": "Tạo tài khoản mới",
@@ -58,6 +58,51 @@
       "phone_hint": "Số điện thoại di động Việt Nam: Gồm 10 chữ số và bắt đầu bằng các đầu số: 03, 05, 07, 08, 09",
       "confirm_password_placeholder": "Xác nhận mật khẩu"
     },
+    "otp": {
+      "badge": "BƯỚC BẢO MẬT",
+      "title": "Xác thực email",
+      "subtitle": "Nhập mã OTP 6 chữ số đã gửi vào email của bạn",
+      "sent_to": "Mã OTP đã được gửi tới",
+      "digit": "Số",
+      "resend_in": "Gửi lại mã sau",
+      "can_resend": "Bạn có thể gửi lại mã ngay",
+      "resend": "Gửi lại",
+      "resending": "Đang gửi...",
+      "verify": "Xác thực",
+      "verifying": "Đang xác thực...",
+      "back_to_register": "Quay lại đăng ký",
+      "verify_success": "Xác thực email thành công",
+      "verify_failed": "Xác thực OTP thất bại",
+      "resend_success": "Đã gửi lại mã OTP",
+      "resend_failed": "Không thể gửi lại OTP"
+    },
+    "forgot": {
+      "badge": "KHÔI PHỤC TÀI KHOẢN",
+      "title": "Quên mật khẩu",
+      "subtitle_request": "Nhập email để nhận OTP đặt lại mật khẩu",
+      "subtitle_reset": "Nhập OTP và mật khẩu mới để hoàn tất khôi phục",
+      "email_label": "Email tài khoản",
+      "email_placeholder": "example@email.com",
+      "send_otp": "Gửi mã OTP",
+      "sending": "Đang gửi...",
+      "sent_to": "Mã OTP đặt lại mật khẩu đã gửi tới",
+      "otp_label": "Mã OTP",
+      "otp_invalid": "Vui lòng nhập đủ 6 số OTP",
+      "new_password_label": "Mật khẩu mới",
+      "new_password_placeholder": "Nhập mật khẩu mới",
+      "confirm_password_label": "Xác nhận mật khẩu mới",
+      "confirm_password_placeholder": "Nhập lại mật khẩu mới",
+      "reset_password": "Đặt lại mật khẩu",
+      "resetting": "Đang cập nhật...",
+      "send_success": "Đã gửi mã OTP đặt lại mật khẩu",
+      "send_failed": "Không thể gửi OTP đặt lại mật khẩu",
+      "resend_success": "Đã gửi lại OTP đặt lại mật khẩu",
+      "resend_failed": "Không thể gửi lại OTP đặt lại mật khẩu",
+      "reset_success": "Đặt lại mật khẩu thành công",
+      "reset_failed": "Đặt lại mật khẩu thất bại",
+      "back_to_login": "Quay lại đăng nhập",
+      "done_login_hint": "Mật khẩu đã đổi. Vui lòng đăng nhập lại."
+    },
     "promo": {
       "title": "Trải nghiệm Fruvia PC tốt nhất",
       "desc": "Gửi file 1GB, gọi video HD, đồng bộ tin nhắn cực nhanh",
@@ -73,6 +118,9 @@
     "success": {
       "register": "Đăng ký tài khoản thành công!",
       "register_desc": "Bây giờ bạn có thể đăng nhập bằng số điện thoại vừa đăng ký.",
+      "otp_sent": "Tạo tài khoản thành công",
+      "otp_sent_desc": "Vui lòng kiểm tra email để nhập mã OTP xác thực.",
+      "verify_done": "Email đã được xác thực. Bạn có thể đăng nhập ngay.",
       "logout": "Đã đăng xuất thành công",
       "logout_desc": "Hẹn gặp lại bạn sớm! Chúc bạn một ngày tốt lành."
     },

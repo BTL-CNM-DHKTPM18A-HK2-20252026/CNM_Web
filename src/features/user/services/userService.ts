@@ -1,4 +1,4 @@
-import { apiClient } from './api';
+import { apiClient } from '@/lib/http/apiClient';
 
 export interface UserResponse {
   user_id: string;
