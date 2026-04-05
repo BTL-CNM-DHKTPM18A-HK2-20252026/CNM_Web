@@ -17,11 +17,13 @@ import { StickerPicker } from '@/components/common/StickerPicker';
 import { NicknameModal } from '@/components/common/NicknameModal';
 import { ForwardModal } from '@/components/common/ForwardModal';
 import { ShareContactModal } from '@/components/common/ShareContactModal';
+import { ChatImageUpload } from '@/components/common/ChatImageUpload';
 import { apiClient } from '@/services/api';
 import { websocketService } from '@/services/websocketService';
 import { friendService } from '@/services/friendService';
 import { useInView } from 'react-intersection-observer';
 import { StatusIndicator } from './StatusIndicator';
+import { ImageModal } from './ImageModal';
 
 interface ChatWindowProps {
   onToggleSidebar: (type: 'info' | 'search') => void;
@@ -143,6 +145,15 @@ const formatDateSeparator = (date?: Date, t?: (key: string) => string) => {
   return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
+const resolveImageAspectRatio = (message: any) => {
+  const width = Number(message?.width || 0);
+  const height = Number(message?.height || 0);
+  if (width > 0 && height > 0) {
+    return `${width} / ${height}`;
+  }
+  return '4 / 3';
+};
+
 export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, currentUser, onUpdateConversation, onSelectConversation, onNicknameChange, refreshTrigger }: ChatWindowProps) {
   const { t, i18n } = useTranslation();
   const [message, setMessage] = React.useState("");
@@ -175,6 +186,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
   const [imageQueue, setImageQueue] = useState<{ file: File; previewUrl: string; caption: string }[]>([]);
   const [captionModalIdx, setCaptionModalIdx] = useState<number | null>(null);
   const [captionDraft, setCaptionDraft] = useState('');
+  const [openedImageSrc, setOpenedImageSrc] = useState<string | null>(null);
 
   const openImageQueue = (files: File[]) => {
     if (!files.length) return;
@@ -269,6 +281,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
   const [isNicknameModalOpen, setIsNicknameModalOpen] = React.useState(false);
   const [isFilePopoverOpen, setIsFilePopoverOpen] = React.useState(false);
   const [isUserDataModalOpen, setIsUserDataModalOpen] = useState(false);
+  const [isChatImageUploadOpen, setIsChatImageUploadOpen] = useState(false);
 
   // Fetch nickname for current conversation member
   useEffect(() => {
@@ -497,7 +510,7 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageClick = () => {
-    imageInputRef.current?.click();
+    setIsChatImageUploadOpen(prev => !prev);
   };
 
   const handleFileIconClick = (e: React.MouseEvent) => {
@@ -529,10 +542,35 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
     }
   };
 
+  const readImageDimensionsFromUrl = (url: string): Promise<{ width: number; height: number }> => {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => {
+        const width = image.naturalWidth || image.width || 0;
+        const height = image.naturalHeight || image.height || 0;
+        if (width > 0 && height > 0) {
+          resolve({ width, height });
+          return;
+        }
+        reject(new Error('Cannot resolve image dimensions'));
+      };
+      image.onerror = () => reject(new Error('Cannot load image dimensions'));
+      image.src = url;
+    });
+  };
+
   const handleFileUpload = async (file: File, caption?: string) => {
     const isImage = file.type.startsWith('image/');
     const isVideo = file.type.startsWith('video/');
     const localPreviewUrl = (isImage || isVideo) ? URL.createObjectURL(file) : undefined;
+    let imageDimensions: { width: number; height: number } | undefined;
+    if (isImage && localPreviewUrl) {
+      try {
+        imageDimensions = await readImageDimensionsFromUrl(localPreviewUrl);
+      } catch {
+        imageDimensions = { width: 4, height: 3 };
+      }
+    }
     const tempId = `temp-upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const capturedReplyTo = replyingTo;
 
@@ -552,6 +590,8 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
         isEdited: false,
         isRecalled: false,
         forwardedFromSenderName: null,
+        width: imageDimensions?.width,
+        height: imageDimensions?.height,
         isUploading: true,
       }]);
       setShouldScrollToBottom(true);
@@ -592,7 +632,17 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
         });
       }
 
-      await handleSendMessage(s3Url, msgType, file.name, file.size, undefined, videoDur, localPreviewUrl ? tempId : undefined);
+      await handleSendMessage(
+        s3Url,
+        msgType,
+        file.name,
+        file.size,
+        undefined,
+        videoDur,
+        localPreviewUrl ? tempId : undefined,
+        imageDimensions?.width,
+        imageDimensions?.height
+      );
       // Send caption as a separate text message if provided
       if (caption?.trim()) {
         await handleSendMessage(caption.trim());
@@ -846,6 +896,8 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
             id: m.messageId || m.id,
             text: m.content,
             type: m.messageType || 'TEXT',
+            width: m.width,
+            height: m.height,
             linkTitle: m.linkTitle,
             linkThumbnail: m.linkThumbnail,
             voiceDuration: m.voiceDuration,
@@ -966,6 +1018,8 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
               id: newMsg.messageId || newMsg.id,
               text: newMsg.content,
               type: newMsg.messageType || 'TEXT',
+              width: newMsg.width,
+              height: newMsg.height,
               replyToMessageId: newMsg.replyToMessageId || null,
               sender: newMsg.senderId === 'SYSTEM' ? 'SYSTEM' : newMsg.senderId === currentUser?.id ? 'Me' : (newMsg.senderId === AI_TYPING_USER_ID ? (newMsg.senderName || 'Fruvia AI') : newMsg.senderName),
               senderId: newMsg.senderId,
@@ -987,7 +1041,12 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
               );
               if (optimisticIdx !== -1) {
                 const next = [...prev];
-                next[optimisticIdx] = mappedMsg;
+                const optimisticMsg = next[optimisticIdx];
+                next[optimisticIdx] = {
+                  ...mappedMsg,
+                  width: mappedMsg.width || optimisticMsg.width,
+                  height: mappedMsg.height || optimisticMsg.height,
+                };
                 setShouldScrollToBottom(true);
                 return next;
               }
@@ -1065,6 +1124,8 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           id: m.messageId || m.id,
           text: m.content,
           type: m.messageType || 'TEXT',
+          width: m.width,
+          height: m.height,
           replyToMessageId: m.replyToMessageId || null,
           sender: m.senderId === 'SYSTEM' ? 'SYSTEM' : m.senderId === currentUser?.id ? 'Me' : m.senderName,
           senderId: m.senderId,
@@ -1129,7 +1190,17 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
     }
   };
 
-  const handleSendMessage = async (customContent?: string, msgType: string = 'TEXT', fileName?: string, fileSize?: number, voiceDuration?: number, videoDuration?: number, optimisticId?: string) => {
+  const handleSendMessage = async (
+    customContent?: string,
+    msgType: string = 'TEXT',
+    fileName?: string,
+    fileSize?: number,
+    voiceDuration?: number,
+    videoDuration?: number,
+    optimisticId?: string,
+    imageWidth?: number,
+    imageHeight?: number
+  ) => {
     const contentToUse = customContent || message?.trim();
     if (contentToUse && selectedChat?.id) {
       try {
@@ -1170,6 +1241,8 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                   id: realId,
                   text: newMsg.content,
                   type: newMsg.messageType || msgType,
+                  width: newMsg.width || imageWidth,
+                  height: newMsg.height || imageHeight,
                   replyToMessageId: newMsg.replyToMessageId || replyingTo?.id || null,
                   sender: 'Me',
                   senderId: currentUser?.id,
@@ -1190,7 +1263,12 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                       return prev.filter(m => m.id !== optimisticId);
                     }
                     const next = [...prev];
-                    next[idx] = realMsg;
+                    const optimisticMsg = next[idx];
+                    next[idx] = {
+                      ...realMsg,
+                      width: realMsg.width || optimisticMsg.width,
+                      height: realMsg.height || optimisticMsg.height,
+                    };
                     return next;
                   }
                 }
@@ -1307,6 +1385,8 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                     id: imageMessageId,
                     text: imageMessage.content,
                     type: imageMessage.messageType || 'IMAGE',
+                    width: imageMessage.width,
+                    height: imageMessage.height,
                     replyToMessageId: imageMessage.replyToMessageId || null,
                     sender: imageMessage.senderName || 'Fruvia AI',
                     senderId: imageMessage.senderId,
@@ -1428,6 +1508,8 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
               id: realId,
               text: newMsg.content,
               type: newMsg.messageType || msgType,
+              width: newMsg.width || imageWidth,
+              height: newMsg.height || imageHeight,
               replyToMessageId: newMsg.replyToMessageId || replyingTo?.id || null,
               sender: 'Me',
               senderId: currentUser?.id,
@@ -1449,7 +1531,12 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                   return prev.filter(m => m.id !== optimisticId);
                 }
                 const next = [...prev];
-                next[idx] = realMsg;
+                const optimisticMsg = next[idx];
+                next[idx] = {
+                  ...realMsg,
+                  width: realMsg.width || optimisticMsg.width,
+                  height: realMsg.height || optimisticMsg.height,
+                };
                 return next;
               }
             }
@@ -1910,13 +1997,17 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
                             ) : msg.type === 'IMAGE' || msg.type === 'VIDEO' ? (
                               <div className="relative group/media-content w-fit max-w-full">
                                 {msg.type === 'IMAGE' ? (
-                                  <img
-                                    src={msg.text}
-                                    alt="Shared"
-                                    onLoad={() => scrollToBottom()}
-                                    className="max-w-[320px] max-h-[360px] rounded-md cursor-pointer hover:opacity-90 transition-all shadow-sm object-contain"
-                                    onClick={() => window.open(msg.text, '_blank')}
-                                  />
+                                  <div
+                                    className="relative w-full max-w-[320px] overflow-hidden rounded-md bg-slate-100 shadow-sm"
+                                    style={{ aspectRatio: resolveImageAspectRatio(msg) }}
+                                  >
+                                    <img
+                                      src={msg.text}
+                                      alt="Shared"
+                                      className="h-full w-full cursor-pointer object-cover transition-all hover:opacity-90"
+                                      onClick={() => setOpenedImageSrc(msg.text)}
+                                    />
+                                  </div>
                                 ) : (
                                   <video src={msg.text} controls className="max-w-[320px] max-h-[360px] rounded-md shadow-sm object-contain" />
                                 )}
@@ -2201,7 +2292,12 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           ) : (
             <>
               <button onClick={() => togglePicker('sticker')} className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer ${isPickerOpen && pickerTab === 'sticker' ? 'bg-[var(--hover-bg)] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}><StickerIcon size={20} /></button>
-              <button onClick={handleImageClick} className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] cursor-pointer"><ImagePickerIcon size={20} /></button>
+              <button
+                onClick={handleImageClick}
+                className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer ${isChatImageUploadOpen ? 'bg-[var(--hover-bg)] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}
+              >
+                <ImagePickerIcon size={20} />
+              </button>
               <button onClick={() => setIsShareContactOpen(true)} title={t('share_contact.toolbar_tooltip')} className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] cursor-pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4"/><path d="M4 20c0-2.5 1.8-4 4-4"/><line x1="15" y1="8" x2="21" y2="8"/><line x1="15" y1="12" x2="21" y2="12"/></svg></button>
               <input type="file" ref={imageInputRef} onChange={handleImageChange} accept="image/*" multiple className="hidden" />
               <input type="file" ref={videoInputRef} onChange={handleVideoChange} accept="video/*" className="hidden" />
@@ -2238,6 +2334,31 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
           )}
           <StickerPicker isOpen={isPickerOpen} onClose={() => setIsPickerOpen(false)} onSelect={onSelectSticker} activeTab={pickerTab} />
         </div>
+          {isChatImageUploadOpen && (
+            <div className="border-t border-[var(--border)] px-4 py-3">
+              <ChatImageUpload
+                className="max-w-[360px]"
+                onUploadDone={async (optimisticMsg, metadata) => {
+                  try {
+                    await handleSendMessage(
+                      metadata.s3Url,
+                      'IMAGE',
+                      metadata.originalName,
+                      optimisticMsg.fileSize,
+                      undefined,
+                      undefined,
+                      undefined,
+                      metadata.width,
+                      metadata.height
+                    );
+                    setIsChatImageUploadOpen(false);
+                  } catch {
+                    // handleSendMessage already handles error notifications.
+                  }
+                }}
+              />
+            </div>
+          )}
         {/* Inline image thumbnail strip (Zalo-style) */}
         {imageQueue.length > 0 && (
           <div className="px-4 pt-3 pb-1 border-t border-[var(--border)]">
@@ -2396,6 +2517,10 @@ export function ChatWindow({ onToggleSidebar, activeSidebar, selectedChat, curre
             </div>
           </div>
         </div>
+      )}
+
+      {openedImageSrc && (
+        <ImageModal src={openedImageSrc} onClose={() => setOpenedImageSrc(null)} />
       )}
 
       {/* Forward Modal */}

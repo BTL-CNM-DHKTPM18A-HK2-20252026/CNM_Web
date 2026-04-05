@@ -733,10 +733,6 @@ export function ChatDashboard({ onLogout, userName }: ChatDashboardProps) {
                     conversationAvatar={(selectedChat as any).avatar}
                     currentUser={currentUser}
                     onClearChat={() => setChatRefreshTrigger(prev => prev + 1)}
-                    onHideConversation={() => {
-                      setSelectedChatId('');
-                      setConversations(prev => prev.filter(c => c.id !== selectedChat?.id));
-                    }}
                   />
                 )}
                 {activeSidebar === 'search' && (

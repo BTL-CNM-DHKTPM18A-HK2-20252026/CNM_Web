@@ -23,6 +23,8 @@ type CompleteUploadPayload = {
   originalName: string;
   s3Key: string;
   s3Url: string;
+  width: number;
+  height: number;
   uploadTime: string;
 };
 
@@ -108,11 +110,15 @@ export function useS3ImageUpload(): UseS3ImageUploadResult {
 
       setState("saving");
 
+      const dimensions = await getImageDimensions(file);
+
       // 3) Notify backend to save metadata in MongoDB
-      const completeRes = await apiClient.post<ApiEnvelope<CompleteUploadPayload>>("/images/complete", {
+      const completeRes = await apiClient.post<ApiEnvelope<CompleteUploadPayload>>("/images/save", {
         originalName: file.name,
         s3Key: presignedData.s3Key,
         s3Url: presignedData.s3Url,
+        width: dimensions.width,
+        height: dimensions.height,
       });
 
       const saved = completeRes.data.data;
@@ -143,4 +149,31 @@ export function useS3ImageUpload(): UseS3ImageUploadResult {
     reset,
     uploadImage,
   };
+}
+
+function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onload = () => {
+      const width = img.naturalWidth || img.width || 0;
+      const height = img.naturalHeight || img.height || 0;
+      URL.revokeObjectURL(objectUrl);
+
+      if (width <= 0 || height <= 0) {
+        reject(new Error("Không lấy được kích thước ảnh"));
+        return;
+      }
+
+      resolve({ width, height });
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Không đọc được file ảnh"));
+    };
+
+    img.src = objectUrl;
+  });
 }
