@@ -1,7 +1,8 @@
 "use client";
 
-import { ChangeEvent, Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
-import axios, { AxiosProgressEvent } from "axios";
+import { ChangeEvent, Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
+import axios, { AxiosInstance, AxiosProgressEvent } from "axios";
+import { httpClient } from "@/lib/http/apiClient";
 
 type ApiEnvelope<T> = {
   success: boolean;
@@ -54,8 +55,6 @@ interface ChatImageUploadProps {
   onUploadError?: (message: ChatImageUploadMessage, error: string) => void;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080/api/v1";
-
 export function ChatImageUpload({
   className = "",
   disabled = false,
@@ -80,18 +79,6 @@ export function ChatImageUpload({
         }
       });
     };
-  }, []);
-
-  const apiClient = useMemo(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
-
-    return axios.create({
-      baseURL: API_BASE_URL,
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
   }, []);
 
   const openPicker = () => {
@@ -130,7 +117,7 @@ export function ChatImageUpload({
         };
 
         setMessages((prev) => [...prev, optimisticMessage]);
-        uploadSingleImage(file, optimisticMessage, apiClient, setMessages, onUploadDone, onUploadError);
+        uploadSingleImage(file, optimisticMessage, httpClient, setMessages, onUploadDone, onUploadError);
       }
     } finally {
       setIsPicking(false);
@@ -208,7 +195,7 @@ export function ChatImageUpload({
 async function uploadSingleImage(
   file: File,
   optimisticMessage: ChatOptimisticImage,
-  apiClient: ReturnType<typeof axios.create>,
+  apiClient: AxiosInstance,
   setMessages: Dispatch<SetStateAction<ChatOptimisticImage[]>>,
   onUploadDone?: (message: ChatImageUploadMessage, metadata: SaveImagePayload) => void,
   onUploadError?: (message: ChatImageUploadMessage, error: string) => void

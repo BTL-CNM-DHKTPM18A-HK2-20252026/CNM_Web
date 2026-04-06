@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import axios, { AxiosProgressEvent } from "axios";
+import { httpClient } from "@/lib/http/apiClient";
 
 type ApiEnvelope<T> = {
   success: boolean;
@@ -40,26 +41,12 @@ export type UseS3ImageUploadResult = {
   uploadImage: (file: File) => Promise<CompleteUploadPayload>;
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080/api/v1";
-
 export function useS3ImageUpload(): UseS3ImageUploadResult {
   const [state, setState] = useState<UploadState>("idle");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const [uploadedKey, setUploadedKey] = useState<string | null>(null);
-
-  const apiClient = useMemo(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
-
-    return axios.create({
-      baseURL: API_BASE_URL,
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
-  }, []);
 
   const reset = () => {
     setState("idle");
@@ -84,7 +71,7 @@ export function useS3ImageUpload(): UseS3ImageUploadResult {
 
     try {
       // 1) Get pre-signed URL from backend
-      const presignedRes = await apiClient.get<ApiEnvelope<PresignedUrlPayload>>("/images/presigned-url", {
+      const presignedRes = await httpClient.get<ApiEnvelope<PresignedUrlPayload>>("/images/presigned-url", {
         params: {
           fileName: file.name,
           contentType: file.type,
@@ -113,7 +100,7 @@ export function useS3ImageUpload(): UseS3ImageUploadResult {
       const dimensions = await getImageDimensions(file);
 
       // 3) Notify backend to save metadata in MongoDB
-      const completeRes = await apiClient.post<ApiEnvelope<CompleteUploadPayload>>("/images/save", {
+      const completeRes = await httpClient.post<ApiEnvelope<CompleteUploadPayload>>("/images/save", {
         originalName: file.name,
         s3Key: presignedData.s3Key,
         s3Url: presignedData.s3Url,

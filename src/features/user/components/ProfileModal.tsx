@@ -171,7 +171,12 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
                 gender: data.gender || "Nam",
                 day: "01",
                 month: "01",
-                year: "2000"
+                year: "2000",
+                bio: data.bio || "",
+                address: data.address || "",
+                city: data.city || "",
+                education: data.education || "",
+                workplace: data.workplace || ""
               });
             }
           } else {

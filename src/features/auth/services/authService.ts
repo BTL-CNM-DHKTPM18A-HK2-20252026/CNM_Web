@@ -1,15 +1,25 @@
 import { apiClient } from '@/lib/http/apiClient';
 import { clearAccessToken, getAccessToken, setAccessToken } from './authToken';
 
+type LoginResponse = {
+  access_token: string;
+  expires_in?: number;
+  token_type?: string;
+};
+
+type IntrospectResponse = {
+  valid: boolean;
+};
+
 export const authService = {
   /**
    * Login with username and password
    * @param username - username, email, or phone
    * @param password - user password
    */
-  async login(username: string, password: string) {
+  async login(username: string, password: string): Promise<LoginResponse> {
     try {
-      const result = await apiClient.post('/auth/login', { username, password });
+      const result = await apiClient.post<LoginResponse>('/auth/login', { username, password });
 
       // Cleaned up: result is already the data field from ApiResponse
       if (result && result.access_token) {
@@ -26,7 +36,7 @@ export const authService = {
   /**
    * Logout and clear local session
    */
-  async logout() {
+  async logout(): Promise<void> {
     const token = this.getToken();
     if (token) {
       try {
@@ -50,7 +60,7 @@ export const authService = {
   /**
    * Get the stored access token
    */
-  getToken() {
+  getToken(): string | null {
     return getAccessToken();
   },
 
@@ -58,9 +68,9 @@ export const authService = {
    * Check if a phone number exists in the system
    * @param phoneNumber - phone number to check
    */
-  async checkPhoneNumber(phoneNumber: string) {
+  async checkPhoneNumber(phoneNumber: string): Promise<boolean> {
     try {
-      const result = await apiClient.post('/auth/check-phone-number', { phoneNumber });
+      const result = await apiClient.post<boolean>('/auth/check-phone-number', { phoneNumber });
       return result; // result is the boolean data
     } catch (error) {
       console.error('Check Phone Error:', error);
@@ -72,7 +82,7 @@ export const authService = {
    * Register a new user
    * @param data - registration data
    */
-  async register(data: { phoneNumber: string; email: string; password: string; displayName: string; firstName?: string; lastName?: string; dob?: Date; gender?: string }) {
+  async register(data: { phoneNumber: string; email: string; password: string; displayName: string; firstName?: string; lastName?: string; dob?: Date; gender?: string }): Promise<unknown> {
     try {
       const result = await apiClient.post('/users', data);
       return result; 
@@ -85,7 +95,7 @@ export const authService = {
   /**
    * Verify email OTP.
    */
-  async verifyOtp(email: string, otp: string) {
+  async verifyOtp(email: string, otp: string): Promise<unknown> {
     try {
       return await apiClient.post('/auth/verify-otp', { email, otp });
     } catch (error) {
@@ -97,7 +107,7 @@ export const authService = {
   /**
    * Resend verification OTP.
    */
-  async resendOtp(email: string) {
+  async resendOtp(email: string): Promise<unknown> {
     try {
       return await apiClient.post('/auth/resend-otp', { email });
     } catch (error) {
@@ -109,7 +119,7 @@ export const authService = {
   /**
    * Send OTP for forgot-password flow.
    */
-  async sendPasswordResetOtp(email: string) {
+  async sendPasswordResetOtp(email: string): Promise<unknown> {
     try {
       return await apiClient.post('/auth/forgot-password/send-otp', { email });
     } catch (error) {
@@ -121,7 +131,7 @@ export const authService = {
   /**
    * Reset password using email + OTP.
    */
-  async resetPassword(email: string, otp: string, newPassword: string) {
+  async resetPassword(email: string, otp: string, newPassword: string): Promise<unknown> {
     try {
       return await apiClient.post('/auth/forgot-password/reset', { email, otp, newPassword });
     } catch (error) {
@@ -133,9 +143,9 @@ export const authService = {
   /**
    * introspect token
    */
-  async introspect(token: string) {
+  async introspect(token: string): Promise<IntrospectResponse> {
     try {
-      const result = await apiClient.post('/auth/introspect', { accessToken: token });
+      const result = await apiClient.post<IntrospectResponse>('/auth/introspect', { accessToken: token });
       return result; // IntrospectResponse { valid: boolean }
     } catch (error) {
       console.error('Introspect Error:', error);
@@ -146,9 +156,9 @@ export const authService = {
   /**
    * Get a unique QR session UUID from the server
    */
-  async getQrSession() {
+  async getQrSession(): Promise<string> {
     try {
-      const result = await apiClient.get('/auth/qr-session');
+      const result = await apiClient.get<string>('/auth/qr-session');
       return result; // UUID string
     } catch (error) {
       console.error('Get QR Session Error:', error);
