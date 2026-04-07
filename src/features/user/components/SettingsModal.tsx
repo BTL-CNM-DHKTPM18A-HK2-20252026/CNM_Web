@@ -99,12 +99,23 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [pinModalLoading, setPinModalLoading] = useState(false);
   const [pendingCurrentPin, setPendingCurrentPin] = useState('');
 
+  // Account lock state
+  const [accountLocked, setAccountLocked] = useState(false);
+  const [lockLoading, setLockLoading] = useState(false);
+
   // Load PIN status when modal opens
   useEffect(() => {
     if (!isOpen) return;
     apiClient.get('/users/me/pin/status')
       .then((res: any) => setHasPinConfigured(Boolean(res?.hasPin ?? res?.data?.hasPin)))
       .catch(() => setHasPinConfigured(false));
+    // Load account lock status
+    apiClient.get('/users/me/settings')
+      .then((res: any) => {
+        const data = res?.data ?? res;
+        setAccountLocked(Boolean(data?.accountLocked));
+      })
+      .catch(() => setAccountLocked(false));
   }, [isOpen]);
 
   const handlePinModalClose = () => {
@@ -153,6 +164,24 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       } finally {
         setPinModalLoading(false);
       }
+    }
+  };
+
+  const handleToggleAccountLock = async () => {
+    setLockLoading(true);
+    try {
+      const newVal = !accountLocked;
+      await apiClient.patch('/users/me/settings/lock', { accountLocked: newVal });
+      setAccountLocked(newVal);
+      toast.success(
+        newVal
+          ? (i18n.language === 'vi' ? 'Tài khoản đã được khóa' : 'Account locked')
+          : (i18n.language === 'vi' ? 'Tài khoản đã được mở khóa' : 'Account unlocked')
+      );
+    } catch {
+      toast.error(i18n.language === 'vi' ? 'Thao tác thất bại' : 'Operation failed');
+    } finally {
+      setLockLoading(false);
     }
   };
 
@@ -576,7 +605,58 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </div>
             )}
 
-            {activeTab !== 'general' && activeTab !== 'interface' && activeTab !== 'ai' && (
+            {activeTab === 'privacy' && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+                {/* Account Lock Section */}
+                <section className="space-y-4">
+                  <h4 className="text-[16px] font-semibold text-[var(--text)]">
+                    {i18n.language === 'vi' ? 'Khóa tài khoản' : 'Lock Account'}
+                  </h4>
+                  <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-6 shadow-sm transition-colors duration-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 mr-4">
+                        <p className="text-[14px] font-medium text-[var(--text)]">
+                          {i18n.language === 'vi' ? 'Tự khóa tài khoản' : 'Lock my account'}
+                        </p>
+                        <p className="text-[13px] text-[var(--sub-text)] mt-1">
+                          {i18n.language === 'vi'
+                            ? 'Khi bật, không ai có thể nhắn tin, gửi lời mời kết bạn hoặc xem trang cá nhân của bạn.'
+                            : 'When enabled, no one can message you, send friend requests, or view your profile.'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleToggleAccountLock}
+                        disabled={lockLoading}
+                        className={`relative w-[52px] h-[28px] rounded-full transition-colors duration-200 cursor-pointer flex-shrink-0 ${
+                          accountLocked ? 'bg-red-500' : 'bg-gray-300'
+                        } ${lockLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <span
+                          className={`absolute top-[2px] w-[24px] h-[24px] rounded-full bg-white shadow transition-transform duration-200 ${
+                            accountLocked ? 'translate-x-[26px]' : 'translate-x-[2px]'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {accountLocked && (
+                      <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                        <div className="flex items-center gap-2">
+                          <ShieldIcon size={16} className="text-red-500" />
+                          <p className="text-[13px] font-medium text-red-600 dark:text-red-400">
+                            {i18n.language === 'vi'
+                              ? 'Tài khoản của bạn đang bị khóa. Bạn có thể mở khóa bất cứ lúc nào.'
+                              : 'Your account is currently locked. You can unlock it anytime.'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              </div>
+            )}
+
+            {activeTab !== 'general' && activeTab !== 'interface' && activeTab !== 'ai' && activeTab !== 'privacy' && (
               <div className="flex flex-col items-center justify-center h-full animate-in fade-in duration-300">
                 <div className="w-16 h-16 rounded-full bg-[var(--active-bg)] text-[var(--active-text)] flex items-center justify-center mb-4 transition-colors duration-200">
                   {(() => {

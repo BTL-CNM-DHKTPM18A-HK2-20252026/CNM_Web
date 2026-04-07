@@ -22,7 +22,7 @@
     "subheading": "Log in to Fruvia Chat to connect with Fruvia Chat",
     "tabs": {
       "qr": "WITH QR CODE",
-      "phone": "WITH PHONE NUMBER",
+      "email": "WITH EMAIL",
       "register": "REGISTER"
     },
     "qr": {
@@ -34,14 +34,15 @@
       "switch_account": "Login with another account",
       "loading": "Generating QR code..."
     },
-    "phone": {
+    "email": {
       "header": "Login with password",
-      "phone_placeholder": "Phone Number",
+      "email_placeholder": "Enter email",
       "password_placeholder": "Password",
       "submit": "Login with password",
       "forgot_password": "Forgot password?",
       "qr_back": "Login via QR code",
-      "remember_me": "Remember profile"
+      "remember_me": "Remember profile",
+      "hint": "Enter the email address you registered with"
     },
     "register": {
       "header": "Create new account",
@@ -49,13 +50,19 @@
       "last_name_placeholder": "Enter last name...",
       "first_name": "First Name",
       "first_name_placeholder": "Enter first name...",
+      "email_label": "Email",
+      "email_placeholder": "Enter email...",
+      "email_login_label": "Login Email",
+      "email_login_placeholder": "Enter login email",
+      "password_label": "Password",
+      "password_placeholder": "Enter password",
+      "confirm_password_label": "Confirm password",
       "email_hint": "Use a valid email format (e.g.: user@example.com). No consecutive dots ..",
       "dob": "Date of Birth",
       "gender": "Gender",
       "register_btn": "Register",
       "password_hint": "Create a strong password",
       "confirm_password_hint": "Strong password: At least 8 characters, including uppercase, lowercase, numbers and special characters (!@#$%^&*)",
-      "phone_hint": "Vietnamese mobile phone number: 10 digits starting with: 03, 05, 07, 08, 09",
       "confirm_password_placeholder": "Confirm password"
     },
     "otp": {
@@ -109,7 +116,8 @@
       "download": "Download Now"
     },
     "validation": {
-      "phone_invalid": "Invalid phone number (10 digits, e.g.: 0901234567)",
+      "last_name_required": "Please enter your last name",
+      "first_name_required": "Please enter your first name",
       "email_invalid": "Invalid email (check format and dots)",
       "password_weak": "Password must be at least 8 characters, including uppercase, lowercase, number and special character (!@#$%^&*)",
       "confirm_mismatch": "Confirm password does not match",
@@ -117,7 +125,7 @@
     },
     "success": {
       "register": "Account registered successfully!",
-      "register_desc": "You can now log in with the phone number you just registered.",
+      "register_desc": "You can now log in with the email you just registered.",
       "otp_sent": "Account created successfully",
       "otp_sent_desc": "Please check your email and enter the OTP code.",
       "verify_done": "Email verified. You can log in now.",
@@ -721,6 +729,7 @@
     "send_success": "Friend request sent!",
     "send_error": "Failed to send friend request",
     "phone_placeholder": "Phone number",
+    "search_placeholder": "Enter email or username",
     "recent_results": "Recent results",
     "searching": "Searching...",
     "status": {

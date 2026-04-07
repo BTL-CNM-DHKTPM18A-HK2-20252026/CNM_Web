@@ -22,7 +22,7 @@
     "subheading": "Đăng nhập tài khoản Fruvia Chat để kết nối với ứng dụng Fruvia Chat",
     "tabs": {
       "qr": "VỚI MÃ QR",
-      "phone": "VỚI SỐ ĐIỆN THOẠI",
+      "email": "VỚI EMAIL",
       "register": "ĐĂNG KÝ"
     },
     "qr": {
@@ -34,14 +34,15 @@
       "switch_account": "Đăng nhập bằng tài khoản khác",
       "loading": "Đang tạo mã QR..."
     },
-    "phone": {
+    "email": {
       "header": "Đăng nhập với mật khẩu",
-      "phone_placeholder": "Số điện thoại",
+      "email_placeholder": "Nhập email",
       "password_placeholder": "Mật khẩu",
       "submit": "Đăng nhập với mật khẩu",
       "forgot_password": "Quên mật khẩu?",
       "qr_back": "Đăng nhập qua mã QR",
-      "remember_me": "Ghi nhớ đăng nhập"
+      "remember_me": "Ghi nhớ đăng nhập",
+      "hint": "Nhập địa chỉ email bạn đã đăng ký"
     },
     "register": {
       "header": "Tạo tài khoản mới",
@@ -49,13 +50,19 @@
       "last_name_placeholder": "Nhập họ...",
       "first_name": "Tên",
       "first_name_placeholder": "Nhập tên...",
+      "email_label": "Gmail",
+      "email_placeholder": "Nhập email...",
+      "email_login_label": "Email đăng nhập",
+      "email_login_placeholder": "Nhập email đăng nhập",
+      "password_label": "Mật khẩu",
+      "password_placeholder": "Nhập mật khẩu",
+      "confirm_password_label": "Xác nhận mật khẩu",
       "email_hint": "Sử dụng định dạng email hợp lệ (ví dụ: user@example.com). Không dùng dấu chấm liên tiếp ..",
       "dob": "Ngày sinh",
       "gender": "Giới tính",
       "register_btn": "Đăng ký",
       "password_hint": "Tạo mật khẩu mạnh",
       "confirm_password_hint": "Mật khẩu mạnh: Ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt (!@#$%^&*)",
-      "phone_hint": "Số điện thoại di động Việt Nam: Gồm 10 chữ số và bắt đầu bằng các đầu số: 03, 05, 07, 08, 09",
       "confirm_password_placeholder": "Xác nhận mật khẩu"
     },
     "otp": {
@@ -109,7 +116,8 @@
       "download": "Tải ngay"
     },
     "validation": {
-      "phone_invalid": "Số điện thoại không hợp lệ (10 chữ số, ví dụ: 0901234567)",
+      "last_name_required": "Vui lòng nhập họ",
+      "first_name_required": "Vui lòng nhập tên",
       "email_invalid": "Email không hợp lệ (kiểm tra lại định dạng và các dấu chấm)",
       "password_weak": "Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt (!@#$%^&*)",
       "confirm_mismatch": "Mật khẩu xác nhận không khớp",
@@ -117,7 +125,7 @@
     },
     "success": {
       "register": "Đăng ký tài khoản thành công!",
-      "register_desc": "Bây giờ bạn có thể đăng nhập bằng số điện thoại vừa đăng ký.",
+      "register_desc": "Bây giờ bạn có thể đăng nhập bằng email vừa đăng ký.",
       "otp_sent": "Tạo tài khoản thành công",
       "otp_sent_desc": "Vui lòng kiểm tra email để nhập mã OTP xác thực.",
       "verify_done": "Email đã được xác thực. Bạn có thể đăng nhập ngay.",
@@ -718,6 +726,7 @@
     "send_success": "Đã gửi lời mời kết bạn!",
     "send_error": "Gửi lời mời thất bại",
     "phone_placeholder": "Số điện thoại",
+    "search_placeholder": "Nhập email hoặc tên người dùng",
     "recent_results": "Kết quả gần nhất",
     "searching": "Đang tìm kiếm...",
     "status": {

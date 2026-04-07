@@ -20,6 +20,7 @@ interface ContactsContentProps {
 export function ContactsContent({ category, currentUser, onSelectUser }: ContactsContentProps) {
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   // States for confirmation modal
@@ -410,25 +411,35 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
                     type="text"
                     value={searchTerm}
                     onChange={handleInputChange}
+                    onFocus={() => setIsSearching(true)}
                     placeholder={isFriends ? t('contacts.search.friends_placeholder') : t('contacts.search.placeholder')}
-                    className="w-full bg-[var(--card-bg)] hover:bg-[var(--hover-bg)] focus:bg-[var(--card-bg)] border border-[var(--border)] rounded-lg py-1.5 pl-9 pr-3 text-[14px] text-[var(--text)] outline-none transition-all placeholder:text-[var(--search-placeholder)] focus:border-[#0068FF] shadow-sm"
+                    className={`w-full ${isSearching ? 'bg-[var(--card-bg)] border-[#0068FF]' : 'bg-[var(--search-bg)] border-transparent'} rounded-lg py-1.5 pl-9 pr-8 text-[14px] text-[var(--text)] outline-none border transition-all placeholder:text-[var(--search-placeholder)]`}
                   />
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--sub-text)]"><SearchIcon size={16} /></div>
+                  <div className={`absolute left-3 ${isSearching ? 'text-[#0068FF]' : 'text-gray-400'}`}><SearchIcon size={16} /></div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button className="flex items-center gap-2 px-3 py-1.5 bg-[var(--card-bg)] border border-[var(--border)] rounded-lg text-[13px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-all cursor-pointer shadow-sm min-w-[120px] focus:border-[#0068FF] outline-none">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 16 4 4 4-4" /><path d="M7 20V4" /><path d="m21 8-4-4-4 4" /><path d="M17 4v16" /></svg>
-                    <span className="font-medium">{isFriends ? t('contacts.sort.name_az') : t('contacts.sort.activity')}</span>
-                    <span className="text-[var(--sub-text)] ml-auto"><ChevronDownIcon size={14} /></span>
+                {isSearching ? (
+                  <button
+                    onClick={() => { setIsSearching(false); setSearchTerm(''); }}
+                    className="text-[15px] font-bold text-[var(--text)] px-1 cursor-pointer hover:opacity-80 active:scale-95"
+                  >
+                    {t('chat.search_overlay.close')}
                   </button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <button className="flex items-center gap-2 px-3 py-1.5 bg-[var(--card-bg)] border border-[var(--border)] rounded-lg text-[13px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-all cursor-pointer shadow-sm min-w-[120px] focus:border-[#0068FF] outline-none">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 16 4 4 4-4" /><path d="M7 20V4" /><path d="m21 8-4-4-4 4" /><path d="M17 4v16" /></svg>
+                      <span className="font-medium">{isFriends ? t('contacts.sort.name_az') : t('contacts.sort.activity')}</span>
+                      <span className="text-[var(--sub-text)] ml-auto"><ChevronDownIcon size={14} /></span>
+                    </button>
 
-                  <button className="flex items-center gap-2 px-3 py-1.5 bg-[var(--card-bg)] border border-[var(--border)] rounded-lg text-[13px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-all cursor-pointer shadow-sm min-w-[100px] focus:border-[#0068FF] outline-none">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
-                    <span className="font-medium">{t('contacts.filter.all')}</span>
-                    <span className="text-[var(--sub-text)] ml-auto"><ChevronDownIcon size={14} /></span>
-                  </button>
-                </div>
+                    <button className="flex items-center gap-2 px-3 py-1.5 bg-[var(--card-bg)] border border-[var(--border)] rounded-lg text-[13px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-all cursor-pointer shadow-sm min-w-[100px] focus:border-[#0068FF] outline-none">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
+                      <span className="font-medium">{t('contacts.filter.all')}</span>
+                      <span className="text-[var(--sub-text)] ml-auto"><ChevronDownIcon size={14} /></span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="flex-1 overflow-y-auto custom-scrollbar">

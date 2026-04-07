@@ -2,7 +2,6 @@ import { apiClient } from '@/lib/http/apiClient';
 
 export interface UserResponse {
   user_id: string;
-  phone_number: string;
   email: string;
   display_name: string;
   first_name: string;
@@ -15,11 +14,11 @@ export interface UserResponse {
 
 export const userService = {
   /**
-   * Find user by phone number
+   * Find user by email
    */
-  async getUserByPhone(phone: string): Promise<UserResponse> {
-    const result = await apiClient.get(`/users/phone/${phone}`);
-    return result; // Result is NOT wrapped in ApiResponse because I used ResponseEntity.ok(response) in Controller
+  async getUserByEmail(email: string): Promise<UserResponse> {
+    const result = await apiClient.get(`/users/email/${encodeURIComponent(email)}`);
+    return result;
   },
 
   /**

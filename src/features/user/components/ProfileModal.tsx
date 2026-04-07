@@ -61,7 +61,7 @@ interface UserProfileData {
   avatar_url?: string;
   cover_photo_url?: string;
   gender?: string;
-  phone_number?: string;
+  email?: string;
   bio?: string;
   address?: string;
   city?: string;
@@ -95,7 +95,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
   const [day, setDay] = useState("");
   const [month, setMonth] = useState("");
   const [year, setYear] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [emailAddress, setEmailAddress] = useState("");
   const [bio, setBio] = useState("");
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
@@ -127,7 +127,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
             ? response.data
             : (response as UserProfileData);
 
-          if (data && (data.full_name || data.id || data.phone_number)) {
+          if (data && (data.full_name || data.id || data.email)) {
             console.log("Profile data loaded:", data);
             setUserName(data.full_name || "");
             setUserId(data.id || "");
@@ -135,7 +135,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
             setCoverPhotoUrl(data.cover_photo_url || "");
             setCoverPhotoPreview("");
             setGender(data.gender || "Nam");
-            setPhoneNumber(data.phone_number || "");
+            setEmailAddress(data.email || "");
             setBio(data.bio || "");
             setAddress(data.address || "");
             setCity(data.city || "");
@@ -794,13 +794,13 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
                 <span className="text-[15px] text-[var(--text)]">{day} tháng {month}, {year}</span>
               </div>
               <div className="flex items-start">
-                <span className="w-[100px] text-[15px] text-[var(--sub-text)] shrink-0">Điện thoại</span>
-                <span className="text-[15px] text-[var(--text)]">{phoneNumber}</span>
+                <span className="w-[100px] text-[15px] text-[var(--sub-text)] shrink-0">Email</span>
+                <span className="text-[15px] text-[var(--text)]">{emailAddress}</span>
               </div>
             </div>
             <div className="mt-8">
               <p className="text-[13px] text-[var(--sub-text)] leading-relaxed">
-                Chỉ bạn bè có lưu số của bạn trong danh bạ máy xem được số này
+                Chỉ bạn bè mới có thể xem được địa chỉ email này
               </p>
             </div>
 

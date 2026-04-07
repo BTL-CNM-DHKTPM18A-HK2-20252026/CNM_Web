@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Image from 'next/image';
+import { apiClient } from '@/lib/http/apiClient';
 import { userService } from '@/features/user';
-import type { UserResponse } from '@/features/user';
 import { friendService } from '@/features/friends';
 import { toast } from 'sonner';
 
@@ -13,6 +13,16 @@ interface AddFriendModalProps {
   onClose: () => void;
   currentUserName?: string;
   currentUserId?: string;
+  initialPhoneNumber?: string;
+  initialUser?: AddFriendTarget | null;
+}
+
+interface AddFriendTarget {
+  user_id: string;
+  phone_number?: string;
+  display_name?: string;
+  avatar_url?: string;
+  friendship_status?: string;
 }
 
 const XIcon = ({ size = 20 }: { size?: number }) => (
@@ -24,12 +34,6 @@ const XIcon = ({ size = 20 }: { size?: number }) => (
 const UsersIcon = ({ size = 18 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-  </svg>
-);
-
-const ChevronDownIcon = ({ size = 16 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m6 9 6 6 6-6" />
   </svg>
 );
 
@@ -45,11 +49,19 @@ const EditIcon = ({ size = 14 }: { size?: number }) => (
   </svg>
 );
 
-export function AddFriendModal({ isOpen, onClose, currentUserName, currentUserId }: AddFriendModalProps) {
+export function AddFriendModal({
+  isOpen,
+  onClose,
+  currentUserName,
+  currentUserId,
+  initialPhoneNumber,
+  initialUser,
+}: AddFriendModalProps) {
   const { t } = useTranslation();
   const [step, setStep] = useState<1 | 2>(1);
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [searchResult, setSearchResult] = useState<UserResponse | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResult, setSearchResult] = useState<AddFriendTarget | null>(null);
+  const [searchResults, setSearchResults] = useState<AddFriendTarget[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
@@ -63,38 +75,81 @@ export function AddFriendModal({ isOpen, onClose, currentUserName, currentUserId
     }
   }, [isOpen, currentUserName]);
 
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    if (initialPhoneNumber) {
+      setSearchQuery(initialPhoneNumber);
+    }
+
+    if (initialUser?.user_id) {
+      setSearchError(null);
+      setSearchResult(initialUser);
+      setSearchResults([initialUser]);
+      if (initialUser.friendship_status !== 'ACCEPTED') {
+        setStep(2);
+      }
+    }
+  }, [isOpen, initialPhoneNumber, initialUser]);
+
   if (!isOpen) return null;
 
   const handleSearch = async () => {
-    if (!phoneNumber.trim() || phoneNumber.length < 9) return;
+    const query = searchQuery.trim();
+    if (!query || query.length < 2) return;
 
     setIsSearching(true);
     setSearchError(null);
     setSearchResult(null);
+    setSearchResults([]);
 
     try {
-      let query = phoneNumber.trim();
-      let result = await userService.getUserByPhone(encodeURIComponent(query));
+      const collected: AddFriendTarget[] = [];
 
-      if (!result && query.startsWith('0')) {
-        const altQuery = '+84' + query.substring(1);
-        try {
-          result = await userService.getUserByPhone(encodeURIComponent(altQuery));
-        } catch (e) { }
-      }
-      else if (!result && query.startsWith('+84')) {
-        const altQuery = '0' + query.substring(3);
-        try {
-          result = await userService.getUserByPhone(encodeURIComponent(altQuery));
-        } catch (e) { }
-      }
+      // 1. Try Elasticsearch search
+      const esData = await apiClient
+        .get(`/search/users?q=${encodeURIComponent(query)}&size=10`)
+        .catch(() => null);
 
-      if (result && result.user_id) {
-        if (currentUserId && result.user_id === currentUserId) {
-          setSearchError(t('addFriend.self_error'));
-        } else {
-          setSearchResult(result);
+      const content = esData?.content || (Array.isArray(esData) ? esData : []);
+      if (Array.isArray(content) && content.length > 0) {
+        type EsDoc = { userId?: string; displayName?: string; avatarUrl?: string; friendshipStatus?: string; document?: EsDoc };
+        for (const raw of content as EsDoc[]) {
+          const doc: EsDoc = raw?.document ?? raw;
+          if (doc?.userId) {
+            collected.push({
+              user_id: doc.userId,
+              display_name: doc.displayName,
+              avatar_url: doc.avatarUrl,
+              friendship_status: doc.friendshipStatus,
+            });
+          }
         }
+      }
+
+      // 2. Fallback: exact email lookup
+      if (collected.length === 0) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (emailRegex.test(query)) {
+          const byEmail = await userService.getUserByEmail(query).catch(() => null);
+          if (byEmail?.user_id) {
+            collected.push({
+              user_id: byEmail.user_id,
+              display_name: byEmail.display_name,
+              avatar_url: byEmail.avatar_url,
+              friendship_status: byEmail.friendship_status,
+            });
+          }
+        }
+      }
+
+      // Filter out self
+      const filtered = currentUserId
+        ? collected.filter((u) => u.user_id !== currentUserId)
+        : collected;
+
+      if (filtered.length > 0) {
+        setSearchResults(filtered);
       } else {
         setSearchError(t('addFriend.not_found'));
       }
@@ -117,8 +172,9 @@ export function AddFriendModal({ isOpen, onClose, currentUserName, currentUserId
   };
 
   const handleClose = () => {
-    setPhoneNumber('');
+    setSearchQuery('');
     setSearchResult(null);
+    setSearchResults([]);
     setSearchError(null);
     setStep(1);
     setRequestMsg(t('addFriend.default_message', { name: '...' }));
@@ -154,26 +210,13 @@ export function AddFriendModal({ isOpen, onClose, currentUserName, currentUserId
         {step === 1 ? (
           <>
             <div className="p-5 flex flex-col gap-6 flex-1">
-              {/* Phone Input Area */}
+              {/* Search Input Area */}
               <div className="flex items-center gap-3 border-b border-[var(--border)] pb-1.5 focus-within:border-[#0068FF] focus-within:border-b-2 transition-all">
-                <div className="flex items-center gap-1.5 px-1 cursor-pointer hover:bg-[var(--hover-bg)] rounded transition-colors group">
-                  <span className="w-6 h-4 rounded-sm overflow-hidden flex-shrink-0 border border-gray-200">
-                    <svg viewBox="0 0 30 20" className="w-full h-full object-cover">
-                      <rect width="30" height="20" fill="#da251d" />
-                      <polygon fill="#ff0" points="15 4 16.176 7.618 20 7.618 16.912 9.882 18.088 13.5 15 11.236 11.912 13.5 13.088 9.882 10 7.618 13.824 7.618" />
-                    </svg>
-                  </span>
-                  <span className="text-[15px] font-medium text-[var(--text)]">(+84)</span>
-                  <span className="text-gray-400 group-hover:text-[var(--text)] transition-colors"><ChevronDownIcon size={12} /></span>
-                </div>
                 <input
                   type="text"
-                  placeholder={t('addFriend.phone_placeholder')}
-                  value={phoneNumber}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (/^\d*$/.test(val)) setPhoneNumber(val);
-                  }}
+                  placeholder={t('addFriend.search_placeholder')}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                   className="flex-1 bg-transparent border-none outline-none text-[16px] text-[var(--text)] placeholder:text-[var(--sub-text)] font-medium"
                   autoFocus
@@ -181,7 +224,7 @@ export function AddFriendModal({ isOpen, onClose, currentUserName, currentUserId
               </div>
 
               {/* Search Result Section */}
-              {(searchResult || isSearching || searchError) && (
+              {(searchResults.length > 0 || isSearching || searchError) && (
                 <div className="flex flex-col gap-3">
                   <h3 className="text-[13px] font-bold text-[var(--sub-text)] opacity-70">{t('addFriend.recent_results')}</h3>
                   {isSearching ? (
@@ -191,32 +234,36 @@ export function AddFriendModal({ isOpen, onClose, currentUserName, currentUserId
                     </div>
                   ) : searchError ? (
                     <div className="py-2 text-[14px] text-red-500 italic">{searchError}</div>
-                  ) : searchResult ? (
-                    <div className="bg-transparent border border-[var(--border)] rounded-lg p-3 flex items-center justify-between hover:bg-[var(--hover-bg)] transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full overflow-hidden border border-black/5 bg-blue-50 flex items-center justify-center">
-                          {searchResult.avatar_url ? (
-                            <Image src={searchResult.avatar_url} alt={searchResult.display_name} width={48} height={48} className="object-cover" />
+                  ) : searchResults.length > 0 ? (
+                    <div className="flex flex-col gap-2 max-h-[280px] overflow-y-auto pr-1 custom-scrollbar">
+                      {searchResults.map((result) => (
+                        <div key={result.user_id} className="bg-transparent border border-[var(--border)] rounded-lg p-3 flex items-center justify-between hover:bg-[var(--hover-bg)] transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-full overflow-hidden border border-black/5 bg-blue-50 flex items-center justify-center shrink-0">
+                              {result.avatar_url ? (
+                                <Image src={result.avatar_url} alt={result.display_name || 'Avatar'} width={48} height={48} className="object-cover" />
+                              ) : (
+                                <span className="text-blue-600 font-bold text-lg">{result.display_name?.charAt(0)}</span>
+                              )}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[15px] font-bold text-[var(--text)]">{result.display_name}</span>
+                              <span className="text-[12px] text-[var(--sub-text)]">{result.phone_number}</span>
+                            </div>
+                          </div>
+
+                          {result.friendship_status === 'ACCEPTED' ? (
+                            <span className="text-[13px] font-bold text-green-500 px-3 py-1 bg-green-50 rounded-md shrink-0">{t('addFriend.status.friend')}</span>
                           ) : (
-                            <span className="text-blue-600 font-bold text-lg">{searchResult.display_name?.charAt(0)}</span>
+                            <button
+                              onClick={() => { setSearchResult(result); setStep(2); }}
+                              className="px-4 py-1.5 bg-[#0068FF] hover:bg-[#005AE0] text-white font-bold rounded-md text-[13px] transition-all cursor-pointer shrink-0"
+                            >
+                              {t('addFriend.add_btn')}
+                            </button>
                           )}
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-[15px] font-bold text-[var(--text)]">{searchResult.display_name}</span>
-                          <span className="text-[12px] text-[var(--sub-text)]">{searchResult.phone_number}</span>
-                        </div>
-                      </div>
-
-                      {searchResult.friendship_status === 'ACCEPTED' ? (
-                        <span className="text-[13px] font-bold text-green-500 px-3 py-1 bg-green-50 rounded-md">{t('addFriend.status.friend')}</span>
-                      ) : (
-                        <button
-                          onClick={() => setStep(2)}
-                          className="px-4 py-1.5 bg-[#0068FF] hover:bg-[#005AE0] text-white font-bold rounded-md text-[13px] transition-all cursor-pointer"
-                        >
-                          {t('addFriend.add_btn')}
-                        </button>
-                      )}
+                      ))}
                     </div>
                   ) : null}
                 </div>
@@ -232,8 +279,8 @@ export function AddFriendModal({ isOpen, onClose, currentUserName, currentUserId
               </button>
               <button
                 onClick={handleSearch}
-                disabled={phoneNumber.length < 9 || isSearching}
-                className={`px-6 py-2 font-bold rounded-[3px] text-[15px] transition-all ${phoneNumber.length >= 9 && !isSearching
+                disabled={searchQuery.trim().length < 2 || isSearching}
+                className={`px-6 py-2 font-bold rounded-[3px] text-[15px] transition-all ${searchQuery.trim().length >= 2 && !isSearching
                   ? 'bg-[#0068FF] text-white hover:bg-[#0057d1] cursor-pointer'
                   : 'bg-[#0068FF]/30 text-white/50 cursor-default'
                   }`}

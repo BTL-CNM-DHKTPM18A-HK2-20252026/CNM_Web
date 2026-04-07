@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { SearchIcon, AddUserIcon, CreateGroupIcon, ChevronDownIcon, MoreHorizontalIcon, SparklesIcon } from '@/components/ui/Icons';
+import { ChevronDownIcon, MoreHorizontalIcon, SparklesIcon } from '@/components/ui/Icons';
 import Image from 'next/image';
 import { apiClient } from '@/lib/http/apiClient';
 import { toast } from 'sonner';
 import { usePresence } from '@/features/user';
 import PinInputModal from '@/components/ui/PinInputModal';
 import { SidebarItem } from '@/features/chat';
+import { SearchOverlayDefault } from '../shared/SearchOverlayDefault';
+import { ChatSearchHeader } from '../shared/ChatSearchHeader';
 
 interface Conversation {
   id: string | number;
@@ -29,9 +31,20 @@ interface Conversation {
   autoDeleteDuration?: string | null;
 }
 
+interface AddFriendPrefill {
+  phoneNumber?: string;
+  user?: {
+    user_id: string;
+    phone_number?: string;
+    display_name?: string;
+    avatar_url?: string;
+    friendship_status?: string;
+  };
+}
+
 export interface ConversationListProps {
   conversations: Conversation[];
-  onAddFriend: () => void;
+  onAddFriend: (prefill?: AddFriendPrefill) => void;
   onCreateGroup: () => void;
   onSelectConversation: (id: string | number) => void;
   onPinConversation?: (id: string | number, pinned: boolean) => void;
@@ -70,6 +83,7 @@ interface SearchUserDocument {
   phoneNumber?: string;
   email?: string;
   avatarUrl?: string;
+  friendshipStatus?: string;
 }
 
 interface SearchMessageDocument {
@@ -100,8 +114,9 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchUsers, setSearchUsers] = useState<{ userId: string; displayName: string; phoneNumber?: string; email?: string; avatarUrl?: string }[]>([]);
+  const [searchUsers, setSearchUsers] = useState<{ userId: string; displayName: string; phoneNumber?: string; email?: string; avatarUrl?: string; friendshipStatus?: string }[]>([]);
   const [searchMessages, setSearchMessages] = useState<{ messageId: string; conversationId: string; senderId: string; senderName: string; content: string; messageType: string; createdAt: string }[]>([]);
+  const [searchConversations, setSearchConversations] = useState<Conversation[]>([]);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -242,6 +257,15 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
     return wrapped.document ?? (item as T);
   };
 
+  const closeSearchOverlay = useCallback(() => {
+    setIsSearching(false);
+    setSearchQuery('');
+    setSearchUsers([]);
+    setSearchMessages([]);
+    setSearchConversations([]);
+    setIsSearchLoading(false);
+  }, []);
+
   const handleSearchChange = useCallback((value: string) => {
     setSearchQuery(value);
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
@@ -249,6 +273,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
     if (!value.trim()) {
       setSearchUsers([]);
       setSearchMessages([]);
+      setSearchConversations([]);
       setIsSearchLoading(false);
       return;
     }
@@ -256,6 +281,14 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
     setIsSearchLoading(true);
     searchTimerRef.current = setTimeout(async () => {
       try {
+        // Local conversation name filter (case-insensitive, accent-folded)
+        const normalizeStr = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const normalizedQuery = normalizeStr(value.trim());
+        const matchedConversations = conversations.filter(c =>
+          normalizeStr(c.name).includes(normalizedQuery) || (c.nickname && normalizeStr(c.nickname).includes(normalizedQuery))
+        );
+        setSearchConversations(matchedConversations);
+
         // Wrap each call to prevent apiClient's internal throw from propagating
         const safeGet = (url: string) => apiClient.get(url).catch(() => null);
 
@@ -268,7 +301,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
         // Extract users — apiClient unwraps ApiResponse, so result is Page<UserDocument> directly
         if (usersData) {
           const data = usersData?.content || (Array.isArray(usersData) ? usersData : []);
-          const normalizedUsers = Array.isArray(data)
+          let normalizedUsers = Array.isArray(data)
             ? data
               .map((item) => extractEsDocument<SearchUserDocument>(item))
               .filter((doc): doc is SearchUserDocument => Boolean(doc?.userId))
@@ -278,8 +311,35 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                 phoneNumber: doc.phoneNumber,
                 email: doc.email,
                 avatarUrl: doc.avatarUrl,
+                friendshipStatus: doc.friendshipStatus,
               }))
             : [];
+
+          // Fallback exact phone lookup for cases where /search/users cannot match phone text.
+          const trimmedQuery = value.trim();
+          if (normalizedUsers.length === 0 && /^\d{9,15}$/.test(trimmedQuery)) {
+            let byPhone: any = await safeGet(`/users/phone/${encodeURIComponent(trimmedQuery)}`);
+
+            if (!byPhone && trimmedQuery.startsWith('0')) {
+              byPhone = await safeGet(`/users/phone/${encodeURIComponent(`+84${trimmedQuery.substring(1)}`)}`);
+            } else if (!byPhone && trimmedQuery.startsWith('+84')) {
+              byPhone = await safeGet(`/users/phone/${encodeURIComponent(`0${trimmedQuery.substring(3)}`)}`);
+            }
+
+            if (byPhone && (byPhone.user_id || byPhone.userId)) {
+              normalizedUsers = [
+                {
+                  userId: byPhone.user_id || byPhone.userId,
+                  displayName: byPhone.display_name || byPhone.displayName || 'Unknown',
+                  phoneNumber: byPhone.phone_number || byPhone.phoneNumber,
+                  email: byPhone.email,
+                  avatarUrl: byPhone.avatar_url || byPhone.avatarUrl,
+                  friendshipStatus: byPhone.friendship_status || byPhone.friendshipStatus,
+                },
+              ];
+            }
+          }
+
           setSearchUsers(normalizedUsers);
         } else {
           setSearchUsers([]);
@@ -792,42 +852,17 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
       {/* Header Container (Search + Tabs) */}
       <div className="flex flex-col relative z-20 bg-[var(--card-bg)]">
         {/* Search Header */}
-        <div className="p-4 py-3 flex items-center gap-2">
-          <div className="relative flex-1 flex items-center">
-            <input
-              type="text"
-              placeholder={isPrivateMode ? (t('pin.search_placeholder') || '🔓 Tìm kiếm (bao gồm ẩn)') : t('chat.search')}
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              onFocus={() => setIsSearching(true)}
-              className={`w-full ${isSearching ? 'bg-[var(--card-bg)] border-[#0068FF]' : 'bg-[var(--search-bg)] border-transparent'} rounded-lg py-1.5 pl-9 pr-8 text-[14px] text-[var(--text)] outline-none border transition-all placeholder:text-[var(--search-placeholder)]`}
-            />
-            <div className={`absolute left-3 ${isSearching ? 'text-[#0068FF]' : 'text-gray-400'}`}><SearchIcon size={16} /></div>
-          </div>
-          {isSearching ? (
-            <button
-              onClick={() => { setIsSearching(false); setSearchQuery(''); setSearchUsers([]); setSearchMessages([]); }}
-              className="text-[15px] font-bold text-[var(--text)] px-1 cursor-pointer hover:opacity-80 active:scale-95"
-            >
-              {t('chat.search_overlay.close')}
-            </button>
-          ) : (
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={onAddFriend}
-                className="p-1.5 cursor-pointer hover:bg-[var(--hover-bg)] text-[var(--text)] opacity-80 rounded-md transition-colors"
-              >
-                <AddUserIcon size={20} />
-              </button>
-              <button
-                onClick={onCreateGroup}
-                className="p-1.5 cursor-pointer hover:bg-[var(--hover-bg)] text-[var(--text)] opacity-80 rounded-md transition-colors"
-              >
-                <CreateGroupIcon size={22} />
-              </button>
-            </div>
-          )}
-        </div>
+        <ChatSearchHeader
+          placeholder={isPrivateMode ? (t('pin.search_placeholder') || '🔓 Tìm kiếm (bao gồm ẩn)') : t('chat.search')}
+          value={searchQuery}
+          isSearching={isSearching}
+          closeLabel={t('chat.search_overlay.close')}
+          onChange={(value) => handleSearchChange(value)}
+          onFocus={() => setIsSearching(true)}
+          onClose={() => { setIsSearching(false); setSearchQuery(''); setSearchUsers([]); setSearchMessages([]); setSearchConversations([]); }}
+          onAddFriend={onAddFriend}
+          onCreateGroup={onCreateGroup}
+        />
 
         {!isSearching && (
           /* Tabs and Filters */
@@ -970,7 +1005,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                 <div className="flex items-center justify-center py-8">
                   <div className="w-6 h-6 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
                 </div>
-              ) : (searchUsers.length === 0 && searchMessages.length === 0) ? (
+              ) : (searchUsers.length === 0 && searchMessages.length === 0 && searchConversations.length === 0) ? (
                 <div className="flex flex-col items-center justify-center py-12 text-[var(--sub-text)] opacity-60">
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="opacity-30 mb-3">
                     <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -979,6 +1014,39 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                 </div>
               ) : (
                 <>
+                  {/* Conversation Results (local name match) */}
+                  {searchConversations.length > 0 && (
+                    <div className="mb-4">
+                      <h3 className="text-[13px] font-bold text-[var(--sub-text)] mb-2 uppercase tracking-wide">{t('chat.search_overlay.conversations') || 'Hội thoại'}</h3>
+                      <div className="space-y-0.5">
+                        {searchConversations.map(conv => (
+                          <div
+                            key={conv.id}
+                            onClick={() => {
+                              onSelectConversation(conv.id);
+                              closeSearchOverlay();
+                            }}
+                            className="flex items-center gap-3 p-2 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors"
+                          >
+                            <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-black/5">
+                              {conv.avatar ? (
+                                <Image src={conv.avatar} alt={conv.name} width={40} height={40} className="object-cover w-full h-full" />
+                              ) : (
+                                <span className="text-[14px] font-bold text-white bg-[#0068FF] w-full h-full flex items-center justify-center">
+                                  {conv.name?.charAt(0)?.toUpperCase() || '?'}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[14px] font-medium text-[var(--text)] truncate">{conv.name}</p>
+                              {conv.lastMsg && <p className="text-[12px] text-[var(--sub-text)] truncate">{conv.lastMsg}</p>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* User Results */}
                   {searchUsers.length > 0 && (
                     <div className="mb-4">
@@ -992,10 +1060,19 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                               const conv = conversations.find(c => c.otherUserId === user.userId);
                               if (conv) {
                                 onSelectConversation(conv.id);
-                                setIsSearching(false);
-                                setSearchQuery('');
-                                setSearchUsers([]);
-                                setSearchMessages([]);
+                                closeSearchOverlay();
+                              } else {
+                                onAddFriend({
+                                  phoneNumber: user.phoneNumber,
+                                  user: {
+                                    user_id: user.userId,
+                                    phone_number: user.phoneNumber,
+                                    display_name: user.displayName,
+                                    avatar_url: user.avatarUrl,
+                                    friendship_status: user.friendshipStatus,
+                                  },
+                                });
+                                closeSearchOverlay();
                               }
                             }}
                             className="flex items-center gap-3 p-2 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors"
@@ -1032,10 +1109,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                               onClick={() => {
                                 if (conv) {
                                   onSelectConversation(conv.id);
-                                  setIsSearching(false);
-                                  setSearchQuery('');
-                                  setSearchUsers([]);
-                                  setSearchMessages([]);
+                                  closeSearchOverlay();
                                 }
                               }}
                               className="flex items-center gap-3 p-2 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors"
@@ -1110,39 +1184,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
             </div>
           ) : (
             /* Default: Recent + Filters */
-            <>
-              <div className="px-4 py-3 pb-2">
-                <h3 className="text-[14px] font-bold text-[var(--text)] mb-4">{t('chat.search_overlay.recent')}</h3>
-                <div className="space-y-1">
-                  {recentSearches.map(item => (
-                    <div key={item.id} className="flex items-center gap-3 p-2 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors">
-                      <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center border border-black/5">
-                        {item.avatar ? (
-                          <Image src={item.avatar} alt={item.name} width={40} height={40} className="object-cover" />
-                        ) : (
-                          <span className="text-[14px] font-bold text-white bg-[#0068FF] w-full h-full flex items-center justify-center">
-                            {item.name?.charAt(0)?.toUpperCase() || '?'}
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[15px] text-[var(--text)] truncate">{item.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t border-[var(--border)] mt-2 pt-4 px-4 pb-8">
-                <h3 className="text-[14px] font-bold text-[var(--text)] mb-4">{t('chat.search_overlay.filters.title')}</h3>
-                <div className="flex gap-2">
-                  <button className="px-4 py-1.5 bg-[var(--hover-bg)] rounded-full text-[13.5px] text-[var(--text)] cursor-pointer hover:bg-[var(--border)] transition-colors">
-                    {t('chat.search_overlay.filters.mention')}
-                  </button>
-                  <button className="px-4 py-1.5 bg-[var(--hover-bg)] rounded-full text-[13.5px] text-[var(--text)] cursor-pointer hover:bg-[var(--border)] transition-colors">
-                    {t('chat.search_overlay.filters.reactions')}
-                  </button>
-                </div>
-              </div>
-            </>
+            <SearchOverlayDefault recentSearches={recentSearches} />
           )}
         </div>
       ) : (

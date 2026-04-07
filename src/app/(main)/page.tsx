@@ -27,12 +27,12 @@ export function MainHome({ initialChatId }: MainHomeProps) {
   const { t } = useTranslation();
   const { currentTheme, setCurrentTheme } = useTheme();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [loginMethod, setLoginMethod] = useState<'qr' | 'phone' | 'register'>('phone');
+  const [loginMethod, setLoginMethod] = useState<'qr' | 'email' | 'register'>('email');
   const [isClient, setIsClient] = useState(false);
   const [scannedUser, setScannedUser] = useState<{ display_name: string; avatar_url: string } | null>(null);
 
   // Form states
-  const [username, setUsername] = useState('0901234567'); // phoneNumber (Ví dụ số hợp lệ)
+  const [username, setUsername] = useState(''); // email
   const [password, setPassword] = useState('TestUser123@');
   const [confirmPassword, setConfirmPassword] = useState('TestUser123@');
   const [firstName, setFirstName] = useState('Văn A');
@@ -70,7 +70,13 @@ export function MainHome({ initialChatId }: MainHomeProps) {
 
   useEffect(() => {
     const saved = localStorage.getItem('savedUsername');
-    if (saved) setUsername(saved);
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
+    if (saved && emailRegex.test(saved)) {
+      setUsername(saved);
+    } else if (saved) {
+      // Clear stale phone number saved from old auth system
+      localStorage.removeItem('savedUsername');
+    }
   }, []);
 
   const connectWebSocket = useCallback((uuid: string) => {
@@ -175,11 +181,7 @@ export function MainHome({ initialChatId }: MainHomeProps) {
     setLoading(true);
     setError(null);
 
-    const trimmedPhone = username.trim();
-    const trimmedEmail = email.trim();
-
-    // Vietnamese Mobile: 10 digits, starts with 0, prefixes 3,5,7,8,9
-    const phoneRegex = /^0[35789]\d{8}$/;
+    const trimmedEmail = username.trim();
 
     // Email: basic RFC + manual checks for dots
     const validateEmail = (e: string) => {
@@ -192,35 +194,26 @@ export function MainHome({ initialChatId }: MainHomeProps) {
     };
 
     try {
-      // 1. Phone validation (both login and register)
-      if (!phoneRegex.test(trimmedPhone)) {
-        const msg = t('login.validation.phone_invalid');
+      // 1. Email validation
+      if (!validateEmail(trimmedEmail)) {
+        const msg = t('login.validation.email_invalid');
         setError(msg);
         toast.error(msg);
         setLoading(false);
         return;
       }
 
-      if (loginMethod === 'phone') {
-        await authService.login(trimmedPhone, password);
+      if (loginMethod === 'email') {
+        await authService.login(trimmedEmail, password);
         if (rememberMe) {
-          localStorage.setItem('savedUsername', trimmedPhone);
+          localStorage.setItem('savedUsername', trimmedEmail);
         } else {
           localStorage.removeItem('savedUsername');
         }
         setIsLoggedIn(true);
         // toast.success(`Chào mừng bạn trở lại, ${displayName}!`);
       } else if (loginMethod === 'register') {
-        // 2. Email validation (for registration only)
-        if (!validateEmail(trimmedEmail)) {
-          const msg = t('login.validation.email_invalid');
-          setError(msg);
-          toast.error(msg);
-          setLoading(false);
-          return;
-        }
-
-        // 3. Password strength validation (for registration only)
+        // 2. Password strength validation (for registration only)
         const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{8,}$/;
         if (!passwordRegex.test(password)) {
           const msg = t('login.validation.password_weak');
@@ -238,7 +231,6 @@ export function MainHome({ initialChatId }: MainHomeProps) {
           return;
         }
         await authService.register({
-          phoneNumber: trimmedPhone,
           email: trimmedEmail,
           password,
           displayName: `${lastName} ${firstName}`.trim(),
@@ -256,7 +248,7 @@ export function MainHome({ initialChatId }: MainHomeProps) {
         });
       }
     } catch (err: unknown) {
-      const fallbackMsg = loginMethod === 'phone' ? t('login.error.login_failed') : t('login.error.register_failed');
+      const fallbackMsg = loginMethod === 'email' ? t('login.error.login_failed') : t('login.error.register_failed');
       const msg = getErrorMessage(err, fallbackMsg);
       setError(msg);
       toast.error(msg);
@@ -317,7 +309,7 @@ export function MainHome({ initialChatId }: MainHomeProps) {
               email={verificationEmail}
               onVerified={() => {
                 setVerificationEmail(null);
-                setLoginMethod('phone');
+                setLoginMethod('email');
                 toast.success(t('login.success.verify_done'));
               }}
               onBack={() => {
@@ -327,14 +319,14 @@ export function MainHome({ initialChatId }: MainHomeProps) {
             />
           ) : showForgotPassword ? (
             <ForgotPasswordForm
-              initialEmail={email}
+              initialEmail={username}
               onBack={() => {
                 setShowForgotPassword(false);
-                setLoginMethod('phone');
+                setLoginMethod('email');
               }}
               onDone={() => {
                 setShowForgotPassword(false);
-                setLoginMethod('phone');
+                setLoginMethod('email');
                 setPassword('');
                 setConfirmPassword('');
                 toast.success(t('login.forgot.done_login_hint'));

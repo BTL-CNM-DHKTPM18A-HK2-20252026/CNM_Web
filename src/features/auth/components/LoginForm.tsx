@@ -4,8 +4,8 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { EyeIcon, EyeOffIcon, SparklesIcon } from '@/components/ui/Icons';
 
 interface LoginFormProps {
-  loginMethod: 'qr' | 'phone' | 'register';
-  setLoginMethod: (method: 'qr' | 'phone' | 'register') => void;
+  loginMethod: 'qr' | 'email' | 'register';
+  setLoginMethod: (method: 'qr' | 'email' | 'register') => void;
   username: string;
   setUsername: (val: string) => void;
   password: string;
@@ -41,6 +41,16 @@ interface LoginFormProps {
   onForgotPassword?: () => void;
 }
 
+type RegisterField = 'lastName' | 'firstName' | 'username' | 'password' | 'confirmPassword';
+
+type RegisterValues = {
+  lastName: string;
+  firstName: string;
+  username: string;
+  password: string;
+  confirmPassword: string;
+};
+
 export function LoginForm({
   loginMethod,
   setLoginMethod,
@@ -59,8 +69,6 @@ export function LoginForm({
   gender,
   setGender,
   loading,
-  error,
-  successMsg,
   showPassword,
   setShowPassword,
   confirmPassword,
@@ -79,8 +87,124 @@ export function LoginForm({
   onForgotPassword,
 }: LoginFormProps) {
   const { t } = useTranslation();
-  const genderLabelMap: Record<string, string> = { 'Nam': t('gender.male'), 'Nữ': t('gender.female'), 'Khác': t('gender.other') };
-  const [isGenderOpen, setIsGenderOpen] = React.useState(false);
+  const [registerTouched, setRegisterTouched] = React.useState<Record<RegisterField, boolean>>({
+    lastName: false,
+    firstName: false,
+    username: false,
+    password: false,
+    confirmPassword: false,
+  });
+  const [registerErrors, setRegisterErrors] = React.useState<Partial<Record<RegisterField, string>>>({});
+
+  const getRegisterValues = React.useCallback(
+    (): RegisterValues => ({
+      lastName,
+      firstName,
+      username,
+      password,
+      confirmPassword: confirmPassword || '',
+    }),
+    [confirmPassword, firstName, lastName, password, username]
+  );
+
+  const validateRegisterValues = React.useCallback(
+    (values: RegisterValues): Partial<Record<RegisterField, string>> => {
+      const nextErrors: Partial<Record<RegisterField, string>> = {};
+
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{8,}$/;
+
+      if (!values.lastName.trim()) {
+        nextErrors.lastName = t('login.validation.last_name_required');
+      }
+      if (!values.firstName.trim()) {
+        nextErrors.firstName = t('login.validation.first_name_required');
+      }
+      const normalizedUsername = values.username.trim();
+      const usernameEmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
+      if (!usernameEmailRegex.test(normalizedUsername)) {
+        nextErrors.username = t('login.validation.email_invalid');
+      }
+      if (!passwordRegex.test(values.password)) {
+        nextErrors.password = t('login.validation.password_weak');
+      }
+      if (values.confirmPassword !== values.password) {
+        nextErrors.confirmPassword = t('login.validation.confirm_mismatch');
+      }
+
+      return nextErrors;
+    },
+    [t]
+  );
+
+  const showRegisterError = React.useCallback(
+    (field: RegisterField) => loginMethod === 'register' && registerTouched[field] && Boolean(registerErrors[field]),
+    [loginMethod, registerErrors, registerTouched]
+  );
+
+  const handleRegisterFieldBlur = React.useCallback(
+    (field: RegisterField) => {
+      if (loginMethod !== 'register') return;
+      setRegisterTouched((prev) => ({ ...prev, [field]: true }));
+      setRegisterErrors(validateRegisterValues(getRegisterValues()));
+    },
+    [getRegisterValues, loginMethod, validateRegisterValues]
+  );
+
+  const updateRegisterField = React.useCallback(
+    (field: RegisterField, value: string, setter: (val: string) => void) => {
+      setter(value);
+      if (loginMethod !== 'register') return;
+
+      const current = getRegisterValues();
+      const nextValues = { ...current, [field]: value } as RegisterValues;
+
+      if (registerTouched[field]) {
+        setRegisterErrors(validateRegisterValues(nextValues));
+      }
+    },
+    [getRegisterValues, loginMethod, registerTouched, validateRegisterValues]
+  );
+
+  const handleFormSubmit = React.useCallback(
+    (e: React.FormEvent) => {
+      if (loginMethod !== 'register') {
+        onSubmit(e);
+        return;
+      }
+
+      const nextTouched: Record<RegisterField, boolean> = {
+        lastName: true,
+        firstName: true,
+        username: true,
+        password: true,
+        confirmPassword: true,
+      };
+
+      setRegisterTouched(nextTouched);
+      const nextErrors = validateRegisterValues(getRegisterValues());
+      setRegisterErrors(nextErrors);
+
+      if (Object.keys(nextErrors).length > 0) {
+        e.preventDefault();
+        return;
+      }
+
+      onSubmit(e);
+    },
+    [getRegisterValues, loginMethod, onSubmit, validateRegisterValues]
+  );
+
+  React.useEffect(() => {
+    if (loginMethod === 'register') return;
+    setRegisterTouched({
+      lastName: false,
+      firstName: false,
+      username: false,
+      password: false,
+      confirmPassword: false,
+    });
+    setRegisterErrors({});
+  }, [loginMethod]);
 
   const handleGeneratePassword = () => {
     const lowers = "abcdefghijklmnopqrstuvwxyz";
@@ -108,6 +232,15 @@ export function LoginForm({
     if (setConfirmPassword) setConfirmPassword(shuffled);
     setShowPassword(true);
     if (setShowConfirmPassword) setShowConfirmPassword(true);
+
+    if (loginMethod === 'register') {
+      const nextValues: RegisterValues = {
+        ...getRegisterValues(),
+        password: shuffled,
+        confirmPassword: shuffled,
+      };
+      setRegisterErrors(validateRegisterValues(nextValues));
+    }
   };
 
   return (
@@ -120,10 +253,10 @@ export function LoginForm({
           {t('login.tabs.qr')}
         </button>
         <button
-          onClick={() => { setLoginMethod('phone'); setError(null); setSuccessMsg(null); }}
-          className={`flex-1 cursor-pointer py-4 text-xs font-bold transition-all ${loginMethod === 'phone' ? 'border-b-[3px] border-[#0068FF] text-[#0068FF]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
+          onClick={() => { setLoginMethod('email'); setError(null); setSuccessMsg(null); }}
+          className={`flex-1 cursor-pointer py-4 text-xs font-bold transition-all ${loginMethod === 'email' ? 'border-b-[3px] border-[#0068FF] text-[#0068FF]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
         >
-          {t('login.tabs.phone')}
+          {t('login.tabs.email')}
         </button>
         <button
           onClick={() => { setLoginMethod('register'); setError(null); setSuccessMsg(null); }}
@@ -209,9 +342,9 @@ export function LoginForm({
             )}
           </div>
         ) : (
-          <form onSubmit={onSubmit} className="w-full px-2">
+          <form onSubmit={handleFormSubmit} noValidate className="w-full px-2">
             <h3 className="mb-8 text-center text-sm font-bold text-[var(--text)]">
-              {loginMethod === 'phone' ? t('login.phone.header') : t('login.register.header')}
+              {loginMethod === 'email' ? t('login.email.header') : t('login.register.header')}
             </h3>
 
             {loginMethod === 'register' && (
@@ -219,147 +352,131 @@ export function LoginForm({
                 <div className="mb-6 grid grid-cols-2 gap-4">
                   <div className="flex flex-col">
                     <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">{t('login.register.last_name')}</span>
-                    <div className="flex items-center border-b border-[var(--border)] py-2 focus-within:border-[#0068FF] transition-colors group">
+                    <div className={`flex items-center border-b border-[var(--border)] py-2 focus-within:border-[#0068FF] transition-colors group ${showRegisterError('lastName') ? 'border-red-500' : ''}`}>
                       <span className="mr-3 text-gray-400 group-focus-within:text-[#0068FF] transition-colors"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="7" r="4" /><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /></svg></span>
-                      <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder={t('login.register.last_name_placeholder')} className="w-full bg-transparent text-[13px] font-medium outline-none text-[var(--text)]" required />
+                      <input type="text" value={lastName} onChange={(e) => updateRegisterField('lastName', e.target.value, setLastName)} onBlur={() => handleRegisterFieldBlur('lastName')} placeholder={t('login.register.last_name_placeholder')} className="w-full bg-transparent text-[13px] font-medium outline-none text-[var(--text)]" required />
                     </div>
+                    {showRegisterError('lastName') && <p className="mt-1 text-xs text-red-500">{registerErrors.lastName}</p>}
                   </div>
                   <div className="flex flex-col">
                     <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">{t('login.register.first_name')}</span>
-                    <div className="flex items-center border-b border-[var(--border)] py-2 focus-within:border-[#0068FF] transition-colors group">
+                    <div className={`flex items-center border-b border-[var(--border)] py-2 focus-within:border-[#0068FF] transition-colors group ${showRegisterError('firstName') ? 'border-red-500' : ''}`}>
                       <span className="mr-3 text-gray-400 group-focus-within:text-[#0068FF] transition-colors"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="7" r="4" /><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /></svg></span>
-                      <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder={t('login.register.first_name_placeholder')} className="w-full bg-transparent text-[13px] font-medium outline-none text-[var(--text)]" required />
+                      <input type="text" value={firstName} onChange={(e) => updateRegisterField('firstName', e.target.value, setFirstName)} onBlur={() => handleRegisterFieldBlur('firstName')} placeholder={t('login.register.first_name_placeholder')} className="w-full bg-transparent text-[13px] font-medium outline-none text-[var(--text)]" required />
                     </div>
+                    {showRegisterError('firstName') && <p className="mt-1 text-xs text-red-500">{registerErrors.firstName}</p>}
                   </div>
                 </div>
-                <div className="mb-6 flex flex-col">
-                  <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">Email</span>
-                  <div className="flex items-center border-b border-[var(--border)] py-2 focus-within:border-[#0068FF] transition-colors group">
-                    <span
-                      className="mr-3 text-gray-400 group-focus-within:text-[#0068FF] transition-colors cursor-help hover:text-[#0068FF]"
-                      title={t('login.register.email_hint')}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                        <polyline points="22,6 12,13 2,6" />
-                      </svg>
-                    </span>
-                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="example@email.com" className="w-full bg-transparent text-[13px] font-medium outline-none text-[var(--text)]" required />
-                  </div>
-                </div>
-                <div className="mb-6 flex space-x-4 items-center">
-                  <div className="flex-1 flex flex-col">
-                    <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">{t('login.register.dob')}</span>
-                    <div className="flex items-center border-b border-[var(--border)] py-2 focus-within:border-[#0068FF] transition-colors group cursor-pointer">
-                      <span className="mr-3 text-gray-400 group-focus-within:text-[#0068FF] transition-colors">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
-                      </span>
-                      <input
-                        type="date"
-                        value={dob}
-                        onChange={(e) => setDob?.(e.target.value)}
-                        className="w-full bg-transparent text-[13px] font-medium outline-none text-[var(--text)] cursor-pointer"
-                        required
-                      />
-                    </div>
-                  </div>
 
-                  <div className="flex-1 flex flex-col relative">
-                    <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">{t('login.register.gender')}</span>
-                    <div
-                      className="flex items-center border-b border-[var(--border)] py-2 cursor-pointer focus-within:border-[#0068FF] transition-colors group"
-                      onClick={() => setIsGenderOpen(!isGenderOpen)}
-                    >
-                      <span className="mr-3 text-gray-400 group-hover:text-[#0068FF] transition-colors transition-colors">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2C9.24 2 7 4.24 7 7s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM12 14c-4.42 0-8 2.24-8 5v3h16v-3c0-2.76-3.58-5-8-5z" /></svg>
-                      </span>
-                      <span className="w-full bg-transparent text-[13px] font-medium text-[var(--text)] select-none">
-                        {genderLabelMap[gender || 'Nam'] || t('gender.male')}
-                      </span>
-                      <span className={`ml-auto text-gray-400 transition-transform duration-200 ${isGenderOpen ? 'rotate-180' : ''}`}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M6 9l6 6 6-6" /></svg>
-                      </span>
-                    </div>
-
-                    {isGenderOpen && (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setIsGenderOpen(false)}></div>
-                        <div className="absolute top-full left-0 right-0 z-20 mt-1 overflow-hidden rounded-md border border-[var(--border)] bg-[var(--card-bg)] shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
-                          {(['Nam', 'Nữ', 'Khác'] as const).map((val) => (
-                            <button
-                              key={val}
-                              type="button"
-                              onClick={() => {
-                                setGender?.(val);
-                                setIsGenderOpen(false);
-                              }}
-                              className={`w-full px-4 py-2.5 text-left text-[13px] font-bold transition-all cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-600/10 ${gender === val ? 'text-[#0068FF] bg-blue-50/80 dark:bg-blue-600/20' : 'text-[var(--text)]'}`}
-                            >
-                              {genderLabelMap[val]}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
               </>
             )}
 
-            <div className="mb-6 flex items-center border-b border-[var(--border)] py-2.5 focus-within:border-[#0068FF] transition-colors text-[var(--text)]">
-              <span
-                className="mr-3 text-gray-400 cursor-help transition-colors hover:text-[#0068FF]"
-                title={t('login.register.phone_hint')}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
-                  <path d="M12 18h.01" />
-                </svg>
-              </span>
-              <span className="mr-2 text-sm font-bold">+84</span>
-              <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder={t('login.phone.phone_placeholder')} className="w-full bg-transparent text-sm outline-none font-medium" required />
-            </div>
+            {loginMethod === 'register' ? (
+              <div className="mb-6 flex flex-col">
+                <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">{t('login.register.email_login_label')}</span>
+                <div className={`flex items-center border-b border-[var(--border)] py-2.5 focus-within:border-[#0068FF] transition-colors text-[var(--text)] ${showRegisterError('username') ? 'border-red-500' : ''}`}>
+                  <span
+                    className="mr-3 text-gray-400 cursor-help transition-colors hover:text-[#0068FF]"
+                    title={t('login.register.email_hint')}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                      <polyline points="22,6 12,13 2,6" />
+                    </svg>
+                  </span>
+                  <input type="email" value={username} onChange={(e) => updateRegisterField('username', e.target.value, setUsername)} onBlur={() => handleRegisterFieldBlur('username')} placeholder={t('login.register.email_login_placeholder')} className="w-full bg-transparent text-sm outline-none font-medium" required />
+                </div>
+                {showRegisterError('username') && <p className="mt-1 text-xs text-red-500">{registerErrors.username}</p>}
+              </div>
+            ) : (
+              <div className="mb-6 flex items-center border-b border-[var(--border)] py-2.5 focus-within:border-[#0068FF] transition-colors text-[var(--text)]">
+                <span
+                  className="mr-3 text-gray-400 cursor-help transition-colors hover:text-[#0068FF]"
+                  title={t('login.email.hint')}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                    <polyline points="22,6 12,13 2,6" />
+                  </svg>
+                </span>
+                <input type="email" value={username} onChange={(e) => setUsername(e.target.value)} placeholder={t('login.email.email_placeholder')} className="w-full bg-transparent text-sm outline-none font-medium" required />
+              </div>
+            )}
 
-            <div className="mb-8 flex items-center border-b border-[var(--border)] py-2.5 relative focus-within:border-[#0068FF] transition-colors group/pwd">
-              <span
-                className="mr-3 text-gray-400 cursor-help transition-colors hover:text-[#0068FF]"
-                title={t('login.register.confirm_password_hint')}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-              </span>
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={t('login.phone.password_placeholder')}
-                className="w-full bg-transparent text-sm outline-none pr-10 text-[var(--text)]"
-                required
-              />
-              <div className="absolute right-0 flex items-center gap-2">
-                {loginMethod === 'register' && (
+            {loginMethod === 'register' ? (
+              <div className="mb-8 flex flex-col">
+                <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">{t('login.register.password_label')}</span>
+                <div className={`flex items-center border-b border-[var(--border)] py-2.5 relative focus-within:border-[#0068FF] transition-colors group/pwd ${showRegisterError('password') ? 'border-red-500' : ''}`}>
+                  <span
+                    className="mr-3 text-gray-400 cursor-help transition-colors hover:text-[#0068FF]"
+                    title={t('login.register.confirm_password_hint')}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                  </span>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => updateRegisterField('password', e.target.value, setPassword)}
+                    onBlur={() => handleRegisterFieldBlur('password')}
+                    placeholder={t('login.register.password_placeholder')}
+                    className="w-full bg-transparent text-sm outline-none pr-10 text-[var(--text)]"
+                    required
+                  />
+                  <div className="absolute right-0 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleGeneratePassword}
+                      className="text-gray-400 hover:text-[#0068FF] focus:outline-none cursor-pointer transition-colors"
+                      title={t('login.register.password_hint')}
+                    >
+                      <SparklesIcon size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="text-gray-400 hover:text-[#0068FF] focus:outline-none cursor-pointer scale-90 transition-colors"
+                    >
+                      {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                    </button>
+                  </div>
+                </div>
+                {showRegisterError('password') && <p className="mt-1 text-xs text-red-500">{registerErrors.password}</p>}
+              </div>
+            ) : (
+              <div className="mb-8 flex items-center border-b border-[var(--border)] py-2.5 relative focus-within:border-[#0068FF] transition-colors group/pwd">
+                <span
+                  className="mr-3 text-gray-400 cursor-help transition-colors hover:text-[#0068FF]"
+                  title={t('login.register.confirm_password_hint')}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                </span>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={t('login.email.password_placeholder')}
+                  className="w-full bg-transparent text-sm outline-none pr-10 text-[var(--text)]"
+                  required
+                />
+                <div className="absolute right-0 flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={handleGeneratePassword}
-                    className="text-gray-400 hover:text-[#0068FF] focus:outline-none cursor-pointer transition-colors"
-                    title={t('login.register.password_hint')}
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-gray-400 hover:text-[#0068FF] focus:outline-none cursor-pointer scale-90 transition-colors"
                   >
-                    <SparklesIcon size={16} />
+                    {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="text-gray-400 hover:text-[#0068FF] focus:outline-none cursor-pointer scale-90 transition-colors"
-                >
-                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-                </button>
+                </div>
               </div>
-            </div>
+            )}
 
-            {loginMethod === 'phone' && (
+            {loginMethod === 'email' && (
               <div className="mb-6 flex items-center">
                 <label className="flex items-center gap-2 cursor-pointer group">
                   <div className={`w-4.5 h-4.5 rounded border flex items-center justify-center transition-all ${rememberMe ? 'bg-[#0068FF] border-[#0068FF]' : 'bg-transparent border-[var(--border)] group-hover:border-[#0068FF]'}`}>
@@ -368,48 +485,53 @@ export function LoginForm({
                     )}
                   </div>
                   <input type="checkbox" className="hidden" checked={rememberMe} onChange={(e) => setRememberMe?.(e.target.checked)} />
-                  <span className="text-[13px] text-[var(--sub-text)] font-medium group-hover:text-[var(--text)] transition-colors select-none">{t('login.phone.remember_me')}</span>
+                  <span className="text-[13px] text-[var(--sub-text)] font-medium group-hover:text-[var(--text)] transition-colors select-none">{t('login.email.remember_me')}</span>
                 </label>
               </div>
             )}
 
             {loginMethod === 'register' && (
-              <div className="mb-8 flex items-center border-b border-[var(--border)] py-2.5 relative focus-within:border-[#0068FF] transition-colors">
-                <span className="mr-3 text-gray-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></span>
-                <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword?.(e.target.value)}
-                  placeholder={t('login.register.confirm_password_placeholder')}
-                  className="w-full bg-transparent text-sm outline-none pr-10 text-[var(--text)]"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword?.(!showConfirmPassword)}
-                  className="absolute right-0 text-gray-400 hover:text-[#0068FF] focus:outline-none cursor-pointer scale-90"
-                >
-                  {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
-                </button>
+              <div className="mb-8 flex flex-col">
+                <span className="text-[11px] font-bold text-gray-400 mb-1 ml-1 uppercase letter-spacing-wide">{t('login.register.confirm_password_label')}</span>
+                <div className={`flex items-center border-b border-[var(--border)] py-2.5 relative focus-within:border-[#0068FF] transition-colors ${showRegisterError('confirmPassword') ? 'border-red-500' : ''}`}>
+                  <span className="mr-3 text-gray-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></span>
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => updateRegisterField('confirmPassword', e.target.value, (val) => setConfirmPassword?.(val))}
+                    onBlur={() => handleRegisterFieldBlur('confirmPassword')}
+                    placeholder={t('login.register.confirm_password_placeholder')}
+                    className="w-full bg-transparent text-sm outline-none pr-10 text-[var(--text)]"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword?.(!showConfirmPassword)}
+                    className="absolute right-0 text-gray-400 hover:text-[#0068FF] focus:outline-none cursor-pointer scale-90"
+                  >
+                    {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                </div>
+                {showRegisterError('confirmPassword') && <p className="mt-1 text-xs text-red-500">{registerErrors.confirmPassword}</p>}
               </div>
             )}
 
             <button type="submit" disabled={loading} className="mb-4 w-full cursor-pointer rounded-md bg-[#0068FF] py-3 text-sm font-bold text-white transition-all hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-500/20 disabled:bg-gray-300">
-              {loading ? '...' : (loginMethod === 'phone' ? t('login.phone.submit') : t('login.register.register_btn'))}
+              {loading ? '...' : (loginMethod === 'email' ? t('login.email.submit') : t('login.register.register_btn'))}
             </button>
 
             <div className="flex flex-col gap-3 text-center">
-              {loginMethod === 'phone' && (
+              {loginMethod === 'email' && (
                 <button
                   type="button"
                   onClick={onForgotPassword}
                   className="cursor-pointer text-[13px] font-semibold text-[#dc2626] hover:text-[#b91c1c]"
                 >
-                  {t('login.phone.forgot_password')}
+                  {t('login.email.forgot_password')}
                 </button>
               )}
               <button type="button" onClick={() => setLoginMethod('qr')} className="cursor-pointer text-sm font-bold text-[#0068FF] hover:underline">
-                {t('login.phone.qr_back')}
+                {t('login.email.qr_back')}
               </button>
             </div>
           </form>

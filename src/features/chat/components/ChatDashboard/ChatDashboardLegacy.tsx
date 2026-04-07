@@ -30,6 +30,16 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAddFriendModalOpen, setIsAddFriendModalOpen] = useState(false);
+  const [addFriendPrefill, setAddFriendPrefill] = useState<{
+    phoneNumber?: string;
+    user?: {
+      user_id: string;
+      phone_number?: string;
+      display_name?: string;
+      avatar_url?: string;
+      friendship_status?: string;
+    };
+  } | null>(null);
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
   const [isUserDataModalOpen, setIsUserDataModalOpen] = useState(false);
   const [activeSidebar, setActiveSidebar] = useState<'info' | 'search' | null>('info');
@@ -548,6 +558,23 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
     }
   }, [activeTab, ensureSelfConversation]);
 
+  const openAddFriendModal = useCallback(
+    (prefill?: {
+      phoneNumber?: string;
+      user?: {
+        user_id: string;
+        phone_number?: string;
+        display_name?: string;
+        avatar_url?: string;
+        friendship_status?: string;
+      };
+    }) => {
+      setAddFriendPrefill(prefill || null);
+      setIsAddFriendModalOpen(true);
+    },
+    []
+  );
+
   return (
     <PresenceProvider currentUserId={currentUser?.id || null}>
       <div className="flex h-screen w-full bg-[var(--card-bg)] overflow-hidden text-[var(--text)] transition-colors duration-200">
@@ -565,9 +592,14 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
 
         <AddFriendModal
           isOpen={isAddFriendModalOpen}
-          onClose={() => setIsAddFriendModalOpen(false)}
+          onClose={() => {
+            setIsAddFriendModalOpen(false);
+            setAddFriendPrefill(null);
+          }}
           currentUserName={currentUser?.full_name || userName}
           currentUserId={currentUser?.id}
+          initialPhoneNumber={addFriendPrefill?.phoneNumber}
+          initialUser={addFriendPrefill?.user || null}
         />
 
         <CreateGroupModal
@@ -604,7 +636,7 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
         {activeTab === 'chat' ? (
           <ConversationList
             conversations={conversations.map(c => ({ ...c, active: c.id === selectedChatId }))}
-            onAddFriend={() => setIsAddFriendModalOpen(true)}
+            onAddFriend={() => openAddFriendModal()}
             onCreateGroup={() => setIsCreateGroupModalOpen(true)}
             onSelectConversation={(id) => {
               setSelectedChatId(id);
@@ -666,7 +698,7 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
           <ContactList
             selectedCategory={contactCategory}  
             onSelectCategory={setContactCategory}
-            onAddFriend={() => setIsAddFriendModalOpen(true)}
+            onAddFriend={(prefill) => openAddFriendModal(prefill)}
             onCreateGroup={() => setIsCreateGroupModalOpen(true)}
           />
         ) : (
