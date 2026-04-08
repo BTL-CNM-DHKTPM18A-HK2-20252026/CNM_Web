@@ -103,20 +103,122 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [accountLocked, setAccountLocked] = useState(false);
   const [lockLoading, setLockLoading] = useState(false);
 
+  // Privacy settings state
+  const [privacySettings, setPrivacySettings] = useState({
+    showReadReceipts: true,
+    showOnlineStatus: true,
+    allowSearchByPhone: true,
+    allowSearchByQR: true,
+    allowSearchByGroup: true,
+    blockStrangerMessages: false,
+    blockStrangerProfileView: false,
+  });
+  const [privacySaving, setPrivacySaving] = useState(false);
+
+  // Device management state
+  const [devices, setDevices] = useState<Array<{id: string; deviceName: string; deviceType: string; browser: string; os: string; ipAddress: string; loginAt: string; lastActiveAt: string; isActive: boolean}>>([]);
+  const [devicesLoading, setDevicesLoading] = useState(false);
+
+  // AI token usage state
+  const [tokenUsage, setTokenUsage] = useState<{totalTokensToday: number; requestCount: number; date: string} | null>(null);
+
+  // Storage stats state
+  const [storageStats, setStorageStats] = useState<{totalSize: number; imageSize: number; videoSize: number; fileSize: number; voiceSize: number} | null>(null);
+  const [storageLoading, setStorageLoading] = useState(false);
+
+  // Auto-delete radio state
+  const [autoDeleteOption, setAutoDeleteOption] = useState('off');
+
   // Load PIN status when modal opens
   useEffect(() => {
     if (!isOpen) return;
     apiClient.get('/users/me/pin/status')
       .then((res: any) => setHasPinConfigured(Boolean(res?.hasPin ?? res?.data?.hasPin)))
       .catch(() => setHasPinConfigured(false));
-    // Load account lock status
+    // Load account lock status + privacy settings
     apiClient.get('/users/me/settings')
       .then((res: any) => {
         const data = res?.data ?? res;
         setAccountLocked(Boolean(data?.accountLocked));
+        setPrivacySettings({
+          showReadReceipts: data?.showReadReceipts !== false,
+          showOnlineStatus: data?.showOnlineStatus !== false,
+          allowSearchByPhone: data?.allowSearchByPhone !== false,
+          allowSearchByQR: data?.allowSearchByQR !== false,
+          allowSearchByGroup: data?.allowSearchByGroup !== false,
+          blockStrangerMessages: Boolean(data?.blockStrangerMessages),
+          blockStrangerProfileView: Boolean(data?.blockStrangerProfileView),
+        });
       })
       .catch(() => setAccountLocked(false));
   }, [isOpen]);
+
+  // Load devices when sync tab is active
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'sync') return;
+    setDevicesLoading(true);
+    apiClient.get('/users/me/devices')
+      .then((res: any) => {
+        const data = res?.data ?? res;
+        setDevices(Array.isArray(data) ? data : []);
+      })
+      .catch(() => setDevices([]))
+      .finally(() => setDevicesLoading(false));
+  }, [isOpen, activeTab]);
+
+  // Load AI token usage when ai tab is active
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'ai') return;
+    apiClient.get('/users/me/ai/usage/today')
+      .then((res: any) => {
+        const data = res?.data ?? res;
+        setTokenUsage(data);
+      })
+      .catch(() => setTokenUsage(null));
+  }, [isOpen, activeTab]);
+
+  // Load storage stats when utils tab is active
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'utils') return;
+    setStorageLoading(true);
+    apiClient.get('/storage/me')
+      .then((res: any) => {
+        const data = res?.data ?? res;
+        setStorageStats(data);
+      })
+      .catch(() => setStorageStats(null))
+      .finally(() => setStorageLoading(false));
+  }, [isOpen, activeTab]);
+
+  const handleRemoteLogout = async (deviceId: string) => {
+    if (!confirm(t('settings.devices.confirm_logout'))) return;
+    try {
+      await apiClient.delete(`/users/me/devices/${deviceId}`);
+      setDevices(prev => prev.filter(d => d.id !== deviceId));
+      toast.success(t('settings.devices.logged_out'));
+    } catch {
+      toast.error(t('settings.devices.logout_failed'));
+    }
+  };
+
+  const handleClearCache = () => {
+    try {
+      if ('caches' in window) {
+        caches.keys().then(names => names.forEach(name => caches.delete(name)));
+      }
+      toast.success(t('settings.storage.cleared'));
+    } catch {
+      toast.error('Failed to clear cache');
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
 
   const handlePinModalClose = () => {
     setPinModalMode(null);
@@ -182,6 +284,31 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       toast.error(i18n.language === 'vi' ? 'Thao tác thất bại' : 'Operation failed');
     } finally {
       setLockLoading(false);
+    }
+  };
+
+  const handlePrivacyToggle = async (key: keyof typeof privacySettings) => {
+    const newVal = !privacySettings[key];
+    const updated = { ...privacySettings, [key]: newVal };
+    setPrivacySettings(updated);
+    setPrivacySaving(true);
+    try {
+      await apiClient.patch('/users/me/settings/privacy', {
+        show_read_receipts: updated.showReadReceipts,
+        show_online_status: updated.showOnlineStatus,
+        allow_search_by_phone: updated.allowSearchByPhone,
+        allow_search_by_qr: updated.allowSearchByQR,
+        allow_search_by_group: updated.allowSearchByGroup,
+        block_stranger_messages: updated.blockStrangerMessages,
+        block_stranger_profile_view: updated.blockStrangerProfileView,
+      });
+      toast.success(t('settings.privacy.saved'));
+    } catch {
+      // Revert on failure
+      setPrivacySettings(prev => ({ ...prev, [key]: !newVal }));
+      toast.error(t('settings.privacy.save_failed'));
+    } finally {
+      setPrivacySaving(false);
     }
   };
 
@@ -602,38 +729,263 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     </button>
                   </div>
                 </section>
+
+                {/* AI Persona Cards */}
+                <section className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-4 px-5 shadow-sm transition-colors duration-200 space-y-3">
+                  <div>
+                    <p className="text-[14px] font-semibold text-[var(--text)]">{t('settings.ai_persona.title')}</p>
+                    <p className="text-[12px] text-[var(--sub-text)] mt-1">{t('settings.ai_persona.desc')}</p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {[
+                      { key: 'humorous', icon: '😂', color: '#F59E0B' },
+                      { key: 'financial', icon: '💰', color: '#10B981' },
+                      { key: 'japanese_teacher', icon: '🇯🇵', color: '#EF4444' },
+                    ].map((persona) => {
+                      const storedPersona = typeof window !== 'undefined' ? localStorage.getItem('fruvia.ai.persona') || '' : '';
+                      const isActive = storedPersona === persona.key;
+                      return (
+                        <button
+                          key={persona.key}
+                          type="button"
+                          onClick={() => {
+                            localStorage.setItem('fruvia.ai.persona', persona.key);
+                            toast.success(i18n.language === 'vi' ? 'Đã kích hoạt persona' : 'Persona activated');
+                          }}
+                          className={`rounded-lg border px-3 py-3 text-left transition-all cursor-pointer ${isActive
+                            ? 'border-[#0068FF] bg-[#E5EFFF] dark:bg-blue-500/10'
+                            : 'border-[var(--border)] hover:border-[#0068FF] hover:bg-[var(--hover-bg)]'
+                            }`}
+                        >
+                          <span className="text-[22px] leading-none block">{persona.icon}</span>
+                          <p className="text-[13px] font-semibold text-[var(--text)] mt-2">{t(`settings.ai_persona.${persona.key}`)}</p>
+                          <p className="text-[11px] text-[var(--sub-text)] mt-0.5">{t(`settings.ai_persona.${persona.key}_desc`)}</p>
+                          <span className={`inline-block mt-2 text-[11px] font-medium px-2 py-0.5 rounded-full ${isActive ? 'bg-[#0068FF] text-white' : 'bg-gray-100 text-gray-500'}`}>
+                            {isActive ? t('settings.ai_persona.active') : t('settings.ai_persona.activate')}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                {/* Token Quota */}
+                <section className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-4 px-5 shadow-sm transition-colors duration-200 space-y-3">
+                  <div>
+                    <p className="text-[14px] font-semibold text-[var(--text)]">{t('settings.token_quota.title')}</p>
+                    <p className="text-[12px] text-[var(--sub-text)] mt-1">{t('settings.token_quota.desc')}</p>
+                  </div>
+                  {tokenUsage ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] text-[var(--sub-text)]">{t('settings.token_quota.used')}</span>
+                        <span className="text-[16px] font-bold text-[#0068FF]">
+                          {tokenUsage.totalTokensToday.toLocaleString()} {t('settings.token_quota.tokens')}
+                        </span>
+                      </div>
+                      <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-[#0068FF] to-[#00A3FF] rounded-full transition-all duration-500"
+                          style={{width: `${Math.min((tokenUsage.totalTokensToday / 50000) * 100, 100)}%`}}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[12px] text-[var(--sub-text)]">
+                        <span>{tokenUsage.requestCount} {t('settings.token_quota.requests')}</span>
+                        <span>{tokenUsage.date}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[13px] text-[var(--sub-text)] italic">{t('settings.token_quota.no_usage')}</p>
+                  )}
+                </section>
               </div>
             )}
 
             {activeTab === 'privacy' && (
               <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+
+                {/* 1. Read Receipts */}
+                <section className="space-y-4">
+                  <div>
+                    <h4 className="text-[16px] font-semibold text-[var(--text)]">{t('settings.privacy.read_receipts.title')}</h4>
+                    <p className="text-[13px] text-[var(--sub-text)] mt-1">{t('settings.privacy.read_receipts.desc')}</p>
+                  </div>
+                  <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] shadow-sm overflow-hidden transition-colors duration-200">
+                    <div className="p-4 px-5 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-[#0068FF]/10 flex items-center justify-center flex-shrink-0">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m1 12 4.2 4.2a1 1 0 0 0 1.4 0L12 11"/><path d="m12 12 4.2 4.2a1 1 0 0 0 1.4 0L23 11"/></svg>
+                        </div>
+                        <span className="text-[14px] font-medium text-[var(--text)]">{t('settings.privacy.read_receipts.label')}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handlePrivacyToggle('showReadReceipts')}
+                        disabled={privacySaving}
+                        className={`w-10 h-5 shrink-0 rounded-full relative transition-all duration-200 cursor-pointer ${privacySettings.showReadReceipts ? 'bg-[#0068FF]' : 'bg-[var(--border)] hover:opacity-80'} ${privacySaving ? 'opacity-50' : ''}`}
+                      >
+                        <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all duration-200 ${privacySettings.showReadReceipts ? 'left-6' : 'left-1'}`} />
+                      </button>
+                    </div>
+                  </div>
+                </section>
+
+                {/* 2. Online Status */}
+                <section className="space-y-4">
+                  <div>
+                    <h4 className="text-[16px] font-semibold text-[var(--text)]">{t('settings.privacy.online_status.title')}</h4>
+                    <p className="text-[13px] text-[var(--sub-text)] mt-1">{t('settings.privacy.online_status.desc')}</p>
+                  </div>
+                  <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] shadow-sm overflow-hidden transition-colors duration-200">
+                    <div className="p-4 px-5 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="#22C55E"/></svg>
+                        </div>
+                        <span className="text-[14px] font-medium text-[var(--text)]">{t('settings.privacy.online_status.label')}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handlePrivacyToggle('showOnlineStatus')}
+                        disabled={privacySaving}
+                        className={`w-10 h-5 shrink-0 rounded-full relative transition-all duration-200 cursor-pointer ${privacySettings.showOnlineStatus ? 'bg-[#0068FF]' : 'bg-[var(--border)] hover:opacity-80'} ${privacySaving ? 'opacity-50' : ''}`}
+                      >
+                        <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all duration-200 ${privacySettings.showOnlineStatus ? 'left-6' : 'left-1'}`} />
+                      </button>
+                    </div>
+                  </div>
+                </section>
+
+                {/* 3. Search Sources / Friend Discovery */}
+                <section className="space-y-4">
+                  <div>
+                    <h4 className="text-[16px] font-semibold text-[var(--text)]">{t('settings.privacy.search_sources.title')}</h4>
+                    <p className="text-[13px] text-[var(--sub-text)] mt-1">{t('settings.privacy.search_sources.desc')}</p>
+                  </div>
+                  <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] shadow-sm overflow-hidden transition-colors duration-200">
+                    {/* Phone */}
+                    <div className="p-4 px-5 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A855F7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        </div>
+                        <span className="text-[14px] font-medium text-[var(--text)]">{t('settings.privacy.search_sources.phone')}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handlePrivacyToggle('allowSearchByPhone')}
+                        disabled={privacySaving}
+                        className={`w-10 h-5 shrink-0 rounded-full relative transition-all duration-200 cursor-pointer ${privacySettings.allowSearchByPhone ? 'bg-[#0068FF]' : 'bg-[var(--border)] hover:opacity-80'} ${privacySaving ? 'opacity-50' : ''}`}
+                      >
+                        <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all duration-200 ${privacySettings.allowSearchByPhone ? 'left-6' : 'left-1'}`} />
+                      </button>
+                    </div>
+                    <div className="h-px bg-[var(--border)] mx-5 opacity-50"></div>
+                    {/* QR */}
+                    <div className="p-4 px-5 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3z"/><path d="M21 14h-3v7h3z"/><path d="M14 18h3v3"/></svg>
+                        </div>
+                        <span className="text-[14px] font-medium text-[var(--text)]">{t('settings.privacy.search_sources.qr')}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handlePrivacyToggle('allowSearchByQR')}
+                        disabled={privacySaving}
+                        className={`w-10 h-5 shrink-0 rounded-full relative transition-all duration-200 cursor-pointer ${privacySettings.allowSearchByQR ? 'bg-[#0068FF]' : 'bg-[var(--border)] hover:opacity-80'} ${privacySaving ? 'opacity-50' : ''}`}
+                      >
+                        <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all duration-200 ${privacySettings.allowSearchByQR ? 'left-6' : 'left-1'}`} />
+                      </button>
+                    </div>
+                    <div className="h-px bg-[var(--border)] mx-5 opacity-50"></div>
+                    {/* Group */}
+                    <div className="p-4 px-5 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#06B6D4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        </div>
+                        <span className="text-[14px] font-medium text-[var(--text)]">{t('settings.privacy.search_sources.group')}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handlePrivacyToggle('allowSearchByGroup')}
+                        disabled={privacySaving}
+                        className={`w-10 h-5 shrink-0 rounded-full relative transition-all duration-200 cursor-pointer ${privacySettings.allowSearchByGroup ? 'bg-[#0068FF]' : 'bg-[var(--border)] hover:opacity-80'} ${privacySaving ? 'opacity-50' : ''}`}
+                      >
+                        <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all duration-200 ${privacySettings.allowSearchByGroup ? 'left-6' : 'left-1'}`} />
+                      </button>
+                    </div>
+                  </div>
+                </section>
+
+                {/* 4. Block Strangers */}
+                <section className="space-y-4">
+                  <div>
+                    <h4 className="text-[16px] font-semibold text-[var(--text)]">{t('settings.privacy.block_strangers.title')}</h4>
+                    <p className="text-[13px] text-[var(--sub-text)] mt-1">{t('settings.privacy.block_strangers.desc')}</p>
+                  </div>
+                  <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] shadow-sm overflow-hidden transition-colors duration-200">
+                    {/* Block stranger messages */}
+                    <div className="p-4 px-5 flex items-center justify-between gap-4">
+                      <div className="flex-1">
+                        <p className="text-[14px] font-medium text-[var(--text)]">{t('settings.privacy.block_strangers.messages')}</p>
+                        <p className="text-[12px] text-[var(--sub-text)] mt-0.5">{t('settings.privacy.block_strangers.messages_desc')}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handlePrivacyToggle('blockStrangerMessages')}
+                        disabled={privacySaving}
+                        className={`w-10 h-5 shrink-0 rounded-full relative transition-all duration-200 cursor-pointer ${privacySettings.blockStrangerMessages ? 'bg-[#0068FF]' : 'bg-[var(--border)] hover:opacity-80'} ${privacySaving ? 'opacity-50' : ''}`}
+                      >
+                        <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all duration-200 ${privacySettings.blockStrangerMessages ? 'left-6' : 'left-1'}`} />
+                      </button>
+                    </div>
+                    <div className="h-px bg-[var(--border)] mx-5 opacity-50"></div>
+                    {/* Block stranger profile view */}
+                    <div className="p-4 px-5 flex items-center justify-between gap-4">
+                      <div className="flex-1">
+                        <p className="text-[14px] font-medium text-[var(--text)]">{t('settings.privacy.block_strangers.profile')}</p>
+                        <p className="text-[12px] text-[var(--sub-text)] mt-0.5">{t('settings.privacy.block_strangers.profile_desc')}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handlePrivacyToggle('blockStrangerProfileView')}
+                        disabled={privacySaving}
+                        className={`w-10 h-5 shrink-0 rounded-full relative transition-all duration-200 cursor-pointer ${privacySettings.blockStrangerProfileView ? 'bg-[#0068FF]' : 'bg-[var(--border)] hover:opacity-80'} ${privacySaving ? 'opacity-50' : ''}`}
+                      >
+                        <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all duration-200 ${privacySettings.blockStrangerProfileView ? 'left-6' : 'left-1'}`} />
+                      </button>
+                    </div>
+                  </div>
+                </section>
+
                 {/* Account Lock Section */}
                 <section className="space-y-4">
                   <h4 className="text-[16px] font-semibold text-[var(--text)]">
-                    {i18n.language === 'vi' ? 'Khóa tài khoản' : 'Lock Account'}
+                    {t('settings.privacy.lock_account.title')}
                   </h4>
                   <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-6 shadow-sm transition-colors duration-200">
                     <div className="flex items-center justify-between">
                       <div className="flex-1 mr-4">
                         <p className="text-[14px] font-medium text-[var(--text)]">
-                          {i18n.language === 'vi' ? 'Tự khóa tài khoản' : 'Lock my account'}
+                          {t('settings.privacy.lock_account.label')}
                         </p>
                         <p className="text-[13px] text-[var(--sub-text)] mt-1">
-                          {i18n.language === 'vi'
-                            ? 'Khi bật, không ai có thể nhắn tin, gửi lời mời kết bạn hoặc xem trang cá nhân của bạn.'
-                            : 'When enabled, no one can message you, send friend requests, or view your profile.'}
+                          {t('settings.privacy.lock_account.desc')}
                         </p>
                       </div>
                       <button
+                        type="button"
                         onClick={handleToggleAccountLock}
                         disabled={lockLoading}
-                        className={`relative w-[52px] h-[28px] rounded-full transition-colors duration-200 cursor-pointer flex-shrink-0 ${
-                          accountLocked ? 'bg-red-500' : 'bg-gray-300'
+                        className={`w-10 h-5 shrink-0 rounded-full relative transition-all duration-200 cursor-pointer ${
+                          accountLocked ? 'bg-red-500' : 'bg-[var(--border)] hover:opacity-80'
                         } ${lockLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
-                        <span
-                          className={`absolute top-[2px] w-[24px] h-[24px] rounded-full bg-white shadow transition-transform duration-200 ${
-                            accountLocked ? 'translate-x-[26px]' : 'translate-x-[2px]'
+                        <div
+                          className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all duration-200 ${
+                            accountLocked ? 'left-6' : 'left-1'
                           }`}
                         />
                       </button>
@@ -644,9 +996,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         <div className="flex items-center gap-2">
                           <ShieldIcon size={16} className="text-red-500" />
                           <p className="text-[13px] font-medium text-red-600 dark:text-red-400">
-                            {i18n.language === 'vi'
-                              ? 'Tài khoản của bạn đang bị khóa. Bạn có thể mở khóa bất cứ lúc nào.'
-                              : 'Your account is currently locked. You can unlock it anytime.'}
+                            {t('settings.privacy.lock_account.warning')}
                           </p>
                         </div>
                       </div>
@@ -656,7 +1006,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </div>
             )}
 
-            {activeTab !== 'general' && activeTab !== 'interface' && activeTab !== 'ai' && activeTab !== 'privacy' && (
+            {activeTab !== 'general' && activeTab !== 'interface' && activeTab !== 'ai' && activeTab !== 'privacy' && activeTab !== 'sync' && activeTab !== 'messages' && activeTab !== 'utils' && (
               <div className="flex flex-col items-center justify-center h-full animate-in fade-in duration-300">
                 <div className="w-16 h-16 rounded-full bg-[var(--active-bg)] text-[var(--active-text)] flex items-center justify-center mb-4 transition-colors duration-200">
                   {(() => {
@@ -666,6 +1016,189 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   })()}
                 </div>
                 <p className="text-[15px] font-medium italic text-[var(--sub-text)]">{t('settings.development', { name: sideItems.find(i => i.id === activeTab)?.label })}</p>
+              </div>
+            )}
+
+            {/* ==================== SYNC TAB — DEVICE MANAGEMENT ==================== */}
+            {activeTab === 'sync' && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+                <section className="space-y-4">
+                  <div>
+                    <h4 className="text-[16px] font-semibold text-[var(--text)]">{t('settings.devices.title')}</h4>
+                    <p className="text-[13px] text-[var(--sub-text)] mt-1">{t('settings.devices.desc')}</p>
+                  </div>
+
+                  {devicesLoading ? (
+                    <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-8 flex items-center justify-center shadow-sm">
+                      <div className="w-6 h-6 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : devices.length === 0 ? (
+                    <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-8 text-center shadow-sm">
+                      <p className="text-[14px] text-[var(--sub-text)]">{t('settings.devices.no_devices')}</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {devices.map((device, index) => (
+                        <div key={device.id} className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-4 px-5 shadow-sm transition-colors duration-200">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-[#0068FF]/10 flex items-center justify-center flex-shrink-0">
+                                {device.deviceType === 'MOBILE' ? (
+                                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+                                ) : (
+                                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-[14px] font-semibold text-[var(--text)]">
+                                  {device.deviceName}
+                                  {index === 0 && <span className="ml-2 text-[11px] text-[#0068FF] bg-[#0068FF]/10 px-2 py-0.5 rounded-full">{t('settings.devices.current_device')}</span>}
+                                </p>
+                                <p className="text-[12px] text-[var(--sub-text)] mt-0.5">
+                                  IP: {device.ipAddress} · {t('settings.devices.login_at')}: {device.loginAt ? new Date(device.loginAt).toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US') : '-'}
+                                </p>
+                              </div>
+                            </div>
+                            {index !== 0 && (
+                              <button
+                                onClick={() => handleRemoteLogout(device.id)}
+                                className="px-3 py-1.5 text-[12px] font-medium text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-colors cursor-pointer"
+                              >
+                                {t('settings.devices.remote_logout')}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </div>
+            )}
+
+            {/* ==================== MESSAGES TAB — AUTO-DELETE ==================== */}
+            {activeTab === 'messages' && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+                <section className="space-y-4">
+                  <div>
+                    <h4 className="text-[16px] font-semibold text-[var(--text)]">{t('settings.messages_settings.auto_delete.title')}</h4>
+                    <p className="text-[13px] text-[var(--sub-text)] mt-1">{t('settings.messages_settings.auto_delete.desc')}</p>
+                  </div>
+
+                  <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] shadow-sm overflow-hidden transition-colors duration-200">
+                    {['off', '1d', '7d', '30d'].map((option, idx) => (
+                      <React.Fragment key={option}>
+                        {idx > 0 && <div className="h-px bg-[var(--border)] mx-5 opacity-50" />}
+                        <label className="flex items-center justify-between p-4 px-5 hover:bg-[var(--hover-bg)] transition-colors cursor-pointer">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{background: option === 'off' ? 'rgba(107,114,128,0.1)' : 'rgba(239,68,68,0.1)'}}>
+                              {option === 'off' ? (
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" x2="19.07" y1="4.93" y2="19.07"/></svg>
+                              ) : (
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+                              )}
+                            </div>
+                            <span className="text-[14px] font-medium text-[var(--text)]">
+                              {t(`settings.messages_settings.auto_delete.${option}`)}
+                            </span>
+                          </div>
+                          <div className="relative flex items-center">
+                            <input type="radio" name="auto-delete-default" className="peer hidden" value={option} checked={autoDeleteOption === option} onChange={() => setAutoDeleteOption(option)} />
+                            <div className="w-5 h-5 rounded-full border border-gray-300 peer-checked:border-[#0068FF] transition-all bg-[var(--card-bg)] flex items-center justify-center">
+                              <div className={`w-[14px] h-[14px] rounded-full bg-[#0068FF] transition-transform border-[1.5px] border-[var(--card-bg)] ${autoDeleteOption === option ? 'scale-100' : 'scale-0'}`}></div>
+                            </div>
+                          </div>
+                        </label>
+                      </React.Fragment>
+                    ))}
+                  </div>
+
+                  <p className="text-[12px] text-[var(--sub-text)] italic px-1">{t('settings.messages_settings.auto_delete.note')}</p>
+                </section>
+              </div>
+            )}
+
+            {/* ==================== UTILS TAB — STORAGE & DATA ==================== */}
+            {activeTab === 'utils' && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+                <section className="space-y-4">
+                  <div>
+                    <h4 className="text-[16px] font-semibold text-[var(--text)]">{t('settings.storage.title')}</h4>
+                    <p className="text-[13px] text-[var(--sub-text)] mt-1">{t('settings.storage.desc')}</p>
+                  </div>
+
+                  {storageLoading ? (
+                    <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-8 flex items-center justify-center shadow-sm">
+                      <div className="w-6 h-6 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : storageStats ? (
+                    <div className="space-y-3">
+                      {/* Total size */}
+                      <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-5 shadow-sm transition-colors duration-200">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-[14px] font-semibold text-[var(--text)]">{t('settings.storage.total_size')}</span>
+                          <span className="text-[16px] font-bold text-[#0068FF]">{formatFileSize(storageStats.totalSize)}</span>
+                        </div>
+                        <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div className="h-full flex">
+                            {storageStats.totalSize > 0 && (
+                              <>
+                                <div className="bg-blue-500 h-full" style={{width: `${(storageStats.imageSize / storageStats.totalSize) * 100}%`}} />
+                                <div className="bg-purple-500 h-full" style={{width: `${(storageStats.videoSize / storageStats.totalSize) * 100}%`}} />
+                                <div className="bg-green-500 h-full" style={{width: `${(storageStats.fileSize / storageStats.totalSize) * 100}%`}} />
+                                <div className="bg-orange-500 h-full" style={{width: `${(storageStats.voiceSize / storageStats.totalSize) * 100}%`}} />
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Breakdown */}
+                      <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] shadow-sm overflow-hidden transition-colors duration-200">
+                        {[
+                          { key: 'images', size: storageStats.imageSize, color: 'bg-blue-500', icon: '🖼️' },
+                          { key: 'videos', size: storageStats.videoSize, color: 'bg-purple-500', icon: '🎬' },
+                          { key: 'files', size: storageStats.fileSize, color: 'bg-green-500', icon: '📄' },
+                          { key: 'voices', size: storageStats.voiceSize, color: 'bg-orange-500', icon: '🎙️' },
+                        ].map((item, idx) => (
+                          <React.Fragment key={item.key}>
+                            {idx > 0 && <div className="h-px bg-[var(--border)] mx-5 opacity-50" />}
+                            <div className="p-4 px-5 flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <span className="text-[18px]">{item.icon}</span>
+                                <span className="text-[14px] font-medium text-[var(--text)]">{t(`settings.storage.${item.key}`)}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${item.color}`} />
+                                <span className="text-[13px] text-[var(--sub-text)]">{formatFileSize(item.size)}</span>
+                              </div>
+                            </div>
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-8 text-center shadow-sm">
+                      <p className="text-[14px] text-[var(--sub-text)]">{t('settings.storage.no_data')}</p>
+                    </div>
+                  )}
+
+                  {/* Clear cache */}
+                  <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-4 px-5 shadow-sm transition-colors duration-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-[14px] font-medium text-[var(--text)]">{t('settings.storage.clear_cache')}</p>
+                        <p className="text-[12px] text-[var(--sub-text)] mt-0.5">{t('settings.storage.clear_cache_desc')}</p>
+                      </div>
+                      <button
+                        onClick={handleClearCache}
+                        className="px-4 py-2 text-[13px] font-semibold rounded-lg text-red-500 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer"
+                      >
+                        {t('settings.storage.clear_cache')}
+                      </button>
+                    </div>
+                  </div>
+                </section>
               </div>
             )}
 

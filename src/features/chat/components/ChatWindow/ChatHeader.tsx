@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { SearchIcon, SparklesIcon } from '@/components/ui/Icons';
 import { StatusIndicator } from '@/features/user';
+import { webrtcService } from '@/lib/realtime/webrtcService';
 import type { ChatHeaderProps } from '@/features/chat/components/ChatWindow/types';
 
 export function ChatHeader({ vm }: ChatHeaderProps) {
@@ -11,10 +12,33 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
     activeSidebar,
     onToggleSidebar,
     setIsNicknameModalOpen,
+    currentUser,
+    // Summary
+    summaryText,
+    summaryLoading,
+    summaryMessageCount,
+    isSummaryOpen,
+    setIsSummaryOpen,
+    fetchSummary,
   } = vm;
 
+  const handleVideoCall = useCallback(() => {
+    const peerId = selectedChat.otherUserId;
+    if (!peerId || !currentUser?.id) return;
+
+    webrtcService.startCall(
+      currentUser.id,
+      peerId,
+      selectedChat.name,
+      selectedChat.avatar,
+      selectedChat.id.toString(),
+      currentUser.full_name || currentUser.display_name || 'User',
+      currentUser.avatar_url,
+    );
+  }, [selectedChat, currentUser]);
+
   return (
-    <div className="h-[76px] bg-[var(--card-bg)] border-b border-[var(--border)] px-5 flex items-center justify-between shadow-sm flex-shrink-0 transition-colors duration-200">
+    <div className="relative h-[76px] bg-[var(--card-bg)] border-b border-[var(--border)] px-5 flex items-center justify-between shadow-sm flex-shrink-0 transition-colors duration-200">
       <div className="flex items-center gap-4">
         {selectedChat.isAi ? (
           <div className="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold shrink-0 shadow-sm">
@@ -73,10 +97,29 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
             <button className="cursor-pointer transition-all p-1.5 rounded-md hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70" title={t('chat.header.add_to_group')}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" /></svg>
             </button>
-            <button className="cursor-pointer transition-all p-1.5 rounded-md hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70" title={t('chat.header.video_call')}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></svg>
-            </button>
+            {!selectedChat.isGroup && (
+              <button onClick={handleVideoCall} className="cursor-pointer transition-all p-1.5 rounded-md hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70" title={t('chat.header.video_call')}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></svg>
+              </button>
+            )}
           </>
+        )}
+
+        {selectedChat.isGroup && (
+          <button
+            onClick={fetchSummary}
+            disabled={summaryLoading}
+            className={`cursor-pointer transition-all p-1.5 rounded-md ${isSummaryOpen ? 'text-[#0068FF] bg-[var(--hover-bg)]' : 'hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70'}`}
+            title="Tóm tắt cuộc trò chuyện"
+          >
+            {summaryLoading ? (
+              <div className="w-[22px] h-[22px] flex items-center justify-center">
+                <div className="w-4 h-4 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            )}
+          </button>
         )}
 
         <button
@@ -93,6 +136,39 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="9" y1="3" x2="9" y2="21" /></svg>
         </button>
       </div>
+
+      {/* Summary Modal */}
+      {isSummaryOpen && (
+        <div className="absolute top-full right-4 mt-2 w-[400px] max-h-[400px] bg-[var(--card-bg)] border border-[var(--border)] rounded-lg shadow-xl z-50 overflow-hidden animate-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
+            <div className="flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              <span className="text-[14px] font-semibold text-[var(--text)]">Tóm tắt cuộc trò chuyện</span>
+            </div>
+            <button onClick={() => setIsSummaryOpen(false)} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-[var(--hover-bg)] text-[var(--sub-text)] cursor-pointer transition-colors">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+          </div>
+          <div className="p-4 overflow-y-auto max-h-[340px]">
+            {summaryLoading ? (
+              <div className="flex flex-col items-center justify-center py-8 gap-3">
+                <div className="w-6 h-6 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
+                <span className="text-[13px] text-[var(--sub-text)]">Đang tóm tắt tin nhắn...</span>
+              </div>
+            ) : (
+              <>
+                {summaryMessageCount > 0 && (
+                  <div className="text-[11px] text-[var(--sub-text)] mb-3 flex items-center gap-1">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    {summaryMessageCount} tin nhắn được tóm tắt
+                  </div>
+                )}
+                <div className="text-[13px] text-[var(--text)] leading-relaxed whitespace-pre-wrap">{summaryText}</div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

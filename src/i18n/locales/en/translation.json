@@ -184,6 +184,7 @@
       "close": "Close",
       "recent": "Recent searches",
       "no_results": "No results found",
+      "conversations": "Conversations",
       "contacts": "Contacts",
       "messages": "Messages",
       "filters": {
@@ -237,7 +238,10 @@
       "file": "[File]",
       "voice": "[Voice message]",
       "sticker": "[Sticker]",
-      "contact": "[Contact card]"
+      "contact": "[Contact card]",
+      "call_missed": "📵 Missed call",
+      "call_rejected": "🚫 Call rejected",
+      "call_ended": "📞 Call ended"
     },
     "header": {
       "group_prefix": "Group",
@@ -288,6 +292,14 @@
       "edited": "Edited",
       "seen": "Seen",
       "sent": "Sent"
+    },
+    "call": {
+      "missed": "Missed call",
+      "missed_from": "Missed call from {{name}}",
+      "rejected": "Call rejected",
+      "ended": "Call ended",
+      "you_called": "You called",
+      "duration": "{{duration}}"
     },
     "confirm": {
       "edit_cancel": "Cancel",
@@ -955,7 +967,110 @@
         "use_avatar": "Use Avatar as wallpaper"
       }
     },
-    "development": "Feature {{name}} is under development"
+    "development": "Feature {{name}} is under development",
+    "privacy": {
+      "read_receipts": {
+        "title": "Read Receipts",
+        "desc": "Let others know when you've read their messages",
+        "label": "Show read status"
+      },
+      "online_status": {
+        "title": "Online Status",
+        "desc": "Show your online/offline status to others",
+        "label": "Show online status"
+      },
+      "search_sources": {
+        "title": "Search & Friend Requests",
+        "desc": "Allow others to find you through the following methods",
+        "phone": "Via phone number",
+        "qr": "Via QR code",
+        "group": "Via mutual groups"
+      },
+      "block_strangers": {
+        "title": "Block Strangers",
+        "desc": "Restrict interactions from non-friends",
+        "messages": "Block messages from strangers",
+        "messages_desc": "Only allow friends to send you messages",
+        "profile": "Block profile viewing",
+        "profile_desc": "Only allow friends to view your personal information"
+      },
+      "lock_account": {
+        "title": "Lock Account",
+        "label": "Lock my account",
+        "desc": "When enabled, no one can message you, send friend requests, or view your profile.",
+        "warning": "Your account is currently locked. You can unlock it anytime."
+      },
+      "saved": "Privacy settings saved",
+      "save_failed": "Failed to save settings"
+    },
+    "devices": {
+      "title": "Device Management",
+      "desc": "List of devices currently logged into your account",
+      "current_device": "Current device",
+      "last_active": "Last active",
+      "login_at": "Logged in at",
+      "remote_logout": "Remote Logout",
+      "no_devices": "No devices currently logged in",
+      "confirm_logout": "Are you sure you want to log out this device?",
+      "logged_out": "Device logged out remotely",
+      "logout_failed": "Failed to log out device"
+    },
+    "messages_settings": {
+      "auto_delete": {
+        "title": "Self-destructing Messages",
+        "desc": "Set default auto-delete duration for new conversations",
+        "off": "Off",
+        "1d": "1 day",
+        "7d": "7 days",
+        "30d": "30 days",
+        "note": "This setting only applies to new conversations. You can change it individually for each conversation."
+      }
+    },
+    "storage": {
+      "title": "Storage & Data",
+      "desc": "Manage your storage and files",
+      "total_size": "Total size",
+      "images": "Images",
+      "videos": "Videos",
+      "files": "Files",
+      "voices": "Voice messages",
+      "items": "items",
+      "clear_cache": "Clear Cache",
+      "clear_cache_desc": "Delete temporary files and browser cache",
+      "cleared": "Cache cleared",
+      "manage_files": "Manage Files",
+      "no_data": "No storage data available"
+    },
+    "wallpaper": {
+      "title": "Chat Wallpaper",
+      "desc": "Customize wallpaper for each conversation",
+      "choose": "Choose wallpaper",
+      "reset": "Reset wallpaper",
+      "preset": "Preset wallpapers",
+      "upload": "Upload wallpaper",
+      "updated": "Chat wallpaper updated",
+      "update_failed": "Failed to update wallpaper"
+    },
+    "ai_persona": {
+      "title": "AI Personalization",
+      "desc": "Choose the tone and style of your AI assistant",
+      "humorous": "Humorous",
+      "humorous_desc": "AI responds in a fun, witty and friendly manner",
+      "financial": "Financial Advisor",
+      "financial_desc": "AI focuses on financial advice, investment and economics",
+      "japanese_teacher": "Japanese Teacher",
+      "japanese_teacher_desc": "AI helps learn Japanese with Hiragana and grammar explanations",
+      "active": "Active",
+      "activate": "Activate"
+    },
+    "token_quota": {
+      "title": "Today's Token Quota",
+      "desc": "Remaining AI usage for today",
+      "used": "Used",
+      "tokens": "tokens",
+      "requests": "requests",
+      "no_usage": "No AI usage today"
+    }
   },
   "report": {
     "reporting": "Reporting conversation",

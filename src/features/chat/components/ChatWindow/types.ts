@@ -100,6 +100,7 @@ export interface ChatMessage {
   height?: number;
   linkTitle?: string;
   linkThumbnail?: string;
+  linkDescription?: string;
   voiceDuration?: number;
   videoDuration?: number;
   fileName?: string;
@@ -114,13 +115,29 @@ export interface ChatMessage {
   isEdited?: boolean;
   isRecalled?: boolean;
   forwardedFromSenderName?: string | null;
+  caption?: string;
   isUploading?: boolean;
+  uploadProgress?: number;
+  mentions?: string[];
 }
 
 export interface ReadReceipt {
   displayName: string;
   avatarUrl?: string;
   messageId: string;
+}
+
+export interface MentionMember {
+  userId: string;
+  displayName: string;
+  avatarUrl?: string;
+}
+
+export interface LinkPreviewData {
+  url: string;
+  title?: string;
+  description?: string;
+  thumbnail?: string;
 }
 
 export interface ChatHeaderProps {

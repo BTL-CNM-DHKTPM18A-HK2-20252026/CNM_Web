@@ -820,7 +820,28 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
                             <p className="text-[13px] text-[var(--sub-text)] mb-3">
                               {t('chat.search_panel_found', { count: sidebarSearchResults.length }) || `Tìm thấy ${sidebarSearchResults.length} kết quả`}
                             </p>
-                            {sidebarSearchResults.map(msg => (
+                            {sidebarSearchResults.map(msg => {
+                              let displayContent = msg.content;
+                              if (msg.messageType === 'SHARE_CONTACT') {
+                                try {
+                                  const contact = JSON.parse(msg.content || '{}');
+                                  displayContent = `📇 ${contact.fullName || 'Danh thiếp'}`;
+                                } catch {
+                                  displayContent = '📇 Danh thiếp';
+                                }
+                              } else if (msg.messageType === 'IMAGE') {
+                                displayContent = '📷 Hình ảnh';
+                              } else if (msg.messageType === 'VIDEO') {
+                                displayContent = '🎬 Video';
+                              } else if (msg.messageType === 'VOICE') {
+                                displayContent = '🎤 Tin nhắn thoại';
+                              } else if (msg.messageType === 'MEDIA') {
+                                displayContent = '📎 Tệp đính kèm';
+                              } else if (msg.messageType === 'STICKER') {
+                                displayContent = '😀 Sticker';
+                              }
+
+                              return (
                               <div
                                 key={msg.messageId}
                                 className="p-3 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors border border-transparent hover:border-[var(--border)]"
@@ -831,9 +852,10 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
                                     {msg.createdAt ? new Date(msg.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}
                                   </span>
                                 </div>
-                                <p className="text-[13px] text-[var(--sub-text)] line-clamp-2">{msg.content}</p>
+                                <p className="text-[13px] text-[var(--sub-text)] line-clamp-2">{displayContent}</p>
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         )
                       ) : (

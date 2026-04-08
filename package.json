@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@stomp/stompjs": "^7.3.0",
+    "@tanstack/react-virtual": "^3.13.23",
     "@types/lodash": "^4.17.24",
     "axios": "^1.14.0",
     "emoji-picker-react": "^4.18.0",

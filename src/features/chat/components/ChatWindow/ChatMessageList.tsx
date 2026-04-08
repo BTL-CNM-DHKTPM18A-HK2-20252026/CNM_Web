@@ -1,8 +1,72 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { toast } from 'sonner';
 import { SparklesIcon } from '@/components/ui/Icons';
 import { AI_TYPING_USER_ID } from '@/features/chat/components/ChatWindow/useChatWindow';
 import type { ChatMessage, ChatMessageListProps } from '@/features/chat/components/ChatWindow/types';
+
+// ── Call History Message ────────────────────────────────────────────────────
+function formatCallDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+}
+
+function CallHistoryMessage({
+  msg,
+  currentUserId,
+  t,
+}: {
+  msg: ChatMessage;
+  currentUserId?: string;
+  t: (key: string, opts?: Record<string, string>) => string;
+}) {
+  const isCaller = msg.senderId === currentUserId;
+
+  let label: string;
+  let Icon: React.ReactNode;
+
+  if (msg.type === 'CALL_MISSED') {
+    label = isCaller
+      ? t('chat.call.you_called')
+      : t('chat.call.missed_from', { name: msg.sender !== 'Me' ? (msg.sender ?? '') : '' });
+    Icon = (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-red-400 shrink-0">
+        <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.42 19.42 0 0 1 4.26 9.6a19.79 19.79 0 0 1-3.07-8.69A2 2 0 0 1 3.17 0h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.15 7.8" /><line x1="23" y1="1" x2="1" y2="23" />
+      </svg>
+    );
+  } else if (msg.type === 'CALL_REJECTED') {
+    label = t('chat.call.rejected');
+    Icon = (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-orange-400 shrink-0">
+        <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.42 19.42 0 0 1 4.26 9.6a19.79 19.79 0 0 1-3.07-8.69A2 2 0 0 1 3.17 0h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.15 7.8" /><line x1="23" y1="1" x2="1" y2="23" />
+      </svg>
+    );
+  } else {
+    // CALL_ENDED
+    const durationSeconds = msg.text ? parseInt(msg.text, 10) : 0;
+    const durationStr = formatCallDuration(isNaN(durationSeconds) ? 0 : durationSeconds);
+    label = `${t('chat.call.ended')} · ${durationStr}`;
+    Icon = (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#0068FF] shrink-0">
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.26 9.6a19.79 19.79 0 0 1-3.07-8.69A2 2 0 0 1 3.17 0h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.15 7.8a16 16 0 0 0 6.05 6.05l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 14.92z" />
+      </svg>
+    );
+  }
+
+  return (
+    <div className="flex justify-center my-1.5">
+      <div className="flex items-center gap-1.5 bg-black/5 dark:bg-white/[0.07] px-3 py-1.5 rounded-full select-none">
+        {Icon}
+        <span className="text-[12px] text-(--sub-text) font-medium">{label}</span>
+        <span className="text-[11px] text-(--sub-text) opacity-60">·</span>
+        <span className="text-[11px] text-(--sub-text) opacity-60">{msg.time}</span>
+      </div>
+    </div>
+  );
+}
+// ───────────────────────────────────────────────────────────────────────────
 
 const getFileNameFromUrl = (url: string) => {
   try {
@@ -59,7 +123,7 @@ const resolveImageAspectRatio = (message: ChatMessage) => {
   return '4 / 3';
 };
 
-const renderText = (text: string) => {
+const renderText = (text: string, mentions?: string[]) => {
   if (!text) return null;
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const parts = text.split(urlRegex);
@@ -78,11 +142,26 @@ const renderText = (text: string) => {
         </a>
       );
     }
+    // Highlight @mentions (e.g. "@Alice") in blue
+    if (mentions && mentions.length > 0) {
+      const mentionRegex = /(@\S+)/g;
+      const subParts = part.split(mentionRegex);
+      return subParts.map((sub, subIdx) => {
+        if (sub.startsWith('@')) {
+          return (
+            <span key={`mention-${idx}-${subIdx}`} className="text-[#0068FF] font-semibold">
+              {sub}
+            </span>
+          );
+        }
+        return sub;
+      });
+    }
     return part;
   });
 };
 
-function LinkPreview({ url, title, thumbnail }: { url: string; title?: string; thumbnail?: string }) {
+function LinkPreview({ url, title, description, thumbnail }: { url: string; title?: string; description?: string; thumbnail?: string }) {
   try {
     const urlObj = new URL(url);
     const domain = urlObj.hostname;
@@ -103,6 +182,9 @@ function LinkPreview({ url, title, thumbnail }: { url: string; title?: string; t
           <div className="text-[13px] font-bold text-[var(--text)] line-clamp-2 leading-snug">
             {title || (url.length > 60 ? `${url.substring(0, 60)}...` : url)}
           </div>
+          {description && (
+            <div className="text-[12px] text-[var(--sub-text)] line-clamp-2 leading-snug">{description}</div>
+          )}
           <div className="text-[11px] text-[#0068FF] font-medium flex items-center gap-1.5 overflow-hidden">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
             <span className="truncate">{domain}</span>
@@ -157,9 +239,9 @@ function VoicePlayer({ url, duration, isMe }: { url: string; duration?: number; 
   };
 
   return (
-    <div className={`flex items-center gap-3 py-1.5 px-1 min-w-[200px] ${isMe ? 'text-white' : 'text-[var(--text)]'}`}>
+    <div className={`flex items-center gap-3 py-1.5 px-1 min-w-[200px] ${isMe ? 'text-[var(--message-me-text)]' : 'text-[var(--text)]'}`}>
       <audio ref={audioRef} src={url} className="hidden" />
-      <button onClick={togglePlay} className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all ${isMe ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-[#0068FF]/10 text-[#0068FF] hover:bg-[#0068FF]/20'} cursor-pointer`}>
+      <button onClick={togglePlay} className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all ${isMe ? 'bg-[#0068FF]/15 text-[#0068FF] hover:bg-[#0068FF]/25' : 'bg-[#0068FF]/10 text-[#0068FF] hover:bg-[#0068FF]/20'} cursor-pointer`}>
         {isPlaying ? (
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
         ) : (
@@ -167,9 +249,9 @@ function VoicePlayer({ url, duration, isMe }: { url: string; duration?: number; 
         )}
       </button>
       <div className="flex-1 flex flex-col gap-1.5">
-        <div className={`h-1 rounded-full relative ${isMe ? 'bg-white/30' : 'bg-black/10 dark:bg-white/10'}`}>
+        <div className={`h-1 rounded-full relative ${isMe ? 'bg-[#0068FF]/15' : 'bg-black/10 dark:bg-white/10'}`}>
           <div
-            className={`absolute top-0 left-0 h-full rounded-full transition-all duration-300 ${isMe ? 'bg-white' : 'bg-[#0068FF]'}`}
+            className={`absolute top-0 left-0 h-full rounded-full transition-all duration-300 bg-[#0068FF]`}
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -223,6 +305,16 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
     handleAcceptFriendRequest,
     handleSendFriendRequest,
   } = vm;
+
+  // ── Virtual list setup ────────────────────────────────────────────────────
+  const virtualizer = useVirtualizer({
+    count: messages.length,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: () => 72,
+    overscan: 15,
+  });
+
+  const virtualItems = virtualizer.getVirtualItems();
 
   return (
     <>
@@ -342,13 +434,27 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
             {hasMore && <div ref={loadMoreRef} className="h-4 opacity-0" />}
             {isLoadingMore && <div className="flex justify-center p-2"><div className="w-5 h-5 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" /></div>}
 
-            <div className="flex flex-col gap-10">
-              {messages.map((msg, index) => {
+            <div style={{ height: `${virtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
+              {virtualItems.map((virtualRow) => {
+                const index = virtualRow.index;
+                const msg = messages[index];
                 const prevMsg = messages[index - 1];
                 const showDateSeparator = !prevMsg || isDifferentDay(msg.rawDate, prevMsg.rawDate);
 
                 return (
-                  <React.Fragment key={msg.id}>
+                  <div
+                    key={msg.id}
+                    data-index={index}
+                    ref={virtualizer.measureElement}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                    className="pb-10"
+                  >
                     {showDateSeparator && (
                       <div className="flex justify-center my-2">
                         <span className="bg-black/5 dark:bg-white/10 px-4 py-1.5 rounded-full text-[12px] font-bold text-[var(--sub-text)] opacity-60">{formatDateSeparator(msg.rawDate, t)}</span>
@@ -359,6 +465,8 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                       <div className="flex justify-center my-1">
                         <span className="bg-black/5 dark:bg-white/10 px-4 py-1.5 rounded-full text-[12px] text-[var(--sub-text)] opacity-80">{msg.text}</span>
                       </div>
+                    ) : msg.type === 'CALL_MISSED' || msg.type === 'CALL_REJECTED' || msg.type === 'CALL_ENDED' ? (
+                      <CallHistoryMessage msg={msg} currentUserId={currentUser?.id} t={t} />
                     ) : (
                       <div id={`msg-${msg.id}`} className={`flex ${msg.sender === 'Me' ? 'justify-end' : 'justify-start'} transition-colors duration-300 [&.highlight-msg]:bg-[#0068FF]/10 rounded-lg`}>
                         <div className={`flex gap-1.5 max-w-[72%] group relative ${msg.sender === 'Me' ? 'flex-row-reverse' : ''} items-center`}>
@@ -397,6 +505,8 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                 ? `🎤 ${t('chat.snippet.voice')}`
                                 : repliedMsg.type === 'MEDIA'
                                 ? `📎 ${t('chat.snippet.file')}`
+                                : repliedMsg.type === 'SHARE_CONTACT'
+                                ? (() => { try { const c = JSON.parse(repliedMsg.text || '{}'); return `📇 ${c.fullName || t('share_contact.snippet')}`; } catch { return `📇 ${t('share_contact.snippet')}`; } })()
                                 : repliedMsg.text?.length > 80
                                 ? `${repliedMsg.text.slice(0, 80)}...`
                                 : repliedMsg.text;
@@ -424,10 +534,10 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
 
                             <div
                               className={`relative group w-fit min-w-[100px] ${msg.isRecalled
-                                ? `px-3 pt-2 pb-2 rounded-lg shadow-sm text-[15px] border border-dashed ${msg.sender === 'Me' ? 'border-gray-300 dark:border-gray-600' : 'border-gray-300 dark:border-gray-600'}`
+                                ? `px-3 pt-2 pb-2 rounded-md shadow-sm text-[15px] border border-dashed ${msg.sender === 'Me' ? 'border-gray-300 dark:border-gray-600' : 'border-gray-300 dark:border-gray-600'}`
                                 : msg.type === 'MEDIA' || msg.type === 'IMAGE' || msg.type === 'VIDEO' || msg.type === 'SHARE_CONTACT'
                                 ? ''
-                                : `px-3 pt-2 pb-2 rounded-lg shadow-sm text-[15px] border ${msg.sender === 'Me'
+                                : `px-3 pt-2 pb-2 rounded-md shadow-sm text-[15px] border ${msg.sender === 'Me'
                                   ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)] border-[var(--message-me-border)]'
                                   : 'bg-[var(--message-other-bg)] text-[var(--message-other-text)] border-[var(--message-other-border)]'
                                 }`
@@ -464,7 +574,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                           setEditContent('');
                                         }
                                       }}
-                                      className="w-full bg-[var(--hover-bg)] outline-none border border-[#0068FF]/30 focus:border-[#0068FF] rounded-lg text-[15px] px-3 py-1.5 text-[var(--text)] transition-colors"
+                                      className="w-full bg-[var(--hover-bg)] outline-none border border-[#0068FF]/30 focus:border-[#0068FF] rounded-md text-[15px] px-3 py-1.5 text-[var(--text)] transition-colors"
                                       autoFocus
                                     />
                                     <div className="flex items-center gap-1.5 justify-end">
@@ -477,22 +587,48 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                   <div className="relative group/media-content w-fit max-w-full">
                                     {msg.type === 'IMAGE' ? (
                                       <div
-                                        className="relative w-full max-w-[320px] overflow-hidden rounded-md bg-slate-100 shadow-sm"
+                                        className={`relative w-full max-w-[320px] overflow-hidden bg-slate-100 shadow-sm ${msg.caption ? 'rounded-t-md' : 'rounded-md'}`}
                                         style={{ aspectRatio: resolveImageAspectRatio(msg) }}
                                       >
                                         <img
                                           src={msg.text}
                                           alt="Shared"
-                                          className="h-full w-full cursor-pointer object-cover transition-all hover:opacity-90"
-                                          onClick={() => setOpenedImageSrc(msg.text)}
+                                          className={`h-full w-full cursor-pointer object-cover transition-all hover:opacity-90 ${msg.isUploading ? 'blur-[2px] brightness-75' : ''}`}
+                                          onClick={() => !msg.isUploading && setOpenedImageSrc(msg.text)}
                                         />
+                                        <div className="absolute bottom-2 left-2 text-white/80 drop-shadow-md">
+                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" /></svg>
+                                        </div>
+                                        {msg.isUploading && (
+                                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 rounded-md gap-2">
+                                            <div className="relative w-12 h-12">
+                                              <svg className="w-12 h-12 -rotate-90" viewBox="0 0 48 48">
+                                                <circle cx="24" cy="24" r="20" fill="none" stroke="white" strokeOpacity="0.2" strokeWidth="3" />
+                                                <circle cx="24" cy="24" r="20" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"
+                                                  strokeDasharray={`${2 * Math.PI * 20}`}
+                                                  strokeDashoffset={`${2 * Math.PI * 20 * (1 - (msg.uploadProgress ?? 0) / 100)}`}
+                                                  className="transition-all duration-300"
+                                                />
+                                              </svg>
+                                              <span className="absolute inset-0 flex items-center justify-center text-white text-[11px] font-semibold drop-shadow">
+                                                {msg.uploadProgress ?? 0}%
+                                              </span>
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
                                     ) : (
                                       <video src={msg.text} controls className="max-w-[320px] max-h-[360px] rounded-md shadow-sm object-contain" />
                                     )}
-                                    <div className="absolute bottom-2 left-2 text-white/80 drop-shadow-md">
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" /></svg>
-                                    </div>
+                                    {msg.caption && (
+                                      <div className={`px-2.5 py-1.5 text-[14px] leading-snug break-words rounded-b-md max-w-[320px] shadow-sm ${
+                                        msg.sender === 'Me'
+                                          ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)]'
+                                          : 'bg-[var(--message-other-bg)] text-[var(--message-other-text)]'
+                                      }`}>
+                                        {msg.caption}
+                                      </div>
+                                    )}
                                   </div>
                                 ) : msg.type === 'SHARE_CONTACT' ? (() => {
                                   let contact: any = {};
@@ -503,7 +639,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                   }
 
                                   return (
-                                    <div className="w-[320px] rounded-xl overflow-hidden border border-[var(--border)] shadow-sm">
+                                    <div className="w-[320px] rounded-md overflow-hidden border border-[var(--border)] shadow-sm">
                                       <div className="relative bg-[#0068FF] px-5 pt-4 pb-5 min-h-[110px] overflow-hidden">
                                         <div className="absolute right-16 top-1/2 -translate-y-1/2 w-36 h-36 rounded-full border-[28px] border-white/10 pointer-events-none" />
                                         <div className="flex items-center gap-3 pr-28">
@@ -535,7 +671,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                         className="w-full py-3 text-[15px] font-semibold text-[#0068FF] hover:bg-[var(--hover-bg)] transition-colors border-t border-[var(--border)] bg-[var(--card-bg)] cursor-pointer"
                                         onClick={() => {
                                           if (contact.userId) {
-                                            toast.info(`${contact.fullName}: ${contact.phoneNumber || contact.userId}`);
+                                            toast.info(`${contact.fullName}${contact.phoneNumber ? ': ' + contact.phoneNumber : ''}`);
                                           }
                                         }}
                                       >
@@ -544,7 +680,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                     </div>
                                   );
                                 })() : msg.type === 'MEDIA' ? (
-                                  <div className={`border rounded-lg p-3 flex items-center gap-3.5 min-w-[270px] hover:shadow-md transition-all cursor-pointer group/file relative ${msg.sender === 'Me' ? 'bg-[var(--message-me-bg)] border-[var(--message-me-border)]' : 'bg-[var(--message-other-bg)] border-[var(--message-other-border)]'}`} onClick={() => window.open(getPreviewUrl(msg.text), '_blank')}>
+                                  <div className={`border rounded-md p-3 flex items-center gap-3.5 min-w-[270px] hover:shadow-md transition-all cursor-pointer group/file relative ${msg.sender === 'Me' ? 'bg-[var(--message-me-bg)] border-[var(--message-me-border)]' : 'bg-[var(--message-other-bg)] border-[var(--message-other-border)]'}`} onClick={() => window.open(getPreviewUrl(msg.text), '_blank')}>
                                     <div className={`h-11 w-9 rounded-md flex items-center justify-center text-white font-bold text-[12px] shadow-sm shrink-0 ${['pdf'].includes(getFileExtension(msg.text).toLowerCase()) ? 'bg-[#F40F02]' : ['doc', 'docx'].includes(getFileExtension(msg.text).toLowerCase()) ? 'bg-[#0068FF]' : ['xls', 'xlsx'].includes(getFileExtension(msg.text).toLowerCase()) ? 'bg-[#217346]' : 'bg-gray-500'}`}>{getFileExtension(msg.text).toUpperCase().slice(0, 3) || 'FILE'}</div>
                                     <div className="flex-1 min-w-0">
                                       <h4 className="text-[14px] font-bold text-[var(--text)] truncate mb-0.5">{getFileNameFromUrl(msg.text)}</h4>
@@ -562,18 +698,19 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                         <VoicePlayer url={msg.text} duration={msg.voiceDuration} isMe={msg.sender === 'Me'} />
                                       ) : (
                                         <>
-                                          {renderText(msg.text ?? '')}
+                                          {renderText(msg.text ?? '', msg.mentions)}
                                           {(msg.type === 'LINK' || (msg.text && msg.text.match(/(https?:\/\/[^\s]+)/))) && (
                                             <LinkPreview
                                               url={msg.type === 'LINK' ? msg.text : msg.text?.match(/(https?:\/\/[^\s]+)/)![0]}
                                               title={msg.linkTitle}
+                                              description={msg.linkDescription}
                                               thumbnail={msg.linkThumbnail}
                                             />
                                           )}
                                         </>
                                       )}
                                     </div>
-                                    <div className="absolute bottom-1.5 right-0 text-[11.5px] text-[var(--sub-text)] opacity-90 font-medium leading-none flex items-center gap-1">
+                                    <div className="absolute bottom-1.5 right-0 text-[11px] text-[var(--sub-text)] opacity-75 font-normal leading-none flex items-center gap-1">
                                       {msg.isEdited && <span className="italic opacity-70">{t('chat.status.edited')}</span>}
                                       {msg.time}
                                     </div>
@@ -687,7 +824,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                         </div>
                       </div>
                     )}
-                  </React.Fragment>
+                  </div>
                 );
               })}
             </div>

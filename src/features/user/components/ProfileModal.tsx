@@ -778,6 +778,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
                 >
                   <PencilIcon size={18} />
                 </button>
+
               </div>
             </div>
           </div>
@@ -807,6 +808,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
             {/* Added Update Button at bottom like first screenshot showed earlier, 
                   but I'll also allow clicking the pencil. 
                   Wait, if the user only showed the second screen for updating, I'll stick to that. */}
+
             <div className="mt-6 pt-2">
               <button
                 onClick={() => setIsEditing(true)}
@@ -819,6 +821,8 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
           </div>
         </div>
       </div>
+
+
       {/* System Avatar Picker Modal */}
       {isSystemAvatarPickerOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 animate-in fade-in duration-200">

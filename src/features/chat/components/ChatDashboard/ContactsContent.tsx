@@ -285,9 +285,9 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
                             <div className="flex gap-3">
                               <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-black/5 flex items-center justify-center bg-blue-50">
                                 {req.senderAvatarUrl ? (
-                                  <Image src={req.senderAvatarUrl} alt={req.senderName} width={48} height={48} className="object-cover" />
+                                  <Image src={req.senderAvatarUrl} alt={req.senderName || ''} width={48} height={48} className="object-cover" />
                                 ) : (
-                                  <span className="text-blue-600 font-bold text-lg">{req.senderName.charAt(0)}</span>
+                                  <span className="text-blue-600 font-bold text-lg">{(req.senderName || '?').charAt(0)}</span>
                                 )}
                               </div>
                               <div className="flex flex-col">
@@ -340,9 +340,9 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
                             <div className="flex gap-3">
                               <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-black/5 flex items-center justify-center bg-gray-50">
                                 {req.receiverAvatarUrl ? (
-                                  <Image src={req.receiverAvatarUrl} alt={req.receiverName} width={48} height={48} className="object-cover" />
+                                  <Image src={req.receiverAvatarUrl} alt={req.receiverName || ''} width={48} height={48} className="object-cover" />
                                 ) : (
-                                  <span className="text-gray-500 font-bold text-lg">{req.receiverName.charAt(0)}</span>
+                                  <span className="text-gray-500 font-bold text-lg">{(req.receiverName || '?').charAt(0)}</span>
                                 )}
                               </div>
                               <div className="flex flex-col">

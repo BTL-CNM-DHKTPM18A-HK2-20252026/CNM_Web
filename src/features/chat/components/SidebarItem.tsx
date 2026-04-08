@@ -55,10 +55,10 @@ export function SidebarItem({
         }
       }}
       onContextMenu={onContextMenu}
-      className={`relative group flex items-center p-3 mb-1 gap-3 rounded-xl cursor-pointer transition-all border select-none caret-transparent ${
+      className={`relative group flex items-center p-3 mb-0.5 gap-3 rounded-md cursor-pointer transition-all border select-none caret-transparent ${
         active
           ? 'bg-[var(--active-bg)] border-[var(--active-card-border)]'
-          : 'hover:bg-[var(--hover-bg)] border-transparent hover:border-[var(--active-card-border)]'
+          : 'hover:bg-[var(--hover-bg)] border-transparent'
       }`}
     >
       <div

@@ -184,6 +184,7 @@
       "close": "Đóng",
       "recent": "Tìm gần đây",
       "no_results": "Không tìm thấy kết quả",
+      "conversations": "Hội thoại",
       "contacts": "Liên hệ",
       "messages": "Tin nhắn",
       "filters": {
@@ -237,7 +238,10 @@
       "file": "[File]",
       "voice": "[Tin nhắn thoại]",
       "sticker": "[Sticker]",
-      "contact": "[Danh thiếp]"
+      "contact": "[Danh thiếp]",
+      "call_missed": "📵 Cuộc gọi nhỡ",
+      "call_rejected": "🚫 Cuộc gọi bị từ chối",
+      "call_ended": "📞 Cuộc gọi đã kết thúc"
     },
     "header": {
       "group_prefix": "Nhóm",
@@ -288,6 +292,14 @@
       "edited": "Đã chỉnh sửa",
       "seen": "Đã xem",
       "sent": "Đã gửi"
+    },
+    "call": {
+      "missed": "Cuộc gọi nhỡ",
+      "missed_from": "Cuộc gọi nhỡ từ {{name}}",
+      "rejected": "Cuộc gọi bị từ chối",
+      "ended": "Cuộc gọi đã kết thúc",
+      "you_called": "Bạn đã gọi",
+      "duration": "{{duration}}"
     },
     "confirm": {
       "edit_cancel": "Hủy",
@@ -952,7 +964,110 @@
         "use_avatar": "Sử dụng Avatar làm hình nền"
       }
     },
-    "development": "Tính năng {{name}} đang được phát triển"
+    "development": "Tính năng {{name}} đang được phát triển",
+    "privacy": {
+      "read_receipts": {
+        "title": "Xác nhận đã xem",
+        "desc": "Cho phép người khác biết bạn đã đọc tin nhắn của họ",
+        "label": "Hiển thị trạng thái đã xem"
+      },
+      "online_status": {
+        "title": "Trạng thái truy cập",
+        "desc": "Hiển thị trạng thái online/offline của bạn với người khác",
+        "label": "Hiển thị trạng thái online"
+      },
+      "search_sources": {
+        "title": "Nguồn tìm kiếm & Kết bạn",
+        "desc": "Cho phép người khác tìm thấy bạn qua các phương thức sau",
+        "phone": "Qua số điện thoại",
+        "qr": "Qua mã QR",
+        "group": "Qua nhóm chung"
+      },
+      "block_strangers": {
+        "title": "Chặn người lạ",
+        "desc": "Hạn chế tương tác từ những người không phải bạn bè",
+        "messages": "Chặn tin nhắn từ người lạ",
+        "messages_desc": "Chỉ cho phép bạn bè gửi tin nhắn cho bạn",
+        "profile": "Chặn xem trang cá nhân",
+        "profile_desc": "Chỉ cho phép bạn bè xem thông tin cá nhân của bạn"
+      },
+      "lock_account": {
+        "title": "Khóa tài khoản",
+        "label": "Tự khóa tài khoản",
+        "desc": "Khi bật, không ai có thể nhắn tin, gửi lời mời kết bạn hoặc xem trang cá nhân của bạn.",
+        "warning": "Tài khoản của bạn đang bị khóa. Bạn có thể mở khóa bất cứ lúc nào."
+      },
+      "saved": "Đã lưu cài đặt quyền riêng tư",
+      "save_failed": "Không thể lưu cài đặt"
+    },
+    "devices": {
+      "title": "Quản lý thiết bị",
+      "desc": "Danh sách các thiết bị đang đăng nhập vào tài khoản của bạn",
+      "current_device": "Thiết bị hiện tại",
+      "last_active": "Hoạt động lần cuối",
+      "login_at": "Đăng nhập lúc",
+      "remote_logout": "Đăng xuất từ xa",
+      "no_devices": "Không có thiết bị nào đang đăng nhập",
+      "confirm_logout": "Bạn có chắc muốn đăng xuất thiết bị này?",
+      "logged_out": "Đã đăng xuất thiết bị từ xa",
+      "logout_failed": "Không thể đăng xuất thiết bị"
+    },
+    "messages_settings": {
+      "auto_delete": {
+        "title": "Tin nhắn tự xóa",
+        "desc": "Cài đặt thời gian tin nhắn tự biến mất mặc định cho các cuộc hội thoại mới",
+        "off": "Tắt",
+        "1d": "1 ngày",
+        "7d": "7 ngày",
+        "30d": "30 ngày",
+        "note": "Cài đặt này chỉ áp dụng cho cuộc hội thoại mới. Bạn có thể thay đổi cho từng cuộc hội thoại riêng."
+      }
+    },
+    "storage": {
+      "title": "Lưu trữ & Dữ liệu",
+      "desc": "Quản lý dung lượng và file của bạn",
+      "total_size": "Tổng dung lượng",
+      "images": "Hình ảnh",
+      "videos": "Video",
+      "files": "Tệp tin",
+      "voices": "Tin nhắn thoại",
+      "items": "mục",
+      "clear_cache": "Xóa bộ nhớ đệm",
+      "clear_cache_desc": "Xóa các file tạm và bộ nhớ cache trên trình duyệt",
+      "cleared": "Đã xóa bộ nhớ đệm",
+      "manage_files": "Quản lý file",
+      "no_data": "Chưa có dữ liệu lưu trữ"
+    },
+    "wallpaper": {
+      "title": "Hình nền chat",
+      "desc": "Tùy chỉnh hình nền cho từng cuộc hội thoại",
+      "choose": "Chọn hình nền",
+      "reset": "Xóa hình nền",
+      "preset": "Hình nền có sẵn",
+      "upload": "Tải lên hình nền",
+      "updated": "Đã cập nhật hình nền chat",
+      "update_failed": "Không thể cập nhật hình nền"
+    },
+    "ai_persona": {
+      "title": "Cá nhân hóa AI",
+      "desc": "Chọn giọng văn và phong cách cho trợ lý AI của bạn",
+      "humorous": "Hài hước",
+      "humorous_desc": "AI phản hồi vui vẻ, dí dỏm và thân thiện",
+      "financial": "Trợ lý tài chính",
+      "financial_desc": "AI tập trung vào tư vấn tài chính, đầu tư và kinh tế",
+      "japanese_teacher": "Giáo viên tiếng Nhật",
+      "japanese_teacher_desc": "AI hỗ trợ học tiếng Nhật với Hiragana và giải thích ngữ pháp",
+      "active": "Đang sử dụng",
+      "activate": "Kích hoạt"
+    },
+    "token_quota": {
+      "title": "Hạn mức Token hôm nay",
+      "desc": "Số lượt sử dụng AI còn lại trong ngày",
+      "used": "Đã sử dụng",
+      "tokens": "tokens",
+      "requests": "yêu cầu",
+      "no_usage": "Chưa sử dụng AI hôm nay"
+    }
   },
   "report": {
     "reporting": "Báo cáo hội thoại",

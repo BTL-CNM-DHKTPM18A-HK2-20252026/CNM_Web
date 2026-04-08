@@ -9,6 +9,7 @@ import {
 import { StickerPicker } from '@/features/chat/components/StickerPicker';
 import { ChatImageUpload } from '@/features/chat/components/ChatImageUpload';
 import { ChatInput } from '@/features/chat';
+import { MentionDropdown } from '@/features/chat/components/MentionDropdown';
 import type { ChatComposerProps } from '@/features/chat/components/ChatWindow/types';
 
 export function ChatComposer({ vm }: ChatComposerProps) {
@@ -46,12 +47,26 @@ export function ChatComposer({ vm }: ChatComposerProps) {
     setCaptionModalIdx,
     messageInputRef,
     message,
-    setMessage,
     sendTypingIndicator,
     handlePaste,
     handleSendImageQueue,
     handleSendMessage,
     setIsChatImageUploadOpen,
+    // Link Preview
+    pendingLinkPreview,
+    linkPreviewDismissed,
+    setLinkPreviewDismissed,
+    // @Mention
+    mentionQuery,
+    mentionDropdownOpen,
+    setMentionDropdownOpen,
+    conversationMembers,
+    handleMentionInput,
+    handleSelectMention,
+    // Smart Reply
+    smartReplies,
+    smartRepliesLoading,
+    dismissSmartReplies,
   } = vm;
 
   return (
@@ -62,12 +77,70 @@ export function ChatComposer({ vm }: ChatComposerProps) {
           <div className="flex-1 min-w-0">
             <div className="text-[12px] font-bold text-[#0068FF]">{t('chat.reply.replying_to')} {replyingTo.sender === 'Me' ? t('common.you') : replyingTo.sender}</div>
             <div className="text-[13px] text-[var(--sub-text)] truncate">
-              {replyingTo.type === 'IMAGE' ? `📷 ${t('chat.snippet.image')}` : replyingTo.type === 'VIDEO' ? `🎬 ${t('chat.snippet.video')}` : replyingTo.type === 'VOICE' ? `🎤 ${t('chat.snippet.voice')}` : replyingTo.type === 'MEDIA' ? `📎 ${t('chat.snippet.file')}` : replyingTo.text?.length > 60 ? `${replyingTo.text.slice(0, 60)}...` : replyingTo.text}
+              {replyingTo.type === 'IMAGE' ? `📷 ${t('chat.snippet.image')}` : replyingTo.type === 'VIDEO' ? `🎬 ${t('chat.snippet.video')}` : replyingTo.type === 'VOICE' ? `🎤 ${t('chat.snippet.voice')}` : replyingTo.type === 'MEDIA' ? `📎 ${t('chat.snippet.file')}` : replyingTo.type === 'SHARE_CONTACT' ? (() => { try { const c = JSON.parse(replyingTo.text || '{}'); return `📇 ${c.fullName || t('share_contact.snippet')}`; } catch { return `📇 ${t('share_contact.snippet')}`; } })() : replyingTo.text?.length > 60 ? `${replyingTo.text.slice(0, 60)}...` : replyingTo.text}
             </div>
           </div>
           <button onClick={() => setReplyingTo(null)} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full hover:bg-[var(--hover-bg)] text-[var(--sub-text)] transition-colors cursor-pointer">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
           </button>
+        </div>
+      )}
+
+      {pendingLinkPreview && !linkPreviewDismissed && (
+        <div className="bg-[var(--card-bg)] border-t border-[var(--border)] px-4 py-2.5 flex items-start gap-3">
+          {pendingLinkPreview.thumbnail && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={pendingLinkPreview.thumbnail}
+              alt=""
+              className="w-14 h-14 object-cover rounded-lg shrink-0"
+            />
+          )}
+          <div className="flex-1 min-w-0">
+            {pendingLinkPreview.title && (
+              <div className="text-[13px] font-semibold text-[var(--text)] truncate">{pendingLinkPreview.title}</div>
+            )}
+            {pendingLinkPreview.description && (
+              <div className="text-[11px] text-[var(--sub-text)] line-clamp-2 mt-0.5">{pendingLinkPreview.description}</div>
+            )}
+            <div className="text-[11px] text-[#0068FF] truncate mt-0.5">{pendingLinkPreview.url}</div>
+          </div>
+          <button
+            onClick={() => setLinkPreviewDismissed(true)}
+            className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full hover:bg-[var(--hover-bg)] text-[var(--sub-text)] hover:text-red-500 transition-colors cursor-pointer"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+          </button>
+        </div>
+      )}
+
+      {/* Smart Reply Suggestions */}
+      {smartReplies.length > 0 && !message.trim() && (
+        <div className="bg-[var(--card-bg)] border-t border-[var(--border)] px-4 py-2 flex items-center gap-2 animate-in slide-in-from-bottom-2 duration-200">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-60"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <div className="flex items-center gap-2 flex-1 overflow-x-auto scrollbar-hide">
+            {smartReplies.map((reply, idx) => (
+              <button
+                key={idx}
+                onClick={() => { handleSendMessage(reply); dismissSmartReplies(); }}
+                className="shrink-0 px-3 py-1.5 rounded-full border border-[#0068FF]/30 bg-[#0068FF]/5 text-[#0068FF] text-[13px] font-medium hover:bg-[#0068FF]/15 hover:border-[#0068FF]/50 transition-all cursor-pointer whitespace-nowrap"
+              >
+                {reply}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={dismissSmartReplies}
+            className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full hover:bg-[var(--hover-bg)] text-[var(--sub-text)] transition-colors cursor-pointer"
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+          </button>
+        </div>
+      )}
+      {smartRepliesLoading && !message.trim() && smartReplies.length === 0 && (
+        <div className="bg-[var(--card-bg)] border-t border-[var(--border)] px-4 py-2 flex items-center gap-2">
+          <div className="w-3 h-3 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
+          <span className="text-[12px] text-[var(--sub-text)]">Đang tạo gợi ý...</span>
         </div>
       )}
 
@@ -253,38 +326,53 @@ export function ChatComposer({ vm }: ChatComposerProps) {
           </div>
         )}
 
-        <ChatInput
-          inputRef={messageInputRef}
-          value={message}
-          onChange={(value) => {
-            setMessage(value);
-            sendTypingIndicator();
-          }}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && !(selectedChat.isAi && isSendingAi)) {
-              handleSendMessage();
-            }
-            if (event.key === 'Escape' && replyingTo) {
-              setReplyingTo(null);
-            }
-          }}
-          onPaste={handlePaste}
-          placeholder={selectedChat.isAi && isSendingAi
-            ? (t('chat.ai_thinking') || 'AI đang suy nghĩ...')
-            : (selectedChat.isAi ? t('chat.ai_input_placeholder') : t('chat.input_placeholder'))}
-          disabled={selectedChat.isAi && isSendingAi}
-          isEmojiOpen={isPickerOpen && pickerTab === 'emoji'}
-          showSendButton={Boolean(message.trim() || imageQueue.length > 0)}
-          onToggleEmoji={() => togglePicker('emoji')}
-          onSend={() => {
-            if (imageQueue.length > 0) {
-              handleSendImageQueue();
-            } else {
-              handleSendMessage();
-            }
-          }}
-          onSendLike={() => handleSendMessage('👍')}
-        />
+        <div className="relative">
+          {mentionDropdownOpen && conversationMembers.length > 0 && (
+            <MentionDropdown
+              members={conversationMembers}
+              query={mentionQuery}
+              onSelect={handleSelectMention}
+            />
+          )}
+          <ChatInput
+            inputRef={messageInputRef}
+            value={message}
+            onChange={(value) => {
+              handleMentionInput(value);
+              sendTypingIndicator();
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                if (mentionDropdownOpen) { setMentionDropdownOpen(false); return; }
+                if (replyingTo) setReplyingTo(null);
+              }
+              if (event.key === 'Enter' && !(selectedChat.isAi && isSendingAi)) {
+                if (mentionDropdownOpen) { setMentionDropdownOpen(false); return; }
+                if (imageQueue.length > 0) {
+                  handleSendImageQueue();
+                } else {
+                  handleSendMessage();
+                }
+              }
+            }}
+            onPaste={handlePaste}
+            placeholder={selectedChat.isAi && isSendingAi
+              ? (t('chat.ai_thinking') || 'AI đang suy nghĩ...')
+              : (selectedChat.isAi ? t('chat.ai_input_placeholder') : t('chat.input_placeholder'))}
+            disabled={selectedChat.isAi && isSendingAi}
+            isEmojiOpen={isPickerOpen && pickerTab === 'emoji'}
+            showSendButton={Boolean(message.trim() || imageQueue.length > 0)}
+            onToggleEmoji={() => togglePicker('emoji')}
+            onSend={() => {
+              if (imageQueue.length > 0) {
+                handleSendImageQueue();
+              } else {
+                handleSendMessage();
+              }
+            }}
+            onSendLike={() => handleSendMessage('👍')}
+          />
+        </div>
       </div>
     </>
   );

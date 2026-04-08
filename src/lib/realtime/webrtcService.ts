@@ -1,0 +1,562 @@
+/**
+ * webrtcService.ts — Quản lý kết nối WebRTC peer-to-peer cho Video Call 1-1.
+ *
+ * Luồng:
+ *  1. Caller: createOffer() → gửi SDP offer qua STOMP
+ *  2. Callee: handleOffer() → createAnswer() → gửi SDP answer
+ *  3. Cả hai: trao đổi ICE candidates qua STOMP
+ *  4. ontrack → remote stream → hiển thị video
+ *
+ * STUN servers: Google free (stun:stun.l.google.com:19302)
+ */
+
+import { websocketService } from '@/lib/realtime/websocketService';
+
+// ─── Types ──────────────────────────────────────────────
+
+export type CallState =
+  | 'idle'           // Không có cuộc gọi
+  | 'requesting'     // Đang gửi yêu cầu gọi
+  | 'incoming'       // Đang nhận cuộc gọi đến
+  | 'connecting'     // Đang thiết lập kết nối WebRTC
+  | 'connected'      // Đang gọi
+  | 'ended';         // Cuộc gọi kết thúc
+
+export type SignalType =
+  | 'CALL_REQUEST'
+  | 'CALL_ACCEPTED'
+  | 'CALL_REJECTED'
+  | 'OFFER'
+  | 'ANSWER'
+  | 'ICE_CANDIDATE'
+  | 'CALL_END';
+
+export interface CallSignal {
+  type: SignalType;
+  senderId: string;
+  receiverId: string;
+  callId: string;
+  conversationId?: string;
+  callerName?: string;
+  callerAvatar?: string;
+  payload?: RTCSessionDescriptionInit | RTCIceCandidateInit | null;
+}
+
+export interface CallInfo {
+  callId: string;
+  peerId: string;
+  peerName: string;
+  peerAvatar?: string;
+  conversationId: string;
+  isCaller: boolean;
+}
+
+type CallStateListener = (state: CallState, info: CallInfo | null) => void;
+
+// ─── ICE Configuration ──────────────────────────────────
+
+const ICE_SERVERS: RTCIceServer[] = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
+  { urls: 'stun:stun3.l.google.com:19302' },
+  { urls: 'stun:stun4.l.google.com:19302' },
+];
+
+// ─── Service ────────────────────────────────────────────
+
+class WebRTCService {
+  private pc: RTCPeerConnection | null = null;
+  private localStream: MediaStream | null = null;
+  private remoteStream: MediaStream | null = null;
+
+  private callState: CallState = 'idle';
+  private callInfo: CallInfo | null = null;
+  private stateListeners: Set<CallStateListener> = new Set();
+
+  // Pending ICE candidates (nhận trước khi remote description được set)
+  private pendingCandidates: RTCIceCandidateInit[] = [];
+
+  // STOMP subscription ref
+  private signalSub: { unsubscribe: () => void } | null = null;
+
+  // Callback refs cho UI
+  private onLocalStreamCallback: ((stream: MediaStream) => void) | null = null;
+  private onRemoteStreamCallback: ((stream: MediaStream) => void) | null = null;
+
+  // ── State Management ────────────────────────────────
+
+  getCallState(): CallState {
+    return this.callState;
+  }
+
+  getCallInfo(): CallInfo | null {
+    return this.callInfo;
+  }
+
+  getLocalStream(): MediaStream | null {
+    return this.localStream;
+  }
+
+  getRemoteStream(): MediaStream | null {
+    return this.remoteStream;
+  }
+
+  onStateChange(listener: CallStateListener) {
+    this.stateListeners.add(listener);
+    return () => { this.stateListeners.delete(listener); };
+  }
+
+  onLocalStream(cb: (stream: MediaStream) => void) {
+    this.onLocalStreamCallback = cb;
+  }
+
+  onRemoteStream(cb: (stream: MediaStream) => void) {
+    this.onRemoteStreamCallback = cb;
+  }
+
+  private setState(state: CallState) {
+    this.callState = state;
+    console.log(`%c[WebRTC] State → ${state}`, 'color: #00bcd4; font-weight: bold;',
+      this.callInfo ? `peer=${this.callInfo.peerName}` : '');
+    this.stateListeners.forEach(l => l(state, this.callInfo));
+  }
+
+  // ── Subscribe to signaling channel ─────────────────
+
+  /**
+   * Đăng ký nhận tín hiệu call qua STOMP user queue.
+   * Gọi 1 lần khi app mount (trong SocketProvider).
+   */
+  subscribeSignaling() {
+    if (this.signalSub) return;
+
+    this.signalSub = websocketService.subscribe(
+      '/user/queue/call-signal',
+      (message) => {
+        try {
+          const signal: CallSignal = JSON.parse(message.body);
+          console.log('[WebRTC] Signal received:', signal.type, 'from', signal.senderId);
+          this.handleSignal(signal);
+        } catch (e) {
+          console.error('[WebRTC] Failed to parse signal:', e);
+        }
+      }
+    );
+    console.log('[WebRTC] Subscribed to /user/queue/call-signal');
+  }
+
+  unsubscribeSignaling() {
+    this.signalSub?.unsubscribe();
+    this.signalSub = null;
+  }
+
+  // ── Signal Handler (dispatch) ──────────────────────
+
+  private handleSignal(signal: CallSignal) {
+    switch (signal.type) {
+      case 'CALL_REQUEST':
+        this.handleIncomingCall(signal);
+        break;
+      case 'CALL_ACCEPTED':
+        this.handleCallAccepted(signal);
+        break;
+      case 'CALL_REJECTED':
+        this.handleCallRejected();
+        break;
+      case 'OFFER':
+        this.handleOffer(signal);
+        break;
+      case 'ANSWER':
+        this.handleAnswer(signal);
+        break;
+      case 'ICE_CANDIDATE':
+        this.handleIceCandidate(signal);
+        break;
+      case 'CALL_END':
+        this.handleRemoteEnd();
+        break;
+    }
+  }
+
+  // ── Caller Flow ────────────────────────────────────
+
+  /**
+   * Bắt đầu cuộc gọi: gửi CALL_REQUEST tới peer.
+   */
+  async startCall(
+    currentUserId: string,
+    peerId: string,
+    peerName: string,
+    peerAvatar: string | undefined,
+    conversationId: string,
+    callerName: string,
+    callerAvatar?: string,
+  ) {
+    if (this.callState !== 'idle') {
+      console.warn('[WebRTC] Cannot start call — state:', this.callState);
+      return;
+    }
+
+    const callId = crypto.randomUUID();
+    this.callInfo = { callId, peerId, peerName, peerAvatar, conversationId, isCaller: true };
+    this.setState('requesting');
+
+    console.log('[WebRTC] Starting call → peer:', peerName, '(', peerId, ')');
+
+    this.sendSignal({
+      type: 'CALL_REQUEST',
+      senderId: currentUserId,
+      receiverId: peerId,
+      callId,
+      conversationId,
+      callerName,
+      callerAvatar,
+    });
+  }
+
+  /**
+   * Callee chấp nhận cuộc gọi → gửi CALL_ACCEPTED → bắt đầu WebRTC handshake.
+   */
+  async acceptCall(currentUserId: string) {
+    if (this.callState !== 'incoming' || !this.callInfo) return;
+
+    console.log('[WebRTC] Accepting call from:', this.callInfo.peerName);
+    this.setState('connecting');
+
+    this.sendSignal({
+      type: 'CALL_ACCEPTED',
+      senderId: currentUserId,
+      receiverId: this.callInfo.peerId,
+      callId: this.callInfo.callId,
+    });
+
+    // Callee: lấy media → chờ OFFER từ caller
+    await this.acquireMedia();
+  }
+
+  /**
+   * Callee từ chối cuộc gọi.
+   */
+  rejectCall(currentUserId: string) {
+    if (this.callState !== 'incoming' || !this.callInfo) return;
+
+    console.log('[WebRTC] Rejecting call from:', this.callInfo.peerName);
+
+    this.sendSignal({
+      type: 'CALL_REJECTED',
+      senderId: currentUserId,
+      receiverId: this.callInfo.peerId,
+      callId: this.callInfo.callId,
+    });
+
+    this.cleanup();
+  }
+
+  /**
+   * Kết thúc cuộc gọi (hang up) — gọi từ bất kỳ bên nào.
+   */
+  endCall(currentUserId: string) {
+    if (!this.callInfo) return;
+
+    console.log('[WebRTC] Ending call');
+
+    this.sendSignal({
+      type: 'CALL_END',
+      senderId: currentUserId,
+      receiverId: this.callInfo.peerId,
+      callId: this.callInfo.callId,
+    });
+
+    this.cleanup();
+  }
+
+  // ── Signal Handlers ────────────────────────────────
+
+  /**
+   * Nhận CALL_REQUEST → hiện Incoming Call UI.
+   */
+  private handleIncomingCall(signal: CallSignal) {
+    if (this.callState !== 'idle') {
+      // Đang bận → tự động reject
+      console.warn('[WebRTC] Busy — auto-rejecting incoming call');
+      this.sendSignal({
+        type: 'CALL_REJECTED',
+        senderId: signal.receiverId,
+        receiverId: signal.senderId,
+        callId: signal.callId,
+      });
+      return;
+    }
+
+    this.callInfo = {
+      callId: signal.callId,
+      peerId: signal.senderId,
+      peerName: signal.callerName || 'Unknown',
+      peerAvatar: signal.callerAvatar,
+      conversationId: signal.conversationId || '',
+      isCaller: false,
+    };
+
+    this.setState('incoming');
+  }
+
+  /**
+   * Caller nhận CALL_ACCEPTED → lấy media → tạo offer.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private async handleCallAccepted(_signal: CallSignal) {
+    if (this.callState !== 'requesting') return;
+
+    console.log('[WebRTC] Call accepted — starting WebRTC handshake');
+    this.setState('connecting');
+
+    await this.acquireMedia();
+    this.createPeerConnection();
+    await this.createAndSendOffer();
+  }
+
+  private handleCallRejected() {
+    console.log('[WebRTC] Call rejected by peer');
+    this.cleanup();
+  }
+
+  /**
+   * Callee nhận OFFER → set remote desc → create answer.
+   */
+  private async handleOffer(signal: CallSignal) {
+    if (!this.callInfo) return;
+
+    console.log('[WebRTC] Received OFFER — creating answer...');
+    this.createPeerConnection();
+
+    const offer = signal.payload as RTCSessionDescriptionInit;
+    await this.pc!.setRemoteDescription(new RTCSessionDescription(offer));
+    console.log('[WebRTC] Remote description set (offer)');
+
+    // Flush pending ICE candidates
+    await this.flushPendingCandidates();
+
+    const answer = await this.pc!.createAnswer();
+    await this.pc!.setLocalDescription(answer);
+    console.log('[WebRTC] Local description set (answer)');
+
+    this.sendSignal({
+      type: 'ANSWER',
+      senderId: this.callInfo.peerId, // sẽ bị override bởi server
+      receiverId: this.callInfo.peerId,
+      callId: this.callInfo.callId,
+      payload: answer,
+    });
+  }
+
+  /**
+   * Caller nhận ANSWER → set remote description.
+   */
+  private async handleAnswer(signal: CallSignal) {
+    if (!this.pc) return;
+
+    console.log('[WebRTC] Received ANSWER — setting remote description');
+    const answer = signal.payload as RTCSessionDescriptionInit;
+    await this.pc.setRemoteDescription(new RTCSessionDescription(answer));
+
+    // Flush pending ICE candidates
+    await this.flushPendingCandidates();
+  }
+
+  /**
+   * Nhận ICE candidate → thêm vào PeerConnection.
+   */
+  private async handleIceCandidate(signal: CallSignal) {
+    const candidate = signal.payload as RTCIceCandidateInit;
+    if (!candidate) return;
+
+    if (this.pc && this.pc.remoteDescription) {
+      console.log('[WebRTC] Adding ICE candidate');
+      await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+    } else {
+      console.log('[WebRTC] Queuing ICE candidate (remote desc not set yet)');
+      this.pendingCandidates.push(candidate);
+    }
+  }
+
+  private handleRemoteEnd() {
+    console.log('[WebRTC] Remote peer ended call');
+    this.cleanup();
+  }
+
+  // ── WebRTC Core ────────────────────────────────────
+
+  private async acquireMedia() {
+    try {
+      console.log('[WebRTC] Requesting camera + microphone...');
+      this.localStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
+      console.log('[WebRTC] Local media acquired — tracks:', this.localStream.getTracks().map(t => t.kind));
+      this.onLocalStreamCallback?.(this.localStream);
+    } catch (err) {
+      console.error('[WebRTC] Failed to acquire media:', err);
+      this.cleanup();
+    }
+  }
+
+  private createPeerConnection() {
+    if (this.pc) return;
+
+    console.log('[WebRTC] Creating RTCPeerConnection with ICE servers:', ICE_SERVERS.map(s => s.urls));
+
+    this.pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    this.remoteStream = new MediaStream();
+
+    // Thêm local tracks vào peer connection
+    if (this.localStream) {
+      this.localStream.getTracks().forEach(track => {
+        console.log(`[WebRTC] Adding local track: ${track.kind}`);
+        this.pc!.addTrack(track, this.localStream!);
+      });
+    }
+
+    // Nhận remote tracks
+    this.pc.ontrack = (event) => {
+      console.log(`[WebRTC] Remote track received: ${event.track.kind}`);
+      event.streams[0].getTracks().forEach(track => {
+        this.remoteStream!.addTrack(track);
+      });
+      this.onRemoteStreamCallback?.(this.remoteStream!);
+    };
+
+    // ICE candidates → gửi cho peer
+    this.pc.onicecandidate = (event) => {
+      if (event.candidate && this.callInfo) {
+        console.log('[WebRTC] ICE Candidate sent:', event.candidate.candidate.substring(0, 50) + '...');
+        this.sendSignal({
+          type: 'ICE_CANDIDATE',
+          senderId: '', // server sẽ override
+          receiverId: this.callInfo.peerId,
+          callId: this.callInfo.callId,
+          payload: event.candidate.toJSON(),
+        });
+      }
+    };
+
+    // Connection state tracking
+    this.pc.onconnectionstatechange = () => {
+      console.log(`[WebRTC] Connection State Changed → ${this.pc?.connectionState}`);
+      switch (this.pc?.connectionState) {
+        case 'connected':
+          this.setState('connected');
+          break;
+        case 'disconnected':
+        case 'failed':
+        case 'closed':
+          this.cleanup();
+          break;
+      }
+    };
+
+    this.pc.oniceconnectionstatechange = () => {
+      console.log(`[WebRTC] ICE Connection State → ${this.pc?.iceConnectionState}`);
+    };
+
+    this.pc.onicegatheringstatechange = () => {
+      console.log(`[WebRTC] ICE Gathering State → ${this.pc?.iceGatheringState}`);
+    };
+  }
+
+  private async createAndSendOffer() {
+    if (!this.pc || !this.callInfo) return;
+
+    console.log('[WebRTC] Generating Offer...');
+    const offer = await this.pc.createOffer();
+    await this.pc.setLocalDescription(offer);
+    console.log('[WebRTC] Local description set (offer)');
+
+    this.sendSignal({
+      type: 'OFFER',
+      senderId: '',
+      receiverId: this.callInfo.peerId,
+      callId: this.callInfo.callId,
+      payload: offer,
+    });
+    console.log('[WebRTC] Offer sent to peer');
+  }
+
+  private async flushPendingCandidates() {
+    if (this.pendingCandidates.length > 0) {
+      console.log(`[WebRTC] Flushing ${this.pendingCandidates.length} pending ICE candidates`);
+      for (const c of this.pendingCandidates) {
+        await this.pc!.addIceCandidate(new RTCIceCandidate(c));
+      }
+      this.pendingCandidates = [];
+    }
+  }
+
+  // ── Media Controls ─────────────────────────────────
+
+  toggleMute(): boolean {
+    if (!this.localStream) return false;
+    const audio = this.localStream.getAudioTracks()[0];
+    if (audio) {
+      audio.enabled = !audio.enabled;
+      console.log(`[WebRTC] Mic ${audio.enabled ? 'unmuted' : 'muted'}`);
+      return !audio.enabled; // true = muted
+    }
+    return false;
+  }
+
+  toggleCamera(): boolean {
+    if (!this.localStream) return false;
+    const video = this.localStream.getVideoTracks()[0];
+    if (video) {
+      video.enabled = !video.enabled;
+      console.log(`[WebRTC] Camera ${video.enabled ? 'on' : 'off'}`);
+      return !video.enabled; // true = camera off
+    }
+    return false;
+  }
+
+  // ── Send Signal via STOMP ──────────────────────────
+
+  private sendSignal(signal: Partial<CallSignal>) {
+    websocketService.send('/app/call/signal', signal);
+  }
+
+  // ── Cleanup ────────────────────────────────────────
+
+  cleanup() {
+    console.log('[WebRTC] Cleanup — releasing resources');
+
+    // Close peer connection
+    if (this.pc) {
+      this.pc.ontrack = null;
+      this.pc.onicecandidate = null;
+      this.pc.onconnectionstatechange = null;
+      this.pc.oniceconnectionstatechange = null;
+      this.pc.onicegatheringstatechange = null;
+      this.pc.close();
+      this.pc = null;
+    }
+
+    // Stop local media tracks
+    if (this.localStream) {
+      this.localStream.getTracks().forEach(t => t.stop());
+      this.localStream = null;
+    }
+
+    this.remoteStream = null;
+    this.pendingCandidates = [];
+    this.callInfo = null;
+    this.onLocalStreamCallback = null;
+    this.onRemoteStreamCallback = null;
+    this.setState('idle');
+  }
+}
+
+export const webrtcService = new WebRTCService();
+
+if (typeof window !== 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (window as any).webrtcService = webrtcService;
+}

@@ -15,6 +15,8 @@ import type {
   ForwardingMessage,
   FriendRequestStatus,
   ImageQueueItem,
+  LinkPreviewData,
+  MentionMember,
   PinnedMessage,
   ReadReceipt,
   ReplyingTo,
@@ -98,6 +100,12 @@ const getSnippet = (content: string, messageType: string | undefined, t: (key: s
       return `📇 ${t('share_contact.snippet')}`;
     case 'SYSTEM':
       return content;
+    case 'CALL_MISSED':
+      return t('chat.snippet.call_missed');
+    case 'CALL_REJECTED':
+      return t('chat.snippet.call_rejected');
+    case 'CALL_ENDED':
+      return t('chat.snippet.call_ended');
     default:
       return content;
   }
@@ -111,6 +119,7 @@ const mapIncomingMessage = (m: any, currentUserId?: string): ChatMessage => ({
   height: m.height,
   linkTitle: m.linkTitle,
   linkThumbnail: m.linkThumbnail,
+  linkDescription: m.linkDescription,
   voiceDuration: m.voiceDuration,
   videoDuration: m.videoDuration,
   fileName: m.fileName,
@@ -138,6 +147,8 @@ const mapIncomingMessage = (m: any, currentUserId?: string): ChatMessage => ({
   isEdited: m.isEdited || false,
   isRecalled: m.isRecalled || false,
   forwardedFromSenderName: m.forwardedFromSenderName || null,
+  caption: m.caption || undefined,
+  mentions: m.mentions || [],
 });
 
 export function useChatWindow({
@@ -236,6 +247,28 @@ export function useChatWindow({
 
   const [readReceipts, setReadReceipts] = useState<Record<string, ReadReceipt>>({});
   const lastSentReadRef = useRef<string | null>(null);
+
+  // Link preview state
+  const [pendingLinkPreview, setPendingLinkPreview] = useState<LinkPreviewData | null>(null);
+  const [linkPreviewDismissed, setLinkPreviewDismissed] = useState(false);
+  const linkPreviewDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // @Mention state
+  const [mentionQuery, setMentionQuery] = useState<string>('');
+  const [mentionDropdownOpen, setMentionDropdownOpen] = useState(false);
+  const [conversationMembers, setConversationMembers] = useState<MentionMember[]>([]);
+  const [pendingMentions, setPendingMentions] = useState<MentionMember[]>([]);
+
+  // Smart Reply state
+  const [smartReplies, setSmartReplies] = useState<string[]>([]);
+  const [smartRepliesLoading, setSmartRepliesLoading] = useState(false);
+  const smartReplyDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Message Summary state
+  const [summaryText, setSummaryText] = useState<string | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryMessageCount, setSummaryMessageCount] = useState(0);
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
 
   const isInitialLoadRef = useRef(true);
 
@@ -340,7 +373,132 @@ export function useChatWindow({
   useEffect(() => {
     setNickname(selectedChat?.nickname || null);
     setReplyingTo(null);
+    setPendingMentions([]);
+    setMentionDropdownOpen(false);
+    setPendingLinkPreview(null);
+    setLinkPreviewDismissed(false);
   }, [selectedChat?.id, selectedChat?.nickname]);
+
+  // Fetch conversation members for @mention (group chats only)
+  useEffect(() => {
+    if (!selectedChat?.isGroup || !selectedChat?.id) {
+      setConversationMembers([]);
+      return;
+    }
+    const convId = selectedChat.id.toString();
+    apiClient.get<any>(`/conversations/${convId}/members`)
+      .then(res => {
+        const list: any[] = Array.isArray(res) ? res : (res?.data || res?.members || []);
+        setConversationMembers(list.map((m: any) => ({
+          userId: m.userId || m.user_id,
+          displayName: m.displayName || m.display_name || m.name || m.userId,
+          avatarUrl: m.avatarUrl || m.avatar_url,
+        })).filter(m => m.userId && m.userId !== currentUser?.id));
+      })
+      .catch(() => setConversationMembers([]));
+  }, [selectedChat?.id, selectedChat?.isGroup, currentUser?.id]);
+
+  // URL detection for link preview (debounced 600ms)
+  useEffect(() => {
+    if (linkPreviewDebounceRef.current) clearTimeout(linkPreviewDebounceRef.current);
+
+    const urlMatch = message.match(/(https?:\/\/[^\s]{6,})/);
+    if (!urlMatch) {
+      setPendingLinkPreview(null);
+      setLinkPreviewDismissed(false);
+      return;
+    }
+
+    if (linkPreviewDismissed) return;
+
+    linkPreviewDebounceRef.current = setTimeout(async () => {
+      try {
+        const url = urlMatch[1];
+        const res = await apiClient.get<any>(`/utils/link-preview?url=${encodeURIComponent(url)}`);
+        const data = res?.data || res;
+        if (data?.url && !linkPreviewDismissed) {
+          setPendingLinkPreview({
+            url: data.url,
+            title: data.title,
+            description: data.description,
+            thumbnail: data.thumbnail,
+          });
+        }
+      } catch {
+        // Silent — no preview shown on error
+      }
+    }, 600);
+
+    return () => {
+      if (linkPreviewDebounceRef.current) clearTimeout(linkPreviewDebounceRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [message]);
+
+  // ── Smart Reply: auto-fetch when messages change (new message from others) ──
+  const fetchSmartReplies = useCallback(async () => {
+    if (!selectedChat?.id || selectedChat.isAi || selectedChat.isCloud) return;
+    setSmartRepliesLoading(true);
+    try {
+      const res = await apiClient.post<{ suggestions: string[] }>('/ai/smart-reply', {
+        conversationId: selectedChat.id.toString(),
+      });
+      const data = (res as any)?.suggestions ?? (res as any)?.data?.suggestions ?? [];
+      setSmartReplies(Array.isArray(data) ? data.slice(0, 3) : []);
+    } catch {
+      setSmartReplies([]);
+    } finally {
+      setSmartRepliesLoading(false);
+    }
+  }, [selectedChat?.id, selectedChat?.isAi, selectedChat?.isCloud]);
+
+  const dismissSmartReplies = useCallback(() => setSmartReplies([]), []);
+
+  // Auto-fetch smart replies when a new message from someone else arrives
+  useEffect(() => {
+    if (!messages.length || selectedChat.isAi || selectedChat.isCloud) return;
+    const lastMsg = messages[messages.length - 1];
+    if (!lastMsg || lastMsg.sender === 'Me' || lastMsg.sender === 'SYSTEM') return;
+
+    // Debounce to avoid rapid calls
+    if (smartReplyDebounceRef.current) clearTimeout(smartReplyDebounceRef.current);
+    smartReplyDebounceRef.current = setTimeout(() => {
+      fetchSmartReplies();
+    }, 800);
+
+    return () => {
+      if (smartReplyDebounceRef.current) clearTimeout(smartReplyDebounceRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, selectedChat?.id]);
+
+  // Clear smart replies when switching conversations
+  useEffect(() => {
+    setSmartReplies([]);
+    setSummaryText(null);
+    setIsSummaryOpen(false);
+  }, [selectedChat?.id]);
+
+  // ── Message Summary ──
+  const fetchSummary = useCallback(async () => {
+    if (!selectedChat?.id) return;
+    setSummaryLoading(true);
+    setSummaryText(null);
+    setIsSummaryOpen(true);
+    try {
+      const res = await apiClient.post<{ summary: string; messageCount: number }>('/ai/summarize', {
+        conversationId: selectedChat.id.toString(),
+      });
+      const data = res as any;
+      setSummaryText(data?.summary ?? data?.data?.summary ?? 'Không có nội dung tóm tắt.');
+      setSummaryMessageCount(data?.messageCount ?? data?.data?.messageCount ?? 0);
+    } catch {
+      setSummaryText('Không thể tóm tắt tin nhắn. Vui lòng thử lại sau.');
+      setSummaryMessageCount(0);
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, [selectedChat?.id]);
 
   const stopRecording = useCallback((discard = false) => {
     discardRef.current = discard;
@@ -363,7 +521,9 @@ export function useChatWindow({
     videoDuration?: number,
     optimisticId?: string,
     imageWidth?: number,
-    imageHeight?: number
+    imageHeight?: number,
+    caption?: string,
+    mentionsOverride?: MentionMember[]
   ) => {
     const contentToUse = customContent || message?.trim();
     if (!(contentToUse && selectedChat?.id)) return;
@@ -382,6 +542,7 @@ export function useChatWindow({
             videoDuration,
             replyToMessageId: replyingTo?.id || undefined,
             conversationId: selectedChat.id.toString(),
+            caption: caption || undefined,
           };
 
           const res = await apiClient.post<any>('/messages', payload);
@@ -413,6 +574,7 @@ export function useChatWindow({
                 isEdited: false,
                 isRecalled: false,
                 forwardedFromSenderName: null,
+                caption: newMsg.caption || caption || undefined,
                 isUploading: false,
               };
 
@@ -630,6 +792,10 @@ export function useChatWindow({
       sendStopTypingIndicator();
 
       const isNewConv = !!selectedChat.isNew;
+      const mentionsToSend = mentionsOverride
+        ? mentionsOverride.map(m => m.userId)
+        : pendingMentions.map(m => m.userId);
+
       const payload: any = {
         content: contentToUse,
         messageType: msgType,
@@ -638,7 +804,19 @@ export function useChatWindow({
         voiceDuration,
         videoDuration,
         replyToMessageId: replyingTo?.id || undefined,
+        caption: caption || undefined,
+        mentions: mentionsToSend.length > 0 ? mentionsToSend : undefined,
       };
+
+      // Reset mention + link preview state after preparing payload
+      if (!customContent) {
+        setPendingMentions([]);
+        setMentionDropdownOpen(false);
+        if (!linkPreviewDismissed) {
+          setPendingLinkPreview(null);
+        }
+        setLinkPreviewDismissed(false);
+      }
 
       if (isNewConv) {
         payload.recipientId = selectedChat.recipientId;
@@ -682,6 +860,7 @@ export function useChatWindow({
             isEdited: false,
             isRecalled: false,
             forwardedFromSenderName: null,
+            caption: newMsg.caption || caption || undefined,
             isUploading: false,
           };
 
@@ -791,7 +970,7 @@ export function useChatWindow({
   }, [handleSendMessage, isInitializingMic, isRecording, t]);
 
   const handleImageClick = useCallback(() => {
-    setIsChatImageUploadOpen(prev => !prev);
+    imageInputRef.current?.click();
   }, []);
 
   const handleFileIconClick = useCallback((e: React.MouseEvent) => {
@@ -855,7 +1034,9 @@ export function useChatWindow({
         forwardedFromSenderName: null,
         width: imageDimensions?.width,
         height: imageDimensions?.height,
+        caption: caption?.trim() || undefined,
         isUploading: true,
+        uploadProgress: 0,
       }]);
       setShouldScrollToBottom(true);
       setReplyingTo(null);
@@ -869,13 +1050,27 @@ export function useChatWindow({
         throw new Error('Invalid presigned URL');
       }
 
-      const uploadResponse = await fetch(presignedUrl, {
-        method: 'PUT',
-        body: file,
-        headers: { 'Content-Type': file.type },
+      // Use XMLHttpRequest for upload progress tracking
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', presignedUrl);
+        xhr.setRequestHeader('Content-Type', file.type);
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            setMessages(prev => prev.map(m => m.id === tempId ? { ...m, uploadProgress: percent } : m));
+          }
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error('S3 upload failed'));
+          }
+        };
+        xhr.onerror = () => reject(new Error('S3 upload failed'));
+        xhr.send(file);
       });
-
-      if (!uploadResponse.ok) throw new Error('S3 upload failed');
 
       const s3Url = presignedUrl.split('?')[0];
       let msgType = 'MEDIA';
@@ -905,12 +1100,9 @@ export function useChatWindow({
         videoDur,
         localPreviewUrl ? tempId : undefined,
         imageDimensions?.width,
-        imageDimensions?.height
+        imageDimensions?.height,
+        caption?.trim() || undefined
       );
-
-      if (caption?.trim()) {
-        await handleSendMessage(caption.trim());
-      }
 
       if (localPreviewUrl) {
         setTimeout(() => URL.revokeObjectURL(localPreviewUrl), 2000);
@@ -927,11 +1119,13 @@ export function useChatWindow({
 
   const handleSendImageQueue = useCallback(() => {
     const items = [...imageQueue];
+    const globalCaption = message?.trim() || undefined;
     closeImageQueue();
+    if (globalCaption) setMessage('');
     items.forEach(({ file, caption }) => {
-      handleFileUpload(file, caption || undefined);
+      handleFileUpload(file, caption?.trim() || globalCaption);
     });
-  }, [closeImageQueue, handleFileUpload, imageQueue]);
+  }, [closeImageQueue, handleFileUpload, imageQueue, message]);
 
   const handleImageChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files ? Array.from(e.target.files) : [];
@@ -976,6 +1170,40 @@ export function useChatWindow({
       typing: false,
     });
   }, [selectedChat?.id, selectedChat?.isAi, selectedChat?.isNew, currentUser?.display_name, currentUser?.full_name, currentUser?.id]);
+
+  // Handle @mention input change — detect @ trigger and update message
+  const handleMentionInput = useCallback((newValue: string) => {
+    setMessage(newValue);
+
+    // Find the @ position relative to cursor (detect @query at end of current word)
+    const atIdx = newValue.lastIndexOf('@');
+    if (atIdx !== -1) {
+      const afterAt = newValue.slice(atIdx + 1);
+      // Only open dropdown if no spaces in the query (i.e., still typing the name)
+      if (!afterAt.includes(' ')) {
+        setMentionQuery(afterAt);
+        setMentionDropdownOpen(true);
+        return;
+      }
+    }
+    setMentionDropdownOpen(false);
+  }, []);
+
+  const handleSelectMention = useCallback((member: MentionMember) => {
+    // Replace the @query in the message text with @DisplayName + space
+    const atIdx = message.lastIndexOf('@');
+    if (atIdx !== -1) {
+      const before = message.slice(0, atIdx);
+      const newMessage = `${before}@${member.displayName} `;
+      setMessage(newMessage);
+    }
+    setMentionDropdownOpen(false);
+    setPendingMentions(prev => {
+      if (prev.some(m => m.userId === member.userId)) return prev;
+      return [...prev, member];
+    });
+    messageInputRef.current?.focus();
+  }, [message, messageInputRef]);
 
   const sendReadReceipt = useCallback((messageId: string) => {
     if (!selectedChat?.id || selectedChat.isNew || selectedChat.isAi || !currentUser?.id) return;
@@ -1243,6 +1471,7 @@ export function useChatWindow({
               isEdited: newMsg.isEdited || false,
               isRecalled: newMsg.isRecalled || false,
               forwardedFromSenderName: newMsg.forwardedFromSenderName || null,
+              caption: newMsg.caption || undefined,
               isUploading: false,
             };
 
@@ -1257,6 +1486,7 @@ export function useChatWindow({
                   ...mappedMsg,
                   width: mappedMsg.width || optimisticMsg.width,
                   height: mappedMsg.height || optimisticMsg.height,
+                  caption: mappedMsg.caption || optimisticMsg.caption,
                 };
                 setShouldScrollToBottom(true);
                 return next;
@@ -1291,8 +1521,14 @@ export function useChatWindow({
       if (isInitialLoadRef.current) {
         container.dataset.programmaticScroll = '1';
         container.scrollTop = container.scrollHeight;
+        // Double rAF ensures layout is fully settled (especially for images with aspect-ratio)
         requestAnimationFrame(() => {
-          delete container.dataset.programmaticScroll;
+          requestAnimationFrame(() => {
+            if (container.scrollTop < container.scrollHeight - container.clientHeight) {
+              container.scrollTop = container.scrollHeight;
+            }
+            delete container.dataset.programmaticScroll;
+          });
         });
         isInitialLoadRef.current = false;
       } else {
@@ -1686,5 +1922,34 @@ export function useChatWindow({
     onUpdateConversation,
     onSelectConversation,
     onNicknameChange,
+
+    // Link Preview
+    pendingLinkPreview,
+    linkPreviewDismissed,
+    setLinkPreviewDismissed,
+    setPendingLinkPreview,
+
+    // @Mention
+    mentionQuery,
+    mentionDropdownOpen,
+    setMentionDropdownOpen,
+    conversationMembers,
+    pendingMentions,
+    handleMentionInput,
+    handleSelectMention,
+
+    // Smart Reply
+    smartReplies,
+    smartRepliesLoading,
+    fetchSmartReplies,
+    dismissSmartReplies,
+
+    // Message Summary
+    summaryText,
+    summaryLoading,
+    summaryMessageCount,
+    isSummaryOpen,
+    setIsSummaryOpen,
+    fetchSummary,
   };
 }
