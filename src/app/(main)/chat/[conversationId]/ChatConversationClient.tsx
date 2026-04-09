@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { MainHome } from '../../page';
+import { MainHome } from '../../MainHome';
 
 export default function ChatConversationClient() {
   const params = useParams<{ conversationId: string | string[] }>();
