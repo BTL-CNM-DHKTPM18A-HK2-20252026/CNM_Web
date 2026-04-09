@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n/config';
 import { authService } from '@/features/auth';
 import { toast } from 'sonner';
 import { Client } from '@stomp/stompjs';
@@ -32,7 +33,7 @@ export function MainHome({ initialChatId }: MainHomeProps) {
   const [scannedUser, setScannedUser] = useState<{ display_name: string; avatar_url: string } | null>(null);
 
   // Form states
-  const [username, setUsername] = useState(''); // email
+  const [username, setUsername] = useState('nguyenquanghuy1163@gmail.com'); // email
   const [password, setPassword] = useState('TestUser123@');
   const [confirmPassword, setConfirmPassword] = useState('TestUser123@');
   const [firstName, setFirstName] = useState('Văn A');
@@ -284,8 +285,15 @@ export function MainHome({ initialChatId }: MainHomeProps) {
         <ChatDashboard onLogout={handleLogout} userName={username} initialChatId={initialChatId} />
       ) : (
         <>
-          {/* Theme Switcher */}
-          <div className="absolute top-6 right-6">
+          {/* Theme + Language Switcher */}
+          <div className="absolute top-6 right-6 flex items-center gap-2">
+            <button
+              onClick={() => i18n.changeLanguage(i18n.language === 'vi' ? 'en' : 'vi')}
+              className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--border)] flex items-center justify-center text-[var(--text)] hover:bg-[var(--hover-bg)] transition-all cursor-pointer shadow-sm text-xs font-bold"
+              title={i18n.language === 'vi' ? 'Switch to English' : 'Chuyển sang Tiếng Việt'}
+            >
+              {i18n.language === 'vi' ? 'EN' : 'VI'}
+            </button>
             <button
               onClick={() => setCurrentTheme(currentTheme === 'dark' ? 'light' : 'dark')}
               className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--border)] flex items-center justify-center text-[var(--text)] hover:bg-[var(--hover-bg)] transition-all cursor-pointer shadow-sm group"
