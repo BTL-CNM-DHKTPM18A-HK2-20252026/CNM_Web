@@ -994,7 +994,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     {accountLocked && (
                       <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
                         <div className="flex items-center gap-2">
-                          <ShieldIcon size={16} className="text-red-500" />
+                          <span className="text-red-500"><ShieldIcon size={16} /></span>
                           <p className="text-[13px] font-medium text-red-600 dark:text-red-400">
                             {t('settings.privacy.lock_account.warning')}
                           </p>
