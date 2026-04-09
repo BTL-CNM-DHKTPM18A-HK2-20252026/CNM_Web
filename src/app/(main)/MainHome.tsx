@@ -33,12 +33,12 @@ export function MainHome({ initialChatId }: MainHomeProps) {
   const [scannedUser, setScannedUser] = useState<{ display_name: string; avatar_url: string } | null>(null);
 
   // Form states
-  const [username, setUsername] = useState('nguyenquanghuy1163@gmail.com'); // email
-  const [password, setPassword] = useState('TestUser123@');
-  const [confirmPassword, setConfirmPassword] = useState('TestUser123@');
-  const [firstName, setFirstName] = useState('Văn A');
-  const [lastName, setLastName] = useState('Nguyễn');
-  const [email, setEmail] = useState('nguyenvana@gmail.com');
+  const [username, setUsername] = useState(''); // email
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -46,8 +46,8 @@ export function MainHome({ initialChatId }: MainHomeProps) {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [dob, setDob] = useState('2004-04-20');
-  const [gender, setGender] = useState('Nam');
+  const [dob, setDob] = useState('');
+  const [gender, setGender] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [stompClient, setStompClient] = useState<Client | null>(null);
   const [qrUuid, setQrUuid] = useState<string | null>(null);
