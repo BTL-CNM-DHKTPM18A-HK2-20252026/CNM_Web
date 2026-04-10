@@ -105,7 +105,7 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
           </>
         )}
 
-        {selectedChat.isGroup && (
+        {!selectedChat.isCloud && !selectedChat.isAid && !selectedChat.isAi && (
           <button
             onClick={fetchSummary}
             disabled={summaryLoading}
@@ -139,35 +139,45 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
 
       {/* Summary Modal */}
       {isSummaryOpen && (
-        <div className="absolute top-full right-4 mt-2 w-[400px] max-h-[400px] bg-[var(--card-bg)] border border-[var(--border)] rounded-lg shadow-xl z-50 overflow-hidden animate-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
-            <div className="flex items-center gap-2">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              <span className="text-[14px] font-semibold text-[var(--text)]">Tóm tắt cuộc trò chuyện</span>
-            </div>
-            <button onClick={() => setIsSummaryOpen(false)} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-[var(--hover-bg)] text-[var(--sub-text)] cursor-pointer transition-colors">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-            </button>
-          </div>
-          <div className="p-4 overflow-y-auto max-h-[340px]">
-            {summaryLoading ? (
-              <div className="flex flex-col items-center justify-center py-8 gap-3">
-                <div className="w-6 h-6 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
-                <span className="text-[13px] text-[var(--sub-text)]">Đang tóm tắt tin nhắn...</span>
+        <>
+          {/* Backdrop */}
+          <div className="fixed inset-0 z-40" onClick={() => setIsSummaryOpen(false)} />
+          <div className="absolute top-full right-4 mt-2 w-[440px] max-h-[500px] bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-2xl z-50 overflow-hidden animate-in slide-in-from-top-2 duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-gradient-to-r from-[#0068FF]/5 to-transparent">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[#0068FF]/10 flex items-center justify-center">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                </div>
+                <div>
+                  <span className="text-[14px] font-semibold text-[var(--text)]">Tóm tắt cuộc trò chuyện</span>
+                  {!summaryLoading && summaryMessageCount > 0 && (
+                    <div className="text-[11px] text-[var(--sub-text)]">{summaryMessageCount} tin nhắn gần nhất</div>
+                  )}
+                </div>
               </div>
-            ) : (
-              <>
-                {summaryMessageCount > 0 && (
-                  <div className="text-[11px] text-[var(--sub-text)] mb-3 flex items-center gap-1">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                    {summaryMessageCount} tin nhắn được tóm tắt
-                  </div>
-                )}
-                <div className="text-[13px] text-[var(--text)] leading-relaxed whitespace-pre-wrap">{summaryText}</div>
-              </>
-            )}
+              <button onClick={() => setIsSummaryOpen(false)} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-[var(--hover-bg)] text-[var(--sub-text)] cursor-pointer transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+            {/* Body */}
+            <div className="p-4 overflow-y-auto max-h-[430px]">
+              {summaryLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <div className="w-8 h-8 border-[3px] border-[#0068FF] border-t-transparent rounded-full animate-spin" />
+                  <span className="text-[13px] text-[var(--sub-text)]">AI đang tóm tắt 100 tin nhắn gần nhất...</span>
+                </div>
+              ) : (
+                <div
+                  className="text-[13px] text-[var(--text)] leading-[1.7] whitespace-pre-wrap [&>strong]:text-[#0068FF] [&>strong]:font-semibold"
+                  dangerouslySetInnerHTML={{
+                    __html: (summaryText || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                  }}
+                />
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

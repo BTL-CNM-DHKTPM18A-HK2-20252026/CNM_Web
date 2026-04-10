@@ -32,6 +32,8 @@ interface PresenceContextValue {
     getLastSeen: (userId: string) => string | null;
     /** Format "Hoạt động … trước" / "Đang hoạt động" */
     getTimeAgo: (userId: string) => string;
+    /** Fetch trạng thái của 1 user cụ thể và cập nhật map (dùng khi mở chat) */
+    refreshUserStatus: (userId: string) => Promise<void>;
 }
 
 const PresenceContext = createContext<PresenceContextValue>({
@@ -39,6 +41,7 @@ const PresenceContext = createContext<PresenceContextValue>({
     isOnline: () => false,
     getLastSeen: () => null,
     getTimeAgo: () => '',
+    refreshUserStatus: async () => {},
 });
 
 // ──────────────────────────────────────────────────────────────
@@ -141,8 +144,34 @@ export function PresenceProvider({ children, currentUserId }: PresenceProviderPr
         [statuses, t]
     );
 
+    /**
+     * Fetch trạng thái của 1 user cụ thể qua REST và cập nhật statuses map.
+     * Dùng khi mở hội thoại với ai đó để đảm bảo status chính xác,
+     * kể cả khi user đó không nằm trong danh sách bạn bè (initial fetch).
+     */
+    const refreshUserStatus = useCallback(async (userId: string) => {
+        if (!userId || !currentUserId) return;
+        try {
+            const res: any = await apiClient.get(`/presence/${userId}`);
+            const data = res?.data ?? res;
+            if (data?.userId) {
+                setStatuses((prev) => {
+                    const next = new Map(prev);
+                    next.set(data.userId, {
+                        userId: data.userId,
+                        online: data.online ?? false,
+                        lastSeen: data.lastSeen ?? null,
+                    });
+                    return next;
+                });
+            }
+        } catch (e) {
+            console.error('[Presence] Failed to refresh user status:', e);
+        }
+    }, [currentUserId]);
+
     return (
-        <PresenceContext.Provider value={{ statuses, isOnline, getLastSeen, getTimeAgo }}>
+        <PresenceContext.Provider value={{ statuses, isOnline, getLastSeen, getTimeAgo, refreshUserStatus }}>
             {children}
         </PresenceContext.Provider>
     );

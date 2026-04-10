@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { SparklesIcon } from '@/components/ui/Icons';
 import { AI_TYPING_USER_ID } from '@/features/chat/components/ChatWindow/useChatWindow';
 import type { ChatMessage, ChatMessageListProps } from '@/features/chat/components/ChatWindow/types';
+import { usePresence } from '@/features/user';
 
 // ── Call History Message ────────────────────────────────────────────────────
 function formatCallDuration(seconds: number): string {
@@ -305,6 +306,17 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
     handleAcceptFriendRequest,
     handleSendFriendRequest,
   } = vm;
+
+  const { isOnline, refreshUserStatus } = usePresence();
+
+  // Fetch trạng thái online của người nhận khi mở hội thoại mới
+  useEffect(() => {
+    const peerId = selectedChat.otherUserId || selectedChat.recipientId;
+    if (peerId && !selectedChat.isGroup && !selectedChat.isCloud && !selectedChat.isAi) {
+      refreshUserStatus(peerId);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChat.otherUserId, selectedChat.recipientId]);
 
   // ── Virtual list setup ────────────────────────────────────────────────────
   const virtualizer = useVirtualizer({
@@ -755,7 +767,10 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                 })
                                 : [];
 
-                              const anyReaders = Object.keys(readReceipts).length > 0;
+                              // "Đã nhận": người kia đang online nhưng chưa xem
+                              const otherUserId = selectedChat.otherUserId || selectedChat.recipientId;
+                              const otherIsOnline = otherUserId ? isOnline(String(otherUserId)) : false;
+
                               const showSection = msg.type !== 'TEXT' || showReadStatus;
                               if (!showSection) return null;
 
@@ -765,6 +780,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                     <span className="text-[11px] text-[var(--sub-text)] opacity-100 font-medium">{msg.time}</span>
                                   )}
                                   {showReadStatus && (() => {
+                                    // 1. Đã xem — có read receipt
                                     if (readersForThisMsg.length > 0) {
                                       return (
                                         <div className="flex items-center gap-1">
@@ -785,7 +801,8 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                       );
                                     }
 
-                                    if (anyReaders) {
+                                    // Group: đã xem nếu có bất kỳ readReceipt nào
+                                    if (selectedChat.isGroup && Object.keys(readReceipts).length > 0) {
                                       return (
                                         <div className="bg-blue-500/10 rounded-full px-2 py-0.5 flex items-center gap-1 text-[11px] text-blue-500 font-medium">
                                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /><polyline points="14 6 3 17" /></svg>
@@ -794,6 +811,17 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                       );
                                     }
 
+                                    // 2. Đã nhận — người kia online nhưng chưa xem
+                                    if (otherIsOnline) {
+                                      return (
+                                        <div className="bg-green-500/10 rounded-full px-2 py-0.5 flex items-center gap-1 text-[11px] text-green-600 dark:text-green-400 font-medium">
+                                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /><polyline points="14 6 3 17" /></svg>
+                                          <span>{t('chat.status.received')}</span>
+                                        </div>
+                                      );
+                                    }
+
+                                    // 3. Đã gửi — người kia offline
                                     return (
                                       <div className="bg-black/5 dark:bg-white/10 rounded-full px-2 py-0.5 flex items-center gap-1 text-[11px] text-[var(--sub-text)] font-medium">
                                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--sub-text)] opacity-70"><polyline points="20 6 9 17 4 12" /></svg>

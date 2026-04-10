@@ -456,11 +456,11 @@ export function useChatWindow({
 
   const dismissSmartReplies = useCallback(() => setSmartReplies([]), []);
 
-  // Auto-fetch smart replies when a new message from someone else arrives
+  // Auto-fetch smart replies when messages change (any new message)
   useEffect(() => {
     if (!messages.length || selectedChat.isAi || selectedChat.isCloud) return;
     const lastMsg = messages[messages.length - 1];
-    if (!lastMsg || lastMsg.sender === 'Me' || lastMsg.sender === 'SYSTEM') return;
+    if (!lastMsg || lastMsg.sender === 'SYSTEM') return;
 
     // Debounce to avoid rapid calls
     if (smartReplyDebounceRef.current) clearTimeout(smartReplyDebounceRef.current);
@@ -474,11 +474,15 @@ export function useChatWindow({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, selectedChat?.id]);
 
-  // Clear smart replies when switching conversations
+  // Clear smart replies when switching conversations, then auto-fetch
   useEffect(() => {
     setSmartReplies([]);
     setSummaryText(null);
     setIsSummaryOpen(false);
+    if (!selectedChat?.id || selectedChat.isAi || selectedChat.isCloud) return;
+    const t = setTimeout(() => fetchSmartReplies(), 600);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChat?.id]);
 
   // ── Message Summary ──
@@ -488,8 +492,10 @@ export function useChatWindow({
     setSummaryText(null);
     setIsSummaryOpen(true);
     try {
-      const res = await apiClient.post<{ summary: string; messageCount: number }>('/ai/summarize', {
+      const res = await apiClient.post<{ summary: string; messageCount: number }>('/ai/summarize-recent', {
         conversationId: selectedChat.id.toString(),
+        messageCount: 100,
+        messageCount: 100,
       });
       const data = res as any;
       setSummaryText(data?.summary ?? data?.data?.summary ?? 'Không có nội dung tóm tắt.');
