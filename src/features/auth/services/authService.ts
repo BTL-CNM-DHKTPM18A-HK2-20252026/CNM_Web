@@ -13,8 +13,8 @@ type IntrospectResponse = {
 
 export const authService = {
   /**
-   * Login with email and password
-   * @param username - email address
+   * Login with phone number and password
+   * @param username - phone number
    * @param password - user password
    */
   async login(username: string, password: string): Promise<LoginResponse> {
@@ -65,6 +65,20 @@ export const authService = {
   },
 
   /**
+   * Check if a phone number exists in the system
+   * @param phoneNumber - phone number to check
+   */
+  async checkPhone(phoneNumber: string): Promise<boolean> {
+    try {
+      const result = await apiClient.post<boolean>('/auth/check-phone', { phoneNumber });
+      return result;
+    } catch (error) {
+      console.error('Check Phone Error:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Check if an email exists in the system
    * @param email - email to check
    */
@@ -82,7 +96,7 @@ export const authService = {
    * Register a new user
    * @param data - registration data
    */
-  async register(data: { email: string; password: string; displayName: string; firstName?: string; lastName?: string; dob?: Date; gender?: string }): Promise<unknown> {
+  async register(data: { phoneNumber: string; email?: string; password: string; displayName: string; firstName?: string; lastName?: string; dob?: Date; gender?: string }): Promise<unknown> {
     try {
       const result = await apiClient.post('/users', data);
       return result; 

@@ -23,6 +23,10 @@ interface AddFriendTarget {
   display_name?: string;
   avatar_url?: string;
   friendship_status?: string;
+  cover_photo_url?: string;
+  bio?: string;
+  gender?: string;
+  dob?: string;
 }
 
 const XIcon = ({ size = 20 }: { size?: number }) => (
@@ -58,7 +62,7 @@ export function AddFriendModal({
   initialUser,
 }: AddFriendModalProps) {
   const { t } = useTranslation();
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResult, setSearchResult] = useState<AddFriendTarget | null>(null);
   const [searchResults, setSearchResults] = useState<AddFriendTarget[]>([]);
@@ -68,6 +72,30 @@ export function AddFriendModal({
   // Step 2 states
   const [requestMsg, setRequestMsg] = useState('');
   const [blockDiary, setBlockDiary] = useState(false);
+  const [detailUser, setDetailUser] = useState<AddFriendTarget | null>(null);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+
+  const fetchUserDetail = async (userId: string) => {
+    setIsLoadingDetail(true);
+    try {
+      const data: any = await apiClient.get(`/users/${userId}`).catch(() => null);
+      if (data?.user_id || data?.userId) {
+        setDetailUser({
+          user_id: data.user_id || data.userId,
+          display_name: data.display_name || data.displayName,
+          avatar_url: data.avatar_url || data.avatarUrl,
+          phone_number: data.phone_number || data.phoneNumber,
+          friendship_status: data.friendship_status || data.friendshipStatus,
+          cover_photo_url: data.cover_photo_url || data.coverPhotoUrl,
+          bio: data.bio,
+          gender: data.gender,
+          dob: data.dob,
+        });
+      }
+    } finally {
+      setIsLoadingDetail(false);
+    }
+  };
 
   React.useEffect(() => {
     if (isOpen && !requestMsg) {
@@ -86,9 +114,8 @@ export function AddFriendModal({
       setSearchError(null);
       setSearchResult(initialUser);
       setSearchResults([initialUser]);
-      if (initialUser.friendship_status !== 'ACCEPTED') {
-        setStep(2);
-      }
+      setStep(2);
+      fetchUserDetail(initialUser.user_id);
     }
   }, [isOpen, initialPhoneNumber, initialUser]);
 
@@ -127,17 +154,18 @@ export function AddFriendModal({
         }
       }
 
-      // 2. Fallback: exact email lookup
+      // 2. Fallback: exact phone number lookup
       if (collected.length === 0) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (emailRegex.test(query)) {
-          const byEmail = await userService.getUserByEmail(query).catch(() => null);
-          if (byEmail?.user_id) {
+        const phoneRegex = /^(0|\+84)[0-9]{9}$/;
+        if (phoneRegex.test(query)) {
+          const byPhone = await userService.getUserByPhone(query).catch(() => null);
+          if (byPhone?.user_id) {
             collected.push({
-              user_id: byEmail.user_id,
-              display_name: byEmail.display_name,
-              avatar_url: byEmail.avatar_url,
-              friendship_status: byEmail.friendship_status,
+              user_id: byPhone.user_id,
+              phone_number: byPhone.phone_number,
+              display_name: byPhone.display_name,
+              avatar_url: byPhone.avatar_url,
+              friendship_status: byPhone.friendship_status,
             });
           }
         }
@@ -179,6 +207,7 @@ export function AddFriendModal({
     setStep(1);
     setRequestMsg(t('addFriend.default_message', { name: '...' }));
     setBlockDiary(false);
+    setDetailUser(null);
     onClose();
   };
 
@@ -190,16 +219,16 @@ export function AddFriendModal({
         {/* Header */}
         <div className="h-[48px] border-b border-[var(--border)] flex items-center justify-between px-4 bg-[var(--card-bg)] shrink-0">
           <div className="flex items-center gap-2">
-            {step === 2 && (
+            {(step === 2 || step === 3) && (
               <button
-                onClick={() => setStep(1)}
+                onClick={() => step === 3 ? setStep(2) : setStep(1)}
                 className="p-1 hover:bg-[var(--hover-bg)] rounded-full transition-colors cursor-pointer"
               >
                 <BackIcon />
               </button>
             )}
             <h2 className="text-[16px] font-bold text-[var(--text)]">
-              {step === 1 ? t('addFriend.title') : t('addFriend.account_info')}
+              {step === 1 ? t('addFriend.title') : step === 3 ? t('addFriend.profile_detail', 'Trang cá nhân') : t('addFriend.account_info')}
             </h2>
           </div>
           <button onClick={handleClose} className="text-[var(--text)] hover:bg-[var(--hover-bg)] p-1 rounded-full transition-all cursor-pointer">
@@ -256,7 +285,7 @@ export function AddFriendModal({
                             <span className="text-[13px] font-bold text-green-500 px-3 py-1 bg-green-50 rounded-md shrink-0">{t('addFriend.status.friend')}</span>
                           ) : (
                             <button
-                              onClick={() => { setSearchResult(result); setStep(2); }}
+                              onClick={() => { setSearchResult(result); setStep(2); fetchUserDetail(result.user_id); }}
                               className="px-4 py-1.5 bg-[#0068FF] hover:bg-[#005AE0] text-white font-bold rounded-md text-[13px] transition-all cursor-pointer shrink-0"
                             >
                               {t('addFriend.add_btn')}
@@ -292,7 +321,17 @@ export function AddFriendModal({
         ) : (
           <div className="flex flex-col flex-1 animate-in slide-in-from-right-4 duration-300">
             {/* Visual Header / Cover */}
-            <div className="relative h-32 bg-gray-200 shrink-0">
+            <div className="relative h-32 bg-gray-200 shrink-0 overflow-hidden">
+              {isLoadingDetail ? (
+                <div className="absolute inset-0 animate-pulse bg-gray-300" />
+              ) : (
+                <Image
+                  src={(detailUser?.cover_photo_url) || (() => { const uid = searchResult?.user_id || ''; const s = uid.split('').reduce((a,c)=>a+c.charCodeAt(0),0); return `/background/image${(s%3)+1}.jpg`; })()}
+                  alt="Cover"
+                  fill
+                  className="object-cover"
+                />
+              )}
               <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-transparent"></div>
             </div>
 
@@ -313,45 +352,58 @@ export function AddFriendModal({
               </div>
 
               <div className="space-y-5">
-                <div className="relative">
-                  <textarea
-                    value={requestMsg}
-                    onChange={(e) => setRequestMsg(e.target.value.substring(0, 150))}
-                    className="w-full h-24 p-3 bg-transparent border border-[var(--border)] rounded-md outline-none focus:border-[#0068FF] text-[14px] resize-none transition-all"
-                    placeholder={t('addFriend.message_placeholder')}
-                  />
-                  <span className="absolute bottom-2 right-3 text-[11px] text-[var(--sub-text)]">
-                    {requestMsg.length}/150 {t('addFriend.char_count')}
-                  </span>
-                </div>
+                {searchResult?.friendship_status !== 'ACCEPTED' && (
+                  <>
+                    <div className="relative">
+                      <textarea
+                        value={requestMsg}
+                        onChange={(e) => setRequestMsg(e.target.value.substring(0, 150))}
+                        className="w-full h-24 p-3 bg-transparent border border-[var(--border)] rounded-md outline-none focus:border-[#0068FF] text-[14px] resize-none transition-all"
+                        placeholder={t('addFriend.message_placeholder')}
+                      />
+                      <span className="absolute bottom-2 right-3 text-[11px] text-[var(--sub-text)]">
+                        {requestMsg.length}/150 {t('addFriend.char_count')}
+                      </span>
+                    </div>
 
-                <div
-                  onClick={() => setBlockDiary(!blockDiary)}
-                  className="flex items-center justify-between bg-[var(--hover-bg)] p-3 rounded-lg group cursor-pointer active:opacity-80 transition-opacity"
-                >
-                  <span className="text-[14px] font-medium text-[var(--text)] opacity-80">{t('addFriend.block_diary')}</span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setBlockDiary(!blockDiary); }}
-                    className={`w-10 h-5 rounded-full transition-all relative cursor-pointer ${blockDiary ? 'bg-[#0068FF]' : 'bg-gray-300'}`}
-                  >
-                    <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${blockDiary ? 'right-1' : 'left-1'}`}></div>
-                  </button>
-                </div>
+                    <div
+                      onClick={() => setBlockDiary(!blockDiary)}
+                      className="flex items-center justify-between bg-[var(--hover-bg)] p-3 rounded-lg group cursor-pointer active:opacity-80 transition-opacity"
+                    >
+                      <span className="text-[14px] font-medium text-[var(--text)] opacity-80">{t('addFriend.block_diary')}</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setBlockDiary(!blockDiary); }}
+                        className={`w-10 h-5 rounded-full transition-all relative cursor-pointer ${blockDiary ? 'bg-[#0068FF]' : 'bg-gray-300'}`}
+                      >
+                        <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${blockDiary ? 'right-1' : 'left-1'}`}></div>
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {searchResult?.friendship_status === 'ACCEPTED' && (
+                  <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg">
+                    <span className="text-green-600 font-bold text-[14px]">✓ {t('addFriend.status.friend', 'Bạn bè')}</span>
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="mt-auto p-4 border-t border-[var(--border)] flex items-center justify-end gap-3 bg-[var(--card-bg)] shrink-0">
               <button
+                onClick={() => setStep(3)}
                 className="flex-1 py-2.5 bg-[#E9EBED] hover:bg-[#D8DADF] text-[var(--text)] font-bold rounded-md text-[14px] transition-all cursor-pointer"
               >
                 {t('addFriend.info_btn')}
               </button>
-              <button
-                onClick={handleSendRequest}
-                className="flex-1 py-2.5 bg-[#0068FF] hover:bg-[#005AE0] text-white font-bold rounded-md text-[14px] transition-all cursor-pointer shadow-md"
-              >
-                {t('addFriend.add_btn')}
-              </button>
+              {searchResult?.friendship_status !== 'ACCEPTED' && (
+                <button
+                  onClick={handleSendRequest}
+                  className="flex-1 py-2.5 bg-[#0068FF] hover:bg-[#005AE0] text-white font-bold rounded-md text-[14px] transition-all cursor-pointer shadow-md"
+                >
+                  {t('addFriend.add_btn')}
+                </button>
+              )}
             </div>
           </div>
         )}

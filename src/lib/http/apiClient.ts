@@ -50,9 +50,18 @@ const buildUrl = (endpoint: string) =>
 
 const parseErrorMessage = (error: unknown) => {
   if (axios.isAxiosError(error)) {
-    const payload = error.response?.data as ApiEnvelope<unknown> | undefined;
-    if (payload?.message) {
-      return payload.message;
+    const payload = error.response?.data as (ApiEnvelope<unknown> & { details?: Record<string, string> }) | undefined;
+    if (payload) {
+      // Extract field-level validation errors from backend ErrorResponse.details
+      if (payload.details && typeof payload.details === 'object') {
+        const fieldErrors = Object.values(payload.details).filter(Boolean);
+        if (fieldErrors.length > 0) {
+          return fieldErrors.join('; ');
+        }
+      }
+      if (payload.message) {
+        return payload.message;
+      }
     }
     if (error.message) {
       return error.message;

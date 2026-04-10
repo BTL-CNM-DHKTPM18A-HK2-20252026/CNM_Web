@@ -160,6 +160,8 @@ export function useChatWindow({
   onSelectConversation,
   onNicknameChange,
   refreshTrigger,
+  targetMessageId,
+  onClearTargetMessage,
 }: ChatWindowProps) {
   const { t, i18n } = useTranslation();
 
@@ -1269,6 +1271,29 @@ export function useChatWindow({
     }
   }, [typingUsers.length]);
 
+  // Handle jump-to-message when conversation is already open (targetMessageId changes
+  // but selectedChat.id doesn't — so fetchMessages won't re-run)
+  useEffect(() => {
+    if (!targetMessageId || messages.length === 0) return;
+
+    const scrollToTarget = (attempts = 0) => {
+      const el = document.getElementById(`msg-${targetMessageId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('highlight-msg');
+        setTimeout(() => el.classList.remove('highlight-msg'), 2500);
+        onClearTargetMessage?.();
+      } else if (attempts < 8) {
+        setTimeout(() => scrollToTarget(attempts + 1), 150);
+      } else {
+        onClearTargetMessage?.();
+      }
+    };
+
+    scrollToTarget();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetMessageId]);
+
   useEffect(() => {
     if (!selectedChat?.id || selectedChat.isNew || selectedChat.isAi) return;
 
@@ -1349,17 +1374,29 @@ export function useChatWindow({
         setIsInitialLoading(true);
         setIsLoadingMore(true);
 
-        const res = await apiClient.get(`/messages/conversation/${selectedChat.id}?size=20&page=0`);
-
+        // When jumping to a specific message, fetch messages centered around it
         let items: any[] = [];
         let hasMoreData = false;
 
-        if (res.success && res.data) {
-          items = Array.isArray(res.data) ? res.data : (res.data.content || []);
-          hasMoreData = res.data.last === false;
-        } else if (res.content) {
-          items = res.content;
-          hasMoreData = res.last === false;
+        if (targetMessageId) {
+          const res = await apiClient.get(
+            `/messages/conversation/${selectedChat.id}/around/${targetMessageId}?size=40`
+          );
+          if (res.success && res.data) {
+            items = Array.isArray(res.data) ? res.data : (res.data.content || []);
+          } else if (Array.isArray(res)) {
+            items = res;
+          }
+          hasMoreData = true; // there may be older messages
+        } else {
+          const res = await apiClient.get(`/messages/conversation/${selectedChat.id}?size=20&page=0`);
+          if (res.success && res.data) {
+            items = Array.isArray(res.data) ? res.data : (res.data.content || []);
+            hasMoreData = res.data.last === false;
+          } else if (res.content) {
+            items = res.content;
+            hasMoreData = res.last === false;
+          }
         }
 
         const sorted = [...items].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
@@ -1370,7 +1407,27 @@ export function useChatWindow({
         setHasMore(hasMoreData);
         setIsLoadingMore(false);
         setIsInitialLoading(false);
-        setShouldScrollToBottom(true);
+
+        // If a targetMessageId was requested, scroll to it after render; otherwise scroll to bottom
+        if (targetMessageId) {
+          const scrollToTarget = (attempts = 0) => {
+            const el = document.getElementById(`msg-${targetMessageId}`);
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              el.classList.add('highlight-msg');
+              setTimeout(() => el.classList.remove('highlight-msg'), 2500);
+              onClearTargetMessage?.();
+            } else if (attempts < 8) {
+              setTimeout(() => scrollToTarget(attempts + 1), 150);
+            } else {
+              setShouldScrollToBottom(true);
+              onClearTargetMessage?.();
+            }
+          };
+          setTimeout(() => scrollToTarget(), 100);
+        } else {
+          setShouldScrollToBottom(true);
+        }
       } catch (error) {
         console.error('Failed to fetch messages:', error);
         setIsLoadingMore(false);

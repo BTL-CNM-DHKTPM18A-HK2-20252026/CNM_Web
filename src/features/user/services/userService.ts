@@ -2,7 +2,8 @@ import { apiClient } from '@/lib/http/apiClient';
 
 export interface UserResponse {
   user_id: string;
-  email: string;
+  phone_number: string;
+  gmail: string;
   display_name: string;
   first_name: string;
   last_name: string;
@@ -18,6 +19,14 @@ export const userService = {
    */
   async getUserByEmail(email: string): Promise<UserResponse> {
     const result = await apiClient.get(`/users/email/${encodeURIComponent(email)}`);
+    return result;
+  },
+
+  /**
+   * Find user by phone number
+   */
+  async getUserByPhone(phoneNumber: string): Promise<UserResponse> {
+    const result = await apiClient.get(`/users/phone/${encodeURIComponent(phoneNumber)}`);
     return result;
   },
 

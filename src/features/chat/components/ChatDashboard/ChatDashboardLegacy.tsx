@@ -85,6 +85,7 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
 
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<string | number>(initialChatId ?? '');
+  const [targetMessageId, setTargetMessageId] = useState<string | null>(null);
   // Refs for stale-closure-safe access inside WebSocket callbacks
   const selectedChatIdRef = useRef<string | number>(initialChatId ?? '');
   const currentUserRef = useRef<any>(null);
@@ -633,13 +634,14 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
         />
 
         {/* 2. MIDDLE LIST */}
-        {activeTab === 'chat' ? (
+        {activeTab === 'chat' || activeTab === 'contacts' ? (
           <ConversationList
             conversations={conversations.map(c => ({ ...c, active: c.id === selectedChatId }))}
-            onAddFriend={() => openAddFriendModal()}
+            onAddFriend={(prefill) => openAddFriendModal(prefill)}
             onCreateGroup={() => setIsCreateGroupModalOpen(true)}
             onSelectConversation={(id) => {
               setSelectedChatId(id);
+              setActiveTab('chat');
               // Optimistically clear unreadCount when opening a conversation
               setConversations(prev =>
                 prev.map(c => c.id === id ? { ...c, unreadCount: 0, isMarkedUnread: false } : c)
@@ -649,6 +651,14 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
               if (conv?.isMarkedUnread) {
                 apiClient.post(`/conversations/${id}/mark-unread`, {}).catch(() => {});
               }
+            }}
+            onJumpToMessage={(convId, messageId) => {
+              setSelectedChatId(convId);
+              setActiveTab('chat');
+              setTargetMessageId(messageId);
+              setConversations(prev =>
+                prev.map(c => c.id === convId ? { ...c, unreadCount: 0, isMarkedUnread: false } : c)
+              );
             }}
             onPinConversation={(id, pinned) => {
               setConversations(prev =>
@@ -693,13 +703,12 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
               fetchConversations();
             }}
             currentUser={currentUser}
-          />
-        ) : activeTab === 'contacts' ? (
-          <ContactList
-            selectedCategory={contactCategory}  
-            onSelectCategory={setContactCategory}
-            onAddFriend={(prefill) => openAddFriendModal(prefill)}
-            onCreateGroup={() => setIsCreateGroupModalOpen(true)}
+            nonSearchContent={activeTab === 'contacts' ? (
+              <ContactList
+                selectedCategory={contactCategory}
+                onSelectCategory={setContactCategory}
+              />
+            ) : undefined}
           />
         ) : (
           <div className="w-[340px] border-r border-[var(--border)] bg-[var(--card-bg)] flex items-center justify-center text-gray-400">
@@ -762,6 +771,8 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
                     );
                   }}
                   refreshTrigger={chatRefreshTrigger}
+                  targetMessageId={targetMessageId}
+                  onClearTargetMessage={() => setTargetMessageId(null)}
                 />
                 {activeSidebar === 'info' && (
                   <ChatInfoSidebar

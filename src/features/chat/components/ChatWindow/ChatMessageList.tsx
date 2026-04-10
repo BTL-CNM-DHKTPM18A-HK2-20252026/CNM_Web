@@ -745,7 +745,8 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                 }
                                 return true;
                               })();
-                              const showReadStatus = msg.sender === 'Me' && isLastMyMsg;
+                              const showReadStatus = msg.sender === 'Me' && isLastMyMsg
+                                && !selectedChat.isCloud && !selectedChat.isAi;
 
                               const readersForThisMsg = showReadStatus
                                 ? Object.values(readReceipts).filter(readReceipt => {

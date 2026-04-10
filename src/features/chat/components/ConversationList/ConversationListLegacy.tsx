@@ -47,6 +47,7 @@ export interface ConversationListProps {
   onAddFriend: (prefill?: AddFriendPrefill) => void;
   onCreateGroup: () => void;
   onSelectConversation: (id: string | number) => void;
+  onJumpToMessage?: (convId: string | number, messageId: string) => void;
   onPinConversation?: (id: string | number, pinned: boolean) => void;
   onDeleteConversation?: (id: string | number) => void;
   onTagConversation?: (id: string | number, tag: string | null) => void;
@@ -55,6 +56,7 @@ export interface ConversationListProps {
   onAutoDeleteConversation?: (id: string | number, duration: string | null) => void;
   onUnhideConversation?: (id: string | number) => void;
   currentUser?: any;
+  nonSearchContent?: React.ReactNode;
 }
 
 interface SearchItem {
@@ -81,7 +83,7 @@ interface SearchUserDocument {
   userId: string;
   displayName: string;
   phoneNumber?: string;
-  email?: string;
+  gmail?: string;
   avatarUrl?: string;
   friendshipStatus?: string;
 }
@@ -96,7 +98,7 @@ interface SearchMessageDocument {
   createdAt: string;
 }
 
-export function ConversationListLegacy({ conversations, onAddFriend, onCreateGroup, onSelectConversation, onPinConversation, onDeleteConversation, onTagConversation, onMuteConversation, onMarkUnread, onAutoDeleteConversation, onUnhideConversation, currentUser }: ConversationListProps) {
+export function ConversationListLegacy({ conversations, onAddFriend, onCreateGroup, onSelectConversation, onJumpToMessage, onPinConversation, onDeleteConversation, onTagConversation, onMuteConversation, onMarkUnread, onAutoDeleteConversation, onUnhideConversation, currentUser, nonSearchContent }: ConversationListProps) {
   const { t } = useTranslation();
   const { isOnline, getTimeAgo } = usePresence();
 
@@ -114,9 +116,11 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchUsers, setSearchUsers] = useState<{ userId: string; displayName: string; phoneNumber?: string; email?: string; avatarUrl?: string; friendshipStatus?: string }[]>([]);
-  const [searchMessages, setSearchMessages] = useState<{ messageId: string; conversationId: string; senderId: string; senderName: string; content: string; messageType: string; createdAt: string }[]>([]);
-  const [searchConversations, setSearchConversations] = useState<Conversation[]>([]);
+  const [searchFriends, setSearchFriends] = useState<{ userId: string; displayName: string; phoneNumber?: string; avatarUrl?: string; friendshipStatus?: string }[]>([]);
+  const [searchUsers, setSearchUsers] = useState<{ userId: string; displayName: string; phoneNumber?: string; gmail?: string; avatarUrl?: string; friendshipStatus?: string }[]>([]);
+  const [searchMessages, setSearchMessages] = useState<{ messageId: string; conversationId: string; senderId: string; senderName: string; content: string; highlightedContent?: string; messageType: string; createdAt: string }[]>([]);
+  const [searchConversations, setSearchConversations] = useState<{ conversationId: string; conversationType?: string; conversationName: string; conversationAvatarUrl?: string; lastMessageContent?: string; lastMessageTime?: string }[]>([]);
+  const [searchGlobalUsers, setSearchGlobalUsers] = useState<{ userId: string; displayName: string; phoneNumber?: string; avatarUrl?: string; friendshipStatus?: string }[]>([]);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -260,9 +264,11 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
   const closeSearchOverlay = useCallback(() => {
     setIsSearching(false);
     setSearchQuery('');
+    setSearchFriends([]);
     setSearchUsers([]);
     setSearchMessages([]);
     setSearchConversations([]);
+    setSearchGlobalUsers([]);
     setIsSearchLoading(false);
   }, []);
 
@@ -271,9 +277,11 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
 
     if (!value.trim()) {
+      setSearchFriends([]);
       setSearchUsers([]);
       setSearchMessages([]);
       setSearchConversations([]);
+      setSearchGlobalUsers([]);
       setIsSearchLoading(false);
       return;
     }
@@ -281,104 +289,106 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
     setIsSearchLoading(true);
     searchTimerRef.current = setTimeout(async () => {
       try {
-        // Local conversation name filter (case-insensitive, accent-folded)
-        const normalizeStr = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-        const normalizedQuery = normalizeStr(value.trim());
-        const matchedConversations = conversations.filter(c =>
-          normalizeStr(c.name).includes(normalizedQuery) || (c.nickname && normalizeStr(c.nickname).includes(normalizedQuery))
-        );
-        setSearchConversations(matchedConversations);
-
-        // Wrap each call to prevent apiClient's internal throw from propagating
         const safeGet = (url: string) => apiClient.get(url).catch(() => null);
+        const trimmedQuery = value.trim();
 
-        // Single request for users + single request across ALL user conversations
-        const [usersData, messagesData] = await Promise.all([
-          safeGet(`/search/users?q=${encodeURIComponent(value.trim())}&size=5`),
-          safeGet(`/search/my-messages?q=${encodeURIComponent(value.trim())}&size=10`),
-        ]);
+        // Single global search call
+        const globalData: any = await safeGet(`/search/global?q=${encodeURIComponent(trimmedQuery)}&size=10`);
 
-        // Extract users — apiClient unwraps ApiResponse, so result is Page<UserDocument> directly
-        if (usersData) {
-          const data = usersData?.content || (Array.isArray(usersData) ? usersData : []);
-          let normalizedUsers = Array.isArray(data)
-            ? data
-              .map((item) => extractEsDocument<SearchUserDocument>(item))
-              .filter((doc): doc is SearchUserDocument => Boolean(doc?.userId))
-              .map((doc) => ({
-                userId: doc.userId,
-                displayName: doc.displayName || 'Unknown',
-                phoneNumber: doc.phoneNumber,
-                email: doc.email,
-                avatarUrl: doc.avatarUrl,
-                friendshipStatus: doc.friendshipStatus,
-              }))
-            : [];
+        if (globalData) {
+          // Friends
+          const friends = Array.isArray(globalData.friends) ? globalData.friends : [];
+          setSearchFriends(friends.map((f: any) => ({
+            userId: f.userId,
+            displayName: f.displayName || 'Unknown',
+            phoneNumber: f.phoneNumber,
+            avatarUrl: f.avatarUrl,
+            friendshipStatus: f.friendshipStatus || 'ACCEPTED',
+          })));
 
-          // Fallback exact phone lookup for cases where /search/users cannot match phone text.
-          const trimmedQuery = value.trim();
-          if (normalizedUsers.length === 0 && /^\d{9,15}$/.test(trimmedQuery)) {
-            let byPhone: any = await safeGet(`/users/phone/${encodeURIComponent(trimmedQuery)}`);
+          // Conversations
+          const convs = Array.isArray(globalData.conversations) ? globalData.conversations : [];
+          setSearchConversations(convs.map((c: any) => ({
+            conversationId: c.conversationId,
+            conversationType: c.conversationType,
+            conversationName: c.conversationName || 'Unknown',
+            conversationAvatarUrl: c.conversationAvatarUrl,
+            lastMessageContent: c.lastMessageContent,
+            lastMessageTime: c.lastMessageTime,
+          })));
 
-            if (!byPhone && trimmedQuery.startsWith('0')) {
-              byPhone = await safeGet(`/users/phone/${encodeURIComponent(`+84${trimmedQuery.substring(1)}`)}`);
-            } else if (!byPhone && trimmedQuery.startsWith('+84')) {
-              byPhone = await safeGet(`/users/phone/${encodeURIComponent(`0${trimmedQuery.substring(3)}`)}`);
-            }
-
-            if (byPhone && (byPhone.user_id || byPhone.userId)) {
-              normalizedUsers = [
-                {
-                  userId: byPhone.user_id || byPhone.userId,
-                  displayName: byPhone.display_name || byPhone.displayName || 'Unknown',
-                  phoneNumber: byPhone.phone_number || byPhone.phoneNumber,
-                  email: byPhone.email,
-                  avatarUrl: byPhone.avatar_url || byPhone.avatarUrl,
-                  friendshipStatus: byPhone.friendship_status || byPhone.friendshipStatus,
-                },
-              ];
-            }
-          }
-
-          setSearchUsers(normalizedUsers);
-        } else {
-          setSearchUsers([]);
-        }
-
-        // Extract messages from /search/my-messages (single call covering all conversations)
-        const allMessages: typeof searchMessages = [];
-        if (messagesData) {
-          const data = messagesData?.content || (Array.isArray(messagesData) ? messagesData : []);
-          if (Array.isArray(data)) {
-            const normalizedMessages = data
-              .map((item) => {
-                const doc = extractEsDocument<SearchMessageDocument>(item);
+          // Messages (with highlight preservation)
+          const messagesPage = globalData.messages;
+          const messagesContent = messagesPage?.content || (Array.isArray(messagesPage) ? messagesPage : []);
+          const normalizedMessages = Array.isArray(messagesContent)
+            ? messagesContent
+              .map((item: any) => {
+                const doc = item?.document || item;
                 if (!doc?.messageId) return null;
-
-                const wrapped = item as EsSearchResult<SearchMessageDocument>;
-                const highlightedContent = wrapped.highlights?.content?.[0];
-                const normalizedContent = typeof highlightedContent === 'string'
-                  ? highlightedContent.replace(/<[^>]+>/g, '')
-                  : doc.content;
-
+                const highlightedContent = item?.highlights?.content?.[0];
                 return {
                   messageId: doc.messageId,
                   conversationId: doc.conversationId,
                   senderId: doc.senderId,
                   senderName: doc.senderName,
-                  content: normalizedContent,
+                  content: typeof highlightedContent === 'string'
+                    ? highlightedContent.replace(/<[^>]+>/g, '')
+                    : doc.content,
+                  highlightedContent: highlightedContent || undefined,
                   messageType: doc.messageType,
                   createdAt: doc.createdAt,
                 };
               })
-              .filter(Boolean) as typeof searchMessages;
+              .filter(Boolean)
+            : [];
+          normalizedMessages.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          setSearchMessages(normalizedMessages);
 
-            allMessages.push(...normalizedMessages);
+          // Global users (strangers)
+          const globalUsers = Array.isArray(globalData.globalUsers) ? globalData.globalUsers : [];
+          setSearchGlobalUsers(globalUsers.map((u: any) => ({
+            userId: u.userId,
+            displayName: u.displayName || 'Unknown',
+            phoneNumber: u.phoneNumber,
+            avatarUrl: u.avatarUrl,
+            friendshipStatus: u.friendshipStatus || 'NONE',
+          })));
+
+          // Fallback: if no friends and no globalUsers found, try phone lookup
+          if (friends.length === 0 && globalUsers.length === 0 && /^\d{9,15}$/.test(trimmedQuery)) {
+            let byPhone: any = await safeGet(`/users/phone/${encodeURIComponent(trimmedQuery)}`);
+            if (!byPhone && trimmedQuery.startsWith('0')) {
+              byPhone = await safeGet(`/users/phone/${encodeURIComponent(`+84${trimmedQuery.substring(1)}`)}`);
+            } else if (!byPhone && trimmedQuery.startsWith('+84')) {
+              byPhone = await safeGet(`/users/phone/${encodeURIComponent(`0${trimmedQuery.substring(3)}`)}`);
+            }
+            if (byPhone && (byPhone.user_id || byPhone.userId)) {
+              const phoneUser = {
+                userId: byPhone.user_id || byPhone.userId,
+                displayName: byPhone.display_name || byPhone.displayName || 'Unknown',
+                phoneNumber: byPhone.phone_number || byPhone.phoneNumber,
+                avatarUrl: byPhone.avatar_url || byPhone.avatarUrl,
+                friendshipStatus: byPhone.friendship_status || byPhone.friendshipStatus || 'NONE',
+              };
+              if (phoneUser.friendshipStatus === 'ACCEPTED') {
+                setSearchFriends([phoneUser]);
+              } else {
+                setSearchGlobalUsers([phoneUser]);
+              }
+            }
           }
+        } else {
+          setSearchFriends([]);
+          setSearchConversations([]);
+          setSearchMessages([]);
+          setSearchGlobalUsers([]);
         }
-        // Already sorted by ES score/date, but sort by date desc for consistency
-        allMessages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        setSearchMessages(allMessages);
+
+        // Also keep legacy searchUsers populated for backward compat
+        setSearchUsers([
+          ...(Array.isArray(globalData?.friends) ? globalData.friends : []),
+          ...(Array.isArray(globalData?.globalUsers) ? globalData.globalUsers : []),
+        ]);
 
         // If private mode is active, also search hidden conversations
         if (isPrivateMode && privateModePin) {
@@ -864,7 +874,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
           onCreateGroup={onCreateGroup}
         />
 
-        {!isSearching && (
+        {!isSearching && !nonSearchContent && (
           /* Tabs and Filters */
           <div className="flex items-center justify-between px-4 pb-0.5 border-b border-[var(--border)] relative">
             <div className="flex gap-4 text-[13px] font-medium transition-colors duration-200">
@@ -1005,7 +1015,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                 <div className="flex items-center justify-center py-8">
                   <div className="w-6 h-6 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
                 </div>
-              ) : (searchUsers.length === 0 && searchMessages.length === 0 && searchConversations.length === 0) ? (
+              ) : (searchFriends.length === 0 && searchConversations.length === 0 && searchMessages.length === 0 && searchGlobalUsers.length === 0) ? (
                 <div className="flex flex-col items-center justify-center py-12 text-[var(--sub-text)] opacity-60">
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="opacity-30 mb-3">
                     <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -1014,49 +1024,15 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                 </div>
               ) : (
                 <>
-                  {/* Conversation Results (local name match) */}
-                  {searchConversations.length > 0 && (
+                  {/* 1. Friends Results */}
+                  {searchFriends.length > 0 && (
                     <div className="mb-4">
-                      <h3 className="text-[13px] font-bold text-[var(--sub-text)] mb-2 uppercase tracking-wide">{t('chat.search_overlay.conversations') || 'Hội thoại'}</h3>
+                      <h3 className="text-[13px] font-bold text-[var(--sub-text)] mb-2 uppercase tracking-wide">{t('chat.search_overlay.friends') || 'Bạn bè'}</h3>
                       <div className="space-y-0.5">
-                        {searchConversations.map(conv => (
-                          <div
-                            key={conv.id}
-                            onClick={() => {
-                              onSelectConversation(conv.id);
-                              closeSearchOverlay();
-                            }}
-                            className="flex items-center gap-3 p-2 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors"
-                          >
-                            <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-black/5">
-                              {conv.avatar ? (
-                                <Image src={conv.avatar} alt={conv.name} width={40} height={40} className="object-cover w-full h-full" />
-                              ) : (
-                                <span className="text-[14px] font-bold text-white bg-[#0068FF] w-full h-full flex items-center justify-center">
-                                  {conv.name?.charAt(0)?.toUpperCase() || '?'}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[14px] font-medium text-[var(--text)] truncate">{conv.name}</p>
-                              {conv.lastMsg && <p className="text-[12px] text-[var(--sub-text)] truncate">{conv.lastMsg}</p>}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* User Results */}
-                  {searchUsers.length > 0 && (
-                    <div className="mb-4">
-                      <h3 className="text-[13px] font-bold text-[var(--sub-text)] mb-2 uppercase tracking-wide">{t('chat.search_overlay.contacts') || 'Liên hệ'}</h3>
-                      <div className="space-y-0.5">
-                        {searchUsers.map(user => (
+                        {searchFriends.map(user => (
                           <div
                             key={user.userId}
                             onClick={() => {
-                              // Find existing conversation with this user
                               const conv = conversations.find(c => c.otherUserId === user.userId);
                               if (conv) {
                                 onSelectConversation(conv.id);
@@ -1069,7 +1045,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                                     phone_number: user.phoneNumber,
                                     display_name: user.displayName,
                                     avatar_url: user.avatarUrl,
-                                    friendship_status: user.friendshipStatus,
+                                    friendship_status: 'ACCEPTED',
                                   },
                                 });
                                 closeSearchOverlay();
@@ -1090,44 +1066,119 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                               <p className="text-[14px] font-medium text-[var(--text)] truncate">{user.displayName}</p>
                               {user.phoneNumber && <p className="text-[12px] text-[var(--sub-text)] truncate">{user.phoneNumber}</p>}
                             </div>
+                            <span className="text-[11px] px-2 py-1 rounded-full font-semibold text-green-600 bg-green-50">
+                              {t('chat.search_overlay.friend_badge') || 'Bạn bè'}
+                            </span>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {/* Message Results */}
+                  {/* 2. Conversation Results */}
+                  {searchConversations.length > 0 && (
+                    <div className="mb-4">
+                      <h3 className="text-[13px] font-bold text-[var(--sub-text)] mb-2 uppercase tracking-wide">{t('chat.search_overlay.conversations') || 'Hội thoại'}</h3>
+                      <div className="space-y-0.5">
+                        {searchConversations.map(conv => {
+                          const localConv = conversations.find(c => String(c.id) === conv.conversationId);
+                          return (
+                            <div
+                              key={conv.conversationId}
+                              onClick={() => {
+                                if (localConv) {
+                                  onSelectConversation(localConv.id);
+                                } else {
+                                  onSelectConversation(conv.conversationId);
+                                }
+                                closeSearchOverlay();
+                              }}
+                              className="flex items-center gap-3 p-2 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors"
+                            >
+                              <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-black/5">
+                                {(conv.conversationAvatarUrl || localConv?.avatar) ? (
+                                  <Image src={conv.conversationAvatarUrl || localConv?.avatar || ''} alt={conv.conversationName} width={40} height={40} className="object-cover w-full h-full" />
+                                ) : (
+                                  <span className="text-[14px] font-bold text-white bg-[#0068FF] w-full h-full flex items-center justify-center">
+                                    {conv.conversationName?.charAt(0)?.toUpperCase() || '?'}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[14px] font-medium text-[var(--text)] truncate">{conv.conversationName}</p>
+                                {conv.lastMessageContent && <p className="text-[12px] text-[var(--sub-text)] truncate">{conv.lastMessageContent}</p>}
+                              </div>
+                              {conv.conversationType === 'GROUP' && (
+                                <span className="text-[11px] px-2 py-1 rounded-full font-semibold text-blue-600 bg-blue-50">
+                                  {t('chat.search_overlay.group_badge') || 'Nhóm'}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 3. Message Results (with keyword highlighting) */}
                   {searchMessages.length > 0 && (
-                    <div>
+                    <div className="mb-4">
                       <h3 className="text-[13px] font-bold text-[var(--sub-text)] mb-2 uppercase tracking-wide">{t('chat.search_overlay.messages') || 'Tin nhắn'}</h3>
                       <div className="space-y-0.5">
                         {searchMessages.map(msg => {
                           const conv = conversations.find(c => String(c.id) === msg.conversationId);
+                          const isAiSender = msg.senderId === 'FRUVIA_AI_ASSISTANT';
+                          const displayConvName = conv?.name || (isAiSender ? 'Fruvia AI' : (msg.senderName && msg.senderName !== 'Unknown' ? msg.senderName : null)) || msg.senderName;
+                          const displaySenderName = isAiSender ? 'Fruvia AI' : (msg.senderName && msg.senderName !== 'Unknown' ? msg.senderName : (conv?.name || 'Unknown'));
+
+                          // Highlight keywords in message content
+                          const highlightContent = (text: string, query: string) => {
+                            if (!query.trim()) return text;
+                            try {
+                              const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                              const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
+                              return parts.map((part, i) =>
+                                part.toLowerCase() === query.toLowerCase()
+                                  ? `<mark class="bg-yellow-200 dark:bg-yellow-600/40 text-[var(--text)] rounded-sm px-0.5">${part}</mark>`
+                                  : part
+                              ).join('');
+                            } catch {
+                              return text;
+                            }
+                          };
+
+                          const highlighted = highlightContent(msg.content, searchQuery.trim());
+                          const targetConvId = conv?.id || msg.conversationId;
+
                           return (
                             <div
                               key={msg.messageId}
                               onClick={() => {
-                                if (conv) {
-                                  onSelectConversation(conv.id);
-                                  closeSearchOverlay();
+                                if (onJumpToMessage && targetConvId && msg.messageId) {
+                                  onJumpToMessage(targetConvId, msg.messageId);
+                                } else {
+                                  onSelectConversation(targetConvId);
                                 }
+                                closeSearchOverlay();
                               }}
                               className="flex items-center gap-3 p-2 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors"
                             >
                               <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-black/5">
                                 {conv?.avatar ? (
                                   <Image src={conv.avatar} alt={conv.name} width={40} height={40} className="object-cover w-full h-full" />
+                                ) : isAiSender ? (
+                                  <span className="w-full h-full bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 flex items-center justify-center text-white text-[14px] font-bold">F</span>
                                 ) : (
                                   <span className="text-[14px] font-bold text-white bg-[#0068FF] w-full h-full flex items-center justify-center">
-                                    {(conv?.name || msg.senderName)?.charAt(0)?.toUpperCase() || '?'}
+                                    {displayConvName?.charAt(0)?.toUpperCase() || '?'}
                                   </span>
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-[14px] font-medium text-[var(--text)] truncate">{conv?.name || msg.senderName}</p>
+                                <p className="text-[14px] font-medium text-[var(--text)] truncate">{displayConvName}</p>
                                 <p className="text-[12px] text-[var(--sub-text)] truncate">
-                                  <span className="font-medium">{msg.senderName}: </span>
-                                  {msg.content}
+                                  <span className="font-medium">{displaySenderName}: </span>
+                                  <span dangerouslySetInnerHTML={{ __html: highlighted }} />
                                 </p>
                               </div>
                               <span className="text-[11px] text-[var(--sub-text)] shrink-0">
@@ -1136,6 +1187,51 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                             </div>
                           );
                         })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 4. Global Users (Strangers) */}
+                  {searchGlobalUsers.length > 0 && (
+                    <div className="mb-4">
+                      <h3 className="text-[13px] font-bold text-[var(--sub-text)] mb-2 uppercase tracking-wide">{t('chat.search_overlay.global_users') || 'Người lạ'}</h3>
+                      <div className="space-y-0.5">
+                        {searchGlobalUsers.map(user => (
+                          <div
+                            key={user.userId}
+                            onClick={() => {
+                              onAddFriend({
+                                phoneNumber: user.phoneNumber,
+                                user: {
+                                  user_id: user.userId,
+                                  phone_number: user.phoneNumber,
+                                  display_name: user.displayName,
+                                  avatar_url: user.avatarUrl,
+                                  friendship_status: user.friendshipStatus,
+                                },
+                              });
+                              closeSearchOverlay();
+                            }}
+                            className="flex items-center gap-3 p-2 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors"
+                          >
+                            <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-black/5">
+                              {user.avatarUrl ? (
+                                <Image src={user.avatarUrl} alt={user.displayName} width={40} height={40} className="object-cover w-full h-full" />
+                              ) : (
+                                <span className="text-[14px] font-bold text-white bg-gray-400 w-full h-full flex items-center justify-center">
+                                  {user.displayName?.charAt(0)?.toUpperCase() || '?'}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[14px] font-medium text-[var(--text)] truncate">{user.displayName}</p>
+                              {user.phoneNumber && <p className="text-[12px] text-[var(--sub-text)] truncate">{user.phoneNumber}</p>}
+                            </div>
+                            <span className="text-[11px] px-2 py-1 rounded-full font-semibold text-[#0068FF] bg-blue-50">
+                              {t('chat.search_overlay.stranger_badge') || 'Kết bạn'}
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
@@ -1187,6 +1283,8 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
             <SearchOverlayDefault recentSearches={recentSearches} />
           )}
         </div>
+      ) : nonSearchContent ? (
+        <div className="flex-1 overflow-y-auto">{nonSearchContent}</div>
       ) : (
         /* Normal List */
         <div className="flex-1 overflow-y-auto px-2 pt-2 custom-scrollbar">
@@ -1245,7 +1343,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
       )}
 
       {/* Hidden Conversations Link */}
-      {!isSearching && (
+      {!isSearching && !nonSearchContent && (
         <button
           onClick={() => { setOpenHiddenPinError(null); setShowOpenHiddenPinModal(true); }}
           className="w-full px-4 py-2.5 text-[12px] text-[var(--sub-text)] hover:text-[var(--text)] hover:bg-[var(--hover-bg)] flex items-center justify-center gap-2 transition-colors cursor-pointer border-t border-[var(--border)]"

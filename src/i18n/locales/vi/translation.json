@@ -20,9 +20,11 @@
   "login": {
     "title": "Fruvia Chat",
     "subheading": "Đăng nhập tài khoản Fruvia Chat để kết nối với ứng dụng Fruvia Chat",
+    "no_account": "Chưa có tài khoản?",
+    "has_account": "Đã có tài khoản?",
     "tabs": {
       "qr": "VỚI MÃ QR",
-      "email": "VỚI EMAIL",
+      "email": "VỚI SỐ ĐIỆN THOẠI",
       "register": "ĐĂNG KÝ"
     },
     "qr": {
@@ -37,12 +39,13 @@
     "email": {
       "header": "Đăng nhập với mật khẩu",
       "email_placeholder": "Nhập email",
+      "phone_placeholder": "Nhập số điện thoại",
       "password_placeholder": "Mật khẩu",
       "submit": "Đăng nhập với mật khẩu",
       "forgot_password": "Quên mật khẩu?",
       "qr_back": "Đăng nhập qua mã QR",
       "remember_me": "Ghi nhớ đăng nhập",
-      "hint": "Nhập địa chỉ email bạn đã đăng ký"
+      "hint": "Nhập số điện thoại bạn đã đăng ký"
     },
     "register": {
       "header": "Tạo tài khoản mới",
@@ -51,9 +54,15 @@
       "first_name": "Tên",
       "first_name_placeholder": "Nhập tên...",
       "email_label": "Gmail",
-      "email_placeholder": "Nhập email...",
+      "email_placeholder": "Nhập gmail...",
+      "gmail_label": "Gmail (không bắt buộc)",
+      "gmail_placeholder": "example@gmail.com",
+      "gmail_hint": "Dùng để nhận mã OTP xác thực tài khoản",
       "email_login_label": "Email đăng nhập",
       "email_login_placeholder": "Nhập email đăng nhập",
+      "phone_label": "Số điện thoại",
+      "phone_placeholder": "Nhập số điện thoại (VD: 0912345678)",
+      "phone_hint": "Nhập số điện thoại Việt Nam hợp lệ (bắt đầu bằng 0 hoặc +84)",
       "password_label": "Mật khẩu",
       "password_placeholder": "Nhập mật khẩu",
       "confirm_password_label": "Xác nhận mật khẩu",
@@ -61,6 +70,7 @@
       "dob": "Ngày sinh",
       "gender": "Giới tính",
       "register_btn": "Đăng ký",
+      "info_tooltip": "Đăng ký tài khoản mới. Bạn có thể xác thực Gmail ngay hoặc bỏ qua để xác thực sau.",
       "password_hint": "Tạo mật khẩu mạnh",
       "confirm_password_hint": "Mật khẩu mạnh: Ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt (!@#$%^&*)",
       "confirm_password_placeholder": "Xác nhận mật khẩu"
@@ -110,6 +120,29 @@
       "back_to_login": "Quay lại đăng nhập",
       "done_login_hint": "Mật khẩu đã đổi. Vui lòng đăng nhập lại."
     },
+    "gmail_modal": {
+      "title": "Xác thực Gmail",
+      "subtitle": "Nhập địa chỉ Gmail để nhận mã OTP xác thực tài khoản.",
+      "placeholder": "example@gmail.com",
+      "verify_btn": "Xác thực",
+      "skip_btn": "Bỏ qua",
+      "hint": "Mã OTP sẽ được gửi đến Gmail của bạn để xác thực tài khoản.",
+      "required": "Vui lòng nhập Gmail",
+      "invalid": "Định dạng email không hợp lệ",
+      "email_exists": "Gmail này đã được sử dụng bởi tài khoản khác",
+      "skip_warning_title": "Tài khoản chưa xác thực",
+      "skip_warning_desc": "Nếu bỏ qua xác thực Gmail, một số chức năng sẽ không được kích hoạt:",
+      "limited_features": [
+        "Không thể sử dụng chức năng Quên mật khẩu",
+        "Không thể Đổi mật khẩu",
+        "Không nhận được thông báo qua Gmail",
+        "Dung lượng tài liệu (Documents) bị giới hạn",
+        "Không thể khôi phục tài khoản khi mất thiết bị",
+        "Không nhận được cảnh báo bảo mật"
+      ],
+      "skip_warning_back": "Quay lại xác thực Gmail",
+      "skip_warning_continue": "Tiếp tục bỏ qua"
+    },
     "promo": {
       "title": "Trải nghiệm Fruvia PC tốt nhất",
       "desc": "Gửi file 1GB, gọi video HD, đồng bộ tin nhắn cực nhanh",
@@ -119,13 +152,14 @@
       "last_name_required": "Vui lòng nhập họ",
       "first_name_required": "Vui lòng nhập tên",
       "email_invalid": "Email không hợp lệ (kiểm tra lại định dạng và các dấu chấm)",
+      "phone_invalid": "Số điện thoại không hợp lệ (phải bắt đầu bằng 0 hoặc +84, gồm 10 chữ số)",
       "password_weak": "Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt (!@#$%^&*)",
       "confirm_mismatch": "Mật khẩu xác nhận không khớp",
       "qr_error": "Không thể lấy mã QR. Vui lòng thử lại."
     },
     "success": {
       "register": "Đăng ký tài khoản thành công!",
-      "register_desc": "Bây giờ bạn có thể đăng nhập bằng email vừa đăng ký.",
+      "register_desc": "Bây giờ bạn có thể đăng nhập bằng số điện thoại vừa đăng ký.",
       "otp_sent": "Tạo tài khoản thành công",
       "otp_sent_desc": "Vui lòng kiểm tra email để nhập mã OTP xác thực.",
       "verify_done": "Email đã được xác thực. Bạn có thể đăng nhập ngay.",
@@ -166,7 +200,7 @@
     "tags": "Thẻ",
     "more": "Thêm",
     "self_cloud": "Cloud của tôi",
-    "ai_name": "Chat với AI",
+    "ai_name": "Fruvia AI",
     "ai_subheading": "Hỏi đáp với Fruvia AI",
     "cloud_subheading": "Truyền file giữa các thiết bị của bạn",
     "ai_input_placeholder": "Nhập câu hỏi cho Fruvia AI",
@@ -184,9 +218,14 @@
       "close": "Đóng",
       "recent": "Tìm gần đây",
       "no_results": "Không tìm thấy kết quả",
+      "friends": "Bạn bè",
       "conversations": "Hội thoại",
       "contacts": "Liên hệ",
       "messages": "Tin nhắn",
+      "global_users": "Người lạ",
+      "friend_badge": "Bạn bè",
+      "stranger_badge": "Kết bạn",
+      "group_badge": "Nhóm",
       "filters": {
         "title": "Lọc tin nhắn",
         "mention": "Nhắc bạn",
@@ -738,7 +777,7 @@
     "send_success": "Đã gửi lời mời kết bạn!",
     "send_error": "Gửi lời mời thất bại",
     "phone_placeholder": "Số điện thoại",
-    "search_placeholder": "Nhập email hoặc tên người dùng",
+    "search_placeholder": "Nhập số điện thoại hoặc tên người dùng",
     "recent_results": "Kết quả gần nhất",
     "searching": "Đang tìm kiếm...",
     "status": {
@@ -799,7 +838,7 @@
     "title": "Cài đặt",
     "tabs": {
       "general": "Cài đặt chung",
-      "ai": "Chat AI",
+      "ai": "Fruvia AI",
       "privacy": "Quyền riêng tư",
       "sync": "Đồng bộ tin nhắn",
       "interface": "Giao diện",
@@ -808,7 +847,7 @@
       "utils": "Tiện ích"
     },
     "ai": {
-      "title": "Chat AI",
+      "title": "Fruvia AI",
       "desc": "Tùy chỉnh quyền riêng tư, cách phản hồi và năng suất của Fruvia AI theo nhu cầu của bạn.",
       "full_access": {
         "title": "Cấp quyền AI truy cập toàn bộ dữ liệu của bạn",

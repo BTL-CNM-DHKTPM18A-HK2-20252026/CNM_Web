@@ -61,7 +61,7 @@ interface UserProfileData {
   avatar_url?: string;
   cover_photo_url?: string;
   gender?: string;
-  email?: string;
+  gmail?: string;
   bio?: string;
   address?: string;
   city?: string;
@@ -127,7 +127,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
             ? response.data
             : (response as UserProfileData);
 
-          if (data && (data.full_name || data.id || data.email)) {
+          if (data && (data.full_name || data.id || data.gmail)) {
             console.log("Profile data loaded:", data);
             setUserName(data.full_name || "");
             setUserId(data.id || "");
@@ -135,7 +135,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
             setCoverPhotoUrl(data.cover_photo_url || "");
             setCoverPhotoPreview("");
             setGender(data.gender || "Nam");
-            setEmailAddress(data.email || "");
+            setEmailAddress(data.gmail || "");
             setBio(data.bio || "");
             setAddress(data.address || "");
             setCity(data.city || "");

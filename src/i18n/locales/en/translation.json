@@ -20,9 +20,11 @@
   "login": {
     "title": "Fruvia Chat",
     "subheading": "Log in to Fruvia Chat to connect with Fruvia Chat",
+    "no_account": "Don't have an account yet?",
+    "has_account": "Already have an account?",
     "tabs": {
       "qr": "WITH QR CODE",
-      "email": "WITH EMAIL",
+      "email": "WITH PHONE",
       "register": "REGISTER"
     },
     "qr": {
@@ -37,12 +39,13 @@
     "email": {
       "header": "Login with password",
       "email_placeholder": "Enter email",
+      "phone_placeholder": "Enter phone number",
       "password_placeholder": "Password",
       "submit": "Login with password",
       "forgot_password": "Forgot password?",
       "qr_back": "Login via QR code",
       "remember_me": "Remember profile",
-      "hint": "Enter the email address you registered with"
+      "hint": "Enter the phone number you registered with"
     },
     "register": {
       "header": "Create new account",
@@ -52,8 +55,14 @@
       "first_name_placeholder": "Enter first name...",
       "email_label": "Email",
       "email_placeholder": "Enter email...",
+      "gmail_label": "Gmail (optional)",
+      "gmail_placeholder": "example@gmail.com",
+      "gmail_hint": "Used to receive OTP verification code",
       "email_login_label": "Login Email",
       "email_login_placeholder": "Enter login email",
+      "phone_label": "Phone Number",
+      "phone_placeholder": "Enter phone number (e.g.: 0912345678)",
+      "phone_hint": "Enter a valid Vietnamese phone number (starting with 0 or +84)",
       "password_label": "Password",
       "password_placeholder": "Enter password",
       "confirm_password_label": "Confirm password",
@@ -61,6 +70,7 @@
       "dob": "Date of Birth",
       "gender": "Gender",
       "register_btn": "Register",
+      "info_tooltip": "Create a new account. You can verify your Gmail now or skip to verify later.",
       "password_hint": "Create a strong password",
       "confirm_password_hint": "Strong password: At least 8 characters, including uppercase, lowercase, numbers and special characters (!@#$%^&*)",
       "confirm_password_placeholder": "Confirm password"
@@ -110,6 +120,29 @@
       "back_to_login": "Back to login",
       "done_login_hint": "Your password was changed. Please log in again."
     },
+    "gmail_modal": {
+      "title": "Verify Gmail",
+      "subtitle": "Enter your Gmail address to receive the OTP verification code.",
+      "placeholder": "example@gmail.com",
+      "verify_btn": "Verify",
+      "skip_btn": "Skip",
+      "hint": "An OTP code will be sent to your Gmail to verify your account.",
+      "required": "Please enter your Gmail",
+      "invalid": "Invalid email format",
+      "email_exists": "This Gmail is already used by another account",
+      "skip_warning_title": "Account not verified",
+      "skip_warning_desc": "If you skip Gmail verification, some features will not be activated:",
+      "limited_features": [
+        "Cannot use Forgot Password feature",
+        "Cannot Change Password",
+        "No Gmail notifications",
+        "Limited document storage capacity",
+        "Cannot recover account if device is lost",
+        "No security alerts"
+      ],
+      "skip_warning_back": "Back to verify Gmail",
+      "skip_warning_continue": "Continue without verification"
+    },
     "promo": {
       "title": "Best Fruvia PC experience",
       "desc": "Send 1GB files, HD video calls, lightning fast sync",
@@ -119,13 +152,14 @@
       "last_name_required": "Please enter your last name",
       "first_name_required": "Please enter your first name",
       "email_invalid": "Invalid email (check format and dots)",
+      "phone_invalid": "Invalid phone number (must start with 0 or +84, 10 digits)",
       "password_weak": "Password must be at least 8 characters, including uppercase, lowercase, number and special character (!@#$%^&*)",
       "confirm_mismatch": "Confirm password does not match",
       "qr_error": "Cannot get QR code. Please try again."
     },
     "success": {
       "register": "Account registered successfully!",
-      "register_desc": "You can now log in with the email you just registered.",
+      "register_desc": "You can now log in with the phone number you just registered.",
       "otp_sent": "Account created successfully",
       "otp_sent_desc": "Please check your email and enter the OTP code.",
       "verify_done": "Email verified. You can log in now.",
@@ -166,7 +200,7 @@
     "tags": "Tags",
     "more": "More",
     "self_cloud": "My Documents",
-    "ai_name": "Chat with AI",
+    "ai_name": "Fruvia AI",
     "ai_subheading": "Ask anything to Fruvia AI",
     "cloud_subheading": "Transfer files across your devices",
     "ai_input_placeholder": "Ask Fruvia AI...",
@@ -184,9 +218,14 @@
       "close": "Close",
       "recent": "Recent searches",
       "no_results": "No results found",
+      "friends": "Friends",
       "conversations": "Conversations",
       "contacts": "Contacts",
       "messages": "Messages",
+      "global_users": "Strangers",
+      "friend_badge": "Friend",
+      "stranger_badge": "Add friend",
+      "group_badge": "Group",
       "filters": {
         "title": "Message filters",
         "mention": "Mention you",
@@ -802,7 +841,7 @@
     "title": "Settings",
     "tabs": {
       "general": "General Settings",
-      "ai": "AI Chat",
+      "ai": "Fruvia AI",
       "privacy": "Privacy",
       "sync": "Message Sync",
       "interface": "Appearance",
@@ -811,7 +850,7 @@
       "utils": "Utilities"
     },
     "ai": {
-      "title": "AI Chat",
+      "title": "Fruvia AI",
       "desc": "Customize privacy, behavior, and productivity controls for Fruvia AI.",
       "full_access": {
         "title": "Allow AI to access all your data",

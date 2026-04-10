@@ -1,4 +1,5 @@
 export { LoginForm } from './components/LoginForm';
+export { GmailModal } from './components/GmailModal';
 export { OtpVerificationForm } from './components/OtpVerificationForm';
 export { ForgotPasswordForm } from './components/ForgotPasswordForm';
 

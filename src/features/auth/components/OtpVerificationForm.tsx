@@ -149,19 +149,19 @@ export function OtpVerificationForm({ email, onVerified, onBack }: OtpVerificati
   };
 
   return (
-    <div className="w-full max-w-md overflow-hidden rounded-[22px] border border-[#d8e5ff] bg-white shadow-[0_20px_40px_rgba(0,92,245,0.12)]">
-      <div className="bg-[linear-gradient(120deg,#0068FF_0%,#00A9FF_100%)] px-7 py-6 text-white">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/80">{t('login.otp.badge')}</p>
-        <h3 className="mt-2 text-[24px] font-extrabold tracking-tight">{t('login.otp.title')}</h3>
-        <p className="mt-2 text-sm text-white/85">{t('login.otp.subtitle')}</p>
+    <div className="w-full max-w-sm overflow-hidden rounded-lg border border-[#d8e5ff] bg-white shadow-[0_16px_32px_rgba(0,92,245,0.10)]">
+      <div className="bg-[linear-gradient(120deg,#0068FF_0%,#00A9FF_100%)] px-5 py-4 text-white">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/80">{t('login.otp.badge')}</p>
+        <h3 className="mt-1.5 text-[20px] font-extrabold tracking-tight">{t('login.otp.title')}</h3>
+        <p className="mt-1 text-[13px] text-white/85">{t('login.otp.subtitle')}</p>
       </div>
 
-      <form onSubmit={handleVerify} className="px-7 pb-7 pt-6">
-        <div className="rounded-xl border border-[#e6eeff] bg-[#f8fbff] p-4 text-sm text-[#35558a]">
+      <form onSubmit={handleVerify} className="px-5 pb-5 pt-4">
+        <div className="rounded-lg border border-[#e6eeff] bg-[#f8fbff] p-3 text-[13px] text-[#35558a]">
           {t('login.otp.sent_to')} <span className="font-semibold text-[#0f2b61]">{email}</span>
         </div>
 
-        <div className="mt-6 flex items-center justify-between gap-2">
+        <div className="mt-4 flex items-center justify-between gap-1.5">
           {otpValues.map((value, index) => (
             <input
               key={`otp-${index}`}
@@ -173,14 +173,14 @@ export function OtpVerificationForm({ email, onVerified, onBack }: OtpVerificati
               value={value}
               onChange={(event) => handleInputChange(index, event.target.value)}
               onKeyDown={(event) => handleKeyDown(index, event)}
-              className="h-13 w-12 rounded-xl border border-[#bed5ff] bg-white text-center text-xl font-bold text-[#0f2b61] shadow-sm outline-none transition-all focus:border-[#0068FF] focus:ring-2 focus:ring-[#0068FF]/20"
+              className="h-11 w-10 rounded-lg border border-[#bed5ff] bg-white text-center text-lg font-bold text-[#0f2b61] shadow-sm outline-none transition-all focus:border-[#0068FF] focus:ring-2 focus:ring-[#0068FF]/20"
               aria-label={`${t('login.otp.digit')} ${index + 1}`}
             />
           ))}
         </div>
 
-        <div className="mt-5 flex items-center justify-between gap-3 rounded-xl bg-[#f4f8ff] px-4 py-3">
-          <p className="text-sm font-medium text-[#4a6595]">
+        <div className="mt-4 flex items-center justify-between gap-2 rounded-lg bg-[#f4f8ff] px-3 py-2.5">
+          <p className="text-[13px] font-medium text-[#4a6595]">
             {secondsLeft > 0
               ? `${t('login.otp.resend_in')} ${formatTimer(secondsLeft)}`
               : t('login.otp.can_resend')}
@@ -189,7 +189,7 @@ export function OtpVerificationForm({ email, onVerified, onBack }: OtpVerificati
             type="button"
             onClick={handleResend}
             disabled={secondsLeft > 0 || resending}
-            className="rounded-lg px-3 py-1.5 text-sm font-semibold text-[#0068FF] transition-colors enabled:cursor-pointer enabled:hover:bg-[#e8f1ff] disabled:cursor-not-allowed disabled:text-[#9fb5df]"
+            className="rounded-md px-2.5 py-1 text-[13px] font-semibold text-[#0068FF] transition-colors enabled:cursor-pointer enabled:hover:bg-[#e8f1ff] disabled:cursor-not-allowed disabled:text-[#9fb5df]"
           >
             {resending ? t('login.otp.resending') : t('login.otp.resend')}
           </button>
@@ -198,7 +198,7 @@ export function OtpVerificationForm({ email, onVerified, onBack }: OtpVerificati
         <button
           type="submit"
           disabled={!canVerify}
-          className="mt-6 w-full rounded-xl bg-[#0068FF] py-3 text-sm font-bold text-white transition-all enabled:cursor-pointer enabled:hover:bg-[#0057d6] enabled:hover:shadow-[0_12px_24px_rgba(0,104,255,0.25)] disabled:cursor-not-allowed disabled:bg-[#b8c9ea]"
+          className="mt-4 w-full rounded-lg bg-[#0068FF] py-2.5 text-[13px] font-bold text-white transition-all enabled:cursor-pointer enabled:hover:bg-[#0057d6] enabled:hover:shadow-[0_12px_24px_rgba(0,104,255,0.25)] disabled:cursor-not-allowed disabled:bg-[#b8c9ea]"
         >
           {verifying ? t('login.otp.verifying') : t('login.otp.verify')}
         </button>
@@ -206,7 +206,7 @@ export function OtpVerificationForm({ email, onVerified, onBack }: OtpVerificati
         <button
           type="button"
           onClick={onBack}
-          className="mt-4 w-full text-sm font-semibold text-[#4a6595] transition-colors hover:text-[#0068FF]"
+          className="mt-3 w-full text-[13px] font-semibold text-[#4a6595] transition-colors hover:text-[#0068FF]"
         >
           {t('login.otp.back_to_register')}
         </button>

@@ -24,6 +24,8 @@ export interface ChatWindowProps {
   onSelectConversation?: (id: string | number) => void;
   onNicknameChange?: (id: string | number, nickname: string | null) => void;
   refreshTrigger?: number;
+  targetMessageId?: string | null;
+  onClearTargetMessage?: () => void;
 }
 
 export type AiAccessSettings = {

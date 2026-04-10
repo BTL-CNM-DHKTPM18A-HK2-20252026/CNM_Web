@@ -217,26 +217,29 @@ export function ForgotPasswordForm({ initialEmail, onBack, onDone }: ForgotPassw
   return (
     <div className="w-full max-w-[400px] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--card-bg)] text-[var(--text)] shadow-xl transition-colors duration-300">
       <div className="border-b border-[var(--border)] px-7 py-6 transition-colors duration-300">
-        <h3 className="mt-2 text-[24px] font-extrabold tracking-tight text-[#0068FF]">{t('login.forgot.title')}</h3>
-        <p className="mt-2 text-sm text-[var(--sub-text)]">
+        <h3 className="mt-2 text-[24px] font-extrabold tracking-tight text-[#0068FF] text-center">{t('login.forgot.title')}</h3>
+        <p className="mt-2 text-sm text-[var(--sub-text)] text-center">
           {step === 'request' ? t('login.forgot.subtitle_request') : t('login.forgot.subtitle_reset')}
         </p>
       </div>
 
       {step === 'request' ? (
         <form onSubmit={handleRequestSubmit} className="px-7 pb-7 pt-6">
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-[var(--sub-text)]">
-            {t('login.forgot.email_label')}
-          </label>
-          <div className="flex items-center rounded-md border border-[var(--border)] bg-[var(--card-bg)] px-4 py-3 shadow-sm transition-colors duration-300 focus-within:border-[#0068FF] focus-within:ring-2 focus-within:ring-[#0068FF]/20">
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder={t('login.forgot.email_placeholder')}
-              className="w-full bg-transparent text-sm font-medium text-[var(--text)] placeholder:text-[var(--sub-text)] outline-none"
-              required
-            />
+          <div className="relative rounded-lg border border-[var(--border)] focus-within:border-[#0068FF] transition-colors group">
+            <label className="absolute -top-2.5 left-3 bg-[var(--card-bg)] px-1.5 text-[11px] font-semibold text-gray-400 group-focus-within:text-[#0068FF] transition-colors">{t('login.forgot.email_label')}</label>
+            <div className="flex items-center px-3 py-3">
+              <span className="mr-2.5 text-gray-400 group-focus-within:text-[#0068FF] transition-colors">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
+              </span>
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder={t('login.forgot.email_placeholder')}
+                className="w-full bg-transparent text-sm font-medium text-[var(--text)] placeholder:text-[var(--sub-text)] outline-none"
+                required
+              />
+            </div>
           </div>
 
           <button
