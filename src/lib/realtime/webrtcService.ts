@@ -80,6 +80,9 @@ class WebRTCService {
   // Pending OFFER (nhận trước khi localStream sẵn sàng ở callee)
   private pendingOffer: CallSignal | null = null;
 
+  // Timestamp khi call state thay đổi → dùng để phát hiện endCall bất thường
+  private lastStateChangeTime: number = 0;
+
   // STOMP subscription ref
   private signalSub: { unsubscribe: () => void } | null = null;
 
@@ -120,6 +123,7 @@ class WebRTCService {
 
   private setState(state: CallState) {
     this.callState = state;
+    this.lastStateChangeTime = Date.now();
     console.log(`%c[WebRTC] State → ${state}`, 'color: #00bcd4; font-weight: bold;',
       this.callInfo ? `peer=${this.callInfo.peerName}` : '');
     this.stateListeners.forEach(l => l(state, this.callInfo));
@@ -299,7 +303,9 @@ class WebRTCService {
   endCall(currentUserId: string) {
     if (!this.callInfo) return;
 
-    console.log('[WebRTC] Ending call');
+    const elapsed = Date.now() - this.lastStateChangeTime;
+    console.log('[WebRTC] Ending call — state:', this.callState, '— elapsed since last state change:', elapsed, 'ms');
+    console.trace('[WebRTC] endCall stack trace:');
 
     this.sendSignal({
       type: 'CALL_END',
@@ -602,7 +608,10 @@ class WebRTCService {
   // ── Cleanup ────────────────────────────────────────
 
   cleanup() {
-    console.log('[WebRTC] Cleanup — releasing resources');
+    console.log('[WebRTC] Cleanup — releasing resources (current state:', this.callState, ')');
+    if (this.callState !== 'idle') {
+      console.trace('[WebRTC] cleanup called from non-idle state:');
+    }
 
     // Close peer connection
     if (this.pc) {
