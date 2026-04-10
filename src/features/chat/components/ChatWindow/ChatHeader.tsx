@@ -105,7 +105,7 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
           </>
         )}
 
-        {!selectedChat.isCloud && !selectedChat.isAid && !selectedChat.isAi && (
+        {!selectedChat.isCloud && !selectedChat.isAi && (
           <button
             onClick={fetchSummary}
             disabled={summaryLoading}
