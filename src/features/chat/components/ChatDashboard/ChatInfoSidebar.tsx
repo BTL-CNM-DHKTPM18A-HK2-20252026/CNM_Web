@@ -885,7 +885,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
             {showFiles && (
               <div className="px-4 pb-4 animate-in fade-in slide-in-from-top-2 duration-200 space-y-2">
                 {fileItems.slice(0, 5).map((f, i) => {
-                  const rawName = f.content.split('/').pop()?.split('_').slice(1).join('_') || t('info.sections.file_attachment');
+                  const rawName = (f.content ?? '').split('/').pop()?.split('_').slice(1).join('_') || t('info.sections.file_attachment');
                   const fileName = decodeURIComponent(rawName);
                   const ext = fileName.split('.').pop()?.toLowerCase() || '';
 

@@ -268,8 +268,9 @@ export function LoginForm({
           >
             <span className="inline-flex items-center gap-1">
               {t('login.tabs.register')}
-              <button
-                type="button"
+              <span
+                role="button"
+                tabIndex={0}
                 onClick={(e) => {
                   e.stopPropagation();
                   toast.info(t('login.register.info_tooltip'), {
@@ -277,11 +278,12 @@ export function LoginForm({
                     icon: <span className="text-blue-500"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg></span>,
                   });
                 }}
+                onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.click()}
                 className="relative inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current text-[9px] font-bold leading-none opacity-60 group-hover:opacity-100 transition-opacity cursor-pointer hover:text-[#4169E1] hover:border-[#4169E1]"
                 title={t('login.register.info_tooltip')}
               >
                 ?
-              </button>
+              </span>
             </span>
           </button>
         </div>

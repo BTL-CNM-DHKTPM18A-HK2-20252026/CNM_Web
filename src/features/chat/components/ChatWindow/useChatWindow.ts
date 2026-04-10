@@ -1394,13 +1394,13 @@ export function useChatWindow({
           }
           hasMoreData = true; // there may be older messages
         } else {
-          const res = await apiClient.get(`/messages/conversation/${selectedChat.id}?size=20&page=0`);
+          const res = await apiClient.get(`/messages/conversation/${selectedChat.id}?size=30&page=0`);
           if (res.success && res.data) {
             items = Array.isArray(res.data) ? res.data : (res.data.content || []);
-            hasMoreData = res.data.last === false;
+            hasMoreData = res.data.last === false || items.length >= 30;
           } else if (res.content) {
             items = res.content;
-            hasMoreData = res.last === false;
+            hasMoreData = res.last === false || items.length >= 30;
           }
         }
 
@@ -1610,16 +1610,16 @@ export function useChatWindow({
       const scrollContainer = scrollContainerRef.current;
       const previousScrollHeight = scrollContainer?.scrollHeight || 0;
 
-      const res = await apiClient.get(`/messages/conversation/${selectedChat.id}?beforeId=${oldestMessageId}&size=20`);
+      const res = await apiClient.get(`/messages/conversation/${selectedChat.id}?beforeId=${oldestMessageId}&size=30`);
       let items: any[] = [];
       let hasMoreData = false;
 
       if (res.success && res.data) {
         items = Array.isArray(res.data) ? res.data : (res.data.content || []);
-        hasMoreData = res.data.last === false;
+        hasMoreData = res.data.last === false || items.length >= 30;
       } else if (res.content) {
         items = res.content;
-        hasMoreData = res.last === false;
+        hasMoreData = res.last === false || items.length >= 30;
       }
 
       if (items.length > 0) {

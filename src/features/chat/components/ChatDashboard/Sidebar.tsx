@@ -115,14 +115,14 @@ export function Sidebar({
       {/* Navigation Tabs */}
       <div className="w-full flex flex-col items-center gap-1.5 relative">
         <button
-          onClick={() => setActiveTab('chat')}
+          onClick={() => { setActiveTab('chat'); setShowUserMenu(false); }}
           className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${activeTab === 'chat' ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'hover:bg-[var(--sidebar-hover-bg)] text-[var(--sidebar-text)]'}`}
         >
           <ZaloChatIcon size={28} active={activeTab === 'chat'} />
         </button>
 
         <button
-          onClick={() => setActiveTab('contacts')}
+          onClick={() => { setActiveTab('contacts'); setShowUserMenu(false); }}
           className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer relative ${activeTab === 'contacts' ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'hover:bg-[var(--sidebar-hover-bg)] text-[var(--sidebar-text)]'}`}
         >
           <ZaloContactIcon size={26} active={activeTab === 'contacts'} />
@@ -134,21 +134,21 @@ export function Sidebar({
         </button>
 
         <button
-          onClick={() => setActiveTab('cloud')}
+          onClick={() => { setActiveTab('cloud'); setShowUserMenu(false); }}
           className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${activeTab === 'cloud' ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'hover:bg-[var(--sidebar-hover-bg)] text-[var(--sidebar-text)]'}`}
         >
           <ZaloCloudIcon size={26} />
         </button>
 
         <button
-          onClick={() => setActiveTab('files')}
+          onClick={() => { setActiveTab('files'); setShowUserMenu(false); }}
           className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${activeTab === 'files' ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'hover:bg-[var(--sidebar-hover-bg)] text-[var(--sidebar-text)]'}`}
         >
           <ZaloFileIcon size={26} />
         </button>
 
         <button
-          onClick={() => setActiveTab('business')}
+          onClick={() => { setActiveTab('business'); setShowUserMenu(false); }}
           className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${activeTab === 'business' ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'hover:bg-[var(--sidebar-hover-bg)] text-[var(--sidebar-text)]'}`}
         >
           <ZaloBusinessIcon size={26} />
