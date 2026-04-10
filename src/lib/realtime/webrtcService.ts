@@ -255,21 +255,7 @@ class WebRTCService {
     });
 
     // Callee: lấy media trước, sau đó xử lý OFFER (có thể đã buffered)
-    try {
-      await this.acquireMedia();
-    } catch {
-      // Thông báo cho caller biết call bị lỗi
-      if (this.callInfo) {
-        this.sendSignal({
-          type: 'CALL_END',
-          senderId: currentUserId,
-          receiverId: this.callInfo.peerId,
-          callId: this.callInfo.callId,
-        });
-      }
-      this.cleanup();
-      return;
-    }
+    await this.acquireMedia();
 
     // Nếu OFFER đã đến trong lúc đang acquireMedia → xử lý ngay
     if (this.pendingOffer) {
@@ -357,21 +343,7 @@ class WebRTCService {
     console.log('[WebRTC] Call accepted — starting WebRTC handshake');
     this.setState('connecting');
 
-    try {
-      await this.acquireMedia();
-    } catch {
-      // Thông báo cho callee biết call bị lỗi
-      if (this.callInfo) {
-        this.sendSignal({
-          type: 'CALL_END',
-          senderId: '',
-          receiverId: this.callInfo.peerId,
-          callId: this.callInfo.callId,
-        });
-      }
-      this.cleanup();
-      return;
-    }
+    await this.acquireMedia();
 
     this.createPeerConnection();
     await this.createAndSendOffer();
@@ -463,18 +435,33 @@ class WebRTCService {
   // ── WebRTC Core ────────────────────────────────────
 
   private async acquireMedia() {
-    try {
-      console.log('[WebRTC] Requesting camera + microphone...');
-      this.localStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
-      console.log('[WebRTC] Local media acquired — tracks:', this.localStream.getTracks().map(t => t.kind));
-      this.onLocalStreamCallback?.(this.localStream);
-    } catch (err) {
-      console.error('[WebRTC] Failed to acquire media:', err);
-      throw err; // Caller handles cleanup & peer notification
+    // Thử lần lượt: video+audio → audio only → video only
+    const attempts: Array<{ video: boolean | MediaTrackConstraints; audio: boolean | MediaTrackConstraints; label: string }> = [
+      { video: true, audio: true, label: 'video + audio' },
+      { video: false, audio: true, label: 'audio only' },
+      { video: true, audio: false, label: 'video only' },
+    ];
+
+    for (const attempt of attempts) {
+      try {
+        console.log(`[WebRTC] Requesting media: ${attempt.label}...`);
+        this.localStream = await navigator.mediaDevices.getUserMedia({
+          video: attempt.video,
+          audio: attempt.audio,
+        });
+        console.log('[WebRTC] Local media acquired (%s) — tracks:', attempt.label,
+          this.localStream.getTracks().map(t => t.kind));
+        this.onLocalStreamCallback?.(this.localStream);
+        return;
+      } catch (err) {
+        console.warn(`[WebRTC] Failed to acquire ${attempt.label}:`, (err as Error).name, (err as Error).message);
+      }
     }
+
+    // Tất cả đều fail → tạo empty stream để call vẫn hoạt động (receive-only)
+    console.warn('[WebRTC] No media devices available — proceeding with receive-only mode');
+    this.localStream = new MediaStream();
+    this.onLocalStreamCallback?.(this.localStream);
   }
 
   private createPeerConnection() {
