@@ -138,15 +138,19 @@ class WebRTCService {
       '/user/queue/call-signal',
       (message) => {
         try {
-          const signal: CallSignal = JSON.parse(message.body);
-          console.log('[WebRTC] Signal received:', signal.type, 'from', signal.senderId);
+          // Backend gửi Map<String, Object> → serialized thành JSON
+          const signal: CallSignal = typeof message.body === 'string'
+            ? JSON.parse(message.body)
+            : message.body;
+          console.log('[WebRTC] Signal received:', signal.type, 'from', signal.senderId,
+            'callId:', signal.callId);
           this.handleSignal(signal);
         } catch (e) {
-          console.error('[WebRTC] Failed to parse signal:', e);
+          console.error('[WebRTC] Failed to parse signal:', e, 'raw:', message.body);
         }
       }
     );
-    console.log('[WebRTC] Subscribed to /user/queue/call-signal');
+    console.log('[WebRTC] ✅ Subscribed to /user/queue/call-signal');
   }
 
   unsubscribeSignaling() {
@@ -156,29 +160,35 @@ class WebRTCService {
 
   // ── Signal Handler (dispatch) ──────────────────────
 
-  private handleSignal(signal: CallSignal) {
-    switch (signal.type) {
-      case 'CALL_REQUEST':
-        this.handleIncomingCall(signal);
-        break;
-      case 'CALL_ACCEPTED':
-        this.handleCallAccepted(signal);
-        break;
-      case 'CALL_REJECTED':
-        this.handleCallRejected();
-        break;
-      case 'OFFER':
-        this.handleOffer(signal);
-        break;
-      case 'ANSWER':
-        this.handleAnswer(signal);
-        break;
-      case 'ICE_CANDIDATE':
-        this.handleIceCandidate(signal);
-        break;
-      case 'CALL_END':
-        this.handleRemoteEnd();
-        break;
+  private async handleSignal(signal: CallSignal) {
+    try {
+      switch (signal.type) {
+        case 'CALL_REQUEST':
+          this.handleIncomingCall(signal);
+          break;
+        case 'CALL_ACCEPTED':
+          await this.handleCallAccepted(signal);
+          break;
+        case 'CALL_REJECTED':
+          this.handleCallRejected();
+          break;
+        case 'OFFER':
+          await this.handleOffer(signal);
+          break;
+        case 'ANSWER':
+          await this.handleAnswer(signal);
+          break;
+        case 'ICE_CANDIDATE':
+          await this.handleIceCandidate(signal);
+          break;
+        case 'CALL_END':
+          this.handleRemoteEnd();
+          break;
+      }
+    } catch (err) {
+      console.error('[WebRTC] Error handling signal:', signal.type, err);
+      // Nếu xảy ra lỗi trong quá trình xử lý → cleanup
+      this.cleanup();
     }
   }
 
@@ -201,11 +211,17 @@ class WebRTCService {
       return;
     }
 
+    // Kiểm tra WebSocket connection
+    if (!websocketService.isConnected()) {
+      console.error('[WebRTC] ❌ Cannot start call — WebSocket not connected!');
+      return;
+    }
+
     const callId = crypto.randomUUID();
     this.callInfo = { callId, peerId, peerName, peerAvatar, conversationId, isCaller: true };
     this.setState('requesting');
 
-    console.log('[WebRTC] Starting call → peer:', peerName, '(', peerId, ')');
+    console.log('[WebRTC] Starting call → peer:', peerName, '(', peerId, ') callId:', callId);
 
     this.sendSignal({
       type: 'CALL_REQUEST',
@@ -615,9 +631,15 @@ class WebRTCService {
   }
 }
 
-export const webrtcService = new WebRTCService();
-
+// HMR-safe singleton: preserve across hot reloads in development
+let _rtcInstance: WebRTCService;
 if (typeof window !== 'undefined') {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (window as any).webrtcService = webrtcService;
+  if (!(window as any).__webrtcServiceInstance) {
+    (window as any).__webrtcServiceInstance = new WebRTCService();
+  }
+  _rtcInstance = (window as any).__webrtcServiceInstance;
+} else {
+  _rtcInstance = new WebRTCService();
 }
+
+export const webrtcService = _rtcInstance;

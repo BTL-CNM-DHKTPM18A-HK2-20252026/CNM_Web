@@ -25,6 +25,11 @@ class WebSocketService {
     this.onSessionKickCallback = callback;
   }
 
+  /** Check if the WebSocket connection is active */
+  isConnected(): boolean {
+    return this.connected && this.client?.active === true;
+  }
+
   connect(token: string) {
     if (this.client?.active) {
       console.log('[WS-DEBUG] Connection already active/starting. Skipping.');
@@ -171,18 +176,32 @@ class WebSocketService {
    */
   send(destination: string, body: any): boolean {
     if (this.client && this.connected) {
-      this.client.publish({
-        destination,
-        body: JSON.stringify(body),
-      });
-      return true;
+      try {
+        this.client.publish({
+          destination,
+          body: JSON.stringify(body),
+        });
+        return true;
+      } catch (err) {
+        console.error('[WS-DEBUG] ❌ Error publishing to', destination, err);
+        return false;
+      }
     }
-    console.warn('[WS-DEBUG] Cannot send — WebSocket not connected. Destination:', destination);
+    console.warn('[WS-DEBUG] ❌ Cannot send — WebSocket not connected. Destination:', destination,
+      'connected:', this.connected, 'client:', !!this.client);
     return false;
   }
 }
 
-export const websocketService = new WebSocketService();
+// HMR-safe singleton: preserve across hot reloads in development
+let _wsInstance: WebSocketService;
 if (typeof window !== 'undefined') {
-  (window as any).websocketService = websocketService;
+  if (!(window as any).__websocketServiceInstance) {
+    (window as any).__websocketServiceInstance = new WebSocketService();
+  }
+  _wsInstance = (window as any).__websocketServiceInstance;
+} else {
+  _wsInstance = new WebSocketService();
 }
+
+export const websocketService = _wsInstance;

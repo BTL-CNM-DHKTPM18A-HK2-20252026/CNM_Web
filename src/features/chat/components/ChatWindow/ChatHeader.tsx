@@ -24,8 +24,13 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
 
   const handleVideoCall = useCallback(() => {
     const peerId = selectedChat.otherUserId;
-    if (!peerId || !currentUser?.id) return;
+    if (!peerId || !currentUser?.id) {
+      console.error('[VideoCall] Cannot start call — missing data:',
+        { peerId, currentUserId: currentUser?.id, selectedChatId: selectedChat.id });
+      return;
+    }
 
+    console.log('[VideoCall] Starting call to:', peerId, 'from:', currentUser.id);
     webrtcService.startCall(
       currentUser.id,
       peerId,

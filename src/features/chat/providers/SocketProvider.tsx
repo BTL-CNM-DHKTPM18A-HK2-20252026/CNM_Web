@@ -72,8 +72,14 @@ export function SocketProvider({ children }: SocketProviderProps) {
   // Subscribe to call signaling once connected
   useEffect(() => {
     if (currentUserId) {
+      console.log('[SocketProvider] currentUserId:', currentUserId, '→ subscribing call signaling');
+      // Đảm bảo subscribe lại nếu trước đó đã unsubscribe (e.g. HMR, reconnect)
+      webrtcService.unsubscribeSignaling();
       webrtcService.subscribeSignaling();
     }
+    return () => {
+      webrtcService.unsubscribeSignaling();
+    };
   }, [currentUserId]);
 
   return (
