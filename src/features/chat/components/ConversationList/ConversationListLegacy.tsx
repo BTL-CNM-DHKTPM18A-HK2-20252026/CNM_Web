@@ -339,7 +339,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                   createdAt: doc.createdAt,
                 };
               })
-              .filter(Boolean)
+              .filter((x): x is NonNullable<typeof x> => x !== null)
             : [];
           normalizedMessages.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
           setSearchMessages(normalizedMessages);
