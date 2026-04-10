@@ -77,6 +77,9 @@ class WebRTCService {
   // Pending ICE candidates (nhận trước khi remote description được set)
   private pendingCandidates: RTCIceCandidateInit[] = [];
 
+  // Pending OFFER (nhận trước khi localStream sẵn sàng ở callee)
+  private pendingOffer: CallSignal | null = null;
+
   // STOMP subscription ref
   private signalSub: { unsubscribe: () => void } | null = null;
 
@@ -231,8 +234,29 @@ class WebRTCService {
       callId: this.callInfo.callId,
     });
 
-    // Callee: lấy media → chờ OFFER từ caller
-    await this.acquireMedia();
+    // Callee: lấy media trước, sau đó xử lý OFFER (có thể đã buffered)
+    try {
+      await this.acquireMedia();
+    } catch {
+      // Thông báo cho caller biết call bị lỗi
+      if (this.callInfo) {
+        this.sendSignal({
+          type: 'CALL_END',
+          senderId: currentUserId,
+          receiverId: this.callInfo.peerId,
+          callId: this.callInfo.callId,
+        });
+      }
+      this.cleanup();
+      return;
+    }
+
+    // Nếu OFFER đã đến trong lúc đang acquireMedia → xử lý ngay
+    if (this.pendingOffer) {
+      const offer = this.pendingOffer;
+      this.pendingOffer = null;
+      await this.processOffer(offer);
+    }
   }
 
   /**
@@ -311,7 +335,22 @@ class WebRTCService {
     console.log('[WebRTC] Call accepted — starting WebRTC handshake');
     this.setState('connecting');
 
-    await this.acquireMedia();
+    try {
+      await this.acquireMedia();
+    } catch {
+      // Thông báo cho callee biết call bị lỗi
+      if (this.callInfo) {
+        this.sendSignal({
+          type: 'CALL_END',
+          senderId: '',
+          receiverId: this.callInfo.peerId,
+          callId: this.callInfo.callId,
+        });
+      }
+      this.cleanup();
+      return;
+    }
+
     this.createPeerConnection();
     await this.createAndSendOffer();
   }
@@ -322,12 +361,26 @@ class WebRTCService {
   }
 
   /**
-   * Callee nhận OFFER → set remote desc → create answer.
+   * Callee nhận OFFER → buffer nếu chưa có media, hoặc xử lý ngay.
    */
   private async handleOffer(signal: CallSignal) {
     if (!this.callInfo) return;
 
-    console.log('[WebRTC] Received OFFER — creating answer...');
+    // Nếu localStream chưa sẵn sàng (acquireMedia đang chạy), buffer OFFER
+    if (!this.localStream) {
+      console.log('[WebRTC] OFFER received before media ready — buffering');
+      this.pendingOffer = signal;
+      return;
+    }
+
+    await this.processOffer(signal);
+  }
+
+  /**
+   * Xử lý OFFER: tạo PeerConnection → set remote desc → tạo answer.
+   */
+  private async processOffer(signal: CallSignal) {
+    console.log('[WebRTC] Processing OFFER — creating answer...');
     this.createPeerConnection();
 
     const offer = signal.payload as RTCSessionDescriptionInit;
@@ -343,9 +396,9 @@ class WebRTCService {
 
     this.sendSignal({
       type: 'ANSWER',
-      senderId: this.callInfo.peerId, // sẽ bị override bởi server
-      receiverId: this.callInfo.peerId,
-      callId: this.callInfo.callId,
+      senderId: this.callInfo!.peerId, // server sẽ override
+      receiverId: this.callInfo!.peerId,
+      callId: this.callInfo!.callId,
       payload: answer,
     });
   }
@@ -398,7 +451,7 @@ class WebRTCService {
       this.onLocalStreamCallback?.(this.localStream);
     } catch (err) {
       console.error('[WebRTC] Failed to acquire media:', err);
-      this.cleanup();
+      throw err; // Caller handles cleanup & peer notification
     }
   }
 
@@ -520,7 +573,14 @@ class WebRTCService {
   // ── Send Signal via STOMP ──────────────────────────
 
   private sendSignal(signal: Partial<CallSignal>) {
-    websocketService.send('/app/call/signal', signal);
+    const sent = websocketService.send('/app/call/signal', signal);
+    if (!sent) {
+      console.error('[WebRTC] Failed to send signal:', signal.type, '— WebSocket not connected');
+      // Nếu chưa bắt đầu gọi được thì cleanup
+      if (signal.type === 'CALL_REQUEST') {
+        this.cleanup();
+      }
+    }
   }
 
   // ── Cleanup ────────────────────────────────────────
@@ -547,6 +607,7 @@ class WebRTCService {
 
     this.remoteStream = null;
     this.pendingCandidates = [];
+    this.pendingOffer = null;
     this.callInfo = null;
     this.onLocalStreamCallback = null;
     this.onRemoteStreamCallback = null;

@@ -167,14 +167,18 @@ class WebSocketService {
 
   /**
    * Send a message to a STOMP destination (e.g., /app/chat/{id}/typing)
+   * @returns true if sent, false if WebSocket not connected
    */
-  send(destination: string, body: any) {
+  send(destination: string, body: any): boolean {
     if (this.client && this.connected) {
       this.client.publish({
         destination,
         body: JSON.stringify(body),
       });
+      return true;
     }
+    console.warn('[WS-DEBUG] Cannot send — WebSocket not connected. Destination:', destination);
+    return false;
   }
 }
 
