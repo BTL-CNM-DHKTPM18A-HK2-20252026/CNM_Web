@@ -495,7 +495,6 @@ export function useChatWindow({
       const res = await apiClient.post<{ summary: string; messageCount: number }>('/ai/summarize-recent', {
         conversationId: selectedChat.id.toString(),
         messageCount: 100,
-        messageCount: 100,
       });
       const data = res as any;
       setSummaryText(data?.summary ?? data?.data?.summary ?? 'Không có nội dung tóm tắt.');
