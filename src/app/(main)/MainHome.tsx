@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n/config';
 import { authService } from '@/features/auth';
@@ -255,6 +255,7 @@ export function MainHome({ initialChatId }: MainHomeProps) {
   const [stompClient, setStompClient] = useState<Client | null>(null);
   const [qrUuid, setQrUuid] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
+  const registrationFlowTokenRef = useRef(0);
 
   useEffect(() => {
     setIsClient(true);
@@ -451,6 +452,10 @@ export function MainHome({ initialChatId }: MainHomeProps) {
 
   const handleGmailModalSubmit = async (gmail: string) => {
     if (!pendingRegisterData) return;
+
+    const flowToken = registrationFlowTokenRef.current + 1;
+    registrationFlowTokenRef.current = flowToken;
+
     setLoading(true);
     setGmailModalError(null);
 
@@ -459,6 +464,9 @@ export function MainHome({ initialChatId }: MainHomeProps) {
     try {
       emailExists = await authService.checkEmail(gmail);
     } catch (err: unknown) {
+      if (registrationFlowTokenRef.current !== flowToken) {
+        return;
+      }
       const msg = getErrorMessage(err, t('login.error.register_failed'));
       setGmailModalError(msg);
       setLoading(false);
@@ -466,20 +474,22 @@ export function MainHome({ initialChatId }: MainHomeProps) {
     }
 
     if (emailExists) {
+      if (registrationFlowTokenRef.current !== flowToken) {
+        return;
+      }
       setGmailModalError(t('login.gmail_modal.email_exists'));
       setLoading(false);
       return;
     }
 
-    // Step 2: Email available → close GmailModal and show OTP modal immediately
-    const registrationData = { ...pendingRegisterData, email: gmail };
-    setPendingRegisterData(null);
+    // Show OTP step immediately, then send OTP in background.
     setVerificationEmail(gmail);
-    setLoading(false);
 
-    // Step 3: Register in background (user is already on OTP modal)
     try {
-      await authService.register(registrationData);
+      await authService.sendRegisterOtp(gmail);
+      if (registrationFlowTokenRef.current !== flowToken) {
+        return;
+      }
       toast.success(t('login.success.otp_sent'), {
         description: t('login.success.otp_sent_desc'),
         duration: 5000,
@@ -487,13 +497,27 @@ export function MainHome({ initialChatId }: MainHomeProps) {
         icon: <div className="h-5 w-5 bg-blue-500 rounded-full flex items-center justify-center text-white"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><polyline points="20 6 9 17 4 12" /></svg></div>
       });
     } catch (err: unknown) {
-      // Registration failed after OTP modal was opened – restore gmail modal
+      if (registrationFlowTokenRef.current !== flowToken) {
+        return;
+      }
       const msg = getErrorMessage(err, t('login.error.register_failed'));
-      toast.error(msg);
       setVerificationEmail(null);
-      setPendingRegisterData(pendingRegisterData);
       setGmailModalError(msg);
+      toast.error(msg);
+    } finally {
+      if (registrationFlowTokenRef.current === flowToken) {
+        setLoading(false);
+      }
     }
+  };
+
+  const handleCancelRegistrationFlow = () => {
+    registrationFlowTokenRef.current += 1;
+    setPendingRegisterData(null);
+    setVerificationEmail(null);
+    setGmailModalError(null);
+    setLoading(false);
+    setLoginMethod('register');
   };
 
   const handleGmailModalSkip = async () => {
@@ -512,6 +536,32 @@ export function MainHome({ initialChatId }: MainHomeProps) {
       setGmailModalError(msg);
       toast.error(msg);
       // Keep GmailModal open so user can see error and retry
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegistrationOtpVerified = async () => {
+    if (!pendingRegisterData || !verificationEmail) {
+      throw new Error(t('login.error.register_failed'));
+    }
+
+    setLoading(true);
+    setGmailModalError(null);
+
+    try {
+      await authService.register({
+        ...pendingRegisterData,
+        email: verificationEmail,
+      });
+
+      setPendingRegisterData(null);
+      setVerificationEmail(null);
+      setLoginMethod('email');
+    } catch (err: unknown) {
+      const msg = getErrorMessage(err, t('login.error.register_failed'));
+      setGmailModalError(msg);
+      throw new Error(msg);
     } finally {
       setLoading(false);
     }
@@ -582,15 +632,11 @@ export function MainHome({ initialChatId }: MainHomeProps) {
           {verificationEmail ? (
             <OtpVerificationForm
               email={verificationEmail}
-              onVerified={() => {
-                setVerificationEmail(null);
-                setLoginMethod('email');
-                toast.success(t('login.success.verify_done'));
-              }}
-              onBack={() => {
-                setVerificationEmail(null);
-                setLoginMethod('register');
-              }}
+              onVerifyOtp={authService.verifyRegisterOtp}
+              onResendOtp={authService.resendRegisterOtp}
+              onVerified={handleRegistrationOtpVerified}
+              onBack={handleCancelRegistrationFlow}
+              onClose={handleCancelRegistrationFlow}
             />
           ) : showForgotPassword ? (
             <ForgotPasswordForm
@@ -653,12 +699,13 @@ export function MainHome({ initialChatId }: MainHomeProps) {
           </div>
 
           {/* Gmail Modal - shown after register form submission */}
-          {pendingRegisterData && (
+          {pendingRegisterData && !verificationEmail && (
             <GmailModal
               loading={loading}
               apiError={gmailModalError}
               onSubmit={handleGmailModalSubmit}
-              onClose={handleGmailModalSkip}
+              onSkip={handleGmailModalSkip}
+              onClose={handleCancelRegistrationFlow}
             />
           )}
 

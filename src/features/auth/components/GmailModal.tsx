@@ -5,12 +5,13 @@ interface GmailModalProps {
   loading: boolean;
   apiError?: string | null;
   onSubmit: (gmail: string) => void;
+  onSkip: () => void;
   onClose: () => void;
 }
 
 type ModalView = 'email' | 'skip-warning';
 
-export function GmailModal({ loading, apiError, onSubmit, onClose }: GmailModalProps) {
+export function GmailModal({ loading, apiError, onSubmit, onSkip, onClose }: GmailModalProps) {
   const { t } = useTranslation();
   const [gmail, setGmail] = React.useState('');
   const [error, setError] = React.useState('');
@@ -49,6 +50,18 @@ export function GmailModal({ loading, apiError, onSubmit, onClose }: GmailModalP
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="relative w-full max-w-[400px] mx-4 rounded-sm bg-[var(--card-bg)] border border-[var(--border)] shadow-2xl">
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={loading}
+          aria-label={t('common.close')}
+          className="absolute right-3 top-3 z-10 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-[var(--sub-text)] transition-colors hover:bg-[var(--hover-bg)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
 
         {view === 'skip-warning' ? (
           /* Skip warning view - show disabled features */
@@ -95,7 +108,7 @@ export function GmailModal({ loading, apiError, onSubmit, onClose }: GmailModalP
               </button>
               <button
                 type="button"
-                onClick={onClose}
+                onClick={onSkip}
                 className="w-full cursor-pointer rounded py-2.5 text-sm font-semibold text-red-400 hover:text-red-500 transition-colors"
               >
                 {t('login.gmail_modal.skip_warning_continue')}

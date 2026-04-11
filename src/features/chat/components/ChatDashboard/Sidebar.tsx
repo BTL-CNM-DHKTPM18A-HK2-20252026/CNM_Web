@@ -7,9 +7,6 @@ import {
   LogOutIcon,
   ZaloChatIcon,
   ZaloContactIcon,
-  ZaloCloudIcon,
-  ZaloFileIcon,
-  ZaloBusinessIcon,
   ZaloSettingsIcon
 } from '@/components/ui/Icons';
 
@@ -133,26 +130,6 @@ export function Sidebar({
           )}
         </button>
 
-        <button
-          onClick={() => { setActiveTab('cloud'); setShowUserMenu(false); }}
-          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${activeTab === 'cloud' ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'hover:bg-[var(--sidebar-hover-bg)] text-[var(--sidebar-text)]'}`}
-        >
-          <ZaloCloudIcon size={26} />
-        </button>
-
-        <button
-          onClick={() => { setActiveTab('files'); setShowUserMenu(false); }}
-          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${activeTab === 'files' ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'hover:bg-[var(--sidebar-hover-bg)] text-[var(--sidebar-text)]'}`}
-        >
-          <ZaloFileIcon size={26} />
-        </button>
-
-        <button
-          onClick={() => { setActiveTab('business'); setShowUserMenu(false); }}
-          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${activeTab === 'business' ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'hover:bg-[var(--sidebar-hover-bg)] text-[var(--sidebar-text)]'}`}
-        >
-          <ZaloBusinessIcon size={26} />
-        </button>
       </div>
 
       {/* Bottom Actions */}
@@ -258,12 +235,6 @@ export function Sidebar({
             </button>
           </div>
         )}
-
-        <button
-          className="w-10 h-10 flex items-center justify-center rounded-xl text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover-bg)] transition-colors cursor-pointer"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
-        </button>
 
         <button
           onClick={() => {

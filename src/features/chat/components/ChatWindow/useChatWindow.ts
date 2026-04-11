@@ -5,6 +5,7 @@ import { useInView } from 'react-intersection-observer';
 import { apiClient } from '@/lib/http/apiClient';
 import { websocketService } from '@/lib/realtime/websocketService';
 import { friendService } from '@/features/friends';
+import { getLocalMessages, getLocalMessagesBefore, upsertLocalMessages } from '@/lib/db/chatDB';
 import type {
   AiAccessSettings,
   AiThemeType,
@@ -273,6 +274,7 @@ export function useChatWindow({
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
 
   const isInitialLoadRef = useRef(true);
+  const totalMessagesRef = useRef<number>(0);
 
   const { ref: loadMoreRef, inView } = useInView({ threshold: 0 });
 
@@ -1375,13 +1377,29 @@ export function useChatWindow({
       }
 
       try {
-        setMessages([]);
         setIsInitialLoading(true);
         setIsLoadingMore(true);
 
-        // When jumping to a specific message, fetch messages centered around it
+        // ── IndexedDB Read-First: render local messages instantly ──
+        if (!targetMessageId) {
+          const localItems = await getLocalMessages(String(selectedChat.id), 20);
+          if (localItems.length > 0) {
+            const localSorted = [...localItems].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+            const localMapped = localSorted.map(item => mapIncomingMessage(item, currentUser?.id));
+            setMessages(localMapped);
+            setIsInitialLoading(false);
+            setShouldScrollToBottom(true);
+          } else {
+            setMessages([]);
+          }
+        } else {
+          setMessages([]);
+        }
+
+        // ── API Fetch & Sync ──
         let items: any[] = [];
         let hasMoreData = false;
+        let totalFromServer = 0;
 
         if (targetMessageId) {
           const res = await apiClient.get(
@@ -1389,23 +1407,32 @@ export function useChatWindow({
           );
           if (res.success && res.data) {
             items = Array.isArray(res.data) ? res.data : (res.data.content || []);
+            totalFromServer = res.data.totalElements ?? items.length;
           } else if (Array.isArray(res)) {
             items = res;
+            totalFromServer = items.length;
           }
-          hasMoreData = true; // there may be older messages
+          hasMoreData = true; // always allow scroll up/down after jump-to-message
         } else {
           const res = await apiClient.get(`/messages/conversation/${selectedChat.id}?size=30&page=0`);
           if (res.success && res.data) {
             items = Array.isArray(res.data) ? res.data : (res.data.content || []);
-            hasMoreData = res.data.last === false || items.length >= 30;
+            totalFromServer = res.data.totalElements ?? 0;
+            hasMoreData = items.length < totalFromServer;
           } else if (res.content) {
             items = res.content;
-            hasMoreData = res.last === false || items.length >= 30;
+            totalFromServer = res.totalElements ?? 0;
+            hasMoreData = items.length < totalFromServer;
           }
         }
 
+        totalMessagesRef.current = totalFromServer;
+
         const sorted = [...items].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
         const mapped = sorted.map(item => mapIncomingMessage(item, currentUser?.id));
+
+        // Upsert API results to IndexedDB for future instant loads
+        upsertLocalMessages(items).catch(() => {});
 
         setMessages(mapped);
         apiClient.patch(`/conversations/${selectedChat.id}/mark-as-read`, {}).catch(() => {});
@@ -1606,20 +1633,52 @@ export function useChatWindow({
 
     try {
       setIsLoadingMore(true);
-      const oldestMessageId = messages[0].id;
+      const oldestMessage = messages[0];
+      const oldestMessageId = oldestMessage.id;
+      const oldestCreatedAt = oldestMessage.rawDate?.toISOString() || '';
       const scrollContainer = scrollContainerRef.current;
       const previousScrollHeight = scrollContainer?.scrollHeight || 0;
 
-      const res = await apiClient.get(`/messages/conversation/${selectedChat.id}?beforeId=${oldestMessageId}&size=30`);
+      // ── IndexedDB first: try to get older messages locally ──
       let items: any[] = [];
       let hasMoreData = false;
 
-      if (res.success && res.data) {
-        items = Array.isArray(res.data) ? res.data : (res.data.content || []);
-        hasMoreData = res.data.last === false || items.length >= 30;
-      } else if (res.content) {
-        items = res.content;
-        hasMoreData = res.last === false || items.length >= 30;
+      if (oldestCreatedAt) {
+        const localItems = await getLocalMessagesBefore(String(selectedChat.id), oldestCreatedAt, 30);
+        if (localItems.length > 0) {
+          items = localItems;
+        }
+      }
+
+      // If IndexedDB didn't have enough, fetch from API
+      if (items.length < 30) {
+        const res = await apiClient.get(`/messages/conversation/${selectedChat.id}?beforeId=${oldestMessageId}&size=30`);
+
+        if (res.success && res.data) {
+          const apiItems: any[] = Array.isArray(res.data) ? res.data : (res.data.content || []);
+          const totalElements = res.data.totalElements ?? totalMessagesRef.current;
+          if (totalElements > 0) totalMessagesRef.current = totalElements;
+
+          // Merge local + API items, dedupe by id
+          const mergedMap = new Map<string, any>();
+          for (const m of items) mergedMap.set(String(m.messageId || m.id), m);
+          for (const m of apiItems) mergedMap.set(String(m.messageId || m.id), m);
+          items = Array.from(mergedMap.values());
+
+          // Upsert API results to IndexedDB
+          upsertLocalMessages(apiItems).catch(() => {});
+        } else if (res.content) {
+          const apiItems: any[] = res.content;
+          const totalElements = res.totalElements ?? totalMessagesRef.current;
+          if (totalElements > 0) totalMessagesRef.current = totalElements;
+
+          const mergedMap = new Map<string, any>();
+          for (const m of items) mergedMap.set(String(m.messageId || m.id), m);
+          for (const m of apiItems) mergedMap.set(String(m.messageId || m.id), m);
+          items = Array.from(mergedMap.values());
+
+          upsertLocalMessages(apiItems).catch(() => {});
+        }
       }
 
       if (items.length > 0) {
@@ -1629,7 +1688,12 @@ export function useChatWindow({
         setMessages(prev => {
           const prevIds = new Set(prev.map(m => m.id));
           const uniqueOldItems = mappedOldItems.filter(m => !prevIds.has(m.id));
-          return [...uniqueOldItems, ...prev];
+          const newTotal = [...uniqueOldItems, ...prev];
+          // hasMore based on total loaded vs server total
+          hasMoreData = totalMessagesRef.current > 0
+            ? newTotal.length < totalMessagesRef.current
+            : items.length >= 30;
+          return newTotal;
         });
 
         setHasMore(hasMoreData);
@@ -1693,10 +1757,23 @@ export function useChatWindow({
           reactionType = 'LIKE';
       }
       await apiClient.post(`/messages/${messageId}/react`, { reactionType });
-    } catch (error) {
+    } catch (error: unknown) {
+      const rawMsg = error instanceof Error ? error.message : '';
+      const normalizedMsg = rawMsg.toLowerCase();
+      const isConnectionIssue =
+        normalizedMsg.includes('network') ||
+        normalizedMsg.includes('failed to fetch') ||
+        normalizedMsg.includes('unable to connect') ||
+        normalizedMsg.includes('connection refused');
+
+      toast.error(
+        isConnectionIssue
+          ? 'Không thể kết nối máy chủ. Vui lòng kiểm tra backend và thử lại.'
+          : (rawMsg || t('chat.message.send_error'))
+      );
       console.error('React failed', error);
     }
-  }, []);
+  }, [t]);
 
   const handleEditMessage = useCallback(async (messageId: string) => {
     if (!editContent.trim()) return;

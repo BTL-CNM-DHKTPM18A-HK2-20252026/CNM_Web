@@ -131,6 +131,42 @@ export const authService = {
   },
 
   /**
+   * Send OTP for registration pre-verification.
+   */
+  async sendRegisterOtp(email: string): Promise<unknown> {
+    try {
+      return await apiClient.post('/auth/register/send-otp', { email });
+    } catch (error) {
+      console.error('Send Register OTP Error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Verify OTP for registration pre-verification.
+   */
+  async verifyRegisterOtp(email: string, otp: string): Promise<unknown> {
+    try {
+      return await apiClient.post('/auth/register/verify-otp', { email, otp });
+    } catch (error) {
+      console.error('Verify Register OTP Error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Resend OTP for registration pre-verification.
+   */
+  async resendRegisterOtp(email: string): Promise<unknown> {
+    try {
+      return await apiClient.post('/auth/register/send-otp', { email });
+    } catch (error) {
+      console.error('Resend Register OTP Error:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Send OTP for forgot-password flow.
    */
   async sendPasswordResetOtp(email: string): Promise<unknown> {

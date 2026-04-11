@@ -51,8 +51,10 @@ export function ContactList({ selectedCategory, onSelectCategory }: ContactListP
                   {cat.name}
                 </span>
                 {cat.badge > 0 && (
-                  <span className="min-w-[20px] h-[20px] flex items-center justify-center bg-[#FF3B30] text-white text-[11px] font-bold rounded-full px-1.5">
-                    {cat.badge > 99 ? '99+' : cat.badge}
+                  <span className="min-w-[16px] h-[16px] flex items-center justify-center bg-[#FF3B30] text-white rounded-full px-1">
+                    <span className="text-[8px] font-semibold leading-none">
+                      {cat.badge > 99 ? '99+' : cat.badge}
+                    </span>
                   </span>
                 )}
               </div>

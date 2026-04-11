@@ -53,6 +53,7 @@ export interface ConversationListProps {
   onTagConversation?: (id: string | number, tag: string | null) => void;
   onMuteConversation?: (id: string | number, mutedUntil: string | null) => void;
   onMarkUnread?: (id: string | number, isMarkedUnread: boolean) => void;
+  onMarkAsRead?: (ids: Array<string | number>) => void;
   onAutoDeleteConversation?: (id: string | number, duration: string | null) => void;
   onUnhideConversation?: (id: string | number) => void;
   currentUser?: any;
@@ -98,7 +99,7 @@ interface SearchMessageDocument {
   createdAt: string;
 }
 
-export function ConversationListLegacy({ conversations, onAddFriend, onCreateGroup, onSelectConversation, onJumpToMessage, onPinConversation, onDeleteConversation, onTagConversation, onMuteConversation, onMarkUnread, onAutoDeleteConversation, onUnhideConversation, currentUser, nonSearchContent }: ConversationListProps) {
+export function ConversationListLegacy({ conversations, onAddFriend, onCreateGroup, onSelectConversation, onJumpToMessage, onPinConversation, onDeleteConversation, onTagConversation, onMuteConversation, onMarkUnread, onMarkAsRead, onAutoDeleteConversation, onUnhideConversation, currentUser, nonSearchContent }: ConversationListProps) {
   const { t } = useTranslation();
   const { isOnline, getTimeAgo } = usePresence();
 
@@ -113,6 +114,10 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
   const [showClassifyMenu, setShowClassifyMenu] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [filterTab, setFilterTab] = useState<'all' | 'unread'>('all');
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const [showMarkReadConfirm, setShowMarkReadConfirm] = useState(false);
+  const [dontShowMarkReadConfirm, setDontShowMarkReadConfirm] = useState(false);
+  const headerMenuRef = useRef<HTMLDivElement>(null);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -140,12 +145,6 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
   const [ctxHidePinError, setCtxHidePinError] = useState<string | null>(null);
   const [ctxHidePinLoading, setCtxHidePinLoading] = useState(false);
   const [ctxHideIsSetup, setCtxHideIsSetup] = useState(false);
-
-  // Unhide with PIN
-  const [showUnhidePinModal, setShowUnhidePinModal] = useState(false);
-  const [unhidePinTarget, setUnhidePinTarget] = useState<string | number | 'all' | null>(null);
-  const [unhidePinError, setUnhidePinError] = useState<string | null>(null);
-  const [unhidePinLoading, setUnhidePinLoading] = useState(false);
 
   const resetPrivateMode = useCallback(() => {
     setIsPrivateMode(false);
@@ -210,36 +209,6 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
       setCtxHidePinError(e?.message || t('pin.wrong'));
     } finally {
       setCtxHidePinLoading(false);
-    }
-  };
-
-  const handleUnhidePinConfirm = async (pin: string) => {
-    if (!unhidePinTarget) return;
-    setUnhidePinLoading(true);
-    setUnhidePinError(null);
-    try {
-      if (unhidePinTarget === 'all') {
-        await Promise.all(
-          hiddenConversations.map(conv =>
-            apiClient.post(`/conversations/${conv.conversationId || conv.conversation_id}/unhide`, { pinCode: pin })
-          )
-        );
-        const ids = hiddenConversations.map(c => c.conversationId || c.conversation_id);
-        ids.forEach(id => onUnhideConversation?.(id));
-        setHiddenConversations([]);
-        toast.success(t('chat.unhide_all_success') || 'Đã hiện lại tất cả hội thoại');
-      } else {
-        await apiClient.post(`/conversations/${unhidePinTarget}/unhide`, { pinCode: pin });
-        setHiddenConversations(prev => prev.filter(c => (c.conversationId || c.conversation_id) !== unhidePinTarget));
-        onUnhideConversation?.(unhidePinTarget);
-        toast.success(t('chat.unhide_success'));
-      }
-      setShowUnhidePinModal(false);
-      setUnhidePinTarget(null);
-    } catch (e: any) {
-      setUnhidePinError(e?.message || t('pin.wrong'));
-    } finally {
-      setUnhidePinLoading(false);
     }
   };
 
@@ -446,6 +415,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
   const [showOpenHiddenPinModal, setShowOpenHiddenPinModal] = useState(false);
   const [openHiddenPinError, setOpenHiddenPinError] = useState<string | null>(null);
   const [openHiddenPinLoading, setOpenHiddenPinLoading] = useState(false);
+  const [hiddenListPin, setHiddenListPin] = useState<string | null>(null);
 
   const handleOpenHiddenPinConfirm = async (pin: string) => {
     setOpenHiddenPinLoading(true);
@@ -453,6 +423,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
     try {
       // Verify PIN via search endpoint
       await apiClient.get(`/conversations/hidden/search?q=&pinCode=${encodeURIComponent(pin)}`);
+      setHiddenListPin(pin);
       setShowOpenHiddenPinModal(false);
       setShowHiddenModal(true);
       fetchHiddenConversations();
@@ -477,7 +448,95 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
     }
   };
 
+  const handleUnhideFromHiddenModal = useCallback(async (target: string | number | 'all') => {
+    if (!hiddenListPin) {
+      setShowHiddenModal(false);
+      setOpenHiddenPinError(t('pin.wrong'));
+      setShowOpenHiddenPinModal(true);
+      return;
+    }
+
+    try {
+      if (target === 'all') {
+        await Promise.all(
+          hiddenConversations.map(conv =>
+            apiClient.post(`/conversations/${conv.conversationId || conv.conversation_id}/unhide`, { pinCode: hiddenListPin })
+          )
+        );
+        const ids = hiddenConversations.map(c => c.conversationId || c.conversation_id);
+        ids.forEach(id => onUnhideConversation?.(id));
+        setHiddenConversations([]);
+        toast.success(t('chat.unhide_all_success'));
+        return;
+      }
+
+      await apiClient.post(`/conversations/${target}/unhide`, { pinCode: hiddenListPin });
+      setHiddenConversations(prev => prev.filter(c => (c.conversationId || c.conversation_id) !== target));
+      onUnhideConversation?.(target);
+      toast.success(t('chat.unhide_success'));
+    } catch (e: any) {
+      setShowHiddenModal(false);
+      setHiddenListPin(null);
+      setOpenHiddenPinError(e?.message || t('pin.wrong'));
+      setShowOpenHiddenPinModal(true);
+    }
+  }, [hiddenConversations, hiddenListPin, onUnhideConversation, t]);
+
   const classifyMenuRef = useRef<HTMLDivElement>(null);
+
+  const getMarkAsReadTargetIds = useCallback((): Array<string | number> => {
+    return filteredConversations
+      .filter(c => (c.unreadCount && c.unreadCount > 0) || c.isMarkedUnread)
+      .map(c => c.id);
+  }, [filteredConversations]);
+
+  const runMarkAreaAsRead = useCallback(async () => {
+    const targetIds = getMarkAsReadTargetIds();
+    if (targetIds.length === 0) {
+      toast.info(t('chat.ctx.mark_read_none'));
+      return;
+    }
+
+    const results = await Promise.allSettled(
+      targetIds.map((id) => apiClient.patch(`/conversations/${id}/mark-as-read`, {}))
+    );
+
+    const successIds = targetIds.filter((_, idx) => results[idx].status === 'fulfilled');
+    if (successIds.length > 0) {
+      onMarkAsRead?.(successIds);
+      toast.success(t('chat.ctx.mark_read_success', { count: successIds.length }));
+    } else {
+      toast.error(t('chat.ctx.mark_read_error'));
+    }
+  }, [getMarkAsReadTargetIds, onMarkAsRead, t]);
+
+  const handleMarkAsReadFromHeader = useCallback(async () => {
+    setShowHeaderMenu(false);
+    if (getMarkAsReadTargetIds().length === 0) {
+      toast.info(t('chat.ctx.mark_read_none'));
+      return;
+    }
+    const shouldSkipConfirm = typeof window !== 'undefined' && window.localStorage.getItem('cnm.chat.skip-mark-read-confirm') === '1';
+    if (shouldSkipConfirm) {
+      await runMarkAreaAsRead();
+      return;
+    }
+    setShowMarkReadConfirm(true);
+  }, [getMarkAsReadTargetIds, runMarkAreaAsRead, t]);
+
+  const confirmMarkAsRead = useCallback(async () => {
+    if (dontShowMarkReadConfirm && typeof window !== 'undefined') {
+      window.localStorage.setItem('cnm.chat.skip-mark-read-confirm', '1');
+    }
+    setShowMarkReadConfirm(false);
+    await runMarkAreaAsRead();
+  }, [dontShowMarkReadConfirm, runMarkAreaAsRead]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = window.localStorage.getItem('cnm.chat.skip-mark-read-confirm') === '1';
+    setDontShowMarkReadConfirm(saved);
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -491,15 +550,18 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
         setContextMenu(null);
         setShowSubMenu(null);
       }
+      if (headerMenuRef.current && !headerMenuRef.current.contains(event.target as Node)) {
+        setShowHeaderMenu(false);
+      }
     }
 
-    if (showClassifyMenu || contextMenu) {
+    if (showClassifyMenu || contextMenu || showHeaderMenu) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showClassifyMenu, contextMenu]);
+  }, [showClassifyMenu, contextMenu, showHeaderMenu]);
 
   const classifyItems = [
     { key: 'customer', color: '#EF4444' }, // Red
@@ -994,12 +1056,25 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                 )}
               </div>
 
-              <button
-                title={t('chat.more')}
-                className="p-1 cursor-pointer hover:bg-[var(--hover-bg)] rounded-md text-[var(--sub-text)] hover:text-[var(--text)] transition-colors"
-              >
-                <MoreHorizontalIcon size={18} />
-              </button>
+              <div ref={headerMenuRef} className="relative">
+                <button
+                  title={t('chat.more')}
+                  onClick={() => setShowHeaderMenu(prev => !prev)}
+                  className="p-1 cursor-pointer hover:bg-[var(--hover-bg)] rounded-md text-[var(--sub-text)] hover:text-[var(--text)] transition-colors"
+                >
+                  <MoreHorizontalIcon size={18} />
+                </button>
+                {showHeaderMenu && (
+                  <div className="absolute right-0 top-full mt-2 z-50 w-[164px] rounded-lg border border-[var(--border)] bg-[var(--card-bg)] py-1 shadow-[0_10px_20px_rgba(0,0,0,0.14)]">
+                    <button
+                      onClick={handleMarkAsReadFromHeader}
+                      className="w-full px-3 py-2 text-left text-[14px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
+                    >
+                      {t('chat.ctx.mark_read')}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -1345,7 +1420,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
       {/* Hidden Conversations Link */}
       {!isSearching && !nonSearchContent && (
         <button
-          onClick={() => { setOpenHiddenPinError(null); setShowOpenHiddenPinModal(true); }}
+          onClick={() => { setOpenHiddenPinError(null); setHiddenListPin(null); setShowOpenHiddenPinModal(true); }}
           className="w-full px-4 py-2.5 text-[12px] text-[var(--sub-text)] hover:text-[var(--text)] hover:bg-[var(--hover-bg)] flex items-center justify-center gap-2 transition-colors cursor-pointer border-t border-[var(--border)]"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-60"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
@@ -1355,6 +1430,55 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
 
       {/* Conversation Context Menu */}
       {renderContextMenu()}
+
+      {/* Mark As Read Confirm Modal */}
+      {showMarkReadConfirm && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/45" onClick={() => setShowMarkReadConfirm(false)} />
+          <div className="relative z-[10000] w-full max-w-[390px] overflow-hidden rounded-lg border border-gray-200 bg-[var(--card-bg)] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[var(--border)] px-3.5 py-3">
+              <h3 className="text-[14px] font-bold text-[var(--text)]">{t('chat.ctx.mark_read_confirm_title')}</h3>
+              <button
+                onClick={() => setShowMarkReadConfirm(false)}
+                className="rounded-md p-1 text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[var(--text)] cursor-pointer"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+
+            <div className="px-3.5 pb-3.5 pt-3">
+              <p className="text-[13px] leading-relaxed text-[var(--text)]">
+                {t('chat.ctx.mark_read_confirm_desc')}
+              </p>
+
+              <label className="mt-2.5 inline-flex items-center gap-2 text-[12px] text-[var(--text)] select-none cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={dontShowMarkReadConfirm}
+                  onChange={(e) => setDontShowMarkReadConfirm(e.target.checked)}
+                  className="h-4 w-4 cursor-pointer rounded border border-[var(--border)]"
+                />
+                <span>{t('chat.ctx.mark_read_dont_show')}</span>
+              </label>
+
+              <div className="mt-3.5 flex justify-end gap-2">
+                <button
+                  onClick={() => setShowMarkReadConfirm(false)}
+                  className="min-w-[84px] rounded-md bg-black/5 px-3.5 py-2 text-[13px] font-semibold text-[var(--text)] hover:bg-black/10 cursor-pointer"
+                >
+                  {t('chat.ctx.mark_read_cancel')}
+                </button>
+                <button
+                  onClick={confirmMarkAsRead}
+                  className="min-w-[96px] rounded-md bg-[#0068FF] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#0052CC] cursor-pointer"
+                >
+                  {t('chat.ctx.mark_read_confirm')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Report Modal */}
       {reportModal && (
@@ -1452,18 +1576,6 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
         />
       )}
 
-      {/* Unhide PIN modal */}
-      {showUnhidePinModal && (
-        <PinInputModal
-          title={t('info.hide.modal_title')}
-          subtitle={t('chat.unhide_pin_subtitle') || 'Nhập mã PIN để hiện lại hội thoại'}
-          error={unhidePinError}
-          loading={unhidePinLoading}
-          onConfirm={handleUnhidePinConfirm}
-          onClose={() => { setShowUnhidePinModal(false); setUnhidePinError(null); setUnhidePinTarget(null); }}
-        />
-      )}
-
       {/* Open hidden list PIN modal */}
       {showOpenHiddenPinModal && (
         <PinInputModal
@@ -1479,11 +1591,11 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
       {/* Hidden Conversations Modal */}
       {showHiddenModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/45 animate-in fade-in duration-200" onClick={() => { setShowHiddenModal(false); setShowAllHidden(false); }} />
+          <div className="absolute inset-0 bg-black/45 animate-in fade-in duration-200" onClick={() => { setShowHiddenModal(false); setShowAllHidden(false); setHiddenListPin(null); }} />
           <div className="w-full max-w-[420px] max-h-[70vh] bg-[var(--card-bg)] rounded-xl shadow-2xl relative z-[10000] animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col">
             <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between shrink-0">
               <h3 className="text-[16px] font-bold text-[var(--text)]">{t('chat.hidden_conversations')}</h3>
-              <button onClick={() => { setShowHiddenModal(false); setShowAllHidden(false); }} className="p-1 rounded-md hover:bg-[var(--hover-bg)] text-[var(--sub-text)] cursor-pointer">
+              <button onClick={() => { setShowHiddenModal(false); setShowAllHidden(false); setHiddenListPin(null); }} className="p-1 rounded-md hover:bg-[var(--hover-bg)] text-[var(--sub-text)] cursor-pointer">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
               </button>
             </div>
@@ -1544,11 +1656,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                           <div className="text-[12px] text-[var(--sub-text)] truncate">{lastMsg}</div>
                         </div>
                         <button
-                          onClick={() => {
-                            setUnhidePinError(null);
-                            setUnhidePinTarget(convId);
-                            setShowUnhidePinModal(true);
-                          }}
+                          onClick={() => handleUnhideFromHiddenModal(convId)}
                           className="px-3 py-1.5 text-[12px] font-medium text-[#0068FF] bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 rounded-lg transition-colors cursor-pointer shrink-0"
                         >
                           {t('chat.unhide')}
@@ -1575,11 +1683,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
             {!hiddenLoading && hiddenConversations.length > 1 && (
               <div className="px-3 pb-3 border-t border-[var(--border)] pt-3 shrink-0">
                 <button
-                  onClick={() => {
-                    setUnhidePinError(null);
-                    setUnhidePinTarget('all');
-                    setShowUnhidePinModal(true);
-                  }}
+                  onClick={() => handleUnhideFromHiddenModal('all')}
                   className="w-full py-2 flex items-center justify-center gap-2 text-[13px] font-semibold text-[#0068FF] bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 rounded-lg transition-colors cursor-pointer"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>

@@ -7,62 +7,79 @@ import type { ChatMessage, ChatMessageListProps } from '@/features/chat/componen
 import { usePresence } from '@/features/user';
 
 // ── Call History Message ────────────────────────────────────────────────────
-function formatCallDuration(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
+function formatCallDuration(seconds: number, t: (key: string, opts?: Record<string, string | number>) => string): string {
+  if (seconds < 60) return t('chat.call.seconds_only', { count: seconds });
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
-  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  if (s === 0) return t('chat.call.minutes_only', { count: m });
+  return t('chat.call.minutes_seconds', { minutes: m, seconds: s });
 }
 
 function CallHistoryMessage({
   msg,
   currentUserId,
+  selectedChat,
   t,
 }: {
   msg: ChatMessage;
   currentUserId?: string;
-  t: (key: string, opts?: Record<string, string>) => string;
+  selectedChat: ChatMessageListProps['vm']['selectedChat'];
+  t: (key: string, opts?: Record<string, string | number>) => string;
 }) {
   const isCaller = msg.senderId === currentUserId;
+  const isMe = msg.sender === 'Me';
 
-  let label: string;
-  let Icon: React.ReactNode;
+  const isEnded = msg.type === 'CALL_ENDED';
+  const cardTitle = isEnded
+    ? (isCaller ? t('chat.call.outgoing_video_call') : t('chat.call.incoming_video_call'))
+    : (isCaller ? t('chat.call.recipient_busy') : t('chat.call.missed'));
 
-  if (msg.type === 'CALL_MISSED') {
-    label = isCaller
-      ? t('chat.call.you_called')
-      : t('chat.call.missed_from', { name: msg.sender !== 'Me' ? (msg.sender ?? '') : '' });
-    Icon = (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-red-400 shrink-0">
-        <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.42 19.42 0 0 1 4.26 9.6a19.79 19.79 0 0 1-3.07-8.69A2 2 0 0 1 3.17 0h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.15 7.8" /><line x1="23" y1="1" x2="1" y2="23" />
-      </svg>
-    );
-  } else if (msg.type === 'CALL_REJECTED') {
-    label = t('chat.call.rejected');
-    Icon = (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-orange-400 shrink-0">
-        <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.42 19.42 0 0 1 4.26 9.6a19.79 19.79 0 0 1-3.07-8.69A2 2 0 0 1 3.17 0h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.15 7.8" /><line x1="23" y1="1" x2="1" y2="23" />
-      </svg>
-    );
-  } else {
-    // CALL_ENDED
-    const durationSeconds = msg.text ? parseInt(msg.text, 10) : 0;
-    const durationStr = formatCallDuration(isNaN(durationSeconds) ? 0 : durationSeconds);
-    label = `${t('chat.call.ended')} · ${durationStr}`;
-    Icon = (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#0068FF] shrink-0">
-        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.26 9.6a19.79 19.79 0 0 1-3.07-8.69A2 2 0 0 1 3.17 0h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.15 7.8a16 16 0 0 0 6.05 6.05l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 14.92z" />
-      </svg>
-    );
-  }
+  const detailText = isEnded
+    ? formatCallDuration(Number.isNaN(Number(msg.text)) ? 0 : Number(msg.text), t)
+    : t('chat.call.video_call');
+
+  const statusColor = isEnded ? 'text-emerald-500' : 'text-red-400';
+  const avatarFallbackChar = (msg.sender && msg.sender !== 'Me' ? msg.sender : selectedChat.name)?.charAt(0) || '?';
 
   return (
-    <div className="flex justify-center my-1.5">
-      <div className="flex items-center gap-1.5 bg-black/5 dark:bg-white/[0.07] px-3 py-1.5 rounded-full select-none">
-        {Icon}
-        <span className="text-[12px] text-(--sub-text) font-medium">{label}</span>
-        <span className="text-[11px] text-(--sub-text) opacity-60">·</span>
-        <span className="text-[11px] text-(--sub-text) opacity-60">{msg.time}</span>
+    <div className={`flex items-end gap-2 my-1.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
+      {!isMe && (
+        <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-[#DBDFE6] dark:border-white/10 shadow-sm flex items-center justify-center bg-blue-50">
+          {msg.avatar ? (
+            <img src={msg.avatar} alt="Avatar" className="w-full h-full object-cover" />
+          ) : selectedChat.avatar ? (
+            <img src={selectedChat.avatar} alt="Avatar" className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-blue-600 font-bold text-sm">{avatarFallbackChar}</span>
+          )}
+        </div>
+      )}
+      <div className="w-[162px] rounded-xl border border-[#c5d5e7] bg-[#d8e5f4] px-4 py-3 shadow-sm">
+        <h4 className="text-[15px] font-bold leading-tight text-[#1f2f46]">{cardTitle}</h4>
+
+        <div className="mt-1.5 flex items-center gap-2 text-[13px] text-[#586b82]">
+          <span className="relative flex h-4.5 w-5 items-center justify-center">
+            <svg width="18" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" className="text-[#6b7d90]">
+              <rect x="2.5" y="7" width="12" height="10" rx="2" />
+              <path d="M15 10.5 21 7v10l-6-3.5" />
+            </svg>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round" className={`absolute -top-1 -right-1 ${statusColor}`}>
+              <path d="M7 17L17 7" />
+              <path d="M9 7h8v8" />
+            </svg>
+          </span>
+          <span className="font-semibold">{detailText}</span>
+        </div>
+
+        <div className="my-2 border-t border-[#b8c9dd]" />
+
+        <button
+          type="button"
+          onClick={() => toast.info(t('chat.call.redial_hint'))}
+          className="w-full cursor-pointer text-center text-[15px] font-bold text-[#0068FF] transition-colors hover:text-[#0052cc]"
+        >
+          {t('chat.call.redial')}
+        </button>
       </div>
     </div>
   );
@@ -71,13 +88,28 @@ function CallHistoryMessage({
 
 const getFileNameFromUrl = (url: string) => {
   try {
-    const parts = url.split('/');
+    const normalizedPath = (() => {
+      try {
+        return new URL(url).pathname;
+      } catch {
+        return url.split('?')[0] || url;
+      }
+    })();
+    const parts = normalizedPath.split('/');
     const lastPart = parts[parts.length - 1];
     const filename = lastPart.includes('_') ? lastPart.split('_').slice(1).join('_') : lastPart;
     return decodeURIComponent(filename);
   } catch {
     return 'File';
   }
+};
+
+const getMediaDownloadName = (url: string, mediaType: 'IMAGE' | 'VIDEO') => {
+  const base = getFileNameFromUrl(url);
+  if (/\.[a-z0-9]+$/i.test(base)) {
+    return base;
+  }
+  return `${base}.${mediaType === 'IMAGE' ? 'jpg' : 'mp4'}`;
 };
 
 const getFileExtension = (url: string) => {
@@ -268,6 +300,40 @@ function VoicePlayer({ url, duration, isMe }: { url: string; duration?: number; 
   );
 }
 
+// ── Message Block Grouping ──────────────────────────────────────────────────
+const BLOCK_GAP_MS = 5 * 60 * 1000; // 5 minutes
+const BLOCK_MSG_TYPES = new Set(['TEXT', 'IMAGE', 'VIDEO', 'MEDIA', 'VOICE', 'LINK']);
+
+// Rich content types that need more spacing even within a block
+const RICH_MSG_TYPES = new Set(['IMAGE', 'VIDEO', 'MEDIA', 'SHARE_CONTACT']);
+
+function getBlockSenderId(msg: ChatMessage): string | null {
+  if (!BLOCK_MSG_TYPES.has(msg.type)) return null;
+  return msg.senderId || msg.sender;
+}
+
+function shouldShowTimestamp(msg: ChatMessage, nextMsg: ChatMessage | undefined): boolean {
+  if (!nextMsg) return true;
+  const cur = getBlockSenderId(msg);
+  const nxt = getBlockSenderId(nextMsg);
+  if (!cur || !nxt || cur !== nxt) return true;
+  if (msg.rawDate && nextMsg.rawDate) {
+    return new Date(nextMsg.rawDate).getTime() - new Date(msg.rawDate).getTime() > BLOCK_GAP_MS;
+  }
+  return true;
+}
+
+function isFirstInBlock(msg: ChatMessage, prevMsg: ChatMessage | undefined): boolean {
+  if (!prevMsg) return true;
+  const cur = getBlockSenderId(msg);
+  const prv = getBlockSenderId(prevMsg);
+  if (!cur || !prv || cur !== prv) return true;
+  if (msg.rawDate && prevMsg.rawDate) {
+    return new Date(msg.rawDate).getTime() - new Date(prevMsg.rawDate).getTime() > BLOCK_GAP_MS;
+  }
+  return true;
+}
+
 function ChatMessageListImpl({ vm }: ChatMessageListProps) {
   const {
     t,
@@ -451,7 +517,13 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                 const index = virtualRow.index;
                 const msg = messages[index];
                 const prevMsg = messages[index - 1];
+                const nextMsg = messages[index + 1];
                 const showDateSeparator = !prevMsg || isDifferentDay(msg.rawDate, prevMsg.rawDate);
+                const showTimestamp = shouldShowTimestamp(msg, nextMsg);
+                const effectivePrev = showDateSeparator ? undefined : prevMsg;
+                const showAvatarAndName = isFirstInBlock(msg, effectivePrev);
+                const isRichContent = RICH_MSG_TYPES.has(msg.type);
+                const paddingClass = showTimestamp ? 'pb-10' : isRichContent ? 'pb-4' : 'pb-1.5';
 
                 return (
                   <div
@@ -465,7 +537,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                       width: '100%',
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
-                    className="pb-10"
+                    className={paddingClass}
                   >
                     {showDateSeparator && (
                       <div className="flex justify-center my-2">
@@ -478,28 +550,32 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                         <span className="bg-black/5 dark:bg-white/10 px-4 py-1.5 rounded-full text-[12px] text-[var(--sub-text)] opacity-80">{msg.text}</span>
                       </div>
                     ) : msg.type === 'CALL_MISSED' || msg.type === 'CALL_REJECTED' || msg.type === 'CALL_ENDED' ? (
-                      <CallHistoryMessage msg={msg} currentUserId={currentUser?.id} t={t} />
+                      <CallHistoryMessage msg={msg} currentUserId={currentUser?.id} selectedChat={selectedChat} t={t} />
                     ) : (
                       <div id={`msg-${msg.id}`} className={`flex ${msg.sender === 'Me' ? 'justify-end' : 'justify-start'} transition-colors duration-300 [&.highlight-msg]:bg-[#0068FF]/10 rounded-lg`}>
                         <div className={`flex gap-1.5 max-w-[72%] group relative ${msg.sender === 'Me' ? 'flex-row-reverse' : ''} items-center`}>
                           {msg.sender !== 'Me' && (
-                            <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 mt-1 border-[1px] border-[#DBDFE6] dark:border-white/10 shadow-sm flex items-center justify-center bg-blue-50">
-                              {(msg as any).avatar ? (
-                                <img src={(msg as any).avatar} alt="Avatar" className="w-full h-full object-cover" />
-                              ) : selectedChat.isAi || (msg as any).senderId === AI_TYPING_USER_ID ? (
-                                <div className="w-full h-full rounded-full bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 flex items-center justify-center text-white">
-                                  <SparklesIcon size={16} />
-                                </div>
-                              ) : selectedChat.avatar ? (
-                                <img src={selectedChat.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                              ) : (
-                                <span className="text-blue-600 font-bold text-sm">{(msg.sender && msg.sender !== 'Me' ? msg.sender : selectedChat.name)?.charAt(0) || '?'}</span>
-                              )}
-                            </div>
+                            showAvatarAndName ? (
+                              <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 mt-1 border-[1px] border-[#DBDFE6] dark:border-white/10 shadow-sm flex items-center justify-center bg-blue-50">
+                                {(msg as any).avatar ? (
+                                  <img src={(msg as any).avatar} alt="Avatar" className="w-full h-full object-cover" />
+                                ) : selectedChat.isAi || (msg as any).senderId === AI_TYPING_USER_ID ? (
+                                  <div className="w-full h-full rounded-full bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 flex items-center justify-center text-white">
+                                    <SparklesIcon size={16} />
+                                  </div>
+                                ) : selectedChat.avatar ? (
+                                  <img src={selectedChat.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                  <span className="text-blue-600 font-bold text-sm">{(msg.sender && msg.sender !== 'Me' ? msg.sender : selectedChat.name)?.charAt(0) || '?'}</span>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="w-10 shrink-0" />
+                            )
                           )}
 
                           <div className={`flex flex-col ${msg.sender === 'Me' ? 'items-end' : 'items-start'} relative group/msg-container`}>
-                            {msg.sender !== 'Me' && selectedChat.isGroup && (
+                            {msg.sender !== 'Me' && selectedChat.isGroup && showAvatarAndName && (
                               <span className="text-[12px] font-semibold text-[var(--sub-text)] mb-0.5 ml-1">{msg.sender}</span>
                             )}
 
@@ -641,6 +717,21 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                         {msg.caption}
                                       </div>
                                     )}
+
+                                    {!msg.isUploading && (
+                                      <button
+                                        onClick={(e) => handleDownloadFile(e, msg.text, getMediaDownloadName(msg.text, msg.type === 'IMAGE' ? 'IMAGE' : 'VIDEO'))}
+                                        className="absolute top-2 right-2 h-8 w-8 rounded-lg flex items-center justify-center border border-black/10 bg-white/80 text-[#1f2937] backdrop-blur-sm transition-all cursor-pointer opacity-0 group-hover/media-content:opacity-100 hover:bg-white"
+                                        title="Tải xuống"
+                                        aria-label="Download media"
+                                      >
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                          <polyline points="7 10 12 15 17 10" />
+                                          <line x1="12" x2="12" y1="15" y2="3" />
+                                        </svg>
+                                      </button>
+                                    )}
                                   </div>
                                 ) : msg.type === 'SHARE_CONTACT' ? (() => {
                                   let contact: any = {};
@@ -704,7 +795,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                     <button onClick={(e) => handleDownloadFile(e, msg.text, getFileNameFromUrl(msg.text))} className="h-8 w-8 rounded-lg flex items-center justify-center border border-[var(--border)] group-hover/file:bg-[var(--hover-bg)] transition-all shrink-0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg></button>
                                   </div>
                                 ) : (
-                                  <div className="pb-5 relative min-h-[48px] flex flex-col justify-between">
+                                  <div className={`${showTimestamp || msg.isEdited ? 'pb-5' : 'pb-1'} relative min-h-[48px] flex flex-col justify-between`}>
                                     <div className="block break-words whitespace-pre-wrap leading-normal text-[15px]">
                                       {msg.type === 'VOICE' ? (
                                         <VoicePlayer url={msg.text} duration={msg.voiceDuration} isMe={msg.sender === 'Me'} />
@@ -722,10 +813,12 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                         </>
                                       )}
                                     </div>
-                                    <div className="absolute bottom-1.5 right-0 text-[11px] text-[var(--sub-text)] opacity-75 font-normal leading-none flex items-center gap-1">
-                                      {msg.isEdited && <span className="italic opacity-70">{t('chat.status.edited')}</span>}
-                                      {msg.time}
-                                    </div>
+                                    {(showTimestamp || msg.isEdited) && (
+                                      <div className="absolute bottom-1.5 right-0 text-[11px] text-[var(--sub-text)] opacity-75 font-normal leading-none flex items-center gap-1">
+                                        {msg.isEdited && <span className="italic opacity-70">{t('chat.status.edited')}</span>}
+                                        {showTimestamp && msg.time}
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -776,7 +869,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
 
                               return (
                                 <div className={`mt-6 flex items-center gap-2 ${msg.sender === 'Me' ? 'justify-end' : 'justify-start'}`}>
-                                  {msg.type !== 'TEXT' && (
+                                  {msg.type !== 'TEXT' && showTimestamp && (
                                     <span className="text-[11px] text-[var(--sub-text)] opacity-100 font-medium">{msg.time}</span>
                                   )}
                                   {showReadStatus && (() => {

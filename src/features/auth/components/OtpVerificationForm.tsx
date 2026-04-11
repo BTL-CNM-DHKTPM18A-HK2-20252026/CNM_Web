@@ -7,8 +7,11 @@ import { authService } from '../services/authService';
 
 interface OtpVerificationFormProps {
   email: string;
-  onVerified: () => void;
+  onVerified: () => void | Promise<void>;
   onBack: () => void;
+  onClose?: () => void;
+  onVerifyOtp?: (email: string, otp: string) => Promise<unknown>;
+  onResendOtp?: (email: string) => Promise<unknown>;
 }
 
 const OTP_LENGTH = 6;
@@ -27,7 +30,14 @@ function getErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-export function OtpVerificationForm({ email, onVerified, onBack }: OtpVerificationFormProps) {
+export function OtpVerificationForm({
+  email,
+  onVerified,
+  onBack,
+  onClose,
+  onVerifyOtp,
+  onResendOtp,
+}: OtpVerificationFormProps) {
   const { t } = useTranslation();
   const [otpValues, setOtpValues] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
@@ -116,9 +126,10 @@ export function OtpVerificationForm({ email, onVerified, onBack }: OtpVerificati
     setVerifying(true);
 
     try {
-      await authService.verifyOtp(email, otp);
+      const verifyHandler = onVerifyOtp ?? authService.verifyOtp;
+      await verifyHandler(email, otp);
+      await onVerified();
       toast.success(t('login.otp.verify_success'));
-      onVerified();
     } catch (error: unknown) {
       const message = getErrorMessage(error, t('login.otp.verify_failed'));
       toast.error(message);
@@ -135,7 +146,8 @@ export function OtpVerificationForm({ email, onVerified, onBack }: OtpVerificati
     setResending(true);
 
     try {
-      await authService.resendOtp(email);
+      const resendHandler = onResendOtp ?? authService.resendOtp;
+      await resendHandler(email);
       setOtpValues(Array(OTP_LENGTH).fill(''));
       setSecondsLeft(RESEND_SECONDS);
       inputRefs.current[0]?.focus();
@@ -150,7 +162,20 @@ export function OtpVerificationForm({ email, onVerified, onBack }: OtpVerificati
 
   return (
     <div className="w-full max-w-sm overflow-hidden rounded-lg border border-[#d8e5ff] bg-white shadow-[0_16px_32px_rgba(0,92,245,0.10)]">
-      <div className="bg-[linear-gradient(120deg,#0068FF_0%,#00A9FF_100%)] px-5 py-4 text-white">
+      <div className="relative bg-[linear-gradient(120deg,#0068FF_0%,#00A9FF_100%)] px-5 py-4 text-white">
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-3 top-3 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-white/10 text-white/85 transition-colors hover:bg-white/20 hover:text-white"
+            aria-label={t('common.close')}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        )}
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/80">{t('login.otp.badge')}</p>
         <h3 className="mt-1.5 text-[20px] font-extrabold tracking-tight">{t('login.otp.title')}</h3>
         <p className="mt-1 text-[13px] text-white/85">{t('login.otp.subtitle')}</p>
@@ -206,7 +231,7 @@ export function OtpVerificationForm({ email, onVerified, onBack }: OtpVerificati
         <button
           type="button"
           onClick={onBack}
-          className="mt-3 w-full text-[13px] font-semibold text-[#4a6595] transition-colors hover:text-[#0068FF]"
+          className="mt-3 w-full cursor-pointer text-[13px] font-semibold text-[#4a6595] transition-colors hover:text-[#0068FF]"
         >
           {t('login.otp.back_to_register')}
         </button>

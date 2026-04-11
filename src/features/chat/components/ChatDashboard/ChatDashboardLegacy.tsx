@@ -694,6 +694,12 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
                 prev.map(c => c.id === id ? { ...c, isMarkedUnread } : c)
               );
             }}
+            onMarkAsRead={(ids) => {
+              const idSet = new Set(ids.map(String));
+              setConversations(prev =>
+                prev.map(c => idSet.has(String(c.id)) ? { ...c, unreadCount: 0, isMarkedUnread: false } : c)
+              );
+            }}
             onAutoDeleteConversation={(id, duration) => {
               setConversations(prev =>
                 prev.map(c => c.id === id ? { ...c, autoDeleteDuration: duration } : c)
