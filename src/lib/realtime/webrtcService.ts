@@ -77,6 +77,12 @@ class WebRTCService {
   // Pending ICE candidates (nhận trước khi remote description được set)
   private pendingCandidates: RTCIceCandidateInit[] = [];
 
+  // Timeout ID cho disconnected state recovery
+  private disconnectTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  // Flag chống gọi cleanup/endCall trùng lặp
+  private isCleaningUp: boolean = false;
+
   // Pending OFFER (nhận trước khi localStream sẵn sàng ở callee)
   private pendingOffer: CallSignal | null = null;
 
@@ -287,7 +293,8 @@ class WebRTCService {
    * Kết thúc cuộc gọi (hang up) — gọi từ bất kỳ bên nào.
    */
   endCall(currentUserId: string) {
-    if (!this.callInfo) return;
+    if (!this.callInfo || this.isCleaningUp) return;
+    if (this.callState === 'idle') return; // Đã kết thúc rồi
 
     const elapsed = Date.now() - this.lastStateChangeTime;
     console.log('[WebRTC] Ending call — state:', this.callState, '— elapsed since last state change:', elapsed, 'ms');
@@ -474,10 +481,18 @@ class WebRTCService {
 
     // Thêm local tracks vào peer connection
     if (this.localStream) {
-      this.localStream.getTracks().forEach(track => {
-        console.log(`[WebRTC] Adding local track: ${track.kind}`);
-        this.pc!.addTrack(track, this.localStream!);
-      });
+      const tracks = this.localStream.getTracks();
+      if (tracks.length > 0) {
+        tracks.forEach(track => {
+          console.log(`[WebRTC] Adding local track: ${track.kind}`);
+          this.pc!.addTrack(track, this.localStream!);
+        });
+      } else {
+        // No local media — add receive-only transceivers so SDP includes audio/video m= lines
+        console.log('[WebRTC] No local tracks — adding recvonly transceivers');
+        this.pc!.addTransceiver('audio', { direction: 'recvonly' });
+        this.pc!.addTransceiver('video', { direction: 'recvonly' });
+      }
     }
 
     // Nhận remote tracks
@@ -508,10 +523,20 @@ class WebRTCService {
       console.log(`[WebRTC] Connection State Changed → ${this.pc?.connectionState}`);
       switch (this.pc?.connectionState) {
         case 'connected':
+          this.clearDisconnectTimeout();
           this.setState('connected');
           break;
-        case 'disconnected':
         case 'failed':
+          // Chỉ cleanup khi connection thực sự fail (không phục hồi được)
+          console.warn('[WebRTC] Connection failed — cleaning up');
+          this.cleanup();
+          break;
+        case 'disconnected':
+          // disconnected là trạng thái TẠM THỜI — có thể tự phục hồi
+          // Chỉ cleanup nếu không phục hồi sau 10s
+          console.warn('[WebRTC] Connection disconnected — waiting for recovery...');
+          this.startDisconnectTimeout();
+          break;
         case 'closed':
           this.cleanup();
           break;
@@ -594,11 +619,41 @@ class WebRTCService {
 
   // ── Cleanup ────────────────────────────────────────
 
+  /**
+   * Hủy timeout disconnect recovery (gọi khi connection phục hồi hoặc cleanup).
+   */
+  private clearDisconnectTimeout() {
+    if (this.disconnectTimeoutId) {
+      clearTimeout(this.disconnectTimeoutId);
+      this.disconnectTimeoutId = null;
+    }
+  }
+
+  /**
+   * Bắt đầu timeout cho disconnected state — nếu không phục hồi trong 10s thì cleanup.
+   */
+  private startDisconnectTimeout() {
+    this.clearDisconnectTimeout();
+    this.disconnectTimeoutId = setTimeout(() => {
+      if (this.pc?.connectionState === 'disconnected') {
+        console.warn('[WebRTC] Connection did not recover from disconnected — cleaning up');
+        this.cleanup();
+      }
+    }, 10_000);
+  }
+
   cleanup() {
+    // Chống re-entrancy: nếu đang cleanup thì bỏ qua
+    if (this.isCleaningUp) return;
+    if (this.callState === 'idle' && !this.pc && !this.localStream) return;
+
+    this.isCleaningUp = true;
     console.log('[WebRTC] Cleanup — releasing resources (current state:', this.callState, ')');
     if (this.callState !== 'idle') {
       console.trace('[WebRTC] cleanup called from non-idle state:');
     }
+
+    this.clearDisconnectTimeout();
 
     // Close peer connection
     if (this.pc) {
@@ -624,6 +679,7 @@ class WebRTCService {
     this.onLocalStreamCallback = null;
     this.onRemoteStreamCallback = null;
     this.setState('idle');
+    this.isCleaningUp = false;
   }
 }
 

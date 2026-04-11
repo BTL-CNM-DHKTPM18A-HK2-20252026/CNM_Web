@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { AUTH_TOKEN_CHANGED_EVENT, getAccessToken } from '@/features/auth';
 import { websocketService } from '@/lib/realtime/websocketService';
 import { webrtcService } from '@/lib/realtime/webrtcService';
@@ -24,6 +24,9 @@ function getUserIdFromToken(token: string): string | null {
 export function SocketProvider({ children }: SocketProviderProps) {
   const [kicked, setKicked] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  // Ref để tránh stale closure trong session kick handler
+  const currentUserIdRef = useRef<string | null>(null);
+  currentUserIdRef.current = currentUserId;
 
   const handleReactivate = useCallback(() => {
     setKicked(false);
@@ -37,8 +40,9 @@ export function SocketProvider({ children }: SocketProviderProps) {
     // Đăng ký callback kick trước khi connect
     websocketService.onSessionKick(() => {
       // Session bị kick → nếu đang gọi video thì kết thúc cuộc gọi
-      if (currentUserId) {
-        webrtcService.endCall(currentUserId);
+      const userId = currentUserIdRef.current;
+      if (userId) {
+        webrtcService.endCall(userId);
       } else {
         webrtcService.cleanup();
       }
@@ -69,16 +73,26 @@ export function SocketProvider({ children }: SocketProviderProps) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Subscribe to call signaling once connected
+  // Subscribe to call signaling once connected — chỉ subscribe 1 lần khi có userId
   useEffect(() => {
-    if (currentUserId) {
-      console.log('[SocketProvider] currentUserId:', currentUserId, '→ subscribing call signaling');
-      // Đảm bảo subscribe lại nếu trước đó đã unsubscribe (e.g. HMR, reconnect)
-      webrtcService.unsubscribeSignaling();
-      webrtcService.subscribeSignaling();
+    if (!currentUserId) return;
+
+    // Nếu đang trong cuộc gọi, KHÔNG unsubscribe/re-subscribe để tránh mất signal
+    const callState = webrtcService.getCallState();
+    if (callState !== 'idle') {
+      console.log('[SocketProvider] Skipping re-subscribe — call in progress (state:', callState, ')');
+      return;
     }
+
+    console.log('[SocketProvider] currentUserId:', currentUserId, '→ subscribing call signaling');
+    webrtcService.unsubscribeSignaling();
+    webrtcService.subscribeSignaling();
+
     return () => {
-      webrtcService.unsubscribeSignaling();
+      // Chỉ unsubscribe nếu KHÔNG đang trong cuộc gọi
+      if (webrtcService.getCallState() === 'idle') {
+        webrtcService.unsubscribeSignaling();
+      }
     };
   }, [currentUserId]);
 
