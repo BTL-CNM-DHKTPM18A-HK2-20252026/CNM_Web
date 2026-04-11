@@ -83,6 +83,9 @@ class WebRTCService {
   // Flag chống gọi cleanup/endCall trùng lặp
   private isCleaningUp: boolean = false;
 
+  // Callback khi media acquisition thất bại (để UI hiển thị lỗi)
+  private onMediaErrorCallback: ((error: string) => void) | null = null;
+
   // Pending OFFER (nhận trước khi localStream sẵn sàng ở callee)
   private pendingOffer: CallSignal | null = null;
 
@@ -125,6 +128,10 @@ class WebRTCService {
 
   onRemoteStream(cb: (stream: MediaStream) => void) {
     this.onRemoteStreamCallback = cb;
+  }
+
+  onMediaError(cb: (error: string) => void) {
+    this.onMediaErrorCallback = cb;
   }
 
   private setState(state: CallState) {
@@ -442,6 +449,16 @@ class WebRTCService {
   // ── WebRTC Core ────────────────────────────────────
 
   private async acquireMedia() {
+    // Kiểm tra secure context (getUserMedia chỉ hoạt động trên HTTPS hoặc localhost)
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      const msg = 'Camera/Mic không khả dụng — cần HTTPS hoặc localhost';
+      console.error(`[WebRTC] ❌ ${msg}`);
+      this.onMediaErrorCallback?.(msg);
+      this.localStream = new MediaStream();
+      this.onLocalStreamCallback?.(this.localStream);
+      return;
+    }
+
     // Thử lần lượt: video+audio → audio only → video only
     const attempts: Array<{ video: boolean | MediaTrackConstraints; audio: boolean | MediaTrackConstraints; label: string }> = [
       { video: true, audio: true, label: 'video + audio' },
@@ -449,6 +466,7 @@ class WebRTCService {
       { video: true, audio: false, label: 'video only' },
     ];
 
+    let lastError: string = '';
     for (const attempt of attempts) {
       try {
         console.log(`[WebRTC] Requesting media: ${attempt.label}...`);
@@ -458,15 +476,22 @@ class WebRTCService {
         });
         console.log('[WebRTC] Local media acquired (%s) — tracks:', attempt.label,
           this.localStream.getTracks().map(t => t.kind));
+
+        // Nếu không lấy được video+audio, thông báo cho UI biết
+        if (attempt.label !== 'video + audio') {
+          this.onMediaErrorCallback?.(`Chỉ lấy được ${attempt.label}`);
+        }
         this.onLocalStreamCallback?.(this.localStream);
         return;
       } catch (err) {
-        console.warn(`[WebRTC] Failed to acquire ${attempt.label}:`, (err as Error).name, (err as Error).message);
+        lastError = (err as Error).message;
+        console.warn(`[WebRTC] Failed to acquire ${attempt.label}:`, (err as Error).name, lastError);
       }
     }
 
     // Tất cả đều fail → tạo empty stream để call vẫn hoạt động (receive-only)
     console.warn('[WebRTC] No media devices available — proceeding with receive-only mode');
+    this.onMediaErrorCallback?.(`Không thể mở camera/mic: ${lastError}`);
     this.localStream = new MediaStream();
     this.onLocalStreamCallback?.(this.localStream);
   }
@@ -482,25 +507,37 @@ class WebRTCService {
     // Thêm local tracks vào peer connection
     if (this.localStream) {
       const tracks = this.localStream.getTracks();
-      if (tracks.length > 0) {
-        tracks.forEach(track => {
-          console.log(`[WebRTC] Adding local track: ${track.kind}`);
-          this.pc!.addTrack(track, this.localStream!);
-        });
-      } else {
-        // No local media — add receive-only transceivers so SDP includes audio/video m= lines
-        console.log('[WebRTC] No local tracks — adding recvonly transceivers');
+      const hasAudio = tracks.some(t => t.kind === 'audio');
+      const hasVideo = tracks.some(t => t.kind === 'video');
+
+      // Thêm các local tracks có sẵn
+      tracks.forEach(track => {
+        console.log(`[WebRTC] Adding local track: ${track.kind}`);
+        this.pc!.addTrack(track, this.localStream!);
+      });
+
+      // QUAN TRỌNG: Luôn thêm recvonly transceiver cho media type bị thiếu
+      // để SDP negotiation vẫn bao gồm audio/video m= lines
+      // → cho phép nhận media từ remote ngay cả khi local không có
+      if (!hasAudio) {
+        console.log('[WebRTC] No local audio — adding recvonly audio transceiver');
         this.pc!.addTransceiver('audio', { direction: 'recvonly' });
+      }
+      if (!hasVideo) {
+        console.log('[WebRTC] No local video — adding recvonly video transceiver');
         this.pc!.addTransceiver('video', { direction: 'recvonly' });
       }
+    } else {
+      // Không có stream nào → recvonly cho cả hai
+      console.log('[WebRTC] No local stream — adding recvonly transceivers');
+      this.pc!.addTransceiver('audio', { direction: 'recvonly' });
+      this.pc!.addTransceiver('video', { direction: 'recvonly' });
     }
 
-    // Nhận remote tracks
+    // Nhận remote tracks — dùng event.track trực tiếp (event.streams có thể rỗng với recvonly)
     this.pc.ontrack = (event) => {
       console.log(`[WebRTC] Remote track received: ${event.track.kind}`);
-      event.streams[0].getTracks().forEach(track => {
-        this.remoteStream!.addTrack(track);
-      });
+      this.remoteStream!.addTrack(event.track);
       this.onRemoteStreamCallback?.(this.remoteStream!);
     };
 
@@ -678,6 +715,7 @@ class WebRTCService {
     this.callInfo = null;
     this.onLocalStreamCallback = null;
     this.onRemoteStreamCallback = null;
+    this.onMediaErrorCallback = null;
     this.setState('idle');
     this.isCleaningUp = false;
   }

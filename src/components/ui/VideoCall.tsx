@@ -109,33 +109,44 @@ export function VideoCallScreen({ currentUserId, callInfo, callState, onEnd }: V
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [mediaError, setMediaError] = useState<string | null>(null);
+
+  // Helper: gán stream vào video element + gọi play() tường minh cho desktop browser
+  const attachStream = useCallback((videoEl: HTMLVideoElement | null, stream: MediaStream) => {
+    if (!videoEl) return;
+    videoEl.srcObject = stream;
+    videoEl.play().catch(err => {
+      console.warn('[VideoCallScreen] play() blocked:', err.name, err.message);
+    });
+  }, []);
 
   // Attach streams
   useEffect(() => {
     webrtcService.onLocalStream((stream) => {
       console.log('[VideoCallScreen] Local stream received');
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
+      attachStream(localVideoRef.current, stream);
     });
 
     webrtcService.onRemoteStream((stream) => {
       console.log('[VideoCallScreen] Remote stream received');
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = stream;
-      }
+      attachStream(remoteVideoRef.current, stream);
+    });
+
+    webrtcService.onMediaError((error) => {
+      console.warn('[VideoCallScreen] Media error:', error);
+      setMediaError(error);
     });
 
     // If streams already exist (reconnect scenario)
     const localStream = webrtcService.getLocalStream();
-    if (localStream && localVideoRef.current) {
-      localVideoRef.current.srcObject = localStream;
+    if (localStream) {
+      attachStream(localVideoRef.current, localStream);
     }
     const remoteStream = webrtcService.getRemoteStream();
-    if (remoteStream && remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = remoteStream;
+    if (remoteStream) {
+      attachStream(remoteVideoRef.current, remoteStream);
     }
-  }, []);
+  }, [attachStream]);
 
   // Timer
   useEffect(() => {
@@ -207,6 +218,13 @@ export function VideoCallScreen({ currentUserId, callInfo, callState, onEnd }: V
         {callState === 'connected' && (
           <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-1.5 rounded-full">
             <p className="text-white text-sm font-mono">{statusText}</p>
+          </div>
+        )}
+
+        {/* Media error banner */}
+        {mediaError && (
+          <div className="absolute top-14 left-1/2 -translate-x-1/2 bg-yellow-600/90 px-4 py-2 rounded-lg max-w-xs text-center">
+            <p className="text-white text-xs">⚠️ {mediaError}</p>
           </div>
         )}
 
