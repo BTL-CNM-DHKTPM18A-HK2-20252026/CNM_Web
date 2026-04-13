@@ -443,28 +443,48 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
 
       {pinnedMessages.length > 0 && (
         <div className="relative z-20">
-          <div
-            className="bg-[var(--card-bg)] border-b border-[var(--border)] flex items-stretch cursor-pointer hover:bg-[var(--hover-bg)] transition-colors select-none"
-            onClick={() => setShowPinnedList(!showPinnedList)}
-          >
-            <div className="w-[3px] bg-[#0068FF] shrink-0 rounded-r-sm" />
-            <div className="flex items-center gap-2.5 flex-1 min-w-0 px-3 py-2">
-              <div className="w-7 h-7 rounded-full bg-[#0068FF]/10 flex items-center justify-center shrink-0">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 17v5" /><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z" /></svg>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[11px] font-semibold text-[#0068FF] leading-tight mb-0.5">
-                  {pinnedMessages.length > 1 ? `${pinnedMessages.length} ${t('chat.pin.pinned')}` : t('chat.pin.pinned')}
-                </div>
-                <div className="text-[13px] text-[var(--text)] truncate leading-snug">
-                  <span className="font-semibold">{pinnedMessages[0].senderName}: </span>
-                  {pinnedMessages[0].messageType !== 'TEXT'
-                    ? `[${pinnedMessages[0].messageType}]`
-                    : (pinnedMessages[0].content?.length > 60 ? `${pinnedMessages[0].content.slice(0, 60)}...` : pinnedMessages[0].content)}
-                </div>
-              </div>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`text-[var(--sub-text)] shrink-0 transition-transform duration-200 ${showPinnedList ? 'rotate-180' : ''}`}><path d="M6 9l6 6 6-6" /></svg>
+          <div className="bg-[var(--card-bg)] border-b border-[var(--border)] flex items-center gap-3 px-4 py-2.5 select-none">
+            {/* Pin icon */}
+            <div className="shrink-0 text-[var(--sub-text)]">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 17v5" /><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z" />
+              </svg>
             </div>
+
+            {/* Text content — clickable */}
+            <div
+              className="flex-1 min-w-0 cursor-pointer"
+              onClick={() => {
+                const pin = pinnedMessages[0];
+                const el = document.getElementById(`msg-${pin.messageId}`);
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  el.classList.add('highlight-msg');
+                  setTimeout(() => el.classList.remove('highlight-msg'), 2000);
+                }
+              }}
+            >
+              <div className="text-[13px] font-semibold text-[var(--text)] leading-tight">
+                {pinnedMessages.length > 1 ? `${t('chat.pin.pinned')} (${pinnedMessages.length})` : t('chat.pin.pinned')}
+              </div>
+              <div className="text-[13px] text-[var(--sub-text)] truncate leading-snug mt-0.5">
+                <span className="font-medium text-[var(--text)]">{pinnedMessages[0].senderName}: </span>
+                {pinnedMessages[0].messageType !== 'TEXT'
+                  ? `[${pinnedMessages[0].messageType}]`
+                  : (pinnedMessages[0].content?.length > 80 ? `${pinnedMessages[0].content.slice(0, 80)}...` : pinnedMessages[0].content)}
+              </div>
+            </div>
+
+            {/* More button */}
+            <button
+              onClick={() => setShowPinnedList(!showPinnedList)}
+              className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-[var(--sub-text)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
+              aria-label="Xem tất cả tin nhắn ghim"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" />
+              </svg>
+            </button>
           </div>
 
           {showPinnedList && (
@@ -515,7 +535,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
         </div>
       )}
 
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar px-4 pt-4 pb-8 bg-[var(--chat-bg)]" onScroll={() => setContextMenu(null)}>
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar px-4 pt-4 pb-2 bg-[var(--chat-bg)]" onScroll={() => setContextMenu(null)}>
         {isInitialLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="w-7 h-7 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
@@ -536,7 +556,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                 const effectivePrev = showDateSeparator ? undefined : prevMsg;
                 const showAvatarAndName = isFirstInBlock(msg, effectivePrev);
                 const isRichContent = RICH_MSG_TYPES.has(msg.type);
-                const paddingClass = showTimestamp ? 'pb-10' : isRichContent ? 'pb-4' : 'pb-1.5';
+                const paddingClass = showTimestamp ? 'pb-6' : isRichContent ? 'pb-2' : 'pb-0.5';
                 const displayText = getDisplayText(msg, selectedChat.isAi);
 
                 return (
@@ -559,7 +579,45 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                       </div>
                     )}
 
-                    {msg.type === 'SYSTEM' ? (
+                    {msg.type === 'MESSAGE_PIN' || msg.type === 'MESSAGE_UNPIN' ? (
+                      <div className="flex justify-center my-1.5">
+                        <div className="flex items-center gap-1.5 bg-black/5 dark:bg-white/10 px-3.5 py-1.5 rounded-2xl max-w-[85%]">
+                          {msg.type === 'MESSAGE_PIN' ? (
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                              <path d="M12 17v5" /><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z" />
+                            </svg>
+                          ) : (
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                              <path d="M12 17v5" /><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z" />
+                              <line x1="3" y1="3" x2="21" y2="21" stroke="#9ca3af" strokeWidth="2" />
+                            </svg>
+                          )}
+                          <span className="text-[12px] text-[var(--sub-text)] leading-snug">
+                            <span className="font-semibold text-[var(--text)]">{msg.sender === 'Me' ? 'Bạn' : msg.sender}</span>
+                            {msg.type === 'MESSAGE_PIN' ? ' đã ghim tin nhắn ' : ' đã bỏ ghim tin nhắn '}
+                            {msg.text && (
+                              <span className="font-semibold text-[var(--text)]">
+                                {msg.text.length > 45 ? `${msg.text.slice(0, 45)}...` : msg.text}
+                              </span>
+                            )}
+                            {msg.type === 'MESSAGE_PIN' && msg.replyToMessageId && (
+                              <span
+                                className="text-[#0068FF] cursor-pointer ml-1 font-medium hover:underline"
+                                onClick={() => {
+                                  const el = document.getElementById(`msg-${msg.replyToMessageId}`);
+                                  if (el) {
+                                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    el.classList.add('highlight-msg');
+                                    setTimeout(() => el.classList.remove('highlight-msg'), 2000);
+                                  }
+                                }}
+                              >. Xem</span>
+                            )}
+                            {msg.type === 'MESSAGE_UNPIN' && <span>.</span>}
+                          </span>
+                        </div>
+                      </div>
+                    ) : msg.type === 'SYSTEM' ? (
                       <div className="flex justify-center my-1">
                         <span className="bg-black/5 dark:bg-white/10 px-4 py-1.5 rounded-full text-[12px] text-[var(--sub-text)] opacity-80">{msg.text}</span>
                       </div>
@@ -637,7 +695,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                             <div
                               className={`relative group w-fit min-w-[100px] ${msg.isRecalled
                                 ? `px-3 pt-2 pb-2 rounded-md shadow-sm text-[15px] border border-dashed ${msg.sender === 'Me' ? 'border-gray-300 dark:border-gray-600' : 'border-gray-300 dark:border-gray-600'}`
-                                : msg.type === 'MEDIA' || msg.type === 'IMAGE' || msg.type === 'VIDEO' || msg.type === 'SHARE_CONTACT'
+                                : msg.type === 'MEDIA' || msg.type === 'IMAGE' || msg.type === 'IMAGE_GROUP' || msg.type === 'VIDEO' || msg.type === 'SHARE_CONTACT'
                                 ? ''
                                 : `px-3 pt-2 pb-2 rounded-md shadow-sm text-[15px] border ${msg.sender === 'Me'
                                   ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)] border-[var(--message-me-border)]'
@@ -747,6 +805,98 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                       </button>
                                     )}
                                   </div>
+                                ) : msg.type === 'IMAGE_GROUP' && msg.attachments && msg.attachments.length > 0 ? (
+                                  <div className="relative group/media-content w-fit max-w-full">
+                                    {(() => {
+                                      const imgs = msg.attachments!;
+                                      const count = imgs.length;
+                                      const blurClass = msg.isUploading ? 'blur-[1px] brightness-75' : '';
+                                      if (count === 1) {
+                                        return (
+                                          <div className="relative max-w-[320px] overflow-hidden bg-slate-100 shadow-sm rounded-md" style={{ aspectRatio: '4/3' }}>
+                                            <img src={imgs[0].url} alt="Shared" className={`h-full w-full cursor-pointer object-cover hover:opacity-90 ${blurClass}`} onClick={() => !msg.isUploading && setOpenedImageSrc(imgs[0].url)} />
+                                          </div>
+                                        );
+                                      }
+                                      if (count === 2) {
+                                        return (
+                                          <div className={`grid grid-cols-2 gap-0.5 w-[300px] rounded-md overflow-hidden shadow-sm ${blurClass}`}>
+                                            {imgs.map((att, i) => (
+                                              <div key={i} className="relative aspect-square bg-slate-100 overflow-hidden">
+                                                <img src={att.url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onClick={() => !msg.isUploading && setOpenedImageSrc(att.url)} />
+                                              </div>
+                                            ))}
+                                          </div>
+                                        );
+                                      }
+                                      if (count === 3) {
+                                        return (
+                                          <div className={`grid grid-cols-2 gap-0.5 w-[300px] rounded-md overflow-hidden shadow-sm ${blurClass}`} style={{ gridTemplateRows: '1fr 1fr' }}>
+                                            <div className="row-span-2 relative bg-slate-100 overflow-hidden">
+                                              <img src={imgs[0].url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onClick={() => !msg.isUploading && setOpenedImageSrc(imgs[0].url)} />
+                                            </div>
+                                            <div className="relative aspect-square bg-slate-100 overflow-hidden">
+                                              <img src={imgs[1].url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onClick={() => !msg.isUploading && setOpenedImageSrc(imgs[1].url)} />
+                                            </div>
+                                            <div className="relative aspect-square bg-slate-100 overflow-hidden">
+                                              <img src={imgs[2].url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onClick={() => !msg.isUploading && setOpenedImageSrc(imgs[2].url)} />
+                                            </div>
+                                          </div>
+                                        );
+                                      }
+                                      // 4+ images: dynamic rows (Zalo-style, shows ALL images)
+                                      const numRows = Math.ceil(count / 3);
+                                      const rows: typeof imgs[number][][] = [];
+                                      let startIdx = 0;
+                                      let rem = count;
+                                      for (let r = 0; r < numRows; r++) {
+                                        const rowsLeft = numRows - r;
+                                        const perRow = Math.floor(rem / rowsLeft);
+                                        rows.push(imgs.slice(startIdx, startIdx + perRow));
+                                        startIdx += perRow;
+                                        rem -= perRow;
+                                      }
+                                      return (
+                                        <div className={`flex flex-col gap-0.5 w-[300px] rounded-md overflow-hidden shadow-sm ${blurClass}`}>
+                                          {rows.map((row, ri) => (
+                                            <div key={ri} className="grid gap-0.5" style={{ gridTemplateColumns: `repeat(${row.length}, 1fr)` }}>
+                                              {row.map((att, ci) => (
+                                                <div key={ci} className="relative aspect-square overflow-hidden">
+                                                  <img src={att.url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onClick={() => !msg.isUploading && setOpenedImageSrc(att.url)} />
+                                                </div>
+                                              ))}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      );
+                                    })()}
+                                    {msg.isUploading && (
+                                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 rounded-md gap-2 z-10">
+                                        <div className="relative w-12 h-12">
+                                          <svg className="w-12 h-12 -rotate-90" viewBox="0 0 48 48">
+                                            <circle cx="24" cy="24" r="20" fill="none" stroke="white" strokeOpacity="0.2" strokeWidth="3" />
+                                            <circle cx="24" cy="24" r="20" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"
+                                              strokeDasharray={`${2 * Math.PI * 20}`}
+                                              strokeDashoffset={`${2 * Math.PI * 20 * (1 - (msg.uploadProgress ?? 0) / 100)}`}
+                                              className="transition-all duration-300"
+                                            />
+                                          </svg>
+                                          <span className="absolute inset-0 flex items-center justify-center text-white text-[11px] font-semibold drop-shadow">
+                                            {msg.uploadProgress ?? 0}%
+                                          </span>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {msg.caption && (
+                                      <div className={`px-2.5 py-1.5 text-[14px] leading-snug break-words rounded-b-md max-w-[320px] shadow-sm ${
+                                        msg.sender === 'Me'
+                                          ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)]'
+                                          : 'bg-[var(--message-other-bg)] text-[var(--message-other-text)]'
+                                      }`}>
+                                        {msg.caption}
+                                      </div>
+                                    )}
+                                  </div>
                                 ) : msg.type === 'SHARE_CONTACT' ? (() => {
                                   let contact: any = {};
                                   try {
@@ -837,7 +987,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                 )}
                               </div>
 
-                              <div className={`absolute flex items-center gap-1 z-20 ${msg.type === 'IMAGE' || msg.type === 'VIDEO' ? 'bottom-0 right-2 translate-y-[50%]' : 'bottom-0 right-0 translate-y-[50%]'}`}>
+                              <div className={`absolute flex items-center gap-1 z-20 ${msg.type === 'IMAGE' || msg.type === 'IMAGE_GROUP' || msg.type === 'VIDEO' ? 'bottom-0 right-2 translate-y-[50%]' : 'bottom-0 right-0 translate-y-[50%]'}`}>
                                 {msg.reactions && msg.reactions.length > 0 && (
                                   <div onClick={(e) => { e.stopPropagation(); setReactionModalMessageId(msg.id); }} className="flex items-center cursor-pointer shadow-md rounded-full bg-[var(--card-bg)] border border-[var(--border)] px-2 py-1 h-[26px] hover:scale-105 transition-transform">
                                     <div className="flex -space-x-0.5 mr-1.5">
@@ -882,7 +1032,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                               if (!showSection) return null;
 
                               return (
-                                <div className={`mt-6 flex items-center gap-2 ${msg.sender === 'Me' ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`mt-2 flex items-center gap-2 ${msg.sender === 'Me' ? 'justify-end' : 'justify-start'}`}>
                                   {msg.type !== 'TEXT' && showTimestamp && (
                                     <span className="text-[11px] text-[var(--sub-text)] opacity-100 font-medium">{msg.time}</span>
                                   )}

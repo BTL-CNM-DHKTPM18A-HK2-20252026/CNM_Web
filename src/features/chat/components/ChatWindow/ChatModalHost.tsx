@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ImageModal } from '@/components/ui/ImageModal';
 import { ForwardModal } from '@/features/chat/components/modals/ForwardModal';
 import { NicknameModal } from '@/features/chat/components/modals/NicknameModal';
@@ -43,6 +43,22 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
     reactionModalEmojiTab,
     setReactionModalEmojiTab,
   } = vm;
+
+  // Collect all image URLs from conversation (IMAGE + IMAGE_GROUP) for lightbox navigation
+  const allConversationImages = useMemo(() => {
+    const urls: string[] = [];
+    for (const msg of messages) {
+      if (msg.isRecalled || msg.isDeleted) continue;
+      if (msg.type === 'IMAGE' && msg.text && !msg.text.startsWith('blob:')) {
+        urls.push(msg.text);
+      } else if (msg.type === 'IMAGE_GROUP' && msg.attachments) {
+        for (const att of msg.attachments) {
+          if (att.url && !att.url.startsWith('blob:')) urls.push(att.url);
+        }
+      }
+    }
+    return urls;
+  }, [messages]);
 
   return (
     <>
@@ -96,7 +112,12 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
       )}
 
       {openedImageSrc && (
-        <ImageModal src={openedImageSrc} onClose={() => setOpenedImageSrc(null)} />
+        <ImageModal
+          src={openedImageSrc}
+          onClose={() => setOpenedImageSrc(null)}
+          allImages={allConversationImages}
+          onNavigate={(src) => setOpenedImageSrc(src)}
+        />
       )}
 
       {forwardingMsg && (

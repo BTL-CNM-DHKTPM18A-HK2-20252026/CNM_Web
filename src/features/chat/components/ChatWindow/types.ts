@@ -94,6 +94,13 @@ export interface ChatReaction {
   userAvatar?: string;
 }
 
+export interface AttachmentItem {
+  url: string;
+  fileName?: string;
+  fileSize?: number;
+  thumbnailUrl?: string;
+}
+
 export interface ChatMessage {
   id: string;
   text: string;
@@ -121,6 +128,7 @@ export interface ChatMessage {
   isUploading?: boolean;
   uploadProgress?: number;
   mentions?: string[];
+  attachments?: AttachmentItem[];
 }
 
 export interface ReadReceipt {

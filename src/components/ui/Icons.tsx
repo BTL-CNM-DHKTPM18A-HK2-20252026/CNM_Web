@@ -33,9 +33,9 @@ export const CreateGroupIcon = ({ size = 20, className = "" }: { size?: number; 
 
 
 export const PinIcon = ({ size = 12 }: { size?: number }) => (
-  <svg width={size} height={size} fill="currentColor" className="text-gray-400 rotate-45">
-    <path d="M12.9 6.1L4.8 14.2c-.3.3-.8.3-1.1 0l-.7-.7c-.3-.3-.3-.8 0-1.1l8.1-8.1c.3-.3.8-.3 1.1 0l.7-.7c.3-.3.3-.8 0-1.1z" />
-    <path d="M6.2 3.8L4.1 1.7c-.3-.3-.8-.3-1.1 0L1.7 3.1c-.3.3-.3.8 0 1.1l2.1 2.1c.3.3.8.3 1.1 0l1.3-1.3c-.3-.3-.3-.8 0-1.1v-.1zM11.2 8.8l-1.3 1.3c-.3.3-.8.3-1.1 0L6.7 8c-.3-.3-.3-.8 0-1.1l2.1-2.1c.3-.3.8-.3 1.1 0l2.1 2.1c.3.3.3.8 0 1.1l-.8.8z" />
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 17v5" />
+    <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z" />
   </svg>
 );
 

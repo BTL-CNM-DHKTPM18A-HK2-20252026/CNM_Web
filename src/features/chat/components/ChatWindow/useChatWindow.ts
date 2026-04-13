@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 import { useTranslation } from 'react-i18next';
 import { useInView } from 'react-intersection-observer';
 import { apiClient } from '@/lib/http/apiClient';
@@ -117,6 +119,8 @@ const getSnippet = (content: string, messageType: string | undefined, t: (key: s
   switch (messageType) {
     case 'IMAGE':
       return t('chat.snippet.image');
+    case 'IMAGE_GROUP':
+      return '[Album ảnh]';
     case 'VIDEO':
       return t('chat.snippet.video');
     case 'MEDIA':
@@ -178,6 +182,7 @@ const mapIncomingMessage = (m: any, currentUserId?: string): ChatMessage => ({
   forwardedFromSenderName: m.forwardedFromSenderName || null,
   caption: m.caption || undefined,
   mentions: m.mentions || [],
+  attachments: m.attachments || undefined,
 });
 
 export function useChatWindow({
@@ -235,6 +240,8 @@ export function useChatWindow({
   const [openedImageSrc, setOpenedImageSrc] = useState<string | null>(null);
 
   const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
+  const pinnedMessagesRef = useRef<PinnedMessage[]>([]);
+  useEffect(() => { pinnedMessagesRef.current = pinnedMessages; }, [pinnedMessages]);
   const [showPinnedList, setShowPinnedList] = useState(false);
 
   const [friendRequestStatus, setFriendRequestStatus] = useState<FriendRequestStatus>('loading');
@@ -308,7 +315,13 @@ export function useChatWindow({
 
   const openImageQueue = useCallback((files: File[]) => {
     if (!files.length) return;
-    const entries = files.map(file => ({ file, previewUrl: URL.createObjectURL(file), caption: '' }));
+    const oversized = files.filter(f => f.size > MAX_FILE_SIZE);
+    if (oversized.length) {
+      toast.error(`File vượt quá giới hạn 50MB: ${oversized.map(f => f.name).join(', ')}`);
+    }
+    const valid = files.filter(f => f.size <= MAX_FILE_SIZE);
+    if (!valid.length) return;
+    const entries = valid.map(file => ({ file, previewUrl: URL.createObjectURL(file), caption: '' }));
     setImageQueue(prev => [...prev, ...entries]);
   }, []);
 
@@ -328,22 +341,25 @@ export function useChatWindow({
     const items = e.clipboardData?.items;
     if (!items) return;
 
-    const PREFERRED = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
     const arr = Array.from(items);
-    const target = arr.find(it => PREFERRED.includes(it.type)) ?? arr.find(it => it.type.startsWith('image/'));
-    if (!target) return;
+    const imageItems = arr.filter(it => it.type.startsWith('image/'));
+    if (!imageItems.length) return;
 
-    const file = target.getAsFile();
-    if (!file) return;
+    const files = imageItems.map(it => it.getAsFile()).filter((f): f is File => f !== null);
+    if (!files.length) return;
 
     e.preventDefault();
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const dataUrl = ev.target?.result as string;
-      if (!dataUrl) return;
-      setImageQueue(prev => [...prev, { file, previewUrl: dataUrl, caption: '' }]);
-    };
-    reader.readAsDataURL(file);
+
+    // Read all image files as data URLs and add to queue
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const dataUrl = ev.target?.result as string;
+        if (!dataUrl) return;
+        setImageQueue(prev => [...prev, { file, previewUrl: dataUrl, caption: '' }]);
+      };
+      reader.readAsDataURL(file);
+    });
   }, []);
 
   useEffect(() => {
@@ -1079,6 +1095,10 @@ export function useChatWindow({
   }, []);
 
   const handleFileUpload = useCallback(async (file: File, caption?: string) => {
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error(`File "${file.name}" vượt quá giới hạn 50MB`);
+      return;
+    }
     const isImage = file.type.startsWith('image/');
     const isVideo = file.type.startsWith('video/');
     const localPreviewUrl = (isImage || isVideo) ? URL.createObjectURL(file) : undefined;
@@ -1195,15 +1215,175 @@ export function useChatWindow({
     }
   }, [currentUser?.id, handleSendMessage, readImageDimensionsFromUrl, replyingTo, t]);
 
-  const handleSendImageQueue = useCallback(() => {
+  const handleSendImageQueue = useCallback(async () => {
     const items = [...imageQueue];
     const globalCaption = message?.trim() || undefined;
-    closeImageQueue();
     if (globalCaption) setMessage('');
-    items.forEach(({ file, caption }) => {
-      handleFileUpload(file, caption?.trim() || globalCaption);
-    });
-  }, [closeImageQueue, handleFileUpload, imageQueue, message]);
+
+    // Single image: send as individual IMAGE message (existing behavior)
+    if (items.length === 1) {
+      closeImageQueue();
+      const { file, caption } = items[0];
+      await handleFileUpload(file, caption?.trim() || globalCaption);
+      return;
+    }
+
+    // Multiple images: close queue WITHOUT revoking blob URLs (we need them for preview)
+    setImageQueue([]);
+    setCaptionModalIdx(null);
+
+    // Multiple images: upload all to S3, then send ONE IMAGE_GROUP message
+    const tempId = `temp-album-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const previewUrls = items.map(item => item.previewUrl);
+
+    // Show optimistic album message
+    setMessages(prev => [...prev, {
+      id: tempId,
+      text: '',
+      type: 'IMAGE_GROUP',
+      replyToMessageId: replyingTo?.id || null,
+      sender: 'Me',
+      senderId: currentUser?.id,
+      time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+      reactions: [],
+      rawDate: new Date(),
+      isEdited: false,
+      isRecalled: false,
+      forwardedFromSenderName: null,
+      caption: globalCaption,
+      isUploading: true,
+      uploadProgress: 0,
+      attachments: previewUrls.map(url => ({ url })),
+    }]);
+    setShouldScrollToBottom(true);
+    setReplyingTo(null);
+
+    try {
+      const s3Urls: string[] = [];
+      for (let i = 0; i < items.length; i++) {
+        const file = items[i].file;
+        // Get presigned URL
+        const res = await apiClient.get<any>(
+          `/messages/presigned-url?fileName=${encodeURIComponent(file.name)}&fileType=${encodeURIComponent(file.type)}`
+        );
+        const presignedUrl = typeof res === 'string' ? res : (res?.data || res?.url || res);
+
+        // Upload to S3
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('PUT', presignedUrl);
+          xhr.setRequestHeader('Content-Type', file.type);
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const fileProgress = Math.round((event.loaded / event.total) * 100);
+              const overallProgress = Math.round(((i * 100 + fileProgress) / items.length));
+              setMessages(prev => prev.map(m => m.id === tempId ? { ...m, uploadProgress: overallProgress } : m));
+            }
+          };
+          xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error('S3 upload failed'));
+          xhr.onerror = () => reject(new Error('S3 upload failed'));
+          xhr.send(file);
+        });
+
+        s3Urls.push(presignedUrl.split('?')[0]);
+      }
+
+      // Send single IMAGE_GROUP message with all URLs
+      const payload: any = {
+        content: s3Urls[0], // First URL as content (for backward compatibility)
+        messageType: 'IMAGE_GROUP',
+        caption: globalCaption || undefined,
+        replyToMessageId: replyingTo?.id || undefined,
+        mediaUrls: s3Urls,
+        conversationId: selectedChat?.id?.toString(),
+      };
+
+      const res = await apiClient.post<any>('/messages', payload);
+      console.log('[IMAGE_GROUP] POST /messages response:', JSON.stringify(res, null, 2));
+      const data = res?.message ? res : (res?.success ? res.data : res);
+      const newMsg = data?.message || data;
+      console.log('[IMAGE_GROUP] Parsed newMsg:', newMsg?.messageId, newMsg?.messageType, 'attachments:', newMsg?.attachments?.length);
+
+      const resolvedAttachments = newMsg?.attachments?.length
+        ? newMsg.attachments
+        : s3Urls.map((url: string) => ({ url }));
+
+      if (newMsg?.messageId || newMsg?.id) {
+        const realId = String(newMsg.messageId || newMsg.id);
+        onUpdateConversationRef.current?.(
+          selectedChat!.id,
+          '[Album ảnh]',
+          new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
+        );
+
+        setMessages(prev => {
+          const idx = prev.findIndex(m => m.id === tempId);
+          if (idx !== -1) {
+            if (prev.some(m => m.id === realId)) {
+              return prev.filter(m => m.id !== tempId);
+            }
+            const next = [...prev];
+            next[idx] = {
+              ...next[idx],
+              id: realId,
+              text: newMsg.content || '',
+              type: 'IMAGE_GROUP',
+              isUploading: false,
+              uploadProgress: undefined,
+              caption: newMsg.caption || globalCaption,
+              attachments: resolvedAttachments,
+            };
+            return next;
+          }
+          if (prev.some(m => m.id === realId)) return prev;
+          return [...prev, {
+            id: realId,
+            text: newMsg.content || '',
+            type: 'IMAGE_GROUP',
+            replyToMessageId: newMsg.replyToMessageId || null,
+            sender: 'Me',
+            senderId: currentUser?.id,
+            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+            reactions: [],
+            rawDate: new Date(),
+            isEdited: false,
+            isRecalled: false,
+            forwardedFromSenderName: null,
+            caption: newMsg.caption || globalCaption,
+            attachments: resolvedAttachments,
+          }];
+        });
+        setShouldScrollToBottom(true);
+      }
+
+      // Cleanup preview URLs
+      previewUrls.forEach(url => {
+        try { URL.revokeObjectURL(url); } catch {}
+      });
+    } catch (error) {
+      console.error('[IMAGE_GROUP] Upload/send error:', error);
+      // On error, keep images visible but clear upload overlay
+      setMessages(prev => prev.map(m => m.id === tempId ? {
+        ...m,
+        isUploading: false,
+        uploadProgress: undefined,
+        attachments: s3Urls.length ? s3Urls.map((url: string) => ({ url })) : m.attachments,
+      } : m));
+      previewUrls.forEach(url => {
+        try { URL.revokeObjectURL(url); } catch {}
+      });
+      toast.error(t('chat.upload.error'));
+    } finally {
+      // Safety net: always clear upload overlay after a short delay
+      setTimeout(() => {
+        setMessages(prev => prev.map(m =>
+          (m.id === tempId || (m.type === 'IMAGE_GROUP' && m.sender === 'Me' && m.isUploading))
+            ? { ...m, isUploading: false, uploadProgress: undefined }
+            : m
+        ));
+      }, 2000);
+    }
+  }, [closeImageQueue, handleFileUpload, imageQueue, message, currentUser?.id, replyingTo, selectedChat, t]);
 
   const handleImageChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files ? Array.from(e.target.files) : [];
@@ -1610,6 +1790,35 @@ export function useChatWindow({
 
           if (newMsg.type === 'MESSAGE_PIN' || newMsg.type === 'MESSAGE_UNPIN') {
             fetchPinnedMessages(String(selectedChat.id));
+
+            const isPin = newMsg.type === 'MESSAGE_PIN';
+            const actorId: string = isPin ? (newMsg.pinnedBy || '') : (newMsg.unpinnedBy || '');
+            const actorName: string = isPin
+              ? (newMsg.pinnedByName || (actorId === currentUser?.id ? 'Bạn' : 'Ai đó'))
+              : (actorId === currentUser?.id ? 'Bạn' : 'Ai đó');
+            const pinnedContent: string = isPin
+              ? (newMsg.content || '')
+              : (pinnedMessagesRef.current.find(p => p.messageId === String(newMsg.messageId))?.content || '');
+            const now = new Date();
+            const notifMsg: ChatMessage = {
+              id: `notify-${isPin ? 'pin' : 'unpin'}-${newMsg.messageId}-${now.getTime()}`,
+              text: pinnedContent,
+              type: isPin ? 'MESSAGE_PIN' : 'MESSAGE_UNPIN',
+              sender: actorName,
+              senderId: actorId,
+              time: now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+              rawDate: now,
+              reactions: [],
+              replyToMessageId: String(newMsg.messageId),
+            };
+            setMessages(prev => {
+              if (prev.some(m => m.id === notifMsg.id)) return prev;
+              return [...prev, notifMsg];
+            });
+            onUpdateConversationRef.current?.(
+              selectedChat.id,
+              isPin ? `📌 ${actorName} đã ghim một tin nhắn` : `📌 ${actorName} đã bỏ ghim một tin nhắn`
+            );
             return;
           }
 
@@ -1653,11 +1862,12 @@ export function useChatWindow({
               forwardedFromSenderName: newMsg.forwardedFromSenderName || null,
               caption: newMsg.caption || undefined,
               isUploading: false,
+              attachments: newMsg.attachments || undefined,
             };
 
-            if (newMsg.senderId === currentUser?.id && ['IMAGE', 'VIDEO', 'MEDIA'].includes(mappedMsg.type)) {
+            if (newMsg.senderId === currentUser?.id && ['IMAGE', 'VIDEO', 'MEDIA', 'IMAGE_GROUP'].includes(mappedMsg.type)) {
               const optimisticIdx = prev.findIndex(
-                messageItem => messageItem.sender === 'Me' && messageItem.isUploading && ['IMAGE', 'VIDEO', 'MEDIA'].includes(messageItem.type)
+                messageItem => messageItem.sender === 'Me' && messageItem.isUploading && ['IMAGE', 'VIDEO', 'MEDIA', 'IMAGE_GROUP'].includes(messageItem.type)
               );
               if (optimisticIdx !== -1) {
                 const next = [...prev];

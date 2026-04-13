@@ -103,7 +103,7 @@ export function SidebarItem({
           <div className="flex items-center gap-1">
             <span className="text-[12px] text-[#708090] font-medium mr-1">{time}</span>
             {pinned && (
-              <div className="text-[#708090] opacity-80 shrink-0 transform rotate-45 mr-1">
+              <div className="text-[#708090] opacity-80 shrink-0 mr-1">
                 <PinIcon size={12} />
               </div>
             )}
