@@ -1508,7 +1508,16 @@ export function useChatWindow({
         // Upsert API results to IndexedDB for future instant loads
         upsertLocalMessages(items).catch(() => {});
 
-        setMessages(mapped);
+        // Merge: keep any real-time WebSocket messages that arrived during fetch
+        setMessages(prev => {
+          const apiIds = new Set(mapped.map(m => m.id));
+          const realtimeOnly = prev.filter(m => !apiIds.has(m.id) && !m.id.startsWith('temp-'));
+          if (realtimeOnly.length === 0) return mapped;
+          const merged = [...mapped, ...realtimeOnly].sort(
+            (a, b) => (a.rawDate?.getTime() ?? 0) - (b.rawDate?.getTime() ?? 0)
+          );
+          return merged;
+        });
         apiClient.patch(`/conversations/${selectedChat.id}/mark-as-read`, {}).catch(() => {});
         setHasMore(hasMoreData);
         setIsLoadingMore(false);
