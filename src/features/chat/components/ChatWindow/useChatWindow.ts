@@ -84,6 +84,34 @@ const mapReactionToEmoji = (reactionType?: string) => {
       return '👍';
   }
 };
+const AI_TEXT_TYPES = new Set(['TEXT', 'LINK']);
+
+const isAiSender = (senderId?: string, senderName?: string): boolean => {
+  if (senderId === AI_TYPING_USER_ID) return true;
+  const normalizedName = (senderName || '').trim().toLowerCase();
+  return normalizedName === 'fruvia ai';
+};
+
+const stripAiMarkdownMarkers = (content: string | null | undefined): string => {
+  if (!content) return '';
+  return content
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*\*/g, '');
+};
+
+const normalizeIncomingContent = (
+  content: string | null | undefined,
+  senderId?: string,
+  messageType?: string,
+  senderName?: string
+): string => {
+  const normalizedContent = content || '';
+  const normalizedType = (messageType || 'TEXT').toUpperCase();
+  if (isAiSender(senderId, senderName) && AI_TEXT_TYPES.has(normalizedType)) {
+    return stripAiMarkdownMarkers(normalizedContent);
+  }
+  return normalizedContent;
+};
 
 const getSnippet = (content: string, messageType: string | undefined, t: (key: string) => string) => {
   switch (messageType) {
@@ -114,7 +142,7 @@ const getSnippet = (content: string, messageType: string | undefined, t: (key: s
 
 const mapIncomingMessage = (m: any, currentUserId?: string): ChatMessage => ({
   id: String(m.messageId || m.id),
-  text: m.content,
+  text: normalizeIncomingContent(m.content, m.senderId, m.messageType, m.senderName),
   type: m.messageType || 'TEXT',
   width: m.width,
   height: m.height,
@@ -668,6 +696,12 @@ export function useChatWindow({
           const userMessage = aiData?.userMessage;
           const imageMessage = aiData?.imageMessage;
           const assistantMessage = aiData?.assistantMessage;
+          const assistantContent = normalizeIncomingContent(
+            assistantMessage?.content,
+            assistantMessage?.senderId,
+            assistantMessage?.messageType,
+            assistantMessage?.senderName
+          );
           const aiConversation = aiData?.conversation;
           const finalConvId = aiConversation?.conversationId || aiConversation?.id || selectedChat.id;
 
@@ -675,10 +709,10 @@ export function useChatWindow({
             onSelectConversationRef.current(finalConvId);
           }
 
-          if (assistantMessage?.content) {
+          if (assistantContent) {
             onUpdateConversationRef.current?.(
               finalConvId,
-              getSnippet(assistantMessage.content, assistantMessage.messageType || 'TEXT', t),
+              getSnippet(assistantContent, assistantMessage.messageType || 'TEXT', t),
               new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
             );
           }
@@ -740,7 +774,7 @@ export function useChatWindow({
               if (!next.some(m => m.id === assistantMessageId)) {
                 next.push({
                   id: assistantMessageId,
-                  text: assistantMessage.content,
+                  text: assistantContent,
                   type: assistantMessage.messageType || 'TEXT',
                   replyToMessageId: assistantMessage.replyToMessageId || null,
                   sender: assistantMessage.senderName || 'Fruvia AI',
@@ -833,6 +867,32 @@ export function useChatWindow({
         payload.conversationId = selectedChat.id.toString();
       }
 
+      // Optimistic update: show the message locally before the server responds
+      const tempOptimisticId = optimisticId || `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      if (!optimisticId && msgType === 'TEXT') {
+        setMessages(prev => [
+          ...prev,
+          {
+            id: tempOptimisticId,
+            text: contentToUse,
+            type: msgType,
+            replyToMessageId: replyingTo?.id || null,
+            sender: 'Me',
+            senderId: currentUser?.id,
+            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+            reactions: [],
+            rawDate: new Date(),
+            isEdited: false,
+            isRecalled: false,
+            forwardedFromSenderName: null,
+            caption: caption || undefined,
+            isUploading: false,
+          },
+        ]);
+        setShouldScrollToBottom(true);
+        setReplyingTo(null);
+      }
+
       const res = await apiClient.post<any>('/messages', payload);
       const data = res.success ? res.data : res;
       const newMsg = data.message || data;
@@ -851,6 +911,8 @@ export function useChatWindow({
           getSnippet(newMsg.content, newMsg.messageType || msgType, t),
           new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
         );
+
+        const effectiveOptimisticId = optimisticId || (msgType === 'TEXT' ? tempOptimisticId : undefined);
 
         setMessages(prev => {
           const realId = String(newMsg.messageId || newMsg.id);
@@ -873,12 +935,12 @@ export function useChatWindow({
             isUploading: false,
           };
 
-          if (optimisticId) {
-            const idx = prev.findIndex(m => m.id === optimisticId);
+          if (effectiveOptimisticId) {
+            const idx = prev.findIndex(m => m.id === effectiveOptimisticId);
             if (idx !== -1) {
               setShouldScrollToBottom(true);
               if (prev.some(m => m.id === realId)) {
-                return prev.filter(m => m.id !== optimisticId);
+                return prev.filter(m => m.id !== effectiveOptimisticId);
               }
               const next = [...prev];
               const optimisticMsg = next[idx];
@@ -896,10 +958,17 @@ export function useChatWindow({
           return [...prev, realMsg];
         });
 
-        setReplyingTo(null);
+        if (!effectiveOptimisticId || optimisticId) {
+          setReplyingTo(null);
+        }
       }
     } catch (error) {
       console.error('Send failed', error);
+      // Remove optimistic text message and restore input on failure
+      if (!optimisticId && msgType === 'TEXT') {
+        setMessages(prev => prev.filter(m => m.id !== tempOptimisticId));
+        setMessage(contentToUse);
+      }
     }
   }, [message, selectedChat, currentUser?.id, replyingTo?.id, isSendingAi, i18n.resolvedLanguage, i18n.language, t]);
 
@@ -1247,6 +1316,11 @@ export function useChatWindow({
           const existing = typingTimeoutRef.current.get(data.userId);
           if (existing) clearTimeout(existing);
 
+          if (data.userId === AI_TYPING_USER_ID) {
+            typingTimeoutRef.current.delete(data.userId);
+            return;
+          }
+
           typingTimeoutRef.current.set(data.userId, setTimeout(() => {
             setTypingUsers(prev => prev.filter(user => user.userId !== data.userId));
             typingTimeoutRef.current.delete(data.userId);
@@ -1502,7 +1576,11 @@ export function useChatWindow({
           if (newMsg.type === 'MESSAGE_EDIT') {
             setMessages(prev => prev.map(messageItem => {
               if (messageItem.id === String(newMsg.messageId)) {
-                return { ...messageItem, text: newMsg.content, isEdited: true };
+                return {
+                  ...messageItem,
+                  text: normalizeIncomingContent(newMsg.content, messageItem.senderId, messageItem.type, messageItem.sender),
+                  isEdited: true,
+                };
               }
               return messageItem;
             }));
@@ -1528,7 +1606,11 @@ export function useChatWindow({
 
           onUpdateConversationRef.current?.(
             selectedChat.id,
-            getSnippet(newMsg.content, newMsg.messageType, t),
+            getSnippet(
+              normalizeIncomingContent(newMsg.content, newMsg.senderId, newMsg.messageType, newMsg.senderName),
+              newMsg.messageType,
+              t
+            ),
             newMsg.createdAt
               ? new Date(newMsg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
               : undefined
@@ -1540,7 +1622,7 @@ export function useChatWindow({
 
             const mappedMsg: ChatMessage = {
               id: String(newMsg.messageId || newMsg.id),
-              text: newMsg.content,
+              text: normalizeIncomingContent(newMsg.content, newMsg.senderId, newMsg.messageType, newMsg.senderName),
               type: newMsg.messageType || 'TEXT',
               width: newMsg.width,
               height: newMsg.height,
@@ -1577,6 +1659,19 @@ export function useChatWindow({
                   height: mappedMsg.height || optimisticMsg.height,
                   caption: mappedMsg.caption || optimisticMsg.caption,
                 };
+                setShouldScrollToBottom(true);
+                return next;
+              }
+            }
+
+            // Replace optimistic text message (temp-*) from current user
+            if (newMsg.senderId === currentUser?.id && mappedMsg.type === 'TEXT') {
+              const optimisticIdx = prev.findIndex(
+                messageItem => messageItem.id.startsWith('temp-') && messageItem.sender === 'Me' && messageItem.type === 'TEXT' && messageItem.text === mappedMsg.text
+              );
+              if (optimisticIdx !== -1) {
+                const next = [...prev];
+                next[optimisticIdx] = mappedMsg;
                 setShouldScrollToBottom(true);
                 return next;
               }

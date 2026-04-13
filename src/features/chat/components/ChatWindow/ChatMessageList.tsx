@@ -194,6 +194,19 @@ const renderText = (text: string, mentions?: string[]) => {
   });
 };
 
+const getDisplayText = (msg: ChatMessage, isAiConversation: boolean): string => {
+  const text = msg.text ?? '';
+  const isAiMessage = isAiConversation
+    || msg.senderId === AI_TYPING_USER_ID
+    || (msg.sender || '').trim().toLowerCase() === 'fruvia ai';
+
+  if (!isAiMessage) return text;
+
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*\*/g, '');
+};
+
 function LinkPreview({ url, title, description, thumbnail }: { url: string; title?: string; description?: string; thumbnail?: string }) {
   try {
     const urlObj = new URL(url);
@@ -524,6 +537,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                 const showAvatarAndName = isFirstInBlock(msg, effectivePrev);
                 const isRichContent = RICH_MSG_TYPES.has(msg.type);
                 const paddingClass = showTimestamp ? 'pb-10' : isRichContent ? 'pb-4' : 'pb-1.5';
+                const displayText = getDisplayText(msg, selectedChat.isAi);
 
                 return (
                   <div
@@ -801,10 +815,10 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                         <VoicePlayer url={msg.text} duration={msg.voiceDuration} isMe={msg.sender === 'Me'} />
                                       ) : (
                                         <>
-                                          {renderText(msg.text ?? '', msg.mentions)}
-                                          {(msg.type === 'LINK' || (msg.text && msg.text.match(/(https?:\/\/[^\s]+)/))) && (
+                                          {renderText(displayText, msg.mentions)}
+                                          {(msg.type === 'LINK' || (displayText && displayText.match(/(https?:\/\/[^\s]+)/))) && (
                                             <LinkPreview
-                                              url={msg.type === 'LINK' ? msg.text : msg.text?.match(/(https?:\/\/[^\s]+)/)![0]}
+                                              url={msg.type === 'LINK' ? displayText : displayText.match(/(https?:\/\/[^\s]+)/)![0]}
                                               title={msg.linkTitle}
                                               description={msg.linkDescription}
                                               thumbnail={msg.linkThumbnail}
