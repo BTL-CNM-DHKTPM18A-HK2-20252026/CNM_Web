@@ -20,7 +20,10 @@ interface Conversation {
   pinned?: boolean;
   isCloud?: boolean;
   isAi?: boolean;
+  isGroup?: boolean;
   avatar?: string;
+  groupAvatarUrls?: string[];
+  memberCount?: number;
   unreadCount?: number;
   otherUserId?: string;
   conversationStatus?: string;
@@ -1362,7 +1365,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
         <div className="flex-1 overflow-y-auto">{nonSearchContent}</div>
       ) : (
         /* Normal List */
-        <div className="flex-1 overflow-y-auto px-2 pt-2 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto px-0 pt-0 custom-scrollbar chat-list-scrollbar">
           {filteredConversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-[var(--sub-text)]">
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="opacity-30 mb-3">
@@ -1397,6 +1400,9 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                 active={conv.active}
                 pinned={conv.pinned}
                 avatar={conv.avatar}
+                isGroup={conv.isGroup}
+                groupAvatarUrls={conv.groupAvatarUrls}
+                memberCount={conv.memberCount}
                 isCloud={conv.isCloud}
                 isAi={conv.isAi}
                 unreadCount={conv.unreadCount}

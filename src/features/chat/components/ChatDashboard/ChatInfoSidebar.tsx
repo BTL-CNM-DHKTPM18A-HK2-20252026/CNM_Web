@@ -23,6 +23,34 @@ interface ChatInfoSidebarProps {
   onClearChat?: () => void;
 }
 
+const LINK_PLACEHOLDER_REGEX = /^\s*\[?LINK\]?\s*$/i;
+
+const getPinnedPreviewText = (pin: any, linkItems: any[] = []) => {
+  const messageType = String(pin?.messageType || '').toUpperCase();
+  if (messageType !== 'LINK') {
+    if (messageType !== 'TEXT') return `[${pin?.messageType}]`;
+    return String(pin?.content || '');
+  }
+
+  const matchedLinkItem = linkItems.find((item) => {
+    const pinMessageId = String(pin?.messageId || '');
+    const itemMessageId = String(item?.messageId || item?.id || '');
+    return Boolean(pinMessageId) && pinMessageId === itemMessageId;
+  });
+
+  const explicitUrl = String(pin?.linkUrl || pin?.link_url || pin?.url || '').trim();
+  const content = String(pin?.content || '').trim();
+  const extractedUrl =
+    content.match(/(https?:\/\/[^\s]+)/)?.[0]
+    || String(matchedLinkItem?.content || '').match(/(https?:\/\/[^\s]+)/)?.[0]
+    || '';
+
+  if (explicitUrl) return explicitUrl;
+  if (extractedUrl) return extractedUrl;
+  if (!LINK_PLACEHOLDER_REGEX.test(content) && content) return content;
+  return '[Link]';
+};
+
 export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGroup, isCloud, isAi, conversationName, conversationAvatar, currentUser, onClearChat }: ChatInfoSidebarProps) {
   const { t } = useTranslation();
   const aiQuickCommands = [
@@ -38,13 +66,13 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
     { code: t('info.ai.quick_commands_prompt.wallpaper'), desc: t('info.ai.quick_commands.wallpaper') },
   ];
   const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
-  const [showMedia, setShowMedia] = React.useState(true);
-  const [showFiles, setShowFiles] = React.useState(true);
+  const [showMedia, setShowMedia] = React.useState(false);
+  const [showFiles, setShowFiles] = React.useState(false);
   const [stats, setStats] = useState<any>(null);
   const [mediaItems, setMediaItems] = useState<any[]>([]);
   const [fileItems, setFileItems] = useState<any[]>([]);
   const [linkItems, setLinkItems] = useState<any[]>([]);
-  const [showLinks, setShowLinks] = React.useState(true);
+  const [showLinks, setShowLinks] = React.useState(false);
 
   // Pinned messages
   const [showPinned, setShowPinned] = React.useState(true);
@@ -313,17 +341,28 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
 
       setMediaItems(imagesAndVideos);
       setFileItems(files);
+      setShowMedia(imagesAndVideos.length > 0);
+      setShowFiles(files.length > 0);
 
       // Fetch links from common message list or specific endpoint
       try {
         const linksRes: any = await apiClient.get(`/messages/conversation/${conversationId}/links`);
         const links = Array.isArray(linksRes) ? linksRes : (linksRes?.data || []);
         setLinkItems(links);
+        setShowLinks(links.length > 0);
       } catch (e) {
         console.log("No specific links endpoint found, showing empty links");
+        setLinkItems([]);
+        setShowLinks(false);
       }
     } catch (error) {
       console.error("Failed to fetch media:", error);
+      setMediaItems([]);
+      setFileItems([]);
+      setLinkItems([]);
+      setShowMedia(false);
+      setShowFiles(false);
+      setShowLinks(false);
     }
   };
 
@@ -793,7 +832,10 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                     <div className="flex-1 min-w-0">
                       <div className="text-[12px] font-semibold text-[#0068FF] leading-tight">{pin.senderName}</div>
                       <div className="text-[13px] text-[var(--text)] truncate leading-snug mt-0.5">
-                        {pin.messageType !== 'TEXT' ? `[${pin.messageType}]` : (pin.content?.length > 50 ? pin.content.slice(0, 50) + '...' : pin.content)}
+                        {(() => {
+                          const previewText = getPinnedPreviewText(pin, linkItems);
+                          return previewText.length > 50 ? `${previewText.slice(0, 50)}...` : previewText;
+                        })()}
                       </div>
                     </div>
                     <button

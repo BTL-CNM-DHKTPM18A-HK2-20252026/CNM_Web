@@ -12,6 +12,8 @@ import { ChatInput } from '@/features/chat';
 import { MentionDropdown } from '@/features/chat/components/MentionDropdown';
 import type { ChatComposerProps } from '@/features/chat/components/ChatWindow/types';
 
+const SMART_REPLY_TOGGLE_STORAGE_KEY = 'cnm_web_smart_reply_enabled';
+
 export function ChatComposer({ vm }: ChatComposerProps) {
   const {
     t,
@@ -69,6 +71,31 @@ export function ChatComposer({ vm }: ChatComposerProps) {
     dismissSmartReplies,
   } = vm;
 
+  const [isSmartReplyEnabled, setIsSmartReplyEnabled] = React.useState(true);
+
+  React.useEffect(() => {
+    try {
+      const storedValue = window.localStorage.getItem(SMART_REPLY_TOGGLE_STORAGE_KEY);
+      if (storedValue === '0') {
+        setIsSmartReplyEnabled(false);
+      }
+    } catch {
+      // Ignore storage errors and keep default enabled state.
+    }
+  }, []);
+
+  const handleToggleSmartReply = React.useCallback(() => {
+    setIsSmartReplyEnabled((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(SMART_REPLY_TOGGLE_STORAGE_KEY, next ? '1' : '0');
+      } catch {
+        // Ignore storage errors.
+      }
+      return next;
+    });
+  }, []);
+
   return (
     <>
       {replyingTo && (
@@ -115,7 +142,7 @@ export function ChatComposer({ vm }: ChatComposerProps) {
       )}
 
       {/* Smart Reply Suggestions */}
-      {smartReplies.length > 0 && !message.trim() && (
+      {isSmartReplyEnabled && smartReplies.length > 0 && !message.trim() && (
         <div className="bg-[var(--card-bg)] border-t border-[var(--border)] px-4 py-2 flex items-center gap-2 animate-in slide-in-from-bottom-2 duration-200">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-60"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           <div className="flex items-center gap-2 flex-1 overflow-x-auto scrollbar-hide">
@@ -137,7 +164,7 @@ export function ChatComposer({ vm }: ChatComposerProps) {
           </button>
         </div>
       )}
-      {smartRepliesLoading && !message.trim() && smartReplies.length === 0 && (
+      {isSmartReplyEnabled && smartRepliesLoading && !message.trim() && smartReplies.length === 0 && (
         <div className="bg-[var(--card-bg)] border-t border-[var(--border)] px-4 py-2 flex items-center gap-2">
           <div className="w-3 h-3 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
           <span className="text-[12px] text-[var(--sub-text)]">Đang tạo gợi ý...</span>
@@ -221,6 +248,30 @@ export function ChatComposer({ vm }: ChatComposerProps) {
                   <VoiceIcon size={20} />
                 )}
               </button>
+
+              <button
+                onClick={handleToggleSmartReply}
+                className="ml-auto inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[12px] font-medium text-[var(--sub-text)] hover:text-[#0068FF] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer whitespace-nowrap"
+                title={isSmartReplyEnabled ? 'Tắt gợi ý tin nhắn' : 'Bật gợi ý tin nhắn'}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  {isSmartReplyEnabled ? (
+                    <>
+                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </>
+                  ) : (
+                    <>
+                      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-6.5 0-10-7-10-7a21.76 21.76 0 0 1 5.06-5.94" />
+                      <path d="M9.9 4.24A10.94 10.94 0 0 1 12 5c6.5 0 10 7 10 7a21.74 21.74 0 0 1-2.16 3.19" />
+                      <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </>
+                  )}
+                </svg>
+                <span>Bật/tắt gợi ý tin nhắn</span>
+              </button>
+
             </>
           )}
 

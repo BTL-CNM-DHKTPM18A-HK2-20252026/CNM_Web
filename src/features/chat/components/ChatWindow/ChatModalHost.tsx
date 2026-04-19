@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ImageModal } from '@/components/ui/ImageModal';
 import { ForwardModal } from '@/features/chat/components/modals/ForwardModal';
 import { NicknameModal } from '@/features/chat/components/modals/NicknameModal';
@@ -30,6 +30,8 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
     contextMenu,
     setContextMenu,
     messages,
+    setReplyingTo,
+    messageInputRef,
     startEditMessage,
     setConfirmDialog,
     pinnedMessages,
@@ -43,6 +45,50 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
     reactionModalEmojiTab,
     setReactionModalEmojiTab,
   } = vm;
+
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+  const [contextMenuStyle, setContextMenuStyle] = useState<React.CSSProperties | null>(null);
+
+  useLayoutEffect(() => {
+    if (!contextMenu) {
+      setContextMenuStyle(null);
+      return;
+    }
+
+    const positionContextMenu = () => {
+      const menuEl = contextMenuRef.current;
+      if (!menuEl || typeof window === 'undefined') return;
+
+      const margin = 12;
+      const offsetY = 8;
+      const rect = menuEl.getBoundingClientRect();
+      const menuWidth = rect.width || 220;
+      const menuHeight = rect.height || 260;
+
+      let left = contextMenu.x;
+      const minCenterX = margin + menuWidth / 2;
+      const maxCenterX = window.innerWidth - margin - menuWidth / 2;
+      if (minCenterX <= maxCenterX) {
+        left = Math.min(Math.max(left, minCenterX), maxCenterX);
+      }
+
+      let top = contextMenu.y - offsetY;
+      if (top + menuHeight > window.innerHeight - margin) {
+        top = contextMenu.y - menuHeight - offsetY;
+      }
+      top = Math.max(margin, Math.min(top, window.innerHeight - margin - menuHeight));
+
+      setContextMenuStyle({
+        top,
+        left,
+        transform: 'translateX(-50%)',
+      });
+    };
+
+    positionContextMenu();
+    window.addEventListener('resize', positionContextMenu);
+    return () => window.removeEventListener('resize', positionContextMenu);
+  }, [contextMenu]);
 
   // Collect all image URLs from conversation (IMAGE + IMAGE_GROUP) for lightbox navigation
   const allConversationImages = useMemo(() => {
@@ -172,8 +218,9 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
         <>
           <div className="fixed inset-0 z-[150]" onClick={() => setContextMenu(null)} />
           <div
+            ref={contextMenuRef}
             className="fixed z-[151] bg-[var(--card-bg)] border border-[var(--border)] rounded-lg shadow-2xl py-1 min-w-[180px] animate-in fade-in zoom-in-95 duration-150"
-            style={{ top: contextMenu.y, left: contextMenu.x, transform: 'translate(-50%, 4px)' }}
+            style={contextMenuStyle ?? { top: contextMenu.y, left: contextMenu.x, transform: 'translate(-50%, -8px)' }}
           >
             {contextMenu.isMe && contextMenu.type === 'TEXT' && (
               <button
@@ -188,15 +235,25 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
               </button>
             )}
 
-            {contextMenu.isMe && (
-              <button
-                onClick={() => { setConfirmDialog({ type: 'recall', msgId: contextMenu.msgId }); setContextMenu(null); }}
-                className="flex items-center gap-3 w-full px-4 py-2.5 text-[14px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
-                {t('chat.ctx_menu.recall')}
-              </button>
-            )}
+            <button
+              onClick={() => {
+                const msg = messages.find(m => m.id === contextMenu.msgId);
+                if (msg) {
+                  setReplyingTo({
+                    id: msg.id,
+                    text: msg.text,
+                    sender: msg.sender,
+                    type: msg.type,
+                  });
+                  setTimeout(() => messageInputRef.current?.focus(), 50);
+                }
+                setContextMenu(null);
+              }}
+              className="flex items-center gap-3 w-full px-4 py-2.5 text-[14px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1l-1.2 3.3a.75.75 0 0 0 .95.95l3.3-1.2A10 10 0 1 0 12 2z" /></svg>
+              {t('chat.actions.reply')}
+            </button>
 
             {(() => {
               const isPinned = pinnedMessages.some(p => p.messageId === contextMenu.msgId);
@@ -210,6 +267,16 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
                 </button>
               );
             })()}
+
+            {contextMenu.isMe && (
+              <button
+                onClick={() => { setConfirmDialog({ type: 'recall', msgId: contextMenu.msgId }); setContextMenu(null); }}
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-[14px] text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
+                {t('chat.ctx_menu.recall')}
+              </button>
+            )}
 
             <button
               onClick={() => { setConfirmDialog({ type: 'delete', msgId: contextMenu.msgId }); setContextMenu(null); }}

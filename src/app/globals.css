@@ -80,6 +80,16 @@ body {
   background-color: rgba(0, 0, 0, 0.13);
 }
 
+/* Chat list rows should span full width without reserved scrollbar gutter */
+.chat-list-scrollbar {
+  scrollbar-gutter: auto;
+}
+
+/* Message pane should not reserve a permanent right gutter; keeps highlight flush to edge. */
+.chat-message-scrollbar {
+  scrollbar-gutter: auto;
+}
+
 /* Modal scrollbar — always visible, compact & polished */
 .modal-scrollbar {
   scrollbar-width: thin;

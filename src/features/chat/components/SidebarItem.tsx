@@ -13,6 +13,9 @@ interface SidebarItemProps {
   active?: boolean;
   pinned?: boolean;
   avatar?: string;
+  isGroup?: boolean;
+  groupAvatarUrls?: string[];
+  memberCount?: number;
   isCloud?: boolean;
   isAi?: boolean;
   unreadCount?: number;
@@ -35,6 +38,9 @@ export function SidebarItem({
   active,
   pinned,
   avatar,
+  isGroup,
+  groupAvatarUrls,
+  memberCount,
   isCloud,
   isAi,
   unreadCount,
@@ -46,6 +52,13 @@ export function SidebarItem({
   onContextMenu,
   onMoreClick,
 }: SidebarItemProps) {
+  const shouldRenderGroupFallback = Boolean(isGroup && !avatar);
+  const fallbackAvatars = [
+    groupAvatarUrls?.[0],
+    groupAvatarUrls?.[1],
+    groupAvatarUrls?.[2],
+  ].filter((url): url is string => Boolean(url));
+
   return (
     <div
       onClick={() => onClick(id)}
@@ -55,10 +68,10 @@ export function SidebarItem({
         }
       }}
       onContextMenu={onContextMenu}
-      className={`relative group flex items-center p-3 mb-0.5 gap-3 rounded-md cursor-pointer transition-all border select-none caret-transparent ${
+      className={`relative group flex w-full items-center px-3 py-2.5 mb-0.5 gap-3 cursor-pointer transition-colors select-none caret-transparent ${
         active
-          ? 'bg-[var(--active-bg)] border-[var(--active-card-border)]'
-          : 'hover:bg-[var(--hover-bg)] border-transparent'
+          ? 'bg-[var(--active-bg)]'
+          : 'hover:bg-[var(--hover-bg)]'
       }`}
     >
       <div
@@ -78,6 +91,27 @@ export function SidebarItem({
           </svg>
         ) : avatar ? (
           <Image src={avatar} alt={name} width={48} height={48} className="object-cover" unoptimized />
+        ) : shouldRenderGroupFallback ? (
+          <div className="grid grid-cols-2 grid-rows-2 w-full h-full">
+            <div className="relative bg-gray-200 dark:bg-gray-700">
+              {fallbackAvatars[0] ? (
+                <Image src={fallbackAvatars[0]} alt={name} fill className="object-cover" unoptimized />
+              ) : null}
+            </div>
+            <div className="relative bg-gray-200 dark:bg-gray-700">
+              {fallbackAvatars[1] ? (
+                <Image src={fallbackAvatars[1]} alt={name} fill className="object-cover" unoptimized />
+              ) : null}
+            </div>
+            <div className="relative bg-gray-200 dark:bg-gray-700">
+              {fallbackAvatars[2] ? (
+                <Image src={fallbackAvatars[2]} alt={name} fill className="object-cover" unoptimized />
+              ) : null}
+            </div>
+            <div className="flex items-center justify-center bg-[#E9EEF7] text-[#5B6576] text-[11px] font-bold">
+              {memberCount || 0}
+            </div>
+          </div>
         ) : (
           <div className="text-[var(--primary)] font-bold text-lg">{name.charAt(0)}</div>
         )}
@@ -94,14 +128,22 @@ export function SidebarItem({
 
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-center mb-0.5">
-          <div className="flex items-center gap-1.5 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0 pr-2">
             {conversationTagColor ? (
               <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: conversationTagColor }} />
             ) : null}
-            <h4 className="text-[15px] font-medium truncate text-[var(--text)]">{nickname || name}</h4>
+            <h4 className="text-[15px] font-medium truncate text-[var(--text)] max-w-[220px] sm:max-w-[240px]">{nickname || name}</h4>
           </div>
-          <div className="flex items-center gap-1">
-            <span className="text-[12px] text-[#708090] font-medium mr-1">{time}</span>
+          <div className="flex items-center gap-1 shrink-0 min-w-[58px] justify-end">
+            {onMoreClick ? (
+              <button
+                onClick={onMoreClick}
+                className="hidden group-hover:inline-flex opacity-60 hover:opacity-100 p-0.5 hover:bg-black/5 rounded transition-all text-gray-500 mr-1 cursor-pointer"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>
+              </button>
+            ) : null}
+            <span className={`text-[12px] text-[#708090] font-medium mr-1 whitespace-nowrap leading-none tabular-nums ${onMoreClick ? 'group-hover:hidden' : ''}`}>{time}</span>
             {pinned && (
               <div className="text-[#708090] opacity-80 shrink-0 mr-1">
                 <PinIcon size={12} />
@@ -117,13 +159,13 @@ export function SidebarItem({
 
         <div className="flex justify-between items-center h-5">
           <div
-            className={`text-[13px] flex items-center gap-1.5 truncate ${
+            className={`text-[13px] flex items-center gap-1.5 truncate min-w-0 pr-2 ${
               unreadCount && unreadCount > 0
                 ? 'text-[var(--text)] font-semibold'
                 : 'text-[#708090]'
             }`}
           >
-            <span className="truncate">{subtitle ?? lastMsg}</span>
+            <span className="truncate max-w-[190px] sm:max-w-[210px] lg:max-w-[230px]">{subtitle ?? lastMsg}</span>
           </div>
 
           {unreadCount ? (
@@ -132,15 +174,6 @@ export function SidebarItem({
             </div>
           ) : isMarkedUnread ? (
             <div className="w-[10px] h-[10px] rounded-full bg-[#0068FF] shrink-0" />
-          ) : null}
-
-          {onMoreClick ? (
-            <button
-              onClick={onMoreClick}
-              className="hidden group-hover:flex opacity-60 hover:opacity-100 p-0.5 hover:bg-black/5 rounded transition-all text-gray-500 absolute right-4 cursor-pointer"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>
-            </button>
           ) : null}
         </div>
       </div>

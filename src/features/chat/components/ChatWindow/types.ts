@@ -7,6 +7,8 @@ export interface SelectedChat {
   isAi?: boolean;
   isGroup?: boolean;
   avatar?: string;
+  groupAvatarUrls?: string[];
+  memberCount?: number;
   isNew?: boolean;
   recipientId?: string;
   otherUserId?: string;
@@ -75,6 +77,7 @@ export interface PinnedMessage {
   id: string;
   messageId: string;
   content: string;
+  linkUrl?: string;
   senderName: string;
   messageType: string;
   pinnedAt: string;

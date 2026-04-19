@@ -91,13 +91,26 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
   const currentUserRef = useRef<any>(null);
   const dashboardConvSubsRef = useRef<Map<string, any>>(new Map());
   const [isConversationsLoaded, setIsConversationsLoaded] = useState(false);
-  const selectedChat = conversations.find(c => String(c.id) === String(selectedChatId)) || conversations[0];
+  const selectedChat = conversations.find(c => String(c.id) === String(selectedChatId));
   const [invitationCount, setInvitationCount] = useState(0);
 
   useEffect(() => {
     if (!initialChatId) return;
     setSelectedChatId(prev => (String(prev) === String(initialChatId) ? prev : initialChatId));
   }, [initialChatId]);
+
+  useEffect(() => {
+    if (!isConversationsLoaded) return;
+
+    setSelectedChatId((prev) => {
+      if (!prev) return prev;
+
+      const hasValidSelection = conversations.some(c => String(c.id) === String(prev));
+      if (hasValidSelection) return prev;
+
+      return '';
+    });
+  }, [conversations, isConversationsLoaded]);
 
   const parseEsMessageResults = (payload: any) => {
     const list = payload?.content || (Array.isArray(payload) ? payload : []);
@@ -225,6 +238,7 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
       if (Array.isArray(data)) {
         const mapped = data.map((c: any) => {
           const isSelf = c.conversationType === 'SELF' || c.conversation_type === 'SELF';
+          const isGroup = c.conversationType === 'GROUP' || c.conversation_type === 'GROUP';
           const rawName = c.conversationName || c.conversation_name || '';
           const isAi = isSelf && rawName.trim().toLowerCase() === 'fruvia ai';
           const isCloud = isSelf && !isAi;
@@ -233,6 +247,15 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
             : (rawName || (isCloud ? t('chat.self_cloud') : 'Conversation'));
           const id = c.conversationId || c.conversation_id;
           const avatar = c.conversationAvatarUrl || c.conversation_avatar_url || '';
+          const groupMemberAvatars = Array.isArray(c.members)
+            ? c.members
+              .map((m: any) => m.avatarUrl || m.avatar_url || '')
+              .filter((url: string) => Boolean(url))
+              .slice(0, 3)
+            : [];
+          const groupMemberCount = Array.isArray(c.members)
+            ? c.members.length
+            : Number(c.memberCount || c.member_count || 0);
 
           let displayName = name;
           let displayAvatar = avatar;
@@ -265,8 +288,10 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
             lastMessageAt: c.lastMessageTime || c.last_message_time || null,
             isCloud,
             isAi,
-            isGroup: (c.conversationType === 'GROUP' || c.conversation_type === 'GROUP'),
+            isGroup,
             avatar: displayAvatar,
+            groupAvatarUrls: isGroup && !displayAvatar ? groupMemberAvatars : [],
+            memberCount: isGroup ? groupMemberCount : undefined,
             pinned: c.isPinned || c.is_pinned || false,
             pinnedAt: c.pinnedAt || c.pinned_at || null,
             unreadCount: c.unreadCount || c.unread_count || 0,
@@ -283,16 +308,10 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
         const sorted = sortConversations(mapped);
         setConversations(sorted);
 
-        if (sorted.length > 0) {
-          if (initialChatId) {
-            const targetConversation = sorted.find(c => String(c.id) === String(initialChatId));
-            if (targetConversation) {
-              setSelectedChatId(targetConversation.id);
-            } else if (!selectedChatId) {
-              setSelectedChatId(sorted[0].id);
-            }
-          } else if (!selectedChatId) {
-            setSelectedChatId(sorted[0].id);
+        if (initialChatId && sorted.length > 0) {
+          const targetConversation = sorted.find(c => String(c.id) === String(initialChatId));
+          if (targetConversation) {
+            setSelectedChatId(targetConversation.id);
           }
         }
       }

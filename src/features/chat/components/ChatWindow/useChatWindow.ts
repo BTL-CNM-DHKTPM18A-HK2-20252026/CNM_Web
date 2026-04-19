@@ -28,7 +28,41 @@ import type {
 
 const AI_ACCESS_SETTINGS_STORAGE_KEY = 'fruvia.ai.access-settings.v1';
 const AI_THEME_STORAGE_KEY = 'fruvia.ai.theme.v1';
+const LOCAL_DELETED_MESSAGES_STORAGE_KEY = 'fruvia.chat.deleted-local.v1';
 export const AI_TYPING_USER_ID = 'FRUVIA_AI_ASSISTANT';
+
+const getDeletedMessagesStorageKey = (conversationId: string | number, userId?: string): string => (
+  `${LOCAL_DELETED_MESSAGES_STORAGE_KEY}:${userId || 'anonymous'}:${String(conversationId)}`
+);
+
+const readDeletedMessageIds = (conversationId: string | number, userId?: string): Set<string> => {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = window.localStorage.getItem(getDeletedMessagesStorageKey(conversationId, userId));
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.map((id: unknown) => String(id)).filter(Boolean));
+  } catch {
+    return new Set();
+  }
+};
+
+const writeDeletedMessageIds = (conversationId: string | number, userId: string | undefined, ids: Set<string>): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(getDeletedMessagesStorageKey(conversationId, userId), JSON.stringify([...ids]));
+  } catch {
+    // Ignore localStorage failures.
+  }
+};
+
+const addDeletedMessageId = (conversationId: string | number, userId: string | undefined, messageId: string): Set<string> => {
+  const next = readDeletedMessageIds(conversationId, userId);
+  next.add(String(messageId));
+  writeDeletedMessageIds(conversationId, userId, next);
+  return next;
+};
 
 const getAiFullAccessGranted = (): boolean => {
   if (typeof window === 'undefined') return false;
@@ -113,6 +147,20 @@ const normalizeIncomingContent = (
     return stripAiMarkdownMarkers(normalizedContent);
   }
   return normalizedContent;
+};
+
+const LINK_REGEX = /(https?:\/\/[^\s]+)/i;
+
+const extractFirstUrl = (value?: string | null): string => {
+  if (!value) return '';
+  const match = value.match(LINK_REGEX);
+  return match?.[0] || '';
+};
+
+const isLinkPlaceholderText = (value?: string | null): boolean => {
+  if (!value) return false;
+  const normalized = value.trim().toUpperCase();
+  return normalized === '[LINK]' || normalized === 'LINK';
 };
 
 const getSnippet = (content: string, messageType: string | undefined, t: (key: string) => string) => {
@@ -269,10 +317,29 @@ export function useChatWindow({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const messagesRef = useRef<ChatMessage[]>([]);
+  const locallyDeletedMessageIdsRef = useRef<Set<string>>(new Set());
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(false);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  const filterLocallyDeletedMessages = useCallback(
+    (items: ChatMessage[]): ChatMessage[] => items.filter(m => !locallyDeletedMessageIdsRef.current.has(String(m.id))),
+    []
+  );
+
+  useEffect(() => {
+    if (!selectedChat?.id) {
+      locallyDeletedMessageIdsRef.current = new Set();
+      return;
+    }
+    locallyDeletedMessageIdsRef.current = readDeletedMessageIds(selectedChat.id, currentUser?.id);
+  }, [selectedChat?.id, currentUser?.id]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -1528,9 +1595,20 @@ export function useChatWindow({
 
   useEffect(() => {
     if (typingUsers.length > 0) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      container.dataset.programmaticScroll = '1';
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (container.scrollTop < container.scrollHeight - container.clientHeight) {
+            container.scrollTop = container.scrollHeight;
+          }
+          delete container.dataset.programmaticScroll;
+        });
+      });
     }
-  }, [typingUsers.length]);
+  }, [typingUsers.length, scrollContainerRef]);
 
   // Handle jump-to-message when conversation is already open (targetMessageId changes
   // but selectedChat.id doesn't — so fetchMessages won't re-run)
@@ -1640,7 +1718,7 @@ export function useChatWindow({
           if (localItems.length > 0) {
             const localSorted = [...localItems].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
             const localMapped = localSorted.map(item => mapIncomingMessage(item, currentUser?.id));
-            setMessages(localMapped);
+            setMessages(filterLocallyDeletedMessages(localMapped));
             setIsInitialLoading(false);
             setShouldScrollToBottom(true);
           } else {
@@ -1683,7 +1761,7 @@ export function useChatWindow({
         totalMessagesRef.current = totalFromServer;
 
         const sorted = [...items].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-        const mapped = sorted.map(item => mapIncomingMessage(item, currentUser?.id));
+        const mapped = filterLocallyDeletedMessages(sorted.map(item => mapIncomingMessage(item, currentUser?.id)));
 
         // Upsert API results to IndexedDB for future instant loads
         upsertLocalMessages(items).catch(() => {});
@@ -1691,7 +1769,7 @@ export function useChatWindow({
         // Merge: keep any real-time WebSocket messages that arrived during fetch
         setMessages(prev => {
           const apiIds = new Set(mapped.map(m => m.id));
-          const realtimeOnly = prev.filter(m => !apiIds.has(m.id) && !m.id.startsWith('temp-'));
+          const realtimeOnly = prev.filter(m => !apiIds.has(m.id) && !m.id.startsWith('temp-') && !locallyDeletedMessageIdsRef.current.has(String(m.id)));
           if (realtimeOnly.length === 0) return mapped;
           const merged = [...mapped, ...realtimeOnly].sort(
             (a, b) => (a.rawDate?.getTime() ?? 0) - (b.rawDate?.getTime() ?? 0)
@@ -1795,10 +1873,11 @@ export function useChatWindow({
             const actorId: string = isPin ? (newMsg.pinnedBy || '') : (newMsg.unpinnedBy || '');
             const actorName: string = isPin
               ? (newMsg.pinnedByName || (actorId === currentUser?.id ? 'Bạn' : 'Ai đó'))
-              : (actorId === currentUser?.id ? 'Bạn' : 'Ai đó');
-            const pinnedContent: string = isPin
-              ? (newMsg.content || '')
-              : (pinnedMessagesRef.current.find(p => p.messageId === String(newMsg.messageId))?.content || '');
+              : (newMsg.unpinnedByName || (actorId === currentUser?.id ? 'Bạn' : 'Ai đó'));
+            const targetMessageId = String(newMsg.replyToMessageId || newMsg.messageId || '');
+            const pinnedContent: string = newMsg.content
+              || pinnedMessagesRef.current.find(p => p.messageId === targetMessageId)?.content
+              || '';
             const now = new Date();
             const notifMsg: ChatMessage = {
               id: `notify-${isPin ? 'pin' : 'unpin'}-${newMsg.messageId}-${now.getTime()}`,
@@ -1809,7 +1888,7 @@ export function useChatWindow({
               time: now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
               rawDate: now,
               reactions: [],
-              replyToMessageId: String(newMsg.messageId),
+              replyToMessageId: targetMessageId || null,
             };
             setMessages(prev => {
               if (prev.some(m => m.id === notifMsg.id)) return prev;
@@ -1837,6 +1916,10 @@ export function useChatWindow({
           setMessages(prev => {
             const exists = prev.some(m => m.id === String(newMsg.messageId || newMsg.id));
             if (exists) return prev;
+
+            if (locallyDeletedMessageIdsRef.current.has(String(newMsg.messageId || newMsg.id))) {
+              return prev;
+            }
 
             const mappedMsg: ChatMessage = {
               id: String(newMsg.messageId || newMsg.id),
@@ -1935,7 +2018,16 @@ export function useChatWindow({
         });
         isInitialLoadRef.current = false;
       } else {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        container.dataset.programmaticScroll = '1';
+        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (container.scrollTop < container.scrollHeight - container.clientHeight) {
+              container.scrollTop = container.scrollHeight;
+            }
+            delete container.dataset.programmaticScroll;
+          });
+        });
       }
     }
 
@@ -1997,7 +2089,7 @@ export function useChatWindow({
 
       if (items.length > 0) {
         const sorted = [...items].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-        const mappedOldItems = sorted.map(item => mapIncomingMessage(item, currentUser?.id));
+        const mappedOldItems = filterLocallyDeletedMessages(sorted.map(item => mapIncomingMessage(item, currentUser?.id)));
 
         setMessages(prev => {
           const prevIds = new Set(prev.map(m => m.id));
@@ -2115,6 +2207,32 @@ export function useChatWindow({
   const handleDeleteLocal = useCallback(async (messageId: string) => {
     try {
       await apiClient.delete(`/messages/${messageId}/local`);
+      if (selectedChat?.id) {
+        locallyDeletedMessageIdsRef.current = addDeletedMessageId(selectedChat.id, currentUser?.id, messageId);
+
+        const currentMessages = messagesRef.current;
+        const deletingId = String(messageId);
+        const lastVisibleMessage = currentMessages[currentMessages.length - 1];
+        const isDeletingLastVisible = lastVisibleMessage?.id === deletingId;
+
+        if (isDeletingLastVisible) {
+          const remainingMessages = currentMessages.filter(
+            (m) => m.id !== deletingId && !locallyDeletedMessageIdsRef.current.has(String(m.id))
+          );
+          const nextLastMessage = remainingMessages[remainingMessages.length - 1];
+          const nextSnippet = nextLastMessage
+            ? (nextLastMessage.isRecalled
+              ? t('chat.message.recalled')
+              : getSnippet(nextLastMessage.text, nextLastMessage.type, t))
+            : t('chat.start_conversation');
+
+          onUpdateConversationRef.current?.(
+            selectedChat.id,
+            nextSnippet,
+            nextLastMessage?.time
+          );
+        }
+      }
       setMessages(prev => prev.filter(m => m.id !== messageId));
       setConfirmDialog(null);
       toast.success(t('chat.message.delete_local_success'));
@@ -2123,7 +2241,7 @@ export function useChatWindow({
       toast.error(msg);
       setConfirmDialog(null);
     }
-  }, [t]);
+  }, [currentUser?.id, selectedChat?.id, t]);
 
   const startEditMessage = useCallback((msg: ChatMessage) => {
     setEditingMessageId(msg.id);
@@ -2148,12 +2266,40 @@ export function useChatWindow({
       const res: any = await apiClient.get(`/messages/conversations/${convId}/pinned`);
       const list = Array.isArray(res) ? res : (res?.data || []);
       setPinnedMessages(list.map((pin: any) => ({
-        id: pin.id,
-        messageId: pin.messageId,
-        content: pin.content,
-        senderName: pin.senderName,
-        messageType: pin.messageType,
-        pinnedAt: pin.pinnedAt,
+        ...(() => {
+          const messageId = String(pin.messageId || '');
+          const relatedMessage = messagesRef.current.find((m) => String(m.id) === messageId);
+          const rawContent = String(pin.content || '');
+          const messageType = String(pin.messageType || '').toUpperCase();
+
+          const inferredLinkUrl =
+            pin.linkUrl
+            || pin.link_url
+            || pin.url
+            || extractFirstUrl(rawContent)
+            || extractFirstUrl(relatedMessage?.text)
+            || '';
+
+          const relatedText = relatedMessage?.text || '';
+          const resolvedContent = messageType === 'LINK'
+            ? (
+              inferredLinkUrl
+              || (!isLinkPlaceholderText(rawContent) ? rawContent : '')
+              || (!isLinkPlaceholderText(relatedText) ? relatedText : '')
+              || rawContent
+            )
+            : rawContent;
+
+          return {
+            id: pin.id,
+            messageId,
+            content: resolvedContent,
+            linkUrl: inferredLinkUrl || undefined,
+            senderName: pin.senderName,
+            messageType: pin.messageType,
+            pinnedAt: pin.pinnedAt,
+          };
+        })(),
       })));
     } catch {
       setPinnedMessages([]);

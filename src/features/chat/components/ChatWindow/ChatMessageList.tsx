@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { toast } from 'sonner';
-import { SparklesIcon } from '@/components/ui/Icons';
+import { ChevronDownIcon, ChevronRightIcon, MessageBubbleIcon, MoreHorizontalIcon, SparklesIcon } from '@/components/ui/Icons';
 import { AI_TYPING_USER_ID } from '@/features/chat/components/ChatWindow/useChatWindow';
 import type { ChatMessage, ChatMessageListProps } from '@/features/chat/components/ChatWindow/types';
 import { usePresence } from '@/features/user';
@@ -320,6 +320,25 @@ const BLOCK_MSG_TYPES = new Set(['TEXT', 'IMAGE', 'VIDEO', 'MEDIA', 'VOICE', 'LI
 // Rich content types that need more spacing even within a block
 const RICH_MSG_TYPES = new Set(['IMAGE', 'VIDEO', 'MEDIA', 'SHARE_CONTACT']);
 
+const LINK_PLACEHOLDER_REGEX = /^\s*\[?LINK\]?\s*$/i;
+
+const getPinnedPreviewText = (pin: { messageType?: string; content?: string; linkUrl?: string }) => {
+  const messageType = String(pin.messageType || '').toUpperCase();
+  if (messageType !== 'LINK') {
+    if (messageType !== 'TEXT') return `[${pin.messageType}]`;
+    return pin.content || '';
+  }
+
+  const content = String(pin.content || '').trim();
+  const explicitUrl = String(pin.linkUrl || '').trim();
+  const extractedUrl = content.match(/(https?:\/\/[^\s]+)/)?.[0] || '';
+
+  if (explicitUrl) return explicitUrl;
+  if (extractedUrl) return extractedUrl;
+  if (!LINK_PLACEHOLDER_REGEX.test(content) && content) return content;
+  return '[Link]';
+};
+
 function getBlockSenderId(msg: ChatMessage): string | null {
   if (!BLOCK_MSG_TYPES.has(msg.type)) return null;
   return msg.senderId || msg.sender;
@@ -375,9 +394,6 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
     handleDownloadFile,
     setOpenedImageSrc,
     setReactionModalMessageId,
-    handleReactMessage,
-    setReplyingTo,
-    messageInputRef,
     setForwardingMsg,
     handlePinMessage,
     handleUnpinMessage,
@@ -407,8 +423,23 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
 
   const virtualItems = virtualizer.getVirtualItems();
 
+  const requestVirtualMeasure = () => {
+    requestAnimationFrame(() => {
+      virtualizer.measure();
+    });
+  };
+
+  // Keep virtual row sizes in sync when message content grows/shrinks (e.g. system notices, link previews).
+  useLayoutEffect(() => {
+    virtualizer.measure();
+  }, [messages, virtualizer]);
+
   return (
-    <>
+    <div className="relative flex h-full min-h-0 flex-col">
+      {showPinnedList && (
+        <div className="absolute inset-0 z-40 bg-black/45" onClick={() => setShowPinnedList(false)} />
+      )}
+
       {!selectedChat.isCloud && !selectedChat.isAi && !selectedChat.isGroup && (selectedChat.otherUserId || selectedChat.recipientId) && friendRequestStatus !== 'friend' && friendRequestStatus !== 'loading' && (
         <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 flex items-center justify-between gap-2.5">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -442,18 +473,11 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
       )}
 
       {pinnedMessages.length > 0 && (
-        <div className="relative z-20">
-          <div className="bg-[var(--card-bg)] border-b border-[var(--border)] flex items-center gap-3 px-4 py-2.5 select-none">
-            {/* Pin icon */}
-            <div className="shrink-0 text-[var(--sub-text)]">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 17v5" /><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z" />
-              </svg>
-            </div>
-
-            {/* Text content — clickable */}
+        <div className={`relative ${showPinnedList ? 'z-[60]' : 'z-20'}`}>
+          {!showPinnedList && (
+          <div className="bg-[var(--card-bg)] border-b border-[var(--border)] flex items-center justify-between gap-3 px-3 py-2 select-none">
             <div
-              className="flex-1 min-w-0 cursor-pointer"
+              className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
               onClick={() => {
                 const pin = pinnedMessages[0];
                 const el = document.getElementById(`msg-${pin.messageId}`);
@@ -464,78 +488,113 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                 }
               }}
             >
-              <div className="text-[13px] font-semibold text-[var(--text)] leading-tight">
-                {pinnedMessages.length > 1 ? `${t('chat.pin.pinned')} (${pinnedMessages.length})` : t('chat.pin.pinned')}
+              <div className="shrink-0 w-7 h-7 rounded-full border border-[#0B63F6]/30 text-[#0B63F6] flex items-center justify-center bg-[#F1F6FF]">
+                <MessageBubbleIcon size={14} />
               </div>
-              <div className="text-[13px] text-[var(--sub-text)] truncate leading-snug mt-0.5">
-                <span className="font-medium text-[var(--text)]">{pinnedMessages[0].senderName}: </span>
-                {pinnedMessages[0].messageType !== 'TEXT'
-                  ? `[${pinnedMessages[0].messageType}]`
-                  : (pinnedMessages[0].content?.length > 80 ? `${pinnedMessages[0].content.slice(0, 80)}...` : pinnedMessages[0].content)}
+
+              <div className="min-w-0 flex-1">
+                <div className="text-[13px] font-semibold text-[var(--text)] leading-tight">Tin nhắn</div>
+                <div className="text-[13px] text-[var(--sub-text)] truncate leading-snug mt-0.5">
+                  <span className="font-medium text-[var(--text)]">{pinnedMessages[0].senderName}: </span>
+                  {(getPinnedPreviewText(pinnedMessages[0]).length > 120
+                    ? `${getPinnedPreviewText(pinnedMessages[0]).slice(0, 120)}...`
+                    : getPinnedPreviewText(pinnedMessages[0]))}
+                </div>
               </div>
             </div>
 
-            {/* More button */}
-            <button
-              onClick={() => setShowPinnedList(!showPinnedList)}
-              className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-[var(--sub-text)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
-              aria-label="Xem tất cả tin nhắn ghim"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" />
-              </svg>
-            </button>
+            <div className="shrink-0 flex items-center gap-1">
+              <button
+                onClick={() => setShowPinnedList(true)}
+                className="h-8 px-2.5 rounded-md border border-[#C7CFDB] text-[#1F2D49] text-[11px] font-semibold hover:bg-[#EEF2F7] transition-colors cursor-pointer inline-flex items-center gap-1"
+                aria-label="Xem tất cả tin nhắn ghim"
+              >
+                <span>+{pinnedMessages.length} ghim</span>
+                <ChevronDownIcon size={12} />
+              </button>
+
+              <button
+                onClick={() => setShowPinnedList(true)}
+                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
+                aria-label="Mở menu tin nhắn ghim"
+              >
+                <MoreHorizontalIcon size={16} />
+              </button>
+            </div>
           </div>
+          )}
 
           {showPinnedList && (
             <>
-              <div className="fixed inset-0 z-10" onClick={() => setShowPinnedList(false)} />
-              <div className="absolute left-0 right-0 top-full z-20 bg-[var(--card-bg)] border-b border-[var(--border)] max-h-[280px] overflow-y-auto custom-scrollbar shadow-lg rounded-b-lg">
-                <div className="px-3 py-1.5 text-[11px] font-semibold text-[var(--sub-text)] uppercase tracking-wider bg-[var(--hover-bg)] sticky top-0 z-10">
-                  {t('chat.pin.pinned')} ({pinnedMessages.length})
-                </div>
-                {pinnedMessages.map((pin, idx) => (
-                  <div
-                    key={pin.id}
-                    className={`px-3 py-2.5 flex items-center gap-3 hover:bg-[var(--hover-bg)] cursor-pointer transition-colors group/pin-item ${idx < pinnedMessages.length - 1 ? 'border-b border-[var(--border)]/40' : ''}`}
-                    onClick={() => {
-                      const el = document.getElementById(`msg-${pin.messageId}`);
-                      if (el) {
-                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        el.classList.add('highlight-msg');
-                        setTimeout(() => el.classList.remove('highlight-msg'), 2000);
-                      }
-                      setShowPinnedList(false);
-                    }}
-                  >
-                    <div className="w-6 h-6 rounded-full bg-[#0068FF]/10 flex items-center justify-center shrink-0">
-                      <span className="text-[11px] font-bold text-[#0068FF]">{idx + 1}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[12px] font-semibold text-[#0068FF] leading-tight">{pin.senderName}</div>
-                      <div className="text-[13px] text-[var(--text)] truncate leading-snug mt-0.5">
-                        {pin.messageType !== 'TEXT' ? `[${pin.messageType}]` : (pin.content?.length > 80 ? `${pin.content.slice(0, 80)}...` : pin.content)}
-                      </div>
+              <div className="absolute left-0 right-0 top-full z-50">
+                <div className="bg-white border border-[#D7DCE4] rounded-none shadow-[0_6px_28px_rgba(0,0,0,0.18)] overflow-hidden">
+                  <div className="h-10 px-4 bg-[#EEF1F6] border-b border-[#D7DCE4] flex items-center justify-between">
+                    <div className="text-[13px] font-semibold text-[#1F2D49] leading-none">
+                      Danh sách ghim ({pinnedMessages.length})
                     </div>
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleUnpinMessage(pin.messageId);
-                      }}
-                      className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover/pin-item:opacity-100 hover:bg-red-50 dark:hover:bg-red-500/10 text-[var(--sub-text)] hover:text-red-500 transition-all cursor-pointer"
-                      title={t('chat.ctx_menu.unpin')}
+                      onClick={() => setShowPinnedList(false)}
+                      className="text-[13px] text-[#1F2D49] hover:text-[#0f172a] flex items-center gap-1 cursor-pointer"
                     >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                      <span>Thu gọn</span>
+                      <span className="rotate-180 inline-flex"><ChevronDownIcon size={13} /></span>
                     </button>
                   </div>
-                ))}
+
+                  <div className="max-h-[320px] overflow-y-auto custom-scrollbar">
+                    {pinnedMessages.map((pin, idx) => (
+                      <div
+                        key={pin.id}
+                        className={`px-4 py-2 flex items-center gap-2.5 cursor-pointer hover:bg-[#F8FAFD] transition-colors ${idx < pinnedMessages.length - 1 ? 'border-b border-[#E6EAF0]' : ''}`}
+                        onClick={() => {
+                          const el = document.getElementById(`msg-${pin.messageId}`);
+                          if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            el.classList.add('highlight-msg');
+                            setTimeout(() => el.classList.remove('highlight-msg'), 2000);
+                          }
+                          setShowPinnedList(false);
+                        }}
+                      >
+                        <div className="shrink-0 text-[#0B63F6]">
+                          <MessageBubbleIcon size={16} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[13px] font-semibold text-[#0f172a] leading-none">Tin nhắn</div>
+                          <div className="text-[12px] text-[#1F2D49] truncate mt-0.5 leading-snug">
+                            <span className="font-medium">{pin.senderName}: </span>
+                            {getPinnedPreviewText(pin)}
+                          </div>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUnpinMessage(pin.messageId);
+                          }}
+                          className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[#374151] hover:bg-[#EEF2F7] cursor-pointer"
+                          title={t('chat.ctx_menu.unpin')}
+                        >
+                          <MoreHorizontalIcon size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    className="w-full h-8 border-t border-[#D7DCE4] text-[12px] text-[#1F2D49] hover:bg-[#F8FAFD] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                    onClick={() => setShowPinnedList(false)}
+                  >
+                    <span>Xem tất cả ở bảng tin nhóm</span>
+                    <ChevronRightIcon size={12} />
+                  </button>
+                </div>
               </div>
             </>
           )}
         </div>
       )}
 
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar px-4 pt-4 pb-2 bg-[var(--chat-bg)]" onScroll={() => setContextMenu(null)}>
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar chat-message-scrollbar px-4 pt-4 pb-2 bg-[var(--chat-bg)]" onScroll={() => setContextMenu(null)}>
         {isInitialLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="w-7 h-7 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
@@ -556,12 +615,12 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                 const effectivePrev = showDateSeparator ? undefined : prevMsg;
                 const showAvatarAndName = isFirstInBlock(msg, effectivePrev);
                 const isRichContent = RICH_MSG_TYPES.has(msg.type);
-                const paddingClass = showTimestamp ? 'pb-6' : isRichContent ? 'pb-2' : 'pb-0.5';
-                const displayText = getDisplayText(msg, selectedChat.isAi);
+                const paddingClass = showTimestamp ? 'pb-6' : isRichContent ? 'pb-4' : 'pb-0.5';
+                const displayText = getDisplayText(msg, Boolean(selectedChat.isAi));
 
                 return (
                   <div
-                    key={msg.id}
+                    key={`row-${msg.id}-${index}`}
                     data-index={index}
                     ref={virtualizer.measureElement}
                     style={{
@@ -580,25 +639,30 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                     )}
 
                     {msg.type === 'MESSAGE_PIN' || msg.type === 'MESSAGE_UNPIN' ? (
-                      <div className="flex justify-center my-1.5">
-                        <div className="flex items-center gap-1.5 bg-black/5 dark:bg-white/10 px-3.5 py-1.5 rounded-2xl max-w-[85%]">
+                      <div className="flex justify-center my-1">
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 max-w-[85%]">
                           {msg.type === 'MESSAGE_PIN' ? (
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                               <path d="M12 17v5" /><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z" />
                             </svg>
                           ) : (
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                               <path d="M12 17v5" /><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z" />
-                              <line x1="3" y1="3" x2="21" y2="21" stroke="#9ca3af" strokeWidth="2" />
+                              <line x1="3" y1="3" x2="21" y2="21" stroke="#f97316" strokeWidth="2" />
                             </svg>
                           )}
                           <span className="text-[12px] text-[var(--sub-text)] leading-snug">
-                            <span className="font-semibold text-[var(--text)]">{msg.sender === 'Me' ? 'Bạn' : msg.sender}</span>
-                            {msg.type === 'MESSAGE_PIN' ? ' đã ghim tin nhắn ' : ' đã bỏ ghim tin nhắn '}
-                            {msg.text && (
-                              <span className="font-semibold text-[var(--text)]">
-                                {msg.text.length > 45 ? `${msg.text.slice(0, 45)}...` : msg.text}
-                              </span>
+                            <span>{msg.sender === 'Me' ? 'Bạn' : msg.sender}</span>
+                            {msg.type === 'MESSAGE_PIN' ? ' đã ghim tin nhắn' : ' đã bỏ ghim tin nhắn'}
+                            {msg.text ? (
+                              <>
+                                <span>: </span>
+                                <span className="font-medium text-[var(--text)]">
+                                  "{msg.text.length > 45 ? `${msg.text.slice(0, 45)}...` : msg.text}"
+                                </span>
+                              </>
+                            ) : (
+                              <span>.</span>
                             )}
                             {msg.type === 'MESSAGE_PIN' && msg.replyToMessageId && (
                               <span
@@ -613,18 +677,23 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                 }}
                               >. Xem</span>
                             )}
-                            {msg.type === 'MESSAGE_UNPIN' && <span>.</span>}
                           </span>
                         </div>
                       </div>
                     ) : msg.type === 'SYSTEM' ? (
-                      <div className="flex justify-center my-1">
-                        <span className="bg-black/5 dark:bg-white/10 px-4 py-1.5 rounded-full text-[12px] text-[var(--sub-text)] opacity-80">{msg.text}</span>
+                      <div className="flex justify-center my-1.5">
+                        <div className="flex items-center gap-1.5 bg-white border border-gray-200 px-3.5 py-1.5 rounded-2xl max-w-[85%] shadow-sm">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="shrink-0 text-[#f97316]" aria-hidden="true">
+                            <path d="M12 2.75a6.25 6.25 0 0 0-6.25 6.25v3.41c0 .58-.23 1.13-.64 1.54l-1.3 1.3A1 1 0 0 0 4.52 17h14.96a1 1 0 0 0 .71-1.71l-1.3-1.3a2.18 2.18 0 0 1-.64-1.54V9A6.25 6.25 0 0 0 12 2.75Z" />
+                            <circle cx="12" cy="18.25" r="1.75" />
+                          </svg>
+                          <span className="text-[12px] text-gray-500 leading-snug break-words">{msg.text}</span>
+                        </div>
                       </div>
                     ) : msg.type === 'CALL_MISSED' || msg.type === 'CALL_REJECTED' || msg.type === 'CALL_ENDED' ? (
                       <CallHistoryMessage msg={msg} currentUserId={currentUser?.id} selectedChat={selectedChat} t={t} />
                     ) : (
-                      <div id={`msg-${msg.id}`} className={`flex ${msg.sender === 'Me' ? 'justify-end' : 'justify-start'} transition-colors duration-300 [&.highlight-msg]:bg-[#0068FF]/10 rounded-lg`}>
+                      <div id={`msg-${msg.id}`} className={`flex ${msg.sender === 'Me' ? 'justify-end pr-1' : 'justify-start'} -mx-4 px-4 rounded-none transition-colors duration-300 [&.highlight-msg]:bg-[#C6D4E4]`}>
                         <div className={`flex gap-1.5 max-w-[72%] group relative ${msg.sender === 'Me' ? 'flex-row-reverse' : ''} items-center`}>
                           {msg.sender !== 'Me' && (
                             showAvatarAndName ? (
@@ -754,6 +823,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                           src={msg.text}
                                           alt="Shared"
                                           className={`h-full w-full cursor-pointer object-cover transition-all hover:opacity-90 ${msg.isUploading ? 'blur-[2px] brightness-75' : ''}`}
+                                          onLoad={requestVirtualMeasure}
                                           onClick={() => !msg.isUploading && setOpenedImageSrc(msg.text)}
                                         />
                                         <div className="absolute bottom-2 left-2 text-white/80 drop-shadow-md">
@@ -778,7 +848,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                         )}
                                       </div>
                                     ) : (
-                                      <video src={msg.text} controls className="max-w-[320px] max-h-[360px] rounded-md shadow-sm object-contain" />
+                                      <video src={msg.text} controls onLoadedData={requestVirtualMeasure} className="max-w-[320px] max-h-[360px] rounded-md shadow-sm object-contain" />
                                     )}
                                     {msg.caption && (
                                       <div className={`px-2.5 py-1.5 text-[14px] leading-snug break-words rounded-b-md max-w-[320px] shadow-sm ${
@@ -814,7 +884,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                       if (count === 1) {
                                         return (
                                           <div className="relative max-w-[320px] overflow-hidden bg-slate-100 shadow-sm rounded-md" style={{ aspectRatio: '4/3' }}>
-                                            <img src={imgs[0].url} alt="Shared" className={`h-full w-full cursor-pointer object-cover hover:opacity-90 ${blurClass}`} onClick={() => !msg.isUploading && setOpenedImageSrc(imgs[0].url)} />
+                                            <img src={imgs[0].url} alt="Shared" className={`h-full w-full cursor-pointer object-cover hover:opacity-90 ${blurClass}`} onLoad={requestVirtualMeasure} onClick={() => !msg.isUploading && setOpenedImageSrc(imgs[0].url)} />
                                           </div>
                                         );
                                       }
@@ -823,7 +893,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                           <div className={`grid grid-cols-2 gap-0.5 w-[300px] rounded-md overflow-hidden shadow-sm ${blurClass}`}>
                                             {imgs.map((att, i) => (
                                               <div key={i} className="relative aspect-square bg-slate-100 overflow-hidden">
-                                                <img src={att.url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onClick={() => !msg.isUploading && setOpenedImageSrc(att.url)} />
+                                                <img src={att.url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onLoad={requestVirtualMeasure} onClick={() => !msg.isUploading && setOpenedImageSrc(att.url)} />
                                               </div>
                                             ))}
                                           </div>
@@ -833,13 +903,13 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                         return (
                                           <div className={`grid grid-cols-2 gap-0.5 w-[300px] rounded-md overflow-hidden shadow-sm ${blurClass}`} style={{ gridTemplateRows: '1fr 1fr' }}>
                                             <div className="row-span-2 relative bg-slate-100 overflow-hidden">
-                                              <img src={imgs[0].url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onClick={() => !msg.isUploading && setOpenedImageSrc(imgs[0].url)} />
+                                              <img src={imgs[0].url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onLoad={requestVirtualMeasure} onClick={() => !msg.isUploading && setOpenedImageSrc(imgs[0].url)} />
                                             </div>
                                             <div className="relative aspect-square bg-slate-100 overflow-hidden">
-                                              <img src={imgs[1].url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onClick={() => !msg.isUploading && setOpenedImageSrc(imgs[1].url)} />
+                                              <img src={imgs[1].url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onLoad={requestVirtualMeasure} onClick={() => !msg.isUploading && setOpenedImageSrc(imgs[1].url)} />
                                             </div>
                                             <div className="relative aspect-square bg-slate-100 overflow-hidden">
-                                              <img src={imgs[2].url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onClick={() => !msg.isUploading && setOpenedImageSrc(imgs[2].url)} />
+                                              <img src={imgs[2].url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onLoad={requestVirtualMeasure} onClick={() => !msg.isUploading && setOpenedImageSrc(imgs[2].url)} />
                                             </div>
                                           </div>
                                         );
@@ -862,7 +932,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                             <div key={ri} className="grid gap-0.5" style={{ gridTemplateColumns: `repeat(${row.length}, 1fr)` }}>
                                               {row.map((att, ci) => (
                                                 <div key={ci} className="relative aspect-square overflow-hidden">
-                                                  <img src={att.url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onClick={() => !msg.isUploading && setOpenedImageSrc(att.url)} />
+                                                  <img src={att.url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onLoad={requestVirtualMeasure} onClick={() => !msg.isUploading && setOpenedImageSrc(att.url)} />
                                                 </div>
                                               ))}
                                             </div>
@@ -1033,7 +1103,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
 
                               return (
                                 <div className={`mt-2 flex items-center gap-2 ${msg.sender === 'Me' ? 'justify-end' : 'justify-start'}`}>
-                                  {msg.type !== 'TEXT' && showTimestamp && (
+                                  {msg.type !== 'TEXT' && msg.type !== 'LINK' && showTimestamp && (
                                     <span className="text-[11px] text-[var(--sub-text)] opacity-100 font-medium">{msg.time}</span>
                                   )}
                                   {showReadStatus && (() => {
@@ -1102,7 +1172,6 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                 </div>
                               </div>
 
-                              <button title={t('chat.actions.reply')} onClick={() => { setReplyingTo({ id: msg.id, text: msg.text, sender: msg.sender, type: msg.type }); setTimeout(() => messageInputRef.current?.focus(), 50); }} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg></button>
                               <button title={t('chat.actions.forward')} onClick={() => setForwardingMsg({ id: msg.id, text: msg.text, type: msg.type, sender: msg.sender })} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 10l5-5 5 5M8 6v8a4 4 0 004 4h9" /></svg></button>
                               <button title={t('chat.actions.more')} onClick={(e) => openContextMenu(e, msg)} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg></button>
                             </div>
@@ -1141,7 +1210,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
           ))}
         </div>
       )}
-    </>
+    </div>
   );
 }
 
