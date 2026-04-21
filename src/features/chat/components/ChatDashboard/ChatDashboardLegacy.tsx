@@ -790,6 +790,26 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
                       return sortConversations(cloned);
                     });
                   }}
+                  onUpdateConversationMeta={(id, updates) => {
+                    setConversations(prev => prev.map(c => {
+                      if (String(c.id) !== String(id)) return c;
+
+                      const nextConversation = { ...c };
+
+                      if (typeof updates.name === 'string' && updates.name.trim()) {
+                        nextConversation.name = updates.name.trim();
+                      }
+
+                      if (typeof updates.avatar === 'string') {
+                        nextConversation.avatar = updates.avatar;
+                        if (updates.avatar) {
+                          nextConversation.groupAvatarUrls = [];
+                        }
+                      }
+
+                      return nextConversation;
+                    }));
+                  }}
                   onNicknameChange={(id, nickname) => {
                     setConversations(prev =>
                       prev.map(c => c.id === id ? { ...c, nickname: nickname || undefined } : c)

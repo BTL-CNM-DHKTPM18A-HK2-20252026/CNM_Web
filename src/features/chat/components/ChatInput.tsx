@@ -1,8 +1,9 @@
 import type { ClipboardEvent, KeyboardEvent, RefObject } from 'react';
+import { useEffect, useRef } from 'react';
 import { EmojiIcon, LikeIcon, SendIcon } from '@/components/ui/Icons';
 
 interface ChatInputProps {
-  inputRef?: RefObject<HTMLInputElement | null>;
+  inputRef?: RefObject<HTMLTextAreaElement | null>;
   value: string;
   placeholder?: string;
   disabled?: boolean;
@@ -12,8 +13,8 @@ interface ChatInputProps {
   onSend: () => void;
   onSendLike: () => void;
   onToggleEmoji?: () => void;
-  onKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void;
-  onPaste?: (event: ClipboardEvent<HTMLInputElement>) => void;
+  onKeyDown?: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
+  onPaste?: (event: ClipboardEvent<HTMLTextAreaElement>) => void;
 }
 
 export function ChatInput({
@@ -30,19 +31,30 @@ export function ChatInput({
   onKeyDown,
   onPaste,
 }: ChatInputProps) {
+  const internalRef = useRef<HTMLTextAreaElement>(null);
+  const ref = (inputRef as any) || internalRef;
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.style.height = '28px'; // baseline for 1 line
+      const scrollHeight = ref.current.scrollHeight;
+      ref.current.style.height = `${Math.min(scrollHeight, 120)}px`;
+    }
+  }, [value, ref]);
+
   return (
-    <div className="flex items-center px-4 py-3 gap-3">
-      <div className="flex-1">
-        <input
-          ref={inputRef}
-          type="text"
+    <div className="flex items-end px-4 py-3 gap-3">
+      <div className="flex-1 pb-1">
+        <textarea
+          ref={ref as any}
+          rows={1}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={onKeyDown}
           onPaste={onPaste}
           placeholder={placeholder}
           disabled={disabled}
-          className="w-full bg-transparent outline-none text-[15px] placeholder:text-[var(--sub-text)] placeholder:opacity-50 py-1 text-[var(--text)] disabled:opacity-50"
+          className="w-full bg-transparent outline-none text-[15px] placeholder:text-[var(--sub-text)] placeholder:opacity-50 py-0 text-[var(--text)] disabled:opacity-50 resize-none overflow-y-auto block leading-[20px]"
         />
       </div>
       <div className="flex items-center gap-2 pr-1 shrink-0">

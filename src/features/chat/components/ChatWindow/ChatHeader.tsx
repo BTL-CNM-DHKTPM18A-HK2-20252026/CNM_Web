@@ -15,6 +15,7 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
     nickname,
     activeSidebar,
     onToggleSidebar,
+    onUpdateConversationMeta,
     setIsNicknameModalOpen,
     currentUser,
     // Summary
@@ -26,7 +27,7 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
     fetchSummary,
   } = vm;
   const [isGroupInfoModalOpen, setIsGroupInfoModalOpen] = useState(false);
-  const [groupModalView, setGroupModalView] = useState<'info' | 'avatar' | 'rename'>('info');
+  const [groupModalView, setGroupModalView] = useState<'info' | 'avatar' | 'rename' | 'members'>('info');
   const [groupNameDraft, setGroupNameDraft] = useState('');
   const [groupNameOverride, setGroupNameOverride] = useState('');
   const [groupAvatarOverride, setGroupAvatarOverride] = useState<string | undefined>(undefined);
@@ -84,13 +85,21 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
     try {
       await apiClient.patch(`/conversations/${selectedChat.id}`, payload);
 
+      const updates: { name?: string; avatar?: string } = {};
+
       if (typeof payload.conversationName === 'string') {
         const normalizedName = payload.conversationName.trim();
         setGroupNameOverride(normalizedName);
         setGroupNameDraft(normalizedName);
+        updates.name = normalizedName;
       }
       if (typeof payload.conversationAvatarUrl === 'string') {
         setGroupAvatarOverride(payload.conversationAvatarUrl);
+        updates.avatar = payload.conversationAvatarUrl;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        onUpdateConversationMeta?.(selectedChat.id, updates);
       }
 
       return true;
@@ -100,7 +109,7 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
     } finally {
       setIsSavingGroupInfo(false);
     }
-  }, [selectedChat.id, selectedChat.isGroup]);
+  }, [onUpdateConversationMeta, selectedChat.id, selectedChat.isGroup]);
 
   const shouldShowGroupAvatarFallback = Boolean(selectedChat.isGroup && !displayGroupAvatar);
   const groupAvatarTiles = [
@@ -117,10 +126,23 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
   const openGroupAvatarPanel = useCallback(() => {
     setGroupModalView('avatar');
   }, []);
+  const openGroupMembersPanel = useCallback(() => {
+    setGroupModalView('members');
+  }, []);
   const openRenameGroupPanel = useCallback(() => {
     setGroupNameDraft(displayGroupName || '');
     setGroupModalView('rename');
   }, [displayGroupName]);
+  const handleEditConversationName = useCallback(() => {
+    if (selectedChat.isGroup) {
+      setGroupNameDraft(displayGroupName || '');
+      setGroupModalView('rename');
+      setIsGroupInfoModalOpen(true);
+      return;
+    }
+
+    setIsNicknameModalOpen(true);
+  }, [displayGroupName, selectedChat.isGroup, setIsNicknameModalOpen]);
   const handleSelectDefaultAvatar = useCallback(async (avatarUrl: string) => {
     const ok = await updateGroupInfo({ conversationAvatarUrl: avatarUrl });
     if (!ok) return;
@@ -148,10 +170,19 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
     ...groupAvatarTiles.filter((url): url is string => Boolean(url)),
     ...(displayGroupAvatar ? [displayGroupAvatar] : []),
   ].slice(0, 4);
-  const mediaPreviewItems = [
-    ...groupAvatarTiles.filter((url): url is string => Boolean(url)),
-    ...(displayGroupAvatar ? [displayGroupAvatar] : []),
-  ].slice(0, 3);
+
+  const [mediaPreviewItems, setMediaPreviewItems] = useState<string[]>([]);
+  useEffect(() => {
+    if (selectedChat.id) {
+      apiClient.get(`/messages/conversation/${selectedChat.id}/media`)
+        .then((res: any) => {
+          const items = Array.isArray(res) ? res : (res?.data || []);
+          const imagesAndVideos = items.filter((m: any) => m.messageType === 'IMAGE' || m.messageType === 'VIDEO');
+          setMediaPreviewItems(imagesAndVideos.map((m: any) => m.content).slice(0, 4));
+        })
+        .catch(() => {});
+    }
+  }, [selectedChat.id]);
   const groupJoinLink = `https://zalo.me/g/${String(selectedChat.id || 'qoiwgj852')}`;
 
   const handleCopyGroupLink = useCallback(() => {
@@ -232,7 +263,9 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
             <h3 className="text-[18px] font-bold leading-none mb-1.5 text-[var(--text)] truncate flex items-center gap-1.5">
               {selectedChat.isGroup ? displayGroupName : (nickname || selectedChat.name)}
               <button
-                onClick={() => setIsNicknameModalOpen(true)}
+                onClick={handleEditConversationName}
+                type="button"
+                title={selectedChat.isGroup ? 'Đổi tên nhóm' : 'Đặt biệt danh'}
                 className="p-1 hover:bg-[var(--hover-bg)] rounded-md opacity-0 group-hover/info:opacity-100 transition-all text-gray-400 hover:text-[var(--text)]"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
@@ -255,17 +288,10 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
       </div>
 
       <div className="flex items-center gap-6 text-[var(--sub-text)] pr-2 shrink-0">
-        {!selectedChat.isCloud && !selectedChat.isAi && (
-          <>
-            <button className="cursor-pointer transition-all p-1.5 rounded-md hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70" title={t('chat.header.add_to_group')}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" /></svg>
-            </button>
-            {!selectedChat.isGroup && (
-              <button onClick={handleVideoCall} className="cursor-pointer transition-all p-1.5 rounded-md hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70" title={t('chat.header.video_call')}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></svg>
-              </button>
-            )}
-          </>
+        {!selectedChat.isCloud && !selectedChat.isAi && !selectedChat.isGroup && (
+          <button onClick={handleVideoCall} className="cursor-pointer transition-all p-1.5 rounded-md hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70" title={t('chat.header.video_call')}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></svg>
+          </button>
         )}
 
         {!selectedChat.isCloud && !selectedChat.isAi && (
@@ -345,131 +371,268 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
 
       {isGroupInfoModalOpen && selectedChat.isGroup && (
         <div className="fixed inset-0 z-[130] flex items-center justify-center p-3">
-          <div className="absolute inset-0 bg-black/45" onClick={() => setIsGroupInfoModalOpen(false)} />
+          <div className="absolute inset-0 bg-black/45" onClick={closeGroupModal} />
           <div className="relative z-[131] w-full max-w-[460px] bg-[#F3F4F6] rounded-md overflow-hidden border border-[#D8DADF] shadow-2xl animate-in zoom-in-95 duration-150">
             <div className="h-[54px] px-4 bg-white border-b border-[#D8DADF] flex items-center justify-between">
-              <h3 className="text-[15px] leading-none font-semibold text-[#13233F]">Thông tin nhóm</h3>
-              <button type="button" onClick={() => setIsGroupInfoModalOpen(false)} className="w-8 h-8 rounded-full hover:bg-[#EEF1F5] flex items-center justify-center cursor-pointer text-[#13233F]">
+              <div className="flex items-center gap-2">
+                {groupModalView !== 'info' && (
+                  <button
+                    type="button"
+                    onClick={() => setGroupModalView('info')}
+                    className="w-8 h-8 rounded-full hover:bg-[#EEF1F5] flex items-center justify-center cursor-pointer text-[#13233F]"
+                    aria-label="Quay lại thông tin nhóm"
+                  >
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+                  </button>
+                )}
+                <h3 className="text-[15px] leading-none font-semibold text-[#13233F]">
+                  {groupModalView === 'avatar' ? 'Cập nhật ảnh đại diện' : groupModalView === 'rename' ? 'Đổi tên nhóm' : groupModalView === 'members' ? 'Thành viên nhóm' : 'Thông tin nhóm'}
+                </h3>
+              </div>
+
+              <button type="button" onClick={closeGroupModal} className="w-8 h-8 rounded-full hover:bg-[#EEF1F5] flex items-center justify-center cursor-pointer text-[#13233F]">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
               </button>
             </div>
 
-            <div className="px-4 py-4 bg-[#F3F4F6]">
-              <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 border border-[#C7CED9] shrink-0 relative">
-                  {selectedChat.avatar ? (
-                    <img src={selectedChat.avatar} alt={selectedChat.name} className="w-full h-full object-cover" />
-                  ) : memberPreviewAvatars.length > 0 ? (
-                    <div className="w-full h-full relative bg-[#E8ECF2]">
-                      <div className="absolute left-1.5 top-1.5 w-8 h-8 rounded-full overflow-hidden border border-[#D0D6DF] bg-gray-200">
-                        {memberPreviewAvatars[0] ? <img src={memberPreviewAvatars[0]} alt={selectedChat.name} className="w-full h-full object-cover" /> : null}
+            {groupModalView === 'avatar' ? (
+              <div className="bg-[#F3F4F6] p-4 pb-5">
+                <button
+                  type="button"
+                  onClick={() => toast.info('Tải ảnh từ máy sẽ được cập nhật trong bản tiếp theo.')}
+                  className="w-full h-12 rounded bg-[#D6E6FF] hover:bg-[#C7DDFF] text-[#0A55C2] text-[16px] leading-none font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></svg>
+                  <span>Tải lên từ máy tính</span>
+                </button>
+
+                <div className="mt-5 text-[16px] font-semibold text-[#13233F]">Bộ sưu tập</div>
+
+                <div className="mt-4 grid grid-cols-4 gap-4">
+                  {DEFAULT_GROUP_AVATARS.map((avatarUrl, idx) => {
+                    const isSelected = displayGroupAvatar === avatarUrl;
+
+                    return (
+                      <button
+                        key={avatarUrl}
+                        type="button"
+                        onClick={() => handleSelectDefaultAvatar(avatarUrl)}
+                        disabled={isSavingGroupInfo}
+                        className={`relative aspect-square rounded-full overflow-hidden border transition-all cursor-pointer ${isSelected ? 'border-[#0F69FF] ring-2 ring-[#9CC0FF]' : 'border-[#BFC8D7] hover:border-[#93A4BE]'} ${isSavingGroupInfo ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        aria-label={`Chọn ảnh đại diện mẫu ${idx + 1}`}
+                      >
+                        <img src={avatarUrl} alt={`Avatar mẫu ${idx + 1}`} className="w-full h-full object-cover" />
+                        {isSelected && (
+                          <div className="absolute inset-0 bg-[#0F69FF]/20 flex items-center justify-center">
+                            <div className="w-6 h-6 rounded-full bg-white text-[#0F69FF] flex items-center justify-center">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                            </div>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : groupModalView === 'members' ? (
+              <div className="bg-[#F3F4F6] p-4 pb-5 max-h-[420px] overflow-y-auto">
+                <p className="text-[13px] text-[#5A667A] mb-3">
+                  {selectedChat.memberCount || 0} thành viên
+                </p>
+                <div className="space-y-3">
+                  {memberPreviewAvatars.map((url, idx) => (
+                    <div key={`member-list-${url}-${idx}`} className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 border border-[#D0D6DF] shrink-0">
+                        <img src={url} alt={`Thành viên ${idx + 1}`} className="w-full h-full object-cover" />
                       </div>
-                      <div className="absolute right-1.5 top-1.5 w-8 h-8 rounded-full overflow-hidden border border-[#D0D6DF] bg-gray-200">
-                        {memberPreviewAvatars[1] ? <img src={memberPreviewAvatars[1]} alt={selectedChat.name} className="w-full h-full object-cover" /> : null}
-                      </div>
-                      <div className="absolute left-1.5 bottom-1.5 w-8 h-8 rounded-full overflow-hidden border border-[#D0D6DF] bg-gray-200">
-                        {memberPreviewAvatars[2] ? <img src={memberPreviewAvatars[2]} alt={selectedChat.name} className="w-full h-full object-cover" /> : null}
-                      </div>
-                      <div className="absolute right-1.5 bottom-1.5 w-8 h-8 rounded-full border border-[#D0D6DF] bg-[#D8DEE8] text-[#5B6576] text-[10px] font-bold flex items-center justify-center">
-                        {selectedChat.memberCount || 0}
-                      </div>
+                      <span className="text-[13px] font-medium text-[#13233F]">Thành viên {idx + 1}</span>
                     </div>
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-[28px] font-bold text-[#5B6576]">
-                      {selectedChat.name?.charAt(0) || '?'}
-                    </div>
+                  ))}
+                  {(selectedChat.memberCount || 0) > memberPreviewAvatars.length && (
+                    <p className="text-[12px] text-[#5A667A] text-center pt-1">
+                      và {(selectedChat.memberCount || 0) - memberPreviewAvatars.length} thành viên khác
+                    </p>
                   )}
-                  <button type="button" className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full border border-[#BBC4D1] bg-[#DDE2E9] text-[#22324D] flex items-center justify-center">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.2"/></svg>
-                  </button>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[13px] leading-tight font-semibold text-[#13233F] truncate flex items-center gap-2">
-                    {selectedChat.name}
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-[#22324D]" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-                  </div>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsGroupInfoModalOpen(false)}
-                className="mt-3.5 w-full h-9 bg-[#DADDE3] hover:bg-[#CFD5DE] rounded text-[16px] leading-none font-semibold text-[#13233F] cursor-pointer transition-colors"
-              >
-                Nhắn tin
-              </button>
-            </div>
-
-            <div className="h-2 bg-[#E0E3E8]" />
-
-            <div className="px-4 py-3.5 bg-[#F3F4F6] border-b border-[#D8DADF]">
-              <div className="text-[13px] leading-none font-semibold text-[#13233F]">Thành viên ({selectedChat.memberCount || 0})</div>
-              <div className="mt-4 flex items-center">
-                {memberPreviewAvatars.map((url, idx) => (
-                  <div
-                    key={`${url}-${idx}`}
-                    className={`w-12 h-12 rounded-full overflow-hidden border-2 border-[#F3F4F6] bg-gray-300 ${idx > 0 ? '-ml-2.5' : ''}`}
-                  >
-                    <img src={url} alt={`Member ${idx + 1}`} className="w-full h-full object-cover" />
-                  </div>
-                ))}
-                <button type="button" className="w-12 h-12 -ml-2.5 rounded-full border-2 border-[#F3F4F6] bg-[#D5D8DE] text-[#23324A] text-[24px] leading-none font-semibold flex items-center justify-center">...</button>
-              </div>
-            </div>
-
-            <div className="h-2 bg-[#E0E3E8]" />
-
-            <div className="px-4 py-3.5 bg-[#F3F4F6] border-b border-[#D8DADF]">
-              <div className="text-[13px] leading-none font-semibold text-[#13233F]">Ảnh/Video</div>
-              <div className="mt-4 grid grid-cols-4 gap-3">
-                {Array.from({ length: 3 }).map((_, idx) => (
-                  <div key={idx} className="aspect-[1.1/1] rounded overflow-hidden bg-[#E2E6ED] border border-[#D0D6E0]">
-                    {mediaPreviewItems[idx] ? (
-                      <img src={mediaPreviewItems[idx]} alt={`Media ${idx + 1}`} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-[#7B8494] text-[11px]">Ảnh</div>
-                    )}
-                  </div>
-                ))}
-                <button type="button" onClick={() => onToggleSidebar('info')} className="aspect-[1.1/1] rounded bg-[#D6DFEE] text-[#0F69FF] flex items-center justify-center">
-                  <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                <button
+                  type="button"
+                  onClick={() => { setIsGroupInfoModalOpen(false); onToggleSidebar('info'); }}
+                  className="mt-4 w-full h-9 bg-[#DADDE3] hover:bg-[#CFD5DE] rounded text-[13px] leading-none font-semibold text-[#13233F] cursor-pointer transition-colors"
+                >
+                  Xem tất cả thành viên
                 </button>
               </div>
-            </div>
+            ) : groupModalView === 'rename' ? (
+              <div className="bg-[#F3F4F6] p-4 pb-5">
+                <label className="text-[13px] text-[#5A667A] font-medium">Tên nhóm mới</label>
+                <input
+                  type="text"
+                  value={groupNameDraft}
+                  onChange={(e) => setGroupNameDraft(e.target.value)}
+                  placeholder="Nhập tên nhóm"
+                  className="mt-2 w-full h-10 rounded border border-[#CBD3DF] px-3 text-[14px] text-[#13233F] bg-white outline-none focus:border-[#0F69FF]"
+                  maxLength={60}
+                />
 
-            <div className="h-2 bg-[#E0E3E8]" />
-
-            <div className="px-4 py-3.5 bg-[#F3F4F6] space-y-3.5">
-              <div className="flex items-center justify-between gap-4 rounded-md px-2 py-1.5 -mx-1.5 transition-colors hover:bg-[#E7EBF2]">
-                <div className="flex items-start gap-3 min-w-0">
-                  <div className="pt-1 text-[#5A667A]">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l2.1-2.1a5 5 0 0 0-7.07-7.07l-1.21 1.21"/><path d="M14 11a5 5 0 0 0-7.54-.54l-2.1 2.1a5 5 0 0 0 7.07 7.07l1.21-1.21"/></svg>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-[13px] leading-none font-medium text-[#13233F]">Link tham gia nhóm</div>
-                    <button type="button" onClick={handleOpenGroupLink} className="mt-1 text-[12px] leading-tight text-[#0F69FF] hover:underline break-all text-left">{groupJoinLink}</button>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 shrink-0">
-                  <button type="button" onClick={handleCopyGroupLink} className="w-11 h-11 rounded-full bg-[#D9DDE4] hover:bg-[#CFD4DC] text-[#3A4658] flex items-center justify-center">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+                <div className="mt-4 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setGroupModalView('info')}
+                    className="h-9 px-4 rounded bg-[#DFE3EA] hover:bg-[#D4DAE4] text-[#2D3B52] text-[13px] font-medium transition-colors cursor-pointer"
+                  >
+                    Hủy
                   </button>
-                  <button type="button" onClick={handleOpenGroupLink} className="w-11 h-11 rounded-full bg-[#D9DDE4] hover:bg-[#CFD4DC] text-[#3A4658] flex items-center justify-center">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3h7v7"/><path d="M10 14 21 3"/><path d="M21 14v4a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h4"/></svg>
+                  <button
+                    type="button"
+                    onClick={handleConfirmRenameGroup}
+                    disabled={isSavingGroupInfo}
+                    className="h-9 px-4 rounded bg-[#0F69FF] hover:bg-[#0B5CE3] text-white text-[13px] font-medium transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    Lưu
                   </button>
                 </div>
               </div>
+            ) : (
+              <>
+                <div className="px-4 py-4 bg-[#F3F4F6]">
+                  <div className="flex items-center gap-4">
+                    <div className="relative shrink-0">
+                      <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 border border-[#C7CED9]">
+                        {displayGroupAvatar ? (
+                          <img src={displayGroupAvatar} alt={displayGroupName} className="w-full h-full object-cover" />
+                        ) : memberPreviewAvatars.length > 0 ? (
+                          <div className="w-full h-full relative bg-[#E8ECF2]">
+                            <div className="absolute left-1.5 top-1.5 w-8 h-8 rounded-full overflow-hidden border border-[#D0D6DF] bg-gray-200">
+                              {memberPreviewAvatars[0] ? <img src={memberPreviewAvatars[0]} alt={displayGroupName} className="w-full h-full object-cover" /> : null}
+                            </div>
+                            <div className="absolute right-1.5 top-1.5 w-8 h-8 rounded-full overflow-hidden border border-[#D0D6DF] bg-gray-200">
+                              {memberPreviewAvatars[1] ? <img src={memberPreviewAvatars[1]} alt={displayGroupName} className="w-full h-full object-cover" /> : null}
+                            </div>
+                            <div className="absolute left-1.5 bottom-1.5 w-8 h-8 rounded-full overflow-hidden border border-[#D0D6DF] bg-gray-200">
+                              {memberPreviewAvatars[2] ? <img src={memberPreviewAvatars[2]} alt={displayGroupName} className="w-full h-full object-cover" /> : null}
+                            </div>
+                            <div className="absolute right-1.5 bottom-1.5 w-8 h-8 rounded-full border border-[#D0D6DF] bg-[#D8DEE8] text-[#5B6576] text-[10px] font-bold flex items-center justify-center">
+                              {selectedChat.memberCount || 0}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-[28px] font-bold text-[#5B6576]">
+                            {displayGroupName?.charAt(0) || '?'}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={openGroupAvatarPanel}
+                        className="absolute -bottom-1 -right-1 z-10 w-8 h-8 rounded-full border border-[#BBC4D1] bg-[#DDE2E9] text-[#22324D] hover:bg-[#D2D9E3] flex items-center justify-center cursor-pointer"
+                        aria-label="Cập nhật ảnh đại diện"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h3l2-2h6l2 2h3v12H4z" /><circle cx="12" cy="13" r="3.2" /></svg>
+                      </button>
+                    </div>
 
-              <button type="button" onClick={() => { setIsGroupInfoModalOpen(false); onToggleSidebar('info'); }} className="w-full flex items-center gap-3 text-left cursor-pointer text-[#13233F] rounded-md px-2 py-1.5 -mx-1.5 transition-colors hover:bg-[#E7EBF2]">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01A1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01A1.65 1.65 0 0 0 20.91 10H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                <span className="text-[13px] leading-none font-medium">Quản lý nhóm</span>
-              </button>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] leading-tight font-semibold text-[#13233F] truncate flex items-center gap-2">
+                        {displayGroupName}
+                        <button
+                          type="button"
+                          onClick={openRenameGroupPanel}
+                          className="w-6 h-6 rounded-full hover:bg-[#E7EBF2] text-[#22324D] flex items-center justify-center cursor-pointer"
+                          aria-label="Đổi tên nhóm"
+                        >
+                          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
 
-              <button type="button" onClick={() => { setIsGroupInfoModalOpen(false); onToggleSidebar('info'); }} className="w-full flex items-center gap-3 text-left cursor-pointer text-[#D22929] rounded-md px-2 py-1.5 -mx-1.5 transition-colors hover:bg-[#FBEAEC]">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                <span className="text-[13px] leading-none font-medium">Rời nhóm</span>
-              </button>
-            </div>
+                  <button
+                    type="button"
+                    onClick={closeGroupModal}
+                    className="mt-3.5 w-full h-9 bg-[#DADDE3] hover:bg-[#CFD5DE] rounded text-[16px] leading-none font-semibold text-[#13233F] cursor-pointer transition-colors"
+                  >
+                    Nhắn tin
+                  </button>
+                </div>
+
+                <div className="h-2 bg-[#E0E3E8]" />
+
+                <div className="px-4 py-3.5 bg-[#F3F4F6] border-b border-[#D8DADF]">
+                  <div className="text-[13px] leading-none font-semibold text-[#13233F]">Thành viên ({selectedChat.memberCount || 0})</div>
+                  <div className="mt-4 flex items-center">
+                    {memberPreviewAvatars.map((url, idx) => (
+                      <div
+                        key={`${url}-${idx}`}
+                        className={`w-9 h-9 rounded-full overflow-hidden border-2 border-[#F3F4F6] bg-gray-300 ${idx > 0 ? '-ml-2' : ''}`}
+                      >
+                        <img src={url} alt={`Member ${idx + 1}`} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={openGroupMembersPanel}
+                      className="w-9 h-9 -ml-2 rounded-full border-2 border-[#F3F4F6] bg-[#D5D8DE] text-[#23324A] text-[18px] leading-none font-semibold flex items-center justify-center hover:bg-[#C8CCD6] transition-colors cursor-pointer"
+                      aria-label="Xem danh sách thành viên"
+                    >...</button>
+                  </div>
+                </div>
+
+                <div className="h-2 bg-[#E0E3E8]" />
+
+                <div className="px-4 py-3.5 bg-[#F3F4F6] border-b border-[#D8DADF]">
+                  <div className="text-[13px] leading-none font-semibold text-[#13233F]">Ảnh/Video</div>
+                  <div className="mt-4 grid grid-cols-5 gap-2">
+                    {Array.from({ length: 4 }).map((_, idx) => (
+                      <div key={idx} className="aspect-[1.1/1] rounded overflow-hidden bg-[#E2E6ED] border border-[#D0D6E0]">
+                        {mediaPreviewItems[idx] ? (
+                          <img src={mediaPreviewItems[idx]} alt={`Media ${idx + 1}`} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-[#7B8494] text-[10px]">Ảnh</div>
+                        )}
+                      </div>
+                    ))}
+                    <button type="button" onClick={() => onToggleSidebar('info')} className="aspect-[1.1/1] rounded bg-[#D6DFEE] text-[#0F69FF] flex items-center justify-center hover:bg-[#C2D1E8] transition-colors cursor-pointer">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="h-2 bg-[#E0E3E8]" />
+
+                <div className="px-4 py-3.5 bg-[#F3F4F6] space-y-3.5">
+                  <div className="flex items-center justify-between gap-4 rounded-md px-2 py-1.5 -mx-1.5 transition-colors hover:bg-[#E7EBF2]">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="pt-1 text-[#5A667A]">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l2.1-2.1a5 5 0 0 0-7.07-7.07l-1.21 1.21" /><path d="M14 11a5 5 0 0 0-7.54-.54l-2.1 2.1a5 5 0 0 0 7.07 7.07l1.21-1.21" /></svg>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[13px] leading-none font-medium text-[#13233F]">Link tham gia nhóm</div>
+                        <button type="button" onClick={handleOpenGroupLink} className="mt-1 text-[12px] leading-tight text-[#0F69FF] hover:underline break-all text-left">{groupJoinLink}</button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      <button type="button" onClick={handleCopyGroupLink} className="w-11 h-11 rounded-full bg-[#D9DDE4] hover:bg-[#CFD4DC] text-[#3A4658] flex items-center justify-center">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>
+                      </button>
+                      <button type="button" onClick={handleOpenGroupLink} className="w-11 h-11 rounded-full bg-[#D9DDE4] hover:bg-[#CFD4DC] text-[#3A4658] flex items-center justify-center">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3h7v7" /><path d="M10 14 21 3" /><path d="M21 14v4a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h4" /></svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  <button type="button" onClick={() => { setIsGroupInfoModalOpen(false); onToggleSidebar('info'); }} className="w-full flex items-center gap-3 text-left cursor-pointer text-[#13233F] rounded-md px-2 py-1.5 -mx-1.5 transition-colors hover:bg-[#E7EBF2]">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01A1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01A1.65 1.65 0 0 0 20.91 10H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
+                    <span className="text-[13px] leading-none font-medium">Quản lý nhóm</span>
+                  </button>
+
+                  <button type="button" onClick={() => { setIsGroupInfoModalOpen(false); onToggleSidebar('info'); }} className="w-full flex items-center gap-3 text-left cursor-pointer text-[#D22929] rounded-md px-2 py-1.5 -mx-1.5 transition-colors hover:bg-[#FBEAEC]">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
+                    <span className="text-[13px] leading-none font-medium">Rời nhóm</span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

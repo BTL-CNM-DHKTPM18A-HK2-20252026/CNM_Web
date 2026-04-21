@@ -397,7 +397,8 @@ export function ChatComposer({ vm }: ChatComposerProps) {
                 if (mentionDropdownOpen) { setMentionDropdownOpen(false); return; }
                 if (replyingTo) setReplyingTo(null);
               }
-              if (event.key === 'Enter' && !(selectedChat.isAi && isSendingAi)) {
+              if (event.key === 'Enter' && !event.shiftKey && !(selectedChat.isAi && isSendingAi)) {
+                event.preventDefault();
                 if (mentionDropdownOpen) { setMentionDropdownOpen(false); return; }
                 if (imageQueue.length > 0) {
                   handleSendImageQueue();

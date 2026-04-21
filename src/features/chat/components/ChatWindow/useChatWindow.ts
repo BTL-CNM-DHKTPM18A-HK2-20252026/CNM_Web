@@ -239,6 +239,7 @@ export function useChatWindow({
   selectedChat,
   currentUser,
   onUpdateConversation,
+  onUpdateConversationMeta,
   onSelectConversation,
   onNicknameChange,
   refreshTrigger,
@@ -272,7 +273,7 @@ export function useChatWindow({
   const [isSendingAi, setIsSendingAi] = useState(false);
 
   const [replyingTo, setReplyingTo] = useState<ReplyingTo | null>(null);
-  const messageInputRef = useRef<HTMLInputElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
 
   const [forwardingMsg, setForwardingMsg] = useState<ForwardingMessage | null>(null);
   const [isShareContactOpen, setIsShareContactOpen] = useState(false);
@@ -299,6 +300,12 @@ export function useChatWindow({
   const [isNicknameModalOpen, setIsNicknameModalOpen] = useState(false);
   const [isFilePopoverOpen, setIsFilePopoverOpen] = useState(false);
   const [isChatImageUploadOpen, setIsChatImageUploadOpen] = useState(false);
+
+  useEffect(() => {
+    if (selectedChat.isGroup) {
+      setIsNicknameModalOpen(false);
+    }
+  }, [selectedChat.isGroup]);
 
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -648,6 +655,8 @@ export function useChatWindow({
     const contentToUse = customContent || message?.trim();
     if (!(contentToUse && selectedChat?.id)) return;
 
+    const tempOptimisticId = optimisticId || `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
     try {
       if (!customContent) setMessage('');
 
@@ -945,13 +954,23 @@ export function useChatWindow({
       }
 
       if (isNewConv) {
-        payload.recipientId = selectedChat.recipientId;
+        const resolvedRecipientId =
+          selectedChat.recipientId
+          || selectedChat.otherUserId
+          || (typeof selectedChat.id === 'string' && selectedChat.id.startsWith('new:')
+            ? selectedChat.id.slice(4)
+            : undefined);
+
+        if (!resolvedRecipientId) {
+          throw new Error('Không thể xác định người nhận. Vui lòng mở lại cuộc trò chuyện.');
+        }
+
+        payload.recipientId = resolvedRecipientId;
       } else {
         payload.conversationId = selectedChat.id.toString();
       }
 
       // Optimistic update: show the message locally before the server responds
-      const tempOptimisticId = optimisticId || `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       if (!optimisticId && msgType === 'TEXT') {
         setMessages(prev => [
           ...prev,
@@ -1047,6 +1066,21 @@ export function useChatWindow({
       }
     } catch (error) {
       console.error('Send failed', error);
+
+      const rawMsg = error instanceof Error ? error.message : '';
+      const normalizedMsg = rawMsg.toLowerCase();
+      const isConnectionIssue =
+        normalizedMsg.includes('network')
+        || normalizedMsg.includes('failed to fetch')
+        || normalizedMsg.includes('unable to connect')
+        || normalizedMsg.includes('connection refused');
+
+      toast.error(
+        isConnectionIssue
+          ? 'Không thể kết nối máy chủ. Vui lòng kiểm tra backend và thử lại.'
+          : (rawMsg || t('chat.message.send_error'))
+      );
+
       // Remove optimistic text message and restore input on failure
       if (!optimisticId && msgType === 'TEXT') {
         setMessages(prev => prev.filter(m => m.id !== tempOptimisticId));
@@ -1993,6 +2027,31 @@ export function useChatWindow({
     };
   }, [selectedChat?.id, selectedChat?.isNew, currentUser?.id, refreshTrigger, t]);
 
+  // Listen for MESSAGE_LOCAL_DELETE events from other devices of the same user
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const topic = `/topic/conversation-events/${currentUser.id}`;
+    const sub = websocketRef.current.subscribe(topic, msg => {
+      try {
+        const event = JSON.parse(msg.body);
+        if (event.type !== 'MESSAGE_LOCAL_DELETE') return;
+        const msgId = String(event.messageId);
+        const convId = String(event.conversationId);
+        // Persist so it stays hidden after reload
+        if (convId) {
+          locallyDeletedMessageIdsRef.current = addDeletedMessageId(convId, currentUser?.id, msgId);
+        }
+        // Hide from current message list if the event is for the open conversation
+        if (String(selectedChat?.id) === convId) {
+          setMessages(prev => prev.filter(m => m.id !== msgId));
+        }
+      } catch {
+        // ignore parse errors
+      }
+    });
+    return () => { sub?.unsubscribe?.(); };
+  }, [currentUser?.id, selectedChat?.id]);
+
   useEffect(() => {
     isInitialLoadRef.current = true;
     setIsInitialLoading(true);
@@ -2519,6 +2578,7 @@ export function useChatWindow({
     closeImageQueue,
 
     onUpdateConversation,
+    onUpdateConversationMeta,
     onSelectConversation,
     onNicknameChange,
 

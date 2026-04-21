@@ -23,6 +23,10 @@ export interface ChatWindowProps {
   selectedChat: SelectedChat;
   currentUser?: any;
   onUpdateConversation?: (id: string | number, lastMsg: string, time?: string) => void;
+  onUpdateConversationMeta?: (
+    id: string | number,
+    updates: { name?: string; avatar?: string }
+  ) => void;
   onSelectConversation?: (id: string | number) => void;
   onNicknameChange?: (id: string | number, nickname: string | null) => void;
   refreshTrigger?: number;

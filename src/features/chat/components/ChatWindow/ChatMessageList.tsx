@@ -1,5 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ChevronDownIcon, ChevronRightIcon, MessageBubbleIcon, MoreHorizontalIcon, SparklesIcon } from '@/components/ui/Icons';
 import { AI_TYPING_USER_ID } from '@/features/chat/components/ChatWindow/useChatWindow';
@@ -413,26 +412,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChat.otherUserId, selectedChat.recipientId]);
 
-  // ── Virtual list setup ────────────────────────────────────────────────────
-  const virtualizer = useVirtualizer({
-    count: messages.length,
-    getScrollElement: () => scrollContainerRef.current,
-    estimateSize: () => 72,
-    overscan: 15,
-  });
 
-  const virtualItems = virtualizer.getVirtualItems();
-
-  const requestVirtualMeasure = () => {
-    requestAnimationFrame(() => {
-      virtualizer.measure();
-    });
-  };
-
-  // Keep virtual row sizes in sync when message content grows/shrinks (e.g. system notices, link previews).
-  useLayoutEffect(() => {
-    virtualizer.measure();
-  }, [messages, virtualizer]);
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
@@ -440,7 +420,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
         <div className="absolute inset-0 z-40 bg-black/45" onClick={() => setShowPinnedList(false)} />
       )}
 
-      {!selectedChat.isCloud && !selectedChat.isAi && !selectedChat.isGroup && (selectedChat.otherUserId || selectedChat.recipientId) && friendRequestStatus !== 'friend' && friendRequestStatus !== 'loading' && (
+      {false && !selectedChat.isCloud && !selectedChat.isAi && !selectedChat.isGroup && (selectedChat.otherUserId || selectedChat.recipientId) && friendRequestStatus !== 'friend' && friendRequestStatus !== 'loading' && (
         <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 flex items-center justify-between gap-2.5">
           <div className="flex items-center gap-2.5 min-w-0">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
@@ -604,32 +584,25 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
             {hasMore && <div ref={loadMoreRef} className="h-4 opacity-0" />}
             {isLoadingMore && <div className="flex justify-center p-2"><div className="w-5 h-5 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" /></div>}
 
-            <div style={{ height: `${virtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
-              {virtualItems.map((virtualRow) => {
-                const index = virtualRow.index;
-                const msg = messages[index];
+            <div>
+              {messages.map((msg, index) => {
                 const prevMsg = messages[index - 1];
                 const nextMsg = messages[index + 1];
                 const showDateSeparator = !prevMsg || isDifferentDay(msg.rawDate, prevMsg.rawDate);
                 const showTimestamp = shouldShowTimestamp(msg, nextMsg);
                 const effectivePrev = showDateSeparator ? undefined : prevMsg;
                 const showAvatarAndName = isFirstInBlock(msg, effectivePrev);
-                const isRichContent = RICH_MSG_TYPES.has(msg.type);
-                const paddingClass = showTimestamp ? 'pb-6' : isRichContent ? 'pb-4' : 'pb-0.5';
+                const hasReactions = msg.reactions && msg.reactions.length > 0;
+                const paddingClass = showTimestamp
+                  ? 'pb-4'
+                  : hasReactions
+                  ? 'pb-5'
+                  : 'pb-1';
                 const displayText = getDisplayText(msg, Boolean(selectedChat.isAi));
 
                 return (
                   <div
                     key={`row-${msg.id}-${index}`}
-                    data-index={index}
-                    ref={virtualizer.measureElement}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      transform: `translateY(${virtualRow.start}px)`,
-                    }}
                     className={paddingClass}
                   >
                     {showDateSeparator && (
@@ -694,7 +667,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                       <CallHistoryMessage msg={msg} currentUserId={currentUser?.id} selectedChat={selectedChat} t={t} />
                     ) : (
                       <div id={`msg-${msg.id}`} className={`flex ${msg.sender === 'Me' ? 'justify-end pr-1' : 'justify-start'} -mx-4 px-4 rounded-none transition-colors duration-300 [&.highlight-msg]:bg-[#C6D4E4]`}>
-                        <div className={`flex gap-1.5 max-w-[72%] group relative ${msg.sender === 'Me' ? 'flex-row-reverse' : ''} items-center`}>
+                        <div className={`flex gap-1.5 max-w-[72%] group relative ${msg.sender === 'Me' ? 'flex-row-reverse' : ''} items-end`}>
                           {msg.sender !== 'Me' && (
                             showAvatarAndName ? (
                               <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 mt-1 border-[1px] border-[#DBDFE6] dark:border-white/10 shadow-sm flex items-center justify-center bg-blue-50">
@@ -823,7 +796,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                           src={msg.text}
                                           alt="Shared"
                                           className={`h-full w-full cursor-pointer object-cover transition-all hover:opacity-90 ${msg.isUploading ? 'blur-[2px] brightness-75' : ''}`}
-                                          onLoad={requestVirtualMeasure}
+
                                           onClick={() => !msg.isUploading && setOpenedImageSrc(msg.text)}
                                         />
                                         <div className="absolute bottom-2 left-2 text-white/80 drop-shadow-md">
@@ -848,7 +821,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                         )}
                                       </div>
                                     ) : (
-                                      <video src={msg.text} controls onLoadedData={requestVirtualMeasure} className="max-w-[320px] max-h-[360px] rounded-md shadow-sm object-contain" />
+                                      <video src={msg.text} controls className="max-w-[320px] max-h-[360px] rounded-md shadow-sm object-contain" />
                                     )}
                                     {msg.caption && (
                                       <div className={`px-2.5 py-1.5 text-[14px] leading-snug break-words rounded-b-md max-w-[320px] shadow-sm ${
@@ -884,7 +857,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                       if (count === 1) {
                                         return (
                                           <div className="relative max-w-[320px] overflow-hidden bg-slate-100 shadow-sm rounded-md" style={{ aspectRatio: '4/3' }}>
-                                            <img src={imgs[0].url} alt="Shared" className={`h-full w-full cursor-pointer object-cover hover:opacity-90 ${blurClass}`} onLoad={requestVirtualMeasure} onClick={() => !msg.isUploading && setOpenedImageSrc(imgs[0].url)} />
+                                            <img src={imgs[0].url} alt="Shared" className={`h-full w-full cursor-pointer object-cover hover:opacity-90 ${blurClass}`} onClick={() => !msg.isUploading && setOpenedImageSrc(imgs[0].url)} />
                                           </div>
                                         );
                                       }
@@ -893,7 +866,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                           <div className={`grid grid-cols-2 gap-0.5 w-[300px] rounded-md overflow-hidden shadow-sm ${blurClass}`}>
                                             {imgs.map((att, i) => (
                                               <div key={i} className="relative aspect-square bg-slate-100 overflow-hidden">
-                                                <img src={att.url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onLoad={requestVirtualMeasure} onClick={() => !msg.isUploading && setOpenedImageSrc(att.url)} />
+                                                <img src={att.url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onClick={() => !msg.isUploading && setOpenedImageSrc(att.url)} />
                                               </div>
                                             ))}
                                           </div>
@@ -903,13 +876,13 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                         return (
                                           <div className={`grid grid-cols-2 gap-0.5 w-[300px] rounded-md overflow-hidden shadow-sm ${blurClass}`} style={{ gridTemplateRows: '1fr 1fr' }}>
                                             <div className="row-span-2 relative bg-slate-100 overflow-hidden">
-                                              <img src={imgs[0].url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onLoad={requestVirtualMeasure} onClick={() => !msg.isUploading && setOpenedImageSrc(imgs[0].url)} />
+                                              <img src={imgs[0].url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onClick={() => !msg.isUploading && setOpenedImageSrc(imgs[0].url)} />
                                             </div>
                                             <div className="relative aspect-square bg-slate-100 overflow-hidden">
-                                              <img src={imgs[1].url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onLoad={requestVirtualMeasure} onClick={() => !msg.isUploading && setOpenedImageSrc(imgs[1].url)} />
+                                              <img src={imgs[1].url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onClick={() => !msg.isUploading && setOpenedImageSrc(imgs[1].url)} />
                                             </div>
                                             <div className="relative aspect-square bg-slate-100 overflow-hidden">
-                                              <img src={imgs[2].url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onLoad={requestVirtualMeasure} onClick={() => !msg.isUploading && setOpenedImageSrc(imgs[2].url)} />
+                                              <img src={imgs[2].url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onClick={() => !msg.isUploading && setOpenedImageSrc(imgs[2].url)} />
                                             </div>
                                           </div>
                                         );
@@ -932,7 +905,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                             <div key={ri} className="grid gap-0.5" style={{ gridTemplateColumns: `repeat(${row.length}, 1fr)` }}>
                                               {row.map((att, ci) => (
                                                 <div key={ci} className="relative aspect-square overflow-hidden">
-                                                  <img src={att.url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onLoad={requestVirtualMeasure} onClick={() => !msg.isUploading && setOpenedImageSrc(att.url)} />
+                                                  <img src={att.url} alt="Shared" className="h-full w-full cursor-pointer object-cover hover:opacity-90" onClick={() => !msg.isUploading && setOpenedImageSrc(att.url)} />
                                                 </div>
                                               ))}
                                             </div>

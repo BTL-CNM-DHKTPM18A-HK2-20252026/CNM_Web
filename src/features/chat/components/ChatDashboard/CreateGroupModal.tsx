@@ -143,8 +143,10 @@ export function CreateGroupModal({ isOpen, onClose, onGroupCreated }: CreateGrou
         <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col p-5 gap-5">
           {/* Group Name & Avatar */}
           <div className="flex items-center gap-4">
-            <div className="w-[48px] h-[48px] rounded-full border border-[var(--border)] flex items-center justify-center text-gray-400 hover:bg-[var(--hover-bg)] cursor-pointer transition-colors shrink-0">
-              <CameraIcon size={22} />
+            <div className="w-[48px] h-[48px] rounded-full border border-[var(--border)] flex items-center justify-center text-gray-400 hover:bg-[var(--hover-bg)] cursor-pointer transition-colors shrink-0 relative overflow-visible">
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[var(--card-bg)] rounded-full flex items-center justify-center shadow-sm border border-[var(--border)] text-gray-500 hover:text-[#0068FF]">
+                <CameraIcon size={14} />
+              </div>
             </div>
             <div className="flex-1 border-b border-[var(--border)] focus-within:border-[#0068FF] transition-all">
               <input

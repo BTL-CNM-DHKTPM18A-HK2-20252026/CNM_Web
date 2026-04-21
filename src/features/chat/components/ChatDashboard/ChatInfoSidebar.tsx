@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ChevronDownIcon,
@@ -128,6 +128,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
   const [selectedNewMembers, setSelectedNewMembers] = useState<string[]>([]);
   const [addingMembers, setAddingMembers] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [showMembersModal, setShowMembersModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [transferReason, setTransferReason] = useState<'transfer' | 'leave'>('transfer');
 
@@ -136,14 +137,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
   const isDeputy = currentUserRole === 'DEPUTY';
   const canAddMembers = isAdmin || isDeputy;
 
-  // Fetch group members
-  useEffect(() => {
-    if (isGroup && conversationId) {
-      fetchMembers();
-    }
-  }, [isGroup, conversationId]);
-
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     try {
       const res: any = await apiClient.get(`/conversations/${conversationId}/members`);
       const list = Array.isArray(res) ? res : (res?.data || []);
@@ -151,7 +145,61 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
     } catch (e) {
       console.error('Failed to fetch members:', e);
     }
-  };
+  }, [conversationId]);
+
+  // Fetch group members
+  useEffect(() => {
+    if (isGroup && conversationId) {
+      fetchMembers();
+    }
+  }, [isGroup, conversationId, fetchMembers]);
+
+  // Realtime sync for member tab when group membership changes in other clients.
+  useEffect(() => {
+    if (!isGroup || !conversationId) return;
+
+    const chatSub = websocketService.subscribe(`/topic/chat/${conversationId}`, (msg) => {
+      try {
+        const parsed = JSON.parse(msg.body);
+        const payload = parsed?.message || parsed;
+        const payloadConversationId = String(payload?.conversationId || '');
+        const messageType = String(payload?.messageType || payload?.type || '').toUpperCase();
+
+        if (payloadConversationId === String(conversationId) && messageType === 'SYSTEM') {
+          fetchMembers();
+        }
+      } catch (error) {
+        console.error('Failed to parse chat realtime event:', error);
+      }
+    });
+
+    const groupSub = currentUser?.id
+      ? websocketService.subscribe(`/topic/group-events/${currentUser.id}`, (msg) => {
+          try {
+            const event = JSON.parse(msg.body);
+            const eventConversationId = String(event?.conversationId || event?.id || '');
+
+            if (eventConversationId && eventConversationId !== String(conversationId)) {
+              return;
+            }
+
+            if (event?.type === 'REMOVED' || event?.type === 'DISSOLVED') {
+              setMembers([]);
+              return;
+            }
+
+            fetchMembers();
+          } catch (error) {
+            console.error('Failed to parse group realtime event:', error);
+          }
+        })
+      : null;
+
+    return () => {
+      chatSub.unsubscribe();
+      groupSub?.unsubscribe();
+    };
+  }, [isGroup, conversationId, currentUser?.id, fetchMembers]);
 
   const handleAddMembers = async () => {
     if (selectedNewMembers.length === 0 || addingMembers) return;
@@ -463,12 +511,14 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
             </>
           ) : (
             <>
-              <div className="w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white shadow-lg mb-4">
-                {conversationAvatar ? (
-                  <img src={conversationAvatar} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-[26px] font-bold">{(conversationName || '?').charAt(0)}</span>
-                )}
+              <div className="relative mb-4">
+                <div className="w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white shadow-lg">
+                  {conversationAvatar ? (
+                    <img src={conversationAvatar} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-[26px] font-bold">{(conversationName || '?').charAt(0)}</span>
+                  )}
+                </div>
               </div>
               <h3 className="text-[18px] font-bold text-[var(--text)] mb-1 text-center">
                 {conversationName || t('info.title')}
@@ -646,8 +696,8 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
 
                     return (
                       <div key={m.userId} className="flex items-center gap-2.5 p-2 rounded-md hover:bg-[var(--hover-bg)] group/member transition-colors relative">
-                        <div className="w-9 h-9 rounded-full overflow-hidden bg-gray-200 shrink-0">
-                          {mAvatar ? <img src={mAvatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[13px] font-bold text-white bg-gradient-to-br from-blue-400 to-blue-600">{mName.charAt(0)}</div>}
+                        <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 shrink-0">
+                          {mAvatar ? <img src={mAvatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-br from-blue-400 to-blue-600">{mName.charAt(0)}</div>}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
@@ -758,8 +808,8 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                               onClick={() => handleTransferOwnership(m.userId, mName)}
                               className="w-full flex items-center gap-3 p-2.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors cursor-pointer text-left"
                             >
-                              <div className="w-9 h-9 rounded-full overflow-hidden bg-gray-200 shrink-0">
-                                {mAvatar ? <img src={mAvatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[13px] font-bold text-white bg-gradient-to-br from-blue-400 to-blue-600">{mName.charAt(0)}</div>}
+                              <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 shrink-0">
+                                {mAvatar ? <img src={mAvatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-br from-blue-400 to-blue-600">{mName.charAt(0)}</div>}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <span className="text-[13px] font-medium text-[var(--text)] truncate block">{mName}</span>
@@ -866,8 +916,8 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
 
             {showMedia && (
               <div className="px-4 pb-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="grid grid-cols-4 gap-1 mb-4">
-                  {mediaItems.slice(0, 8).map((m, i) => (
+                <div className="grid grid-cols-5 gap-1 mb-4">
+                  {mediaItems.slice(0, 10).map((m, i) => (
                     <div
                       key={m.id || i}
                       onClick={() => setSelectedImage(m.content)}
@@ -884,7 +934,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-black/10 transition-colors group-hover:bg-black/20">
-                          <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" className="text-gray-400 opacity-50"><path d="M8 5v14l11-7z" /></svg>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="text-gray-400 opacity-50"><path d="M8 5v14l11-7z" /></svg>
                         </div>
                       )}
                       {m.messageType === 'VIDEO' && (
@@ -896,7 +946,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                     </div>
                   ))}
                   {mediaItems.length === 0 && (
-                    <div className="col-span-4 py-4 text-center text-[12px] text-[var(--sub-text)] opacity-60">
+                    <div className="col-span-5 py-4 text-center text-[12px] text-[var(--sub-text)] opacity-60">
                       {t('info.sections.no_media')}
                     </div>
                   )}

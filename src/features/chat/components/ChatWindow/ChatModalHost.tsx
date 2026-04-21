@@ -206,13 +206,15 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
         />
       )}
 
-      <NicknameModal
-        isOpen={isNicknameModalOpen}
-        onClose={() => setIsNicknameModalOpen(false)}
-        currentName={nickname || selectedChat.name}
-        avatar={selectedChat.avatar}
-        onConfirm={handleNicknameConfirm}
-      />
+      {!selectedChat.isGroup && (
+        <NicknameModal
+          isOpen={isNicknameModalOpen}
+          onClose={() => setIsNicknameModalOpen(false)}
+          currentName={nickname || selectedChat.name}
+          avatar={selectedChat.avatar}
+          onConfirm={handleNicknameConfirm}
+        />
+      )}
 
       {contextMenu && (
         <>
