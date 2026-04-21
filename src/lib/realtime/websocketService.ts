@@ -1,5 +1,6 @@
 import { Client, IMessage } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { safeRandomUuid } from '@/lib/utils/safeRandomUuid';
 
 // Backend context path is /api/v1, so WebSocket is at /api/v1/ws
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
@@ -14,7 +15,7 @@ const HEALTH_CHECK_INTERVAL_MS = 30_000;
 // KHÔNG lưu sessionStorage vì Duplicate Tab sẽ copy sessionStorage
 // → 2 tab cùng tabId → backend không kick phiên cũ (Zalo-style bug).
 // F5/reload tạo ID mới → backend ghi đè phiên (phiên cũ đã disconnect nên vô hại).
-const TAB_ID = typeof window !== 'undefined' ? crypto.randomUUID() : 'ssr';
+const TAB_ID = typeof window !== 'undefined' ? safeRandomUuid() : 'ssr';
 
 class WebSocketService {
   private client: Client | null = null;

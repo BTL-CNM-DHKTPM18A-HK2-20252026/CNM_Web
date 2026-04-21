@@ -11,6 +11,7 @@
  */
 
 import { websocketService } from '@/lib/realtime/websocketService';
+import { safeRandomUuid } from '@/lib/utils/safeRandomUuid';
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -234,7 +235,7 @@ class WebRTCService {
       return;
     }
 
-    const callId = crypto.randomUUID();
+    const callId = safeRandomUuid();
     this.callInfo = { callId, peerId, peerName, peerAvatar, conversationId, isCaller: true };
     this.setState('requesting');
 
