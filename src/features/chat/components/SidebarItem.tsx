@@ -68,20 +68,22 @@ export function SidebarItem({
         }
       }}
       onContextMenu={onContextMenu}
-      className={`relative group flex w-full items-center px-3 py-2.5 mb-0.5 gap-3 cursor-pointer transition-colors select-none caret-transparent ${
-        active
+      className={`relative group flex w-full items-center px-4 py-3 gap-3 cursor-pointer transition-colors select-none caret-transparent !rounded-none !mx-0 ${active
           ? 'bg-[var(--active-bg)]'
           : 'hover:bg-[var(--hover-bg)]'
-      }`}
+        }`}
+      style={{ width: '100%', borderRadius: 0, margin: 0 }}
     >
+      {active && (
+        <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-[#0068FF] z-10" />
+      )}
       <div
-        className={`h-12 w-12 rounded-full border-[1px] border-black/[0.06] dark:border-white/10 overflow-hidden shrink-0 flex items-center justify-center relative ${
-          isAi
+        className={`h-12 w-12 rounded-full border-[1px] border-black/[0.06] dark:border-white/10 overflow-hidden shrink-0 flex items-center justify-center relative ${isAi
             ? 'bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 text-white'
             : isCloud
-            ? 'bg-[#0068FF]'
-            : 'bg-gray-100 dark:bg-gray-800'
-        }`}
+              ? 'bg-[#0068FF]'
+              : 'bg-gray-100 dark:bg-gray-800'
+          }`}
       >
         {isAi ? (
           <SparklesIcon size={24} />
@@ -159,11 +161,10 @@ export function SidebarItem({
 
         <div className="flex justify-between items-center h-5">
           <div
-            className={`text-[13px] flex items-center gap-1.5 truncate min-w-0 pr-2 ${
-              unreadCount && unreadCount > 0
+            className={`text-[13px] flex items-center gap-1.5 truncate min-w-0 pr-2 ${unreadCount && unreadCount > 0
                 ? 'text-[var(--text)] font-semibold'
                 : 'text-[#708090]'
-            }`}
+              }`}
           >
             <span className="truncate max-w-[190px] sm:max-w-[210px] lg:max-w-[230px]">{subtitle ?? lastMsg}</span>
           </div>

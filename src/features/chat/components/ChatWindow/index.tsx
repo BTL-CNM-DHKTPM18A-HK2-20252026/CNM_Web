@@ -10,7 +10,7 @@ export function ChatWindow(props: ChatWindowProps) {
   const vm = useChatWindow(props);
 
   return (
-    <div className="flex-1 flex flex-col bg-[var(--background)] transition-colors duration-200">
+    <div className="flex-1 flex flex-col bg-[var(--background)] transition-colors duration-200 overflow-x-hidden">
       <ChatHeader vm={vm} />
       <ChatMessageList vm={vm} />
       <ChatComposer vm={vm} />

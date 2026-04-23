@@ -245,8 +245,19 @@ export function useChatWindow({
   refreshTrigger,
   targetMessageId,
   onClearTargetMessage,
+  onOpenProfile,
+  externalForwardingMsg,
+  onClearForwardingMsg,
 }: ChatWindowProps) {
   const { t, i18n } = useTranslation();
+
+  // Sync external forwarding message
+  useEffect(() => {
+    if (externalForwardingMsg) {
+      setForwardingMsg(externalForwardingMsg);
+      onClearForwardingMsg?.();
+    }
+  }, [externalForwardingMsg, onClearForwardingMsg]);
 
   const websocketRef = useRef(websocketService);
   const onUpdateConversationRef = useRef(onUpdateConversation);
@@ -300,6 +311,12 @@ export function useChatWindow({
   const [isNicknameModalOpen, setIsNicknameModalOpen] = useState(false);
   const [isFilePopoverOpen, setIsFilePopoverOpen] = useState(false);
   const [isChatImageUploadOpen, setIsChatImageUploadOpen] = useState(false);
+  const [isMoreActionsOpen, setIsMoreActionsOpen] = useState(false);
+  const [isPollModalOpen, setIsPollModalOpen] = useState(false);
+  const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+  const [priority, setPriority] = useState<'normal' | 'important' | 'urgent'>('normal');
+  const [isFormattingActive, setIsFormattingActive] = useState(false);
 
   useEffect(() => {
     if (selectedChat.isGroup) {
@@ -612,9 +629,8 @@ export function useChatWindow({
     setSummaryText(null);
     setIsSummaryOpen(true);
     try {
-      const res = await apiClient.post<{ summary: string; messageCount: number }>('/ai/summarize-recent', {
+      const res = await apiClient.post<{ summary: string; messageCount: number }>('/ai/summarize', {
         conversationId: selectedChat.id.toString(),
-        messageCount: 100,
       });
       const data = res as any;
       setSummaryText(data?.summary ?? data?.data?.summary ?? 'Không có nội dung tóm tắt.');
@@ -2441,23 +2457,49 @@ export function useChatWindow({
     }
   }, [selectedChat.id, selectedChat.name, t]);
 
-  const handleDownloadFile = useCallback(async (e: React.MouseEvent, url: string, fileName: string) => {
+  const handleDownloadFile = useCallback((e: React.MouseEvent, url: string, fileName: string) => {
     e.stopPropagation();
-    try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
+
+    // Check if the URL is external (S3, Cloudinary, etc.)
+    const isExternal = url.startsWith('http') && !url.includes(window.location.hostname);
+
+    if (isExternal) {
+      // Use direct link to the backend proxy. 
+      // Since /files/download is public, we don't need the Authorization header.
+      // This triggers the browser's native download behavior via Content-Disposition header from the server.
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
+      const proxyUrl = `${apiBaseUrl}/files/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(fileName)}`;
+      
       const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = fileName;
+      link.href = proxyUrl;
+      // No need for link.download as the server provides the filename
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (error) {
-      console.error('Download failed, opening in new tab:', error);
-      window.open(url, '_blank');
+      return;
     }
+
+    // For local/same-origin URLs, use the blob approach
+    const triggerBlobDownload = async () => {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      } catch (error) {
+        console.error('Download failed:', error);
+        window.open(url, '_blank');
+      }
+    };
+
+    triggerBlobDownload();
   }, []);
 
   useEffect(() => {
@@ -2514,6 +2556,18 @@ export function useChatWindow({
     isNicknameModalOpen,
     isFilePopoverOpen,
     isChatImageUploadOpen,
+    isMoreActionsOpen,
+    setIsMoreActionsOpen,
+    isPollModalOpen,
+    setIsPollModalOpen,
+    isReminderModalOpen,
+    setIsReminderModalOpen,
+    isNoteModalOpen,
+    setIsNoteModalOpen,
+    priority,
+    setPriority,
+    isFormattingActive,
+    setIsFormattingActive,
     isRecording,
     recordingTime,
     isInitializingMic,
@@ -2532,6 +2586,7 @@ export function useChatWindow({
     typingUsers,
     readReceipts,
     loadMoreRef,
+    refreshTrigger,
 
     setReplyingTo,
     setForwardingMsg,
@@ -2610,5 +2665,6 @@ export function useChatWindow({
     isSummaryOpen,
     setIsSummaryOpen,
     fetchSummary,
+    onOpenProfile,
   };
 }

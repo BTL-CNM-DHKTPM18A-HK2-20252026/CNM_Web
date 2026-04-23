@@ -4,6 +4,16 @@ import { ChevronDownIcon, ChevronRightIcon, MessageBubbleIcon, MoreHorizontalIco
 import { AI_TYPING_USER_ID } from '@/features/chat/components/ChatWindow/useChatWindow';
 import type { ChatMessage, ChatMessageListProps } from '@/features/chat/components/ChatWindow/types';
 import { usePresence } from '@/features/user';
+import { apiClient } from '@/lib/http/apiClient';
+
+const formatFileSize = (bytes?: number) => {
+  if (!bytes) return '';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  if (bytes === 0) return '0 Bytes';
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
 
 // ── Call History Message ────────────────────────────────────────────────────
 function formatCallDuration(seconds: number, t: (key: string, opts?: Record<string, string | number>) => string): string {
@@ -83,6 +93,59 @@ function CallHistoryMessage({
     </div>
   );
 }
+
+function GroupCallCard({
+  msg,
+  currentUserId,
+  selectedChat,
+  t,
+}: {
+  msg: ChatMessage;
+  currentUserId?: string;
+  selectedChat: ChatMessageListProps['vm']['selectedChat'];
+  t: (key: string) => string;
+}) {
+  const isMe = msg.senderId === currentUserId || msg.sender === 'Me';
+  const senderName = isMe ? 'Bạn' : (msg.senderName || msg.sender || 'Thành viên');
+  
+  return (
+    <div className={`flex items-end gap-2 my-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
+      {!isMe && (
+        <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-[#DBDFE6] dark:border-white/10 shadow-sm flex items-center justify-center bg-blue-50">
+          {msg.avatar ? (
+            <img src={msg.avatar} alt="Avatar" className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-blue-600 font-bold text-sm">{(msg.senderName || selectedChat.name)?.charAt(0) || '?'}</span>
+          )}
+        </div>
+      )}
+      <div className="w-[260px] rounded-2xl border border-[#c5d5e7] bg-white dark:bg-[#1E1E1E] overflow-hidden shadow-sm">
+        <div className="bg-gradient-to-r from-[#0068FF] to-[#0095FF] p-4 text-white">
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M16 10V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3l4 3V7l-4 3Z" />
+                  <path d="M12 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" /><path d="M14 13a3 3 0 0 0-4 0" />
+                </svg>
+             </div>
+             <div>
+               <div className="text-[15px] font-bold">Cuộc gọi video nhóm</div>
+               <div className="text-[12px] opacity-90">{senderName} đã bắt đầu</div>
+             </div>
+          </div>
+        </div>
+        <div className="p-2.5 bg-white dark:bg-[#1E1E1E]">
+           <button 
+             onClick={() => toast.info('Tham gia cuộc gọi nhóm đang được kết nối...')}
+             className="w-full py-2 bg-[#0068FF] hover:bg-[#0052CC] text-white text-[14px] font-bold rounded-lg transition-colors cursor-pointer"
+           >
+             Tham gia
+           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 // ───────────────────────────────────────────────────────────────────────────
 
 const getFileNameFromUrl = (url: string) => {
@@ -157,20 +220,28 @@ const resolveImageAspectRatio = (message: ChatMessage) => {
 
 const renderText = (text: string, mentions?: string[]) => {
   if (!text) return null;
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const urlRegex = /(https?:\/\/[^\s]+|fruvia\.chat\/g\/[^\s]+)/g;
   const parts = text.split(urlRegex);
   return parts.map((part, idx) => {
     if (part.match(urlRegex)) {
+      // Display shorter version for fruvia.chat links
+      const displayUrl = part.startsWith('http') ? part : part;
+      const cleanDisplay = displayUrl.replace(/^https?:\/\//, '');
+
       return (
         <a
           key={`url-${idx}`}
-          href={part}
+          href={part.startsWith('http') ? part : `https://${part}`}
           target="_blank"
           rel="noopener noreferrer"
           className="text-[#0068FF] hover:underline break-all cursor-pointer font-medium"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+             e.stopPropagation();
+             // If it's a join link, we let the card handle the modal, but if they click the link directly...
+             // We could also open the modal here if we want.
+          }}
         >
-          {part}
+          {cleanDisplay}
         </a>
       );
     }
@@ -240,6 +311,167 @@ function LinkPreview({ url, title, description, thumbnail }: { url: string; titl
   } catch {
     return null;
   }
+}
+
+function GroupJoinLinkPreview({ url, onSelectConversation }: { url: string; onSelectConversation?: (id: string | number) => void }) {
+  const [groupInfo, setGroupInfo] = useState<{ name: string; avatar: string; memberCount: number; memberAvatars: string[]; isMember?: boolean } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [joining, setJoining] = useState(false);
+
+  useEffect(() => {
+    const fetchInfo = async () => {
+      try {
+        const id = url.split('/g/')[1];
+        if (id) {
+          const res = await apiClient.get<any>(`/conversations/join/${id}/preview`);
+          setGroupInfo(res);
+        }
+      } catch (e) {
+        console.error('Failed to fetch group preview', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchInfo();
+  }, [url]);
+
+  const handleJoin = async () => {
+    setJoining(true);
+    try {
+      const id = url.split('/g/')[1];
+      await apiClient.post(`/conversations/join/${id}`, {});
+      toast.success('Tham gia nhóm thành công');
+      setShowJoinModal(false);
+      
+      if (onSelectConversation) {
+        onSelectConversation(id);
+      } else {
+        window.location.href = `/?chatId=${id}`;
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Không thể tham gia nhóm');
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  if (loading) return (
+    <div className="mt-2.5 p-3.5 rounded-2xl bg-white/50 dark:bg-white/5 border border-[var(--border)] animate-pulse flex items-center gap-4">
+      <div className="w-14 h-14 rounded-2xl bg-gray-200 dark:bg-gray-700/50" />
+      <div className="flex-1 space-y-2.5">
+        <div className="h-4 bg-gray-200 dark:bg-gray-700/50 rounded-full w-3/4" />
+        <div className="h-3 bg-gray-200 dark:bg-gray-700/50 rounded-full w-1/2" />
+      </div>
+    </div>
+  );
+
+  if (!groupInfo) return <LinkPreview url={url} />;
+
+  return (
+    <>
+      <div
+        className="mt-2 rounded-lg bg-white dark:bg-[#1E1E1E] border border-[var(--border)] overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer group/join-card w-full"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (groupInfo?.isMember) {
+            const id = url.split('/g/')[1];
+            if (onSelectConversation) {
+              onSelectConversation(id);
+            } else {
+              window.location.href = `/?chatId=${id}`;
+            }
+          } else {
+            setShowJoinModal(true);
+          }
+        }}
+      >
+        {/* Banner Section */}
+        <div className="relative h-[160px] w-full bg-gradient-to-br from-[#0095FF] to-[#0068FF] flex items-center px-5 gap-4 overflow-hidden">
+          <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full border-[20px] border-white/10 pointer-events-none" />
+          <div className="absolute -left-12 -bottom-12 w-48 h-48 rounded-full border-[30px] border-white/5 pointer-events-none" />
+          
+          <div className="relative z-10 flex items-center gap-4">
+            <div className="w-[70px] h-[70px] rounded-xl overflow-hidden border-2 border-white/40 bg-white/20 flex items-center justify-center shrink-0 shadow-lg">
+              {groupInfo.avatar ? (
+                <img src={groupInfo.avatar} alt={groupInfo.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-white/30 text-white font-bold text-2xl">
+                  {groupInfo.name.charAt(0)}
+                </div>
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="text-white/80 text-[13px] font-medium mb-1">Nhóm</div>
+              <div className="text-white text-[18px] font-bold truncate drop-shadow-sm leading-tight">
+                {groupInfo.name}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="p-3.5 bg-white dark:bg-[#1E1E1E]">
+          <div className="text-[15px] font-bold text-[var(--text)] mb-1 truncate">
+            {groupInfo.name}
+          </div>
+          <div className="text-[15px] text-[var(--sub-text)] mb-2 line-clamp-1">
+            Bấm vào đây để tham gia nhóm trên Fruvia Chat
+          </div>
+          <div className="text-[14px] text-[#0068FF] font-medium flex items-center gap-1">
+            Fruvia Chat
+          </div>
+        </div>
+      </div>
+
+      {/* Join Confirmation Modal */}
+      {showJoinModal && (
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={(e) => { e.stopPropagation(); setShowJoinModal(false); }}
+        >
+          <div 
+            className="bg-[var(--card-bg)] border border-[var(--border)] w-full max-w-[340px] rounded-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 text-center">
+              <div className="w-[80px] h-[80px] rounded-full mx-auto mb-4 border border-[#0068FF]/20 overflow-hidden shadow-sm p-0.5 bg-white dark:bg-gray-800">
+                <div className="w-full h-full rounded-full overflow-hidden">
+                  {groupInfo.avatar ? (
+                    <img src={groupInfo.avatar} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0095FF] to-[#0068FF] text-white font-medium text-2xl">
+                      {groupInfo.name.charAt(0)}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <h3 className="text-[17px] font-semibold text-[var(--text)] mb-1.5">Tham gia nhóm?</h3>
+              <p className="text-[13px] text-[var(--sub-text)] mb-7 px-4 leading-relaxed">
+                Bạn có chắc chắn muốn tham gia vào nhóm <br/>
+                <span className="font-medium text-[var(--text)]">"{groupInfo.name}"</span> không?
+              </p>
+              
+              <div className="flex gap-2.5">
+                <button
+                  onClick={() => setShowJoinModal(false)}
+                  className="flex-1 py-2 text-[14px] text-[var(--text)] bg-[var(--hover-bg)] hover:bg-[var(--border)] font-medium rounded-md transition-all active:scale-[0.97] cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  disabled={joining}
+                  onClick={handleJoin}
+                  className="flex-1 py-2 text-[14px] bg-[#0068FF] hover:bg-[#0052CC] text-white font-medium rounded-md transition-all shadow-sm active:scale-[0.97] disabled:opacity-50 cursor-pointer"
+                >
+                  {joining ? '...' : 'Xác nhận'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 function VoicePlayer({ url, duration, isMe }: { url: string; duration?: number; isMe: boolean }) {
@@ -665,6 +897,8 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                       </div>
                     ) : msg.type === 'CALL_MISSED' || msg.type === 'CALL_REJECTED' || msg.type === 'CALL_ENDED' ? (
                       <CallHistoryMessage msg={msg} currentUserId={currentUser?.id} selectedChat={selectedChat} t={t} />
+                    ) : msg.type === 'CALL_GROUP_START' ? (
+                      <GroupCallCard msg={msg} currentUserId={currentUser?.id} selectedChat={selectedChat} t={t} />
                     ) : (
                       <div id={`msg-${msg.id}`} className={`flex ${msg.sender === 'Me' ? 'justify-end pr-1' : 'justify-start'} -mx-4 px-4 rounded-none transition-colors duration-300 [&.highlight-msg]:bg-[#C6D4E4]`}>
                         <div className={`flex gap-1.5 max-w-[72%] group relative ${msg.sender === 'Me' ? 'flex-row-reverse' : ''} items-end`}>
@@ -836,7 +1070,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                     {!msg.isUploading && (
                                       <button
                                         onClick={(e) => handleDownloadFile(e, msg.text, getMediaDownloadName(msg.text, msg.type === 'IMAGE' ? 'IMAGE' : 'VIDEO'))}
-                                        className="absolute top-2 right-2 h-8 w-8 rounded-lg flex items-center justify-center border border-black/10 bg-white/80 text-[#1f2937] backdrop-blur-sm transition-all cursor-pointer opacity-0 group-hover/media-content:opacity-100 hover:bg-white"
+                                        className="absolute top-2 right-2 h-8 w-8 rounded-lg flex items-center justify-center border border-black/10 bg-white/80 text-[#1f2937] backdrop-blur-sm transition-all cursor-pointer opacity-0 group-hover/media-content:opacity-100 hover:bg-white hover:scale-110 active:scale-95"
                                         title="Tải xuống"
                                         aria-label="Download media"
                                       >
@@ -939,6 +1173,26 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                         {msg.caption}
                                       </div>
                                     )}
+                                    {!msg.isUploading && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          msg.attachments?.forEach((att, idx) => {
+                                            const fileName = getFileNameFromUrl(att.url) || `image_${idx}.png`;
+                                            handleDownloadFile(e, att.url, fileName);
+                                          });
+                                        }}
+                                        className="absolute top-2 right-2 h-8 w-8 rounded-lg flex items-center justify-center border border-black/10 bg-white/80 text-[#1f2937] backdrop-blur-sm transition-all cursor-pointer opacity-0 group-hover/media-content:opacity-100 hover:bg-white hover:scale-110 active:scale-95"
+                                        title="Tải xuống tất cả"
+                                        aria-label="Download all media"
+                                      >
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                          <polyline points="7 10 12 15 17 10" />
+                                          <line x1="12" x2="12" y1="15" y2="3" />
+                                        </svg>
+                                      </button>
+                                    )}
                                   </div>
                                 ) : msg.type === 'SHARE_CONTACT' ? (() => {
                                   let contact: any = {};
@@ -989,34 +1243,82 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                       </button>
                                     </div>
                                   );
-                                })() : msg.type === 'MEDIA' ? (
-                                  <div className={`border rounded-md p-3 flex items-center gap-3.5 min-w-[270px] hover:shadow-md transition-all cursor-pointer group/file relative ${msg.sender === 'Me' ? 'bg-[var(--message-me-bg)] border-[var(--message-me-border)]' : 'bg-[var(--message-other-bg)] border-[var(--message-other-border)]'}`} onClick={() => window.open(getPreviewUrl(msg.text), '_blank')}>
-                                    <div className={`h-11 w-9 rounded-md flex items-center justify-center text-white font-bold text-[12px] shadow-sm shrink-0 ${['pdf'].includes(getFileExtension(msg.text).toLowerCase()) ? 'bg-[#F40F02]' : ['doc', 'docx'].includes(getFileExtension(msg.text).toLowerCase()) ? 'bg-[#0068FF]' : ['xls', 'xlsx'].includes(getFileExtension(msg.text).toLowerCase()) ? 'bg-[#217346]' : 'bg-gray-500'}`}>{getFileExtension(msg.text).toUpperCase().slice(0, 3) || 'FILE'}</div>
-                                    <div className="flex-1 min-w-0">
-                                      <h4 className="text-[14px] font-bold text-[var(--text)] truncate mb-0.5">{getFileNameFromUrl(msg.text)}</h4>
-                                      <div className="flex items-center gap-1 text-[12px] text-[var(--sub-text)] opacity-70">
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="shrink-0"><path d="M17.5 11.5c.34-.33.74-.5 1.14-.5a1.88 1.88 0 1 1 0 3.75h-10a3.13 3.13 0 1 1 0-6.25c.34 0 .66.05.97.15A4.38 4.38 0 1 1 17.5 11.5Z" /></svg>
-                                        <span>{t('chat.status.on_cloud')}</span>
+                                })() : msg.type === 'MEDIA' ? (() => {
+                                  const ext = getFileExtension(msg.text).toUpperCase();
+                                  const isPDF = ext === 'PDF';
+                                  const isWord = ['DOC', 'DOCX'].includes(ext);
+                                  const isExcel = ['XLS', 'XLSX'].includes(ext);
+                                  
+                                  return (
+                                    <div className={`border rounded-xl p-3 flex items-center gap-3 min-w-[280px] max-w-[380px] hover:shadow-lg transition-all cursor-pointer group/file relative ${msg.sender === 'Me' ? 'bg-[#EBF5FF] border-[#D0E7FF]' : 'bg-[#F0F7FF] border-[#E0EFFF]'}`} onClick={() => window.open(getPreviewUrl(msg.text), '_blank')}>
+                                      <div className={`h-12 w-10 rounded-lg flex flex-col items-center justify-center text-white font-bold shadow-sm shrink-0 ${isPDF ? 'bg-[#FF5C5C]' : isWord ? 'bg-[#2B7CF6]' : isExcel ? 'bg-[#1D6F42]' : 'bg-gray-400'}`}>
+                                        {isWord ? (
+                                          <span className="text-[14px]">W</span>
+                                        ) : isPDF ? (
+                                           <span className="text-[8px]">PDF</span>
+                                        ) : (
+                                          <span className="text-[8px]">{ext.slice(0, 3)}</span>
+                                        )}
                                       </div>
+                                      <div className="flex-1 min-w-0">
+                                        <h4 className="text-[13px] font-semibold text-[#1f2329] truncate mb-0.5">{getFileNameFromUrl(msg.text)}</h4>
+                                        <div className="flex items-center gap-2 text-[10px] text-[#647081] opacity-90">
+                                          {msg.fileSize && <span>{formatFileSize(msg.fileSize)}</span>}
+                                          <div className="flex items-center gap-1">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="shrink-0"><path d="M17.5 11.5c.34-.33.74-.5 1.14-.5a1.88 1.88 0 1 1 0 3.75h-10a3.13 3.13 0 1 1 0-6.25c.34 0 .66.05.97.15A4.38 4.38 0 1 1 17.5 11.5Z" /></svg>
+                                            <span>{t('chat.status.on_cloud')}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <button 
+                                        onClick={(e) => handleDownloadFile(e, msg.text, getFileNameFromUrl(msg.text))} 
+                                        className="h-8 w-8 rounded-md flex items-center justify-center border border-[#D0E7FF] group-hover/file:bg-white transition-all shrink-0 cursor-pointer hover:scale-110 active:scale-95 shadow-sm bg-white/50"
+                                        title="Tải xuống"
+                                      >
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-[#1f2329]">
+                                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                          <polyline points="7 10 12 15 17 10" />
+                                          <line x1="12" x2="12" y1="15" y2="3" />
+                                        </svg>
+                                      </button>
                                     </div>
-                                    <button onClick={(e) => handleDownloadFile(e, msg.text, getFileNameFromUrl(msg.text))} className="h-8 w-8 rounded-lg flex items-center justify-center border border-[var(--border)] group-hover/file:bg-[var(--hover-bg)] transition-all shrink-0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg></button>
-                                  </div>
-                                ) : (
+                                  );
+                                })() : (
                                   <div className={`${showTimestamp || msg.isEdited ? 'pb-5' : 'pb-1'} relative min-h-[48px] flex flex-col justify-between`}>
                                     <div className="block break-words whitespace-pre-wrap leading-normal text-[15px]">
                                       {msg.type === 'VOICE' ? (
                                         <VoicePlayer url={msg.text} duration={msg.voiceDuration} isMe={msg.sender === 'Me'} />
                                       ) : (
                                         <>
-                                          {renderText(displayText, msg.mentions)}
-                                          {(msg.type === 'LINK' || (displayText && displayText.match(/(https?:\/\/[^\s]+)/))) && (
-                                            <LinkPreview
-                                              url={msg.type === 'LINK' ? displayText : displayText.match(/(https?:\/\/[^\s]+)/)![0]}
-                                              title={msg.linkTitle}
-                                              description={msg.linkDescription}
-                                              thumbnail={msg.linkThumbnail}
-                                            />
-                                          )}
+                                          {(() => {
+                                            const urlMatch = displayText.match(/(https?:\/\/[^\s]+|fruvia\.chat\/g\/[^\s]+)/);
+                                            const url = msg.type === 'LINK' ? displayText : (urlMatch ? urlMatch[0] : null);
+                                            
+                                            if (url && url.includes('/g/')) {
+                                              // If it's a group join link, hide the raw link text if it's the only content
+                                              const cleanText = displayText.replace(url, '').trim();
+                                              return (
+                                                <>
+                                                  {cleanText && renderText(cleanText, msg.mentions)}
+                                                   <GroupJoinLinkPreview url={url} onSelectConversation={vm.onSelectConversation} />
+                                                </>
+                                              );
+                                            }
+                                            
+                                            return (
+                                              <>
+                                                {renderText(displayText, msg.mentions)}
+                                                {url && (
+                                                  <LinkPreview
+                                                    url={url}
+                                                    title={msg.linkTitle}
+                                                    description={msg.linkDescription}
+                                                    thumbnail={msg.linkThumbnail}
+                                                  />
+                                                )}
+                                              </>
+                                            );
+                                          })()}
                                         </>
                                       )}
                                     </div>
@@ -1030,7 +1332,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                 )}
                               </div>
 
-                              <div className={`absolute flex items-center gap-1 z-20 ${msg.type === 'IMAGE' || msg.type === 'IMAGE_GROUP' || msg.type === 'VIDEO' ? 'bottom-0 right-2 translate-y-[50%]' : 'bottom-0 right-0 translate-y-[50%]'}`}>
+                              <div className={`absolute flex items-center gap-1 z-20 ${msg.sender === 'Me' ? (msg.type === 'IMAGE' || msg.type === 'IMAGE_GROUP' || msg.type === 'VIDEO' ? 'bottom-0 left-2 translate-y-[50%]' : 'bottom-0 left-0 translate-y-[50%]') : (msg.type === 'IMAGE' || msg.type === 'IMAGE_GROUP' || msg.type === 'VIDEO' ? 'bottom-0 right-2 translate-y-[50%]' : 'bottom-0 right-0 translate-y-[50%]')}`}>
                                 {msg.reactions && msg.reactions.length > 0 && (
                                   <div onClick={(e) => { e.stopPropagation(); setReactionModalMessageId(msg.id); }} className="flex items-center cursor-pointer shadow-md rounded-full bg-[var(--card-bg)] border border-[var(--border)] px-2 py-1 h-[26px] hover:scale-105 transition-transform">
                                     <div className="flex -space-x-0.5 mr-1.5">
@@ -1145,7 +1447,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                 </div>
                               </div>
 
-                              <button title={t('chat.actions.forward')} onClick={() => setForwardingMsg({ id: msg.id, text: msg.text, type: msg.type, sender: msg.sender })} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 10l5-5 5 5M8 6v8a4 4 0 004 4h9" /></svg></button>
+                              <button title={t('chat.actions.forward')} onClick={() => setForwardingMsg({ id: msg.id, text: msg.text, type: msg.type, sender: msg.sender, caption: msg.caption || (msg.type !== 'TEXT' ? msg.text : undefined) })} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 10l5-5 5 5M8 6v8a4 4 0 004 4h9" /></svg></button>
                               <button title={t('chat.actions.more')} onClick={(e) => openContextMenu(e, msg)} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg></button>
                             </div>
                           )}

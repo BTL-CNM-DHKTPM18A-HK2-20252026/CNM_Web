@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { SearchIcon, SparklesIcon } from '@/components/ui/Icons';
+import { SearchIcon, SparklesIcon, GroupVideoCallIcon } from '@/components/ui/Icons';
 import { StatusIndicator } from '@/features/user';
 import { webrtcService } from '@/lib/realtime/webrtcService';
 import { apiClient } from '@/lib/http/apiClient';
+import { GroupMediaViewer } from './GroupMediaViewer';
 import type { ChatHeaderProps } from '@/features/chat/components/ChatWindow/types';
 
-const DEFAULT_GROUP_AVATARS = Array.from({ length: 8 }, (_, idx) => `/default/image${idx + 1}.jpg`);
+const DEFAULT_GROUP_AVATARS = Array.from({ length: 12 }, (_, idx) => `/avatar_group/avtgr${idx + 1}.jpg`);
 
 export function ChatHeader({ vm }: ChatHeaderProps) {
   const {
@@ -25,6 +26,7 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
     isSummaryOpen,
     setIsSummaryOpen,
     fetchSummary,
+    onOpenProfile,
   } = vm;
   const [isGroupInfoModalOpen, setIsGroupInfoModalOpen] = useState(false);
   const [groupModalView, setGroupModalView] = useState<'info' | 'avatar' | 'rename' | 'members'>('info');
@@ -32,6 +34,7 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
   const [groupNameOverride, setGroupNameOverride] = useState('');
   const [groupAvatarOverride, setGroupAvatarOverride] = useState<string | undefined>(undefined);
   const [isSavingGroupInfo, setIsSavingGroupInfo] = useState(false);
+  const [memberSearchTerm, setMemberSearchTerm] = useState('');
 
   useEffect(() => {
     if (!selectedChat.isGroup) {
@@ -67,9 +70,27 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
       selectedChat.avatar,
       selectedChat.id.toString(),
       currentUser.full_name || currentUser.display_name || 'User',
-      currentUser.avatar_url,
     );
   }, [selectedChat, currentUser]);
+
+  const handleGroupVideoCall = useCallback(() => {
+    if (!selectedChat.id || !currentUser?.id) return;
+
+    console.log('[GroupCall] Starting group call for conversation:', selectedChat.id);
+    
+    // Luồng: Gửi tin nhắn CALL_GROUP_START vào nhóm
+    apiClient.post(`/messages/conversation/${selectedChat.id}`, {
+      content: 'Cuộc gọi video nhóm đã bắt đầu',
+      messageType: 'CALL_GROUP_START',
+      conversationId: selectedChat.id,
+      senderId: currentUser.id
+    }).then(() => {
+      toast.success('Cuộc gọi nhóm đã được bắt đầu');
+    }).catch((err) => {
+      console.error('[GroupCall] Failed to start group call:', err);
+      toast.error('Không thể khởi tạo cuộc gọi nhóm');
+    });
+  }, [selectedChat.id, currentUser]);
 
   const closeGroupModal = useCallback(() => {
     setIsGroupInfoModalOpen(false);
@@ -129,6 +150,15 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
   const openGroupMembersPanel = useCallback(() => {
     setGroupModalView('members');
   }, []);
+
+  const handleShowMemberProfile = useCallback((member: any) => {
+    if (!member.userId) return;
+    setIsGroupInfoModalOpen(false);
+    onOpenProfile?.(member.userId, () => {
+      setIsGroupInfoModalOpen(true);
+      setGroupModalView('members');
+    });
+  }, [onOpenProfile]);
   const openRenameGroupPanel = useCallback(() => {
     setGroupNameDraft(displayGroupName || '');
     setGroupModalView('rename');
@@ -172,30 +202,52 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
   ].slice(0, 4);
 
   const [mediaPreviewItems, setMediaPreviewItems] = useState<string[]>([]);
+  const [allMediaItems, setAllMediaItems] = useState<any[]>([]);
+  const [isMediaViewerOpen, setIsMediaViewerOpen] = useState(false);
+
   useEffect(() => {
     if (selectedChat.id) {
       apiClient.get(`/messages/conversation/${selectedChat.id}/media`)
         .then((res: any) => {
           const items = Array.isArray(res) ? res : (res?.data || []);
-          const imagesAndVideos = items.filter((m: any) => m.messageType === 'IMAGE' || m.messageType === 'VIDEO');
+          const mappedItems = items.map((m: any) => {
+            const member = (selectedChat.members || []).find((mem: any) => String(mem.userId) === String(m.senderId || m.sender_id || m.userId || m.user_id));
+            const isMe = String(m.senderId || m.sender_id || m.userId || m.user_id) === String(currentUser?.id || currentUser?.user_id);
+
+            return {
+              ...m,
+              senderName: m.senderName || m.sender || m.senderDisplayName || (isMe ? (currentUser?.full_name || currentUser?.displayName) : member?.displayName) || member?.userName,
+              senderAvatar: m.senderAvatar || m.senderAvatarUrl || m.avatar || (isMe ? (currentUser?.avatar_url || currentUser?.avatar) : member?.avatarUrl) || member?.avatar,
+              caption: m.caption || m.text
+            };
+          });
+
+          const imagesAndVideos = mappedItems
+            .filter((m: any) => m.messageType === 'IMAGE' || m.messageType === 'VIDEO')
+            .sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+          setAllMediaItems(imagesAndVideos);
           setMediaPreviewItems(imagesAndVideos.map((m: any) => m.content).slice(0, 4));
         })
-        .catch(() => {});
+        .catch(() => { });
     }
-  }, [selectedChat.id]);
-  const groupJoinLink = `https://zalo.me/g/${String(selectedChat.id || 'qoiwgj852')}`;
+  }, [selectedChat.id, vm.refreshTrigger]);
+  const rawJoinLink = selectedChat.invitationLink || `fruvi.chat/${selectedChat.id}`;
+  const groupJoinLink = rawJoinLink.replace(/^https?:\/\//, '');
 
   const handleCopyGroupLink = useCallback(() => {
     if (typeof navigator === 'undefined' || !navigator.clipboard) return;
-    navigator.clipboard.writeText(groupJoinLink).catch(() => {
-      // Ignore clipboard errors to keep interaction smooth.
+    navigator.clipboard.writeText(groupJoinLink).then(() => {
+      toast.success(t('chat.copy_link_success') || 'Đã sao chép link nhóm');
+    }).catch(() => {
+      // Ignore clipboard errors
     });
-  }, [groupJoinLink]);
+  }, [groupJoinLink, t]);
 
   const handleOpenGroupLink = useCallback(() => {
     if (typeof window === 'undefined') return;
-    window.open(groupJoinLink, '_blank', 'noopener,noreferrer');
-  }, [groupJoinLink]);
+    const fullUrl = rawJoinLink.startsWith('http') ? rawJoinLink : `https://${rawJoinLink}`;
+    window.open(fullUrl, '_blank', 'noopener,noreferrer');
+  }, [rawJoinLink]);
 
   return (
     <div className="relative h-[76px] bg-[var(--card-bg)] border-b border-[var(--border)] px-5 flex items-center justify-between shadow-sm flex-shrink-0 transition-colors duration-200">
@@ -258,7 +310,7 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
           </div>
         )}
 
-        <div className="min-w-0 group/info cursor-pointer flex items-center gap-2">
+        <div className="min-w-0 group/info cursor-pointer flex items-center gap-2 overflow-x-hidden">
           <div>
             <h3 className="text-[18px] font-bold leading-none mb-1.5 text-[var(--text)] truncate flex items-center gap-1.5">
               {selectedChat.isGroup ? displayGroupName : (nickname || selectedChat.name)}
@@ -271,15 +323,20 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
               </button>
             </h3>
-            <p className="text-[13px] text-[var(--sub-text)] truncate">
+            <div className="text-[13px] text-[var(--sub-text)] truncate">
               {selectedChat.isAi
                 ? t('chat.ai_subheading')
                 : selectedChat.isCloud
-                ? t('chat.cloud_subheading')
-                : selectedChat.otherUserId
-                ? undefined
-                : (selectedChat.isGroup ? `${t('chat.header.group_prefix')} · ${displayGroupName}` : '')}
-            </p>
+                  ? t('chat.cloud_subheading')
+                  : selectedChat.otherUserId
+                    ? undefined
+                    : (selectedChat.isGroup ? (
+                      <div className="flex items-center gap-1.5">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+                        <span>{selectedChat.memberCount || 0} thành viên</span>
+                      </div>
+                    ) : '')}
+            </div>
             {!selectedChat.isCloud && !selectedChat.isAi && selectedChat.otherUserId && (
               <StatusIndicator userId={selectedChat.otherUserId} />
             )}
@@ -287,10 +344,16 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-6 text-[var(--sub-text)] pr-2 shrink-0">
+      <div className="flex items-center gap-2 text-[var(--sub-text)] pr-1 shrink-0">
         {!selectedChat.isCloud && !selectedChat.isAi && !selectedChat.isGroup && (
-          <button onClick={handleVideoCall} className="cursor-pointer transition-all p-1.5 rounded-md hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70" title={t('chat.header.video_call')}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></svg>
+          <button onClick={handleVideoCall} className="cursor-pointer transition-all p-1 rounded-md hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-80" title={t('chat.header.video_call')}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></svg>
+          </button>
+        )}
+
+        {!selectedChat.isCloud && !selectedChat.isAi && selectedChat.isGroup && (
+          <button onClick={handleGroupVideoCall} className="cursor-pointer transition-all p-1 rounded-md hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-80" title="Cuộc gọi nhóm">
+            <GroupVideoCallIcon size={20} />
           </button>
         )}
 
@@ -298,31 +361,31 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
           <button
             onClick={fetchSummary}
             disabled={summaryLoading}
-            className={`cursor-pointer transition-all p-1.5 rounded-md ${isSummaryOpen ? 'text-[#0068FF] bg-[var(--hover-bg)]' : 'hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70'}`}
+            className={`cursor-pointer transition-all p-1 rounded-md ${isSummaryOpen ? 'text-[#0068FF] bg-[var(--hover-bg)]' : 'hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-80'}`}
             title="Tóm tắt cuộc trò chuyện"
           >
             {summaryLoading ? (
-              <div className="w-[22px] h-[22px] flex items-center justify-center">
-                <div className="w-4 h-4 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
+              <div className="w-[20px] h-[20px] flex items-center justify-center">
+                <div className="w-3.5 h-3.5 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
               </div>
             ) : (
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
             )}
           </button>
         )}
 
         <button
           onClick={() => onToggleSidebar('search')}
-          className={`cursor-pointer transition-all p-1.5 rounded-md ${activeSidebar === 'search' ? 'text-[#0068FF] bg-[var(--hover-bg)]' : 'hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70'}`}
+          className={`cursor-pointer transition-all p-1 rounded-md ${activeSidebar === 'search' ? 'text-[#0068FF] bg-[var(--hover-bg)]' : 'hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-80'}`}
         >
-          <SearchIcon size={24} />
+          <SearchIcon size={20} />
         </button>
 
         <button
           onClick={() => onToggleSidebar('info')}
-          className={`cursor-pointer transition-all p-1.5 rounded-md ${activeSidebar === 'info' ? 'text-[#0068FF] bg-[var(--hover-bg)]' : 'hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-70'}`}
+          className={`cursor-pointer transition-all p-1 rounded-md ${activeSidebar === 'info' ? 'text-[#0068FF] bg-[var(--hover-bg)]' : 'hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-80'}`}
         >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="9" y1="3" x2="9" y2="21" /></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="9" y1="3" x2="9" y2="21" /></svg>
         </button>
       </div>
 
@@ -336,12 +399,12 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-gradient-to-r from-[#0068FF]/5 to-transparent">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-[#0068FF]/10 flex items-center justify-center">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
                 </div>
                 <div>
                   <span className="text-[14px] font-semibold text-[var(--text)]">Tóm tắt cuộc trò chuyện</span>
                   {!summaryLoading && summaryMessageCount > 0 && (
-                    <div className="text-[11px] text-[var(--sub-text)]">{summaryMessageCount} tin nhắn gần nhất</div>
+                    <div className="text-[11px] text-[var(--sub-text)]">{summaryMessageCount} tin nhắn đã bỏ lỡ</div>
                   )}
                 </div>
               </div>
@@ -350,11 +413,19 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
               </button>
             </div>
             {/* Body */}
-            <div className="p-4 overflow-y-auto max-h-[430px]">
+            <div className="p-4 overflow-y-auto overflow-x-hidden max-h-[430px]">
               {summaryLoading ? (
-                <div className="flex flex-col items-center justify-center py-12 gap-3">
-                  <div className="w-8 h-8 border-[3px] border-[#0068FF] border-t-transparent rounded-full animate-spin" />
-                  <span className="text-[13px] text-[var(--sub-text)]">AI đang tóm tắt 100 tin nhắn gần nhất...</span>
+                <div className="flex flex-col items-center justify-center py-10 gap-5">
+                  <div className="relative w-full px-6">
+                    <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-[#0068FF] to-[#0095FF] animate-progress-glow rounded-full shadow-[0_0_8px_rgba(0,104,255,0.4)]" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-8 h-8 border-[3px] border-[#0068FF] border-t-transparent rounded-full animate-spin" />
+                    <span className="text-[13px] text-[var(--sub-text)] font-medium">AI đang tóm tắt nội dung bạn đã bỏ lỡ...</span>
+                    <span className="text-[11px] text-[var(--sub-text)] opacity-60 italic">Vui lòng chờ trong giây lát</span>
+                  </div>
                 </div>
               ) : (
                 <div
@@ -372,7 +443,7 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
       {isGroupInfoModalOpen && selectedChat.isGroup && (
         <div className="fixed inset-0 z-[130] flex items-center justify-center p-3">
           <div className="absolute inset-0 bg-black/45" onClick={closeGroupModal} />
-          <div className="relative z-[131] w-full max-w-[460px] bg-[#F3F4F6] rounded-md overflow-hidden border border-[#D8DADF] shadow-2xl animate-in zoom-in-95 duration-150">
+          <div className={`relative z-[131] w-full ${groupModalView === 'rename' ? 'max-w-[380px]' : 'max-w-[460px]'} bg-[#F3F4F6] rounded-md overflow-hidden border border-[#D8DADF] shadow-2xl animate-in zoom-in-95 duration-150 transition-all`}>
             <div className="h-[54px] px-4 bg-white border-b border-[#D8DADF] flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {groupModalView !== 'info' && (
@@ -386,7 +457,7 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
                   </button>
                 )}
                 <h3 className="text-[15px] leading-none font-semibold text-[#13233F]">
-                  {groupModalView === 'avatar' ? 'Cập nhật ảnh đại diện' : groupModalView === 'rename' ? 'Đổi tên nhóm' : groupModalView === 'members' ? 'Thành viên nhóm' : 'Thông tin nhóm'}
+                  {groupModalView === 'avatar' ? 'Cập nhật ảnh đại diện nhóm' : groupModalView === 'rename' ? 'Đổi tên nhóm' : groupModalView === 'members' ? 'Danh sách thành viên' : 'Thông tin nhóm'}
                 </h3>
               </div>
 
@@ -435,50 +506,145 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
                 </div>
               </div>
             ) : groupModalView === 'members' ? (
-              <div className="bg-[#F3F4F6] p-4 pb-5 max-h-[420px] overflow-y-auto">
-                <p className="text-[13px] text-[#5A667A] mb-3">
-                  {selectedChat.memberCount || 0} thành viên
-                </p>
-                <div className="space-y-3">
-                  {memberPreviewAvatars.map((url, idx) => (
-                    <div key={`member-list-${url}-${idx}`} className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 border border-[#D0D6DF] shrink-0">
-                        <img src={url} alt={`Thành viên ${idx + 1}`} className="w-full h-full object-cover" />
-                      </div>
-                      <span className="text-[13px] font-medium text-[#13233F]">Thành viên {idx + 1}</span>
-                    </div>
-                  ))}
-                  {(selectedChat.memberCount || 0) > memberPreviewAvatars.length && (
-                    <p className="text-[12px] text-[#5A667A] text-center pt-1">
-                      và {(selectedChat.memberCount || 0) - memberPreviewAvatars.length} thành viên khác
-                    </p>
-                  )}
+              <div className="bg-white flex flex-col h-full max-h-[550px]">
+                {/* Header sub-action */}
+                <div className="px-4 py-3 border-b border-[#F0F2F5]">
+                  <button
+                    type="button"
+                    onClick={() => { setIsGroupInfoModalOpen(false); onToggleSidebar('info'); }}
+                    className="w-full py-2 bg-[#EEF1F6] hover:bg-[#E3E8EF] text-[#394E60] font-semibold text-[14px] rounded-md flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" /></svg>
+                    Thêm thành viên
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => { setIsGroupInfoModalOpen(false); onToggleSidebar('info'); }}
-                  className="mt-4 w-full h-9 bg-[#DADDE3] hover:bg-[#CFD5DE] rounded text-[13px] leading-none font-semibold text-[#13233F] cursor-pointer transition-colors"
-                >
-                  Xem tất cả thành viên
-                </button>
+
+                <div className="p-4 flex flex-col gap-3 min-h-0 flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[15px] font-bold text-[#13233F]">
+                      Danh sách thành viên ({selectedChat.memberCount || 0})
+                    </span>
+                    <button className="p-1 hover:bg-[#F0F2F5] rounded-full text-[#5A667A] cursor-pointer">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>
+                    </button>
+                  </div>
+
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7589A3]">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                    </span>
+                    <input
+                      type="text"
+                      value={memberSearchTerm}
+                      onChange={(e) => setMemberSearchTerm(e.target.value)}
+                      placeholder="Tìm kiếm thành viên"
+                      className="w-full h-9 pl-9 pr-4 bg-white border border-[#D0D6DF] rounded-full text-[14px] outline-none focus:border-[#0F69FF]"
+                    />
+                  </div>
+
+                  <div className="mt-2 space-y-1 overflow-y-auto overflow-x-hidden max-h-[350px] custom-scrollbar pr-1">
+                    {(selectedChat.members || [])
+                      .filter((m: any) => (m.displayName || '').toLowerCase().includes(memberSearchTerm.toLowerCase()))
+                      .map((m: any, idx: number) => {
+                        const mAvatar = m.avatarUrl || m.avatar;
+                        const mName = m.displayName || 'Unknown';
+                        const isMe = m.userId === currentUser?.id;
+
+                        return (
+                          <div
+                            key={`member-list-full-${m.userId}-${idx}`}
+                            onClick={() => handleShowMemberProfile(m)}
+                            className="flex items-center justify-between group cursor-pointer hover:bg-[#F8FAFC] -mx-2 px-2 py-2 rounded-lg transition-colors"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="relative w-[42px] h-[42px] rounded-full border border-[#D0D6DF] shrink-0 flex items-center justify-center bg-gray-200">
+                                {mAvatar ? (
+                                  <img src={mAvatar} alt={mName} className="w-full h-full object-cover rounded-full" />
+                                ) : (
+                                  <div className="w-full h-full rounded-full flex items-center justify-center text-[14px] font-bold text-white bg-blue-500">
+                                    {mName.charAt(0)}
+                                  </div>
+                                )}
+                                {m.role === 'ADMIN' && (
+                                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-[#6A5A3F] rounded-full flex items-center justify-center text-[#FCD34D] border-2 border-white">
+                                    <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M12.65 10A5.99 5.99 0 0 0 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6a5.99 5.99 0 0 0 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" /></svg>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-[14px] font-bold text-[#13233F] truncate">
+                                  {mName} {isMe ? ' (Bạn)' : ''}
+                                </span>
+                                <span className="text-[13px] text-[#5A667A]">
+                                  {m.role === 'ADMIN' ? 'Trưởng nhóm' : m.role === 'DEPUTY' ? 'Phó nhóm' : ''}
+                                </span>
+                              </div>
+                            </div>
+
+                            {!isMe && m.isFriend === false && (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); /* handle add friend */ }}
+                                className="px-3 py-1.5 bg-[#E8F2FF] hover:bg-[#D6E6FF] text-[#0068FF] text-[13px] font-bold rounded flex items-center justify-center transition-colors cursor-pointer"
+                              >
+                                Kết bạn
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
               </div>
             ) : groupModalView === 'rename' ? (
-              <div className="bg-[#F3F4F6] p-4 pb-5">
-                <label className="text-[13px] text-[#5A667A] font-medium">Tên nhóm mới</label>
-                <input
-                  type="text"
-                  value={groupNameDraft}
-                  onChange={(e) => setGroupNameDraft(e.target.value)}
-                  placeholder="Nhập tên nhóm"
-                  className="mt-2 w-full h-10 rounded border border-[#CBD3DF] px-3 text-[14px] text-[#13233F] bg-white outline-none focus:border-[#0F69FF]"
-                  maxLength={60}
-                />
+              <div className="bg-white p-5 flex flex-col items-center">
+                {/* Avatar Preview */}
+                <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 border border-[#C7CED9] mb-4">
+                  {displayGroupAvatar ? (
+                    <img src={displayGroupAvatar} alt={displayGroupName} className="w-full h-full object-cover" />
+                  ) : memberPreviewAvatars.length > 0 ? (
+                    <div className="w-full h-full relative bg-[#E8ECF2]">
+                      <div className="absolute left-1.5 top-1.5 w-8 h-8 rounded-full overflow-hidden border border-[#D0D6DF] bg-gray-200">
+                        {memberPreviewAvatars[0] ? <img src={memberPreviewAvatars[0]} alt={displayGroupName} className="w-full h-full object-cover" /> : null}
+                      </div>
+                      <div className="absolute right-1.5 top-1.5 w-8 h-8 rounded-full overflow-hidden border border-[#D0D6DF] bg-gray-200">
+                        {memberPreviewAvatars[1] ? <img src={memberPreviewAvatars[1]} alt={displayGroupName} className="w-full h-full object-cover" /> : null}
+                      </div>
+                      <div className="absolute left-1.5 bottom-1.5 w-8 h-8 rounded-full overflow-hidden border border-[#D0D6DF] bg-gray-200">
+                        {memberPreviewAvatars[2] ? <img src={memberPreviewAvatars[2]} alt={displayGroupName} className="w-full h-full object-cover" /> : null}
+                      </div>
+                      <div className="absolute right-1.5 bottom-1.5 w-8 h-8 rounded-full border border-[#D0D6DF] bg-[#D8DEE8] text-[#5B6576] text-[10px] font-bold flex items-center justify-center">
+                        {selectedChat.memberCount || 0}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[28px] font-bold text-[#5B6576]">
+                      {displayGroupName?.charAt(0) || '?'}
+                    </div>
+                  )}
+                </div>
 
-                <div className="mt-4 flex items-center justify-end gap-2">
+                <p className="text-[14px] leading-[1.4] text-[#13233F] text-center mb-4 px-2">
+                  Bạn có chắc chắn muốn đổi tên nhóm, khi xác nhận tên nhóm mới sẽ hiển thị với tất cả thành viên.
+                </p>
+
+                <div className="w-full mb-5">
+                  <input
+                    type="text"
+                    value={groupNameDraft}
+                    onChange={(e) => setGroupNameDraft(e.target.value)}
+                    placeholder="Nhập tên nhóm"
+                    className="w-full h-10 rounded-lg border border-[#CBD3DF] px-4 text-[14px] text-[#13233F] bg-white outline-none focus:border-[#0F69FF] shadow-sm transition-all"
+                    maxLength={60}
+                    autoFocus
+                  />
+                </div>
+
+                <div className="w-full flex items-center justify-end gap-3 pt-3 border-t border-[#D8DADF]">
                   <button
                     type="button"
                     onClick={() => setGroupModalView('info')}
-                    className="h-9 px-4 rounded bg-[#DFE3EA] hover:bg-[#D4DAE4] text-[#2D3B52] text-[13px] font-medium transition-colors cursor-pointer"
+                    className="h-10 px-6 rounded-lg bg-[#E9EBED] hover:bg-[#DDE0E3] text-[#13233F] text-[14px] font-bold transition-colors cursor-pointer"
                   >
                     Hủy
                   </button>
@@ -486,9 +652,9 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
                     type="button"
                     onClick={handleConfirmRenameGroup}
                     disabled={isSavingGroupInfo}
-                    className="h-9 px-4 rounded bg-[#0F69FF] hover:bg-[#0B5CE3] text-white text-[13px] font-medium transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="h-10 px-6 rounded-lg bg-[#0068FF] hover:bg-[#005AE0] text-white text-[14px] font-bold transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    Lưu
+                    Xác nhận
                   </button>
                 </div>
               </div>
@@ -532,16 +698,22 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <div className="text-[13px] leading-tight font-semibold text-[#13233F] truncate flex items-center gap-2">
-                        {displayGroupName}
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-[15px] leading-tight font-semibold text-[#13233F] truncate">
+                          {displayGroupName}
+                        </span>
                         <button
                           type="button"
                           onClick={openRenameGroupPanel}
-                          className="w-6 h-6 rounded-full hover:bg-[#E7EBF2] text-[#22324D] flex items-center justify-center cursor-pointer"
+                          className="shrink-0 w-6 h-6 rounded-full hover:bg-[#E7EBF2] text-[#22324D] flex items-center justify-center cursor-pointer"
                           aria-label="Đổi tên nhóm"
                         >
-                          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
                         </button>
+                      </div>
+                      <div className="flex items-center gap-1 mt-1 text-[#5A667A]">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                        <span className="text-[13px]">{selectedChat.memberCount || 0} thành viên</span>
                       </div>
                     </div>
                   </div>
@@ -560,14 +732,25 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
                 <div className="px-4 py-3.5 bg-[#F3F4F6] border-b border-[#D8DADF]">
                   <div className="text-[13px] leading-none font-semibold text-[#13233F]">Thành viên ({selectedChat.memberCount || 0})</div>
                   <div className="mt-4 flex items-center">
-                    {memberPreviewAvatars.map((url, idx) => (
-                      <div
-                        key={`${url}-${idx}`}
-                        className={`w-9 h-9 rounded-full overflow-hidden border-2 border-[#F3F4F6] bg-gray-300 ${idx > 0 ? '-ml-2' : ''}`}
-                      >
-                        <img src={url} alt={`Member ${idx + 1}`} className="w-full h-full object-cover" />
-                      </div>
-                    ))}
+                    {(selectedChat.members || []).slice(0, 6).map((m: any, idx: number) => {
+                      const mAvatar = m.avatarUrl || m.avatar;
+                      const mName = m.displayName || m.name || '?';
+                      return (
+                        <div
+                          key={`preview-${m.userId || idx}`}
+                          onClick={() => handleShowMemberProfile(m)}
+                          className={`w-9 h-9 rounded-full overflow-hidden border-2 border-[#F3F4F6] bg-gray-300 ${idx > 0 ? '-ml-2' : ''} relative z-0 shrink-0 cursor-pointer hover:opacity-80 transition-opacity`}
+                        >
+                          {mAvatar ? (
+                            <img src={mAvatar} alt={mName} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-blue-500 text-white font-bold text-[12px]">
+                              {mName.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                     <button
                       type="button"
                       onClick={openGroupMembersPanel}
@@ -577,25 +760,25 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
                   </div>
                 </div>
 
-                <div className="h-2 bg-[#E0E3E8]" />
+                {mediaPreviewItems.length > 0 && (
+                  <>
+                    <div className="h-2 bg-[#E0E3E8]" />
 
-                <div className="px-4 py-3.5 bg-[#F3F4F6] border-b border-[#D8DADF]">
-                  <div className="text-[13px] leading-none font-semibold text-[#13233F]">Ảnh/Video</div>
-                  <div className="mt-4 grid grid-cols-5 gap-2">
-                    {Array.from({ length: 4 }).map((_, idx) => (
-                      <div key={idx} className="aspect-[1.1/1] rounded overflow-hidden bg-[#E2E6ED] border border-[#D0D6E0]">
-                        {mediaPreviewItems[idx] ? (
-                          <img src={mediaPreviewItems[idx]} alt={`Media ${idx + 1}`} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-[#7B8494] text-[10px]">Ảnh</div>
-                        )}
+                    <div className="px-4 py-3.5 bg-[#F3F4F6] border-b border-[#D8DADF]">
+                      <div className="text-[13px] leading-none font-semibold text-[#13233F]">Ảnh/Video</div>
+                      <div className="mt-4 grid grid-cols-5 gap-2">
+                        {mediaPreviewItems.map((url, idx) => (
+                          <div key={idx} className="aspect-[1.1/1] rounded overflow-hidden bg-[#E2E6ED] border border-[#D0D6E0]">
+                            <img src={url} alt={`Media ${idx + 1}`} className="w-full h-full object-cover" />
+                          </div>
+                        ))}
+                        <button type="button" onClick={() => setIsMediaViewerOpen(true)} className="aspect-[1.1/1] rounded bg-[#D6DFEE] text-[#0F69FF] flex items-center justify-center hover:bg-[#C2D1E8] transition-colors cursor-pointer">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
+                        </button>
                       </div>
-                    ))}
-                    <button type="button" onClick={() => onToggleSidebar('info')} className="aspect-[1.1/1] rounded bg-[#D6DFEE] text-[#0F69FF] flex items-center justify-center hover:bg-[#C2D1E8] transition-colors cursor-pointer">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
-                    </button>
-                  </div>
-                </div>
+                    </div>
+                  </>
+                )}
 
                 <div className="h-2 bg-[#E0E3E8]" />
 
@@ -607,16 +790,16 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
                       </div>
                       <div className="min-w-0">
                         <div className="text-[13px] leading-none font-medium text-[#13233F]">Link tham gia nhóm</div>
-                        <button type="button" onClick={handleOpenGroupLink} className="mt-1 text-[12px] leading-tight text-[#0F69FF] hover:underline break-all text-left">{groupJoinLink}</button>
+                        <button type="button" onClick={handleOpenGroupLink} className="mt-1 text-[12px] leading-tight text-[#0F69FF] hover:underline break-all text-left cursor-pointer">{groupJoinLink}</button>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-3 shrink-0">
-                      <button type="button" onClick={handleCopyGroupLink} className="w-11 h-11 rounded-full bg-[#D9DDE4] hover:bg-[#CFD4DC] text-[#3A4658] flex items-center justify-center">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>
+                      <button type="button" onClick={handleCopyGroupLink} className="w-9 h-9 rounded-full bg-[#D9DDE4] hover:bg-[#CFD4DC] text-[#3A4658] flex items-center justify-center cursor-pointer">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>
                       </button>
-                      <button type="button" onClick={handleOpenGroupLink} className="w-11 h-11 rounded-full bg-[#D9DDE4] hover:bg-[#CFD4DC] text-[#3A4658] flex items-center justify-center">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3h7v7" /><path d="M10 14 21 3" /><path d="M21 14v4a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h4" /></svg>
+                      <button type="button" onClick={handleOpenGroupLink} className="w-9 h-9 rounded-full bg-[#D9DDE4] hover:bg-[#CFD4DC] text-[#3A4658] flex items-center justify-center cursor-pointer">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3h7v7" /><path d="M10 14 21 3" /><path d="M21 14v4a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h4" /></svg>
                       </button>
                     </div>
                   </div>
@@ -636,6 +819,22 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
           </div>
         </div>
       )}
+
+      <GroupMediaViewer
+        isOpen={isMediaViewerOpen}
+        onClose={() => setIsMediaViewerOpen(false)}
+        mediaItems={allMediaItems}
+        groupName={displayGroupName || 'Thông tin nhóm'}
+        currentUser={vm.currentUser}
+        members={selectedChat.members}
+        onForward={(item) => vm.setForwardingMsg({
+          id: item.messageId,
+          text: item.content,
+          type: item.messageType,
+          sender: item.senderName || 'Người dùng',
+          caption: item.caption,
+        })}
+      />
     </div>
   );
 }

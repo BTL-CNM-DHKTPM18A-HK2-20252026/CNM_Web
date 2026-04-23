@@ -3,6 +3,7 @@ import { ImageModal } from '@/components/ui/ImageModal';
 import { ForwardModal } from '@/features/chat/components/modals/ForwardModal';
 import { NicknameModal } from '@/features/chat/components/modals/NicknameModal';
 import { ShareContactModal } from '@/features/chat/components/modals/ShareContactModal';
+import { GroupMediaViewer } from '@/features/chat/components/ChatWindow/GroupMediaViewer';
 import type { ChatModalHostProps } from '@/features/chat/components/ChatWindow/types';
 
 export function ChatModalHost({ vm }: ChatModalHostProps) {
@@ -90,21 +91,44 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
     return () => window.removeEventListener('resize', positionContextMenu);
   }, [contextMenu]);
 
-  // Collect all image URLs from conversation (IMAGE + IMAGE_GROUP) for lightbox navigation
-  const allConversationImages = useMemo(() => {
-    const urls: string[] = [];
+  // Collect all media items from conversation (IMAGE, VIDEO, IMAGE_GROUP) for viewer navigation
+  const allConversationMedia = useMemo(() => {
+    const items: any[] = [];
     for (const msg of messages) {
-      if (msg.isRecalled || msg.isDeleted) continue;
-      if (msg.type === 'IMAGE' && msg.text && !msg.text.startsWith('blob:')) {
-        urls.push(msg.text);
+      if (msg.isRecalled) continue;
+      if (msg.type === 'IMAGE' || msg.type === 'VIDEO') {
+        items.push({
+          id: msg.id,
+          messageId: msg.id,
+          content: msg.text,
+          messageType: msg.type,
+          senderName: msg.sender === 'Me' ? currentUser?.displayName : msg.sender,
+          senderAvatarUrl: msg.avatar,
+          createdAt: msg.rawDate?.toISOString(),
+          caption: msg.caption || (msg.type !== 'TEXT' && msg.type !== 'IMAGE_GROUP' ? msg.text : undefined),
+        });
       } else if (msg.type === 'IMAGE_GROUP' && msg.attachments) {
         for (const att of msg.attachments) {
-          if (att.url && !att.url.startsWith('blob:')) urls.push(att.url);
+          items.push({
+            id: `${msg.id}-${att.url}`,
+            messageId: msg.id,
+            content: att.url,
+            messageType: 'IMAGE',
+            senderName: msg.sender === 'Me' ? currentUser?.displayName : msg.sender,
+            senderAvatarUrl: msg.avatar,
+            createdAt: msg.rawDate?.toISOString(),
+            caption: msg.caption || msg.text,
+          });
         }
       }
     }
-    return urls;
-  }, [messages]);
+    return items;
+  }, [messages, currentUser?.displayName]);
+
+  const openedImageIndex = useMemo(() => {
+    if (!openedImageSrc) return 0;
+    return allConversationMedia.findIndex(m => m.content === openedImageSrc);
+  }, [openedImageSrc, allConversationMedia]);
 
   return (
     <>
@@ -157,14 +181,22 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
         </div>
       )}
 
-      {openedImageSrc && (
-        <ImageModal
-          src={openedImageSrc}
-          onClose={() => setOpenedImageSrc(null)}
-          allImages={allConversationImages}
-          onNavigate={(src) => setOpenedImageSrc(src)}
-        />
-      )}
+      <GroupMediaViewer
+        isOpen={!!openedImageSrc}
+        onClose={() => setOpenedImageSrc(null)}
+        mediaItems={allConversationMedia}
+        initialIndex={openedImageIndex}
+        groupName={selectedChat.name}
+        currentUser={vm.currentUser}
+        members={selectedChat.members}
+        onForward={(item) => setForwardingMsg({
+          id: item.messageId,
+          text: item.content,
+          type: item.messageType,
+          sender: item.senderName || 'Người dùng',
+          caption: item.caption,
+        })}
+      />
 
       {forwardingMsg && (
         <ForwardModal

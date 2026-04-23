@@ -4,210 +4,315 @@ import { toast } from 'sonner';
 import { apiClient } from '@/lib/http/apiClient';
 
 interface ForwardModalProps {
-    message: { id: string; text: string; type: string; sender: string };
-    currentConversationId: string;
-    currentUserId?: string;
-    onClose: () => void;
-    onForwarded?: (conversationId: string) => void;
+  message: { id: string; text: string; type: string; sender: string; caption?: string };
+  currentConversationId: string;
+  currentUserId?: string;
+  onClose: () => void;
+  onForwarded?: (conversationId: string) => void;
 }
+
+type TabType = 'recent' | 'group' | 'friends';
 
 export function ForwardModal({ message, currentConversationId, currentUserId, onClose, onForwarded }: ForwardModalProps) {
-    const { t } = useTranslation();
-    const [conversations, setConversations] = useState<any[]>([]);
-    const [search, setSearch] = useState('');
-    const [selected, setSelected] = useState<Set<string>>(new Set());
-    const [loading, setLoading] = useState(false);
-    const [sending, setSending] = useState(false);
+  const { t } = useTranslation();
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>('recent');
+  const [note, setNote] = useState('');
+  const [attachDesc, setAttachDesc] = useState(!!message.caption);
 
-    useEffect(() => {
-        const fetchConversations = async () => {
-            setLoading(true);
-            try {
-                const res = await apiClient.get('/conversations');
-                const data = (res && res.success && res.data) ? res.data : res;
-                if (Array.isArray(data)) {
-                    const mapped = data
-                        .map((c: any) => {
-                            const id = c.conversationId || c.conversation_id;
-                            const isSelf = c.conversationType === 'SELF' || c.conversation_type === 'SELF';
-                            let name = c.conversationName || c.conversation_name || '';
-                            let avatar = c.conversationAvatarUrl || c.conversation_avatar_url || '';
+  useEffect(() => {
+    setAttachDesc(!!message.caption);
+  }, [message.id, message.caption]);
 
-                            if ((c.conversationType === 'PRIVATE' || c.conversation_type === 'PRIVATE') && c.members) {
-                                const other = c.members.find((m: any) => (m.userId || m.user_id) !== currentUserId);
-                                if (other) {
-                                    name = other.displayName || other.display_name || name;
-                                    avatar = other.avatarUrl || other.avatar_url || avatar;
-                                }
-                            }
+  useEffect(() => {
+    const fetchConversations = async () => {
+      setLoading(true);
+      try {
+        const res = await apiClient.get('/conversations');
+        const data = (res && res.success && res.data) ? res.data : res;
+        if (Array.isArray(data)) {
+          const mapped = data
+            .map((c: any) => {
+              const id = c.conversationId || c.conversation_id;
+              const isSelf = c.conversationType === 'SELF' || c.conversation_type === 'SELF';
+              let name = c.conversationName || c.conversation_name || '';
+              let avatar = c.conversationAvatarUrl || c.conversation_avatar_url || '';
 
-                            return {
-                                id,
-                                name: isSelf ? t('chat.self_cloud') : name,
-                                avatar,
-                                isGroup: c.conversationType === 'GROUP' || c.conversation_type === 'GROUP',
-                                isSelf,
-                            };
-                        })
-                        .filter((c: any) => c.id !== currentConversationId);
-                    setConversations(mapped);
+              if ((c.conversationType === 'PRIVATE' || c.conversation_type === 'PRIVATE') && c.members) {
+                const other = c.members.find((m: any) => (m.userId || m.user_id) !== currentUserId);
+                if (other) {
+                  name = other.displayName || other.display_name || name;
+                  avatar = other.avatarUrl || other.avatar_url || avatar;
                 }
-            } catch (e) {
-                console.error('Failed to fetch conversations for forward:', e);
-            } finally {
-                setLoading(false);
-            }
+              }
+
+              return {
+                id,
+                name: isSelf ? t('chat.self_cloud') : name,
+                avatar,
+                isGroup: c.conversationType === 'GROUP' || c.conversation_type === 'GROUP',
+                isSelf,
+              };
+            })
+            .filter((c: any) => c.id !== currentConversationId);
+          setConversations(mapped);
+        }
+      } catch (e) {
+        console.error('Failed to fetch conversations for forward:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchConversations();
+  }, [currentConversationId, currentUserId, t]);
+
+  const filtered = conversations.filter(c => {
+    const matchesSearch = c.name?.toLowerCase().includes(search.toLowerCase());
+    if (activeTab === 'group') return matchesSearch && c.isGroup;
+    if (activeTab === 'friends') return matchesSearch && !c.isGroup && !c.isSelf;
+    return matchesSearch;
+  });
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleForward = async () => {
+    if (selected.size === 0) return;
+    setSending(true);
+    try {
+      const promises = Array.from(selected).map(async (convId) => {
+        // First send the media
+        const payload: any = {
+          conversationId: convId,
+          content: message.text,
+          messageType: message.type,
+          forwardedFromMessageId: message.id,
+          caption: attachDesc ? message.caption : undefined,
         };
-        fetchConversations();
-    }, [currentConversationId, currentUserId, t]);
+        await apiClient.post('/messages', payload);
 
-    const filtered = conversations.filter(c =>
-        c.name?.toLowerCase().includes(search.toLowerCase())
-    );
-
-    const toggleSelect = (id: string) => {
-        setSelected(prev => {
-            const next = new Set(prev);
-            if (next.has(id)) next.delete(id);
-            else next.add(id);
-            return next;
-        });
-    };
-
-    const handleForward = async () => {
-        if (selected.size === 0) return;
-        setSending(true);
-        try {
-            const promises = Array.from(selected).map(async (convId) => {
-                const payload: any = {
-                    conversationId: convId,
-                    content: message.text,
-                    messageType: message.type,
-                    forwardedFromMessageId: message.id,
-                };
-                await apiClient.post('/messages', payload);
-                onForwarded?.(convId);
-            });
-            await Promise.all(promises);
-            toast.success(t('chat.forward.success', { count: selected.size }));
-            onClose();
-        } catch (e) {
-            console.error('Forward failed:', e);
-            toast.error(t('chat.forward.error'));
-        } finally {
-            setSending(false);
+        // Then send the note if provided
+        if (note.trim()) {
+          await apiClient.post('/messages', {
+            conversationId: convId,
+            content: note.trim(),
+            messageType: 'TEXT',
+          });
         }
-    };
+        onForwarded?.(convId);
+      });
+      await Promise.all(promises);
+      toast.success(t('chat.forward.success', { count: selected.size }));
+      onClose();
+    } catch (e) {
+      console.error('Forward failed:', e);
+      toast.error(t('chat.forward.error'));
+    } finally {
+      setSending(false);
+    }
+  };
 
-    const getSnippet = () => {
-        switch (message.type) {
-            case 'IMAGE': return `📷 ${t('chat.snippet.image')}`;
-            case 'VIDEO': return `🎬 ${t('chat.snippet.video')}`;
-            case 'MEDIA': return `📎 ${t('chat.snippet.file')}`;
-            case 'VOICE': return `🎤 ${t('chat.snippet.voice')}`;
-            default: return message.text?.length > 60 ? message.text.slice(0, 60) + '...' : message.text;
-        }
-    };
+  const getSnippet = () => {
+    switch (message.type) {
+      case 'IMAGE': return 'Chia sẻ hình ảnh';
+      case 'VIDEO': return 'Chia sẻ video';
+      case 'MEDIA': return 'Chia sẻ tệp tin';
+      case 'VOICE': return 'Chia sẻ tin nhắn thoại';
+      default: return message.text?.length > 60 ? message.text.slice(0, 60) + '...' : message.text;
+    }
+  };
 
-    return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-[1px]" onClick={onClose}>
-            <div
-                className="bg-[var(--card-bg)] w-[440px] max-w-[95vw] max-h-[80vh] rounded-xl shadow-2xl flex flex-col overflow-hidden border border-[var(--border)] animate-in fade-in zoom-in-95 duration-150"
-                onClick={(e) => e.stopPropagation()}
-            >
-                {/* Header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
-                    <h3 className="text-[16px] font-bold text-[var(--text)]">{t('chat.forward.title')}</h3>
-                    <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[var(--hover-bg)] text-[var(--sub-text)] transition-colors cursor-pointer">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                    </button>
-                </div>
+  const isSelected = (id: string) => selected.has(id);
 
-                {/* Message Preview */}
-                <div className="px-5 py-3 bg-[var(--hover-bg)]/50 border-b border-[var(--border)]">
-                    <div className="text-[12px] text-[var(--sub-text)] mb-1">{t('chat.forward.message_preview')}</div>
-                    <div className="text-[14px] text-[var(--text)] truncate font-medium">{getSnippet()}</div>
-                </div>
-
-                {/* Search */}
-                <div className="px-5 py-3 border-b border-[var(--border)]">
-                    <div className="flex items-center gap-2 bg-[var(--hover-bg)] rounded-lg px-3 py-2">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--sub-text)] shrink-0"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-                        <input
-                            type="text"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder={t('chat.forward.search_placeholder')}
-                            className="w-full bg-transparent outline-none text-[14px] text-[var(--text)] placeholder:text-[var(--sub-text)] placeholder:opacity-50"
-                            autoFocus
-                        />
-                    </div>
-                </div>
-
-                {/* Conversation List */}
-                <div className="flex-1 overflow-y-auto min-h-[200px] max-h-[340px]">
-                    {loading ? (
-                        <div className="flex items-center justify-center py-10">
-                            <div className="w-6 h-6 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
-                        </div>
-                    ) : filtered.length === 0 ? (
-                        <div className="flex items-center justify-center py-10 text-[14px] text-[var(--sub-text)]">
-                            {t('chat.forward.no_results')}
-                        </div>
-                    ) : (
-                        filtered.map((conv) => (
-                            <button
-                                key={conv.id}
-                                onClick={() => toggleSelect(conv.id)}
-                                className={`w-full flex items-center gap-3 px-5 py-3 hover:bg-[var(--hover-bg)] transition-colors cursor-pointer ${selected.has(conv.id) ? 'bg-blue-50/50 dark:bg-blue-500/10' : ''}`}
-                            >
-                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${selected.has(conv.id) ? 'bg-[#0068FF] border-[#0068FF]' : 'border-gray-300 dark:border-gray-600'}`}>
-                                    {selected.has(conv.id) && (
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                                    )}
-                                </div>
-                                <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                                    {conv.avatar ? (
-                                        <img src={conv.avatar} alt="" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <span className="text-[#0068FF] font-bold text-sm">{conv.name?.charAt(0) || '?'}</span>
-                                    )}
-                                </div>
-                                <div className="flex-1 min-w-0 text-left">
-                                    <div className="text-[14px] font-medium text-[var(--text)] truncate flex items-center gap-1.5">
-                                        {conv.name}
-                                        {conv.isGroup && (
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--sub-text)] opacity-60 shrink-0"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
-                                        )}
-                                    </div>
-                                </div>
-                            </button>
-                        ))
-                    )}
-                </div>
-
-                {/* Footer */}
-                <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--border)] bg-[var(--card-bg)]">
-                    <div className="text-[13px] text-[var(--sub-text)]">
-                        {selected.size > 0 && t('chat.forward.selected', { count: selected.size })}
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={onClose}
-                            className="px-4 py-2 text-[14px] font-medium text-[var(--sub-text)] hover:bg-[var(--hover-bg)] rounded-lg transition-colors cursor-pointer"
-                        >
-                            {t('common.cancel')}
-                        </button>
-                        <button
-                            onClick={handleForward}
-                            disabled={selected.size === 0 || sending}
-                            className="px-5 py-2 text-[14px] font-bold text-white bg-[#0068FF] hover:bg-[#0052CC] rounded-lg transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                            {sending ? t('chat.forward.sending') : t('chat.forward.send_btn')}
-                        </button>
-                    </div>
-                </div>
-            </div>
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div
+        className="bg-white w-[480px] max-w-[95vw] max-h-[680px] rounded-lg shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 text-[#1A1A1A]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 h-14 border-b border-gray-100">
+          <h3 className="text-[17px] font-semibold text-[#081C36]">Chia sẻ</h3>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer text-gray-500">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+          </button>
         </div>
-    );
+
+        {/* Content Container (Scrollable part) */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Search */}
+          <div className="px-4 py-3">
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+              </div>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Tìm kiếm..."
+                className="w-full bg-white border border-gray-300 rounded-[4px] py-[7px] pl-10 pr-4 text-[14px] focus:outline-none focus:border-[#0068FF] transition-all"
+                autoFocus
+              />
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="px-4 flex items-center justify-between border-b border-gray-100 mb-1">
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setActiveTab('recent')}
+                className={`pb-2 text-[14px] font-medium transition-colors relative cursor-pointer ${activeTab === 'recent' ? 'text-[#0068FF]' : 'text-gray-600 hover:text-black'}`}
+              >
+                Gần đây
+                {activeTab === 'recent' && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#0068FF]" />}
+              </button>
+              <button 
+                onClick={() => setActiveTab('group')}
+                className={`pb-2 text-[14px] font-medium transition-colors relative cursor-pointer ${activeTab === 'group' ? 'text-[#0068FF]' : 'text-gray-600 hover:text-black'}`}
+              >
+                Nhóm trò chuyện
+                {activeTab === 'group' && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#0068FF]" />}
+              </button>
+              <button 
+                onClick={() => setActiveTab('friends')}
+                className={`pb-2 text-[14px] font-medium transition-colors relative cursor-pointer ${activeTab === 'friends' ? 'text-[#0068FF]' : 'text-gray-600 hover:text-black'}`}
+              >
+                Bạn bè
+                {activeTab === 'friends' && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#0068FF]" />}
+              </button>
+            </div>
+            <button className="flex items-center gap-1 text-[13px] text-gray-600 hover:text-black cursor-pointer">
+              Phân loại <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9" /></svg>
+            </button>
+          </div>
+
+          {/* Conversation List */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar min-h-[180px] max-h-[320px]">
+            {loading ? (
+              <div className="flex items-center justify-center py-10">
+                <div className="w-6 h-6 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center opacity-40">
+                <p className="text-[14px]">Không tìm thấy kết quả</p>
+              </div>
+            ) : (
+              <div className="py-1">
+                {filtered.map((conv) => (
+                  <label
+                    key={conv.id}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer group"
+                  >
+                    <div className="relative flex items-center justify-center">
+                      <input 
+                        type="checkbox" 
+                        checked={isSelected(conv.id)}
+                        onChange={() => toggleSelect(conv.id)}
+                        className="hidden"
+                      />
+                      <div className={`w-[20px] h-[20px] rounded-[4px] border-2 flex items-center justify-center transition-all ${isSelected(conv.id) ? 'bg-[#0068FF] border-[#0068FF]' : 'border-gray-300 group-hover:border-gray-400'}`}>
+                        {isSelected(conv.id) && (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                        )}
+                      </div>
+                    </div>
+                    <div className="w-[42px] h-[42px] rounded-full overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center">
+                      {conv.avatar ? (
+                        <img src={conv.avatar} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-[#0068FF]/10 flex items-center justify-center">
+                          <span className="text-[#0068FF] font-bold text-[15px]">{conv.name?.charAt(0) || '?'}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 text-left">
+                      <div className="text-[15px] font-medium text-[#081C36] truncate">
+                        {conv.name}
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Note Area */}
+        <div className="p-4 border-t border-gray-100 bg-white">
+          <div className="bg-[#F1F2F4] rounded-lg p-3 mb-3">
+             <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-md bg-white border border-gray-200 overflow-hidden flex items-center justify-center shrink-0">
+                  {message.type === 'IMAGE' || message.type === 'VIDEO' ? (
+                    <img src={message.text} alt="" className="w-full h-full object-cover opacity-60" />
+                  ) : (
+                    <div className="text-gray-400">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6z" /><path d="M14 3v5h5" /></svg>
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] font-medium text-[#081C36]">
+                    {getSnippet()}
+                  </div>
+                  {attachDesc && message.caption && (
+                    <div className="text-[13px] text-gray-500 truncate mt-0.5">
+                      {message.caption}
+                    </div>
+                  )}
+                </div>
+             </div>
+             <div className="mt-3 pt-3 border-t border-gray-200 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                   <button 
+                    onClick={() => setAttachDesc(!attachDesc)}
+                    className={`w-9 h-5 rounded-full relative transition-colors duration-200 cursor-pointer ${attachDesc ? 'bg-[#0068FF]' : 'bg-gray-300'}`}
+                   >
+                      <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all duration-200 ${attachDesc ? 'left-5' : 'left-1'}`} />
+                   </button>
+                   <span className="text-[13px] text-gray-700">Đính kèm mô tả</span>
+                </div>
+             </div>
+          </div>
+
+          <div className="border border-gray-200 rounded-lg p-3">
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Nhập tin nhắn..."
+              className="w-full h-10 bg-transparent outline-none text-[14px] resize-none placeholder:text-gray-400"
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 px-4 h-16 border-t border-gray-100 bg-white">
+          <button
+            onClick={onClose}
+            className="px-6 py-2 text-[14px] font-semibold text-[#081C36] hover:bg-gray-100 rounded-[4px] transition-colors cursor-pointer bg-[#EAEDF0]"
+          >
+            Hủy
+          </button>
+          <button
+            onClick={handleForward}
+            disabled={selected.size === 0 || sending}
+            className="px-6 py-2 text-[14px] font-semibold text-white bg-[#A7D5FF] disabled:opacity-100 disabled:bg-[#A7D5FF] enabled:bg-[#0068FF] enabled:hover:bg-[#0052CC] rounded-[4px] transition-colors cursor-pointer disabled:cursor-not-allowed"
+          >
+            {sending ? 'Đang gửi...' : 'Chia sẻ'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
+

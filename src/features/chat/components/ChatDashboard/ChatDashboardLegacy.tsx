@@ -5,7 +5,7 @@ import { Sidebar } from './Sidebar';
 import { ConversationList } from '@/features/chat/components/ConversationList';
 import { ChatWindow } from '@/features/chat/components/ChatWindow';
 import { ChatInfoSidebar } from './ChatInfoSidebar';
-import { SettingsModal, ProfileModal } from '@/features/user';
+import { SettingsModal, ProfileModal, MemberProfileModal } from '@/features/user';
 import { ContactList, AddFriendModal } from '@/features/friends';
 import { ContactsContent } from './ContactsContent';
 import { CreateGroupModal } from './CreateGroupModal';
@@ -29,6 +29,8 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileTargetUserId, setProfileTargetUserId] = useState<string | null>(null);
+  const [profileOnBack, setProfileOnBack] = useState<(() => void) | null>(null);
   const [isAddFriendModalOpen, setIsAddFriendModalOpen] = useState(false);
   const [addFriendPrefill, setAddFriendPrefill] = useState<{
     phoneNumber?: string;
@@ -58,8 +60,16 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
       const response = await apiClient.get('/users/me');
       const data = (response && response.success && response.data) ? response.data : response;
 
-      if (data && (data.id || data.full_name || data.phone_number)) {
-        setCurrentUser(data);
+      if (data && (data.user_id || data.id || data.display_name || data.full_name || data.phone_number)) {
+        // Normalize to ensure ID and Name are always available under standard keys
+        const normalizedUser = {
+          ...data,
+          id: data.user_id || data.id,
+          displayName: data.display_name || data.full_name || data.displayName,
+          avatarUrl: data.avatar_url || data.avatarUrl || data.avatar,
+          full_name: data.full_name || data.display_name, // Fallback for components expecting full_name
+        };
+        setCurrentUser(normalizedUser);
       }
     } catch (error: any) {
       if (error.message?.includes("Không tìm thấy người dùng") || error.message?.includes("User not found")) {
@@ -86,6 +96,7 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<string | number>(initialChatId ?? '');
   const [targetMessageId, setTargetMessageId] = useState<string | null>(null);
+  const [externalForwardingMsg, setExternalForwardingMsg] = useState<any>(null);
   // Refs for stale-closure-safe access inside WebSocket callbacks
   const selectedChatIdRef = useRef<string | number>(initialChatId ?? '');
   const currentUserRef = useRef<any>(null);
@@ -218,7 +229,9 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
         if (pinnedDiff !== 0) return pinnedDiff;
       }
 
-      return parseDateToMillis(b.lastMessageAt) - parseDateToMillis(a.lastMessageAt);
+      const aTime = a.lastMessageAt || a.createdAt;
+      const bTime = b.lastMessageAt || b.createdAt;
+      return parseDateToMillis(bTime) - parseDateToMillis(aTime);
     });
   };
 
@@ -268,14 +281,21 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
             }
           }
 
-          // Lấy userId của người chat cùng (dùng cho presence indicator)
+          // Lấy userId của người chat cùng (dùng cho presence indicator), nickname và role của bản thân
           let otherUserId = '';
           let myNickname = '';
-          if ((c.conversationType === 'PRIVATE' || c.conversation_type === 'PRIVATE') && c.members) {
-            const other = c.members.find((m: any) => (m.userId || m.user_id) !== currentUser?.id);
-            if (other) otherUserId = other.userId || other.user_id || '';
+          let myRole = 'MEMBER';
+          if (c.members) {
+            const isPrivate = c.conversationType === 'PRIVATE' || c.conversation_type === 'PRIVATE';
             const me = c.members.find((m: any) => (m.userId || m.user_id) === currentUser?.id);
-            if (me) myNickname = me.nickname || '';
+            if (me) {
+              myNickname = me.nickname || '';
+              myRole = me.role || 'MEMBER';
+            }
+            if (isPrivate) {
+              const other = c.members.find((m: any) => (m.userId || m.user_id) !== currentUser?.id);
+              if (other) otherUserId = other.userId || other.user_id || '';
+            }
           }
 
           return {
@@ -284,8 +304,9 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
             lastMsg: c.lastMessageContent
               || c.last_message_content
               || (isAi ? t('chat.ai_subheading') : t('chat.start_conversation')),
-            time: (c.lastMessageTime || c.last_message_time) ? new Date(c.lastMessageTime || c.last_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+            time: (c.lastMessageTime || c.last_message_time || c.createdAt || c.created_at) ? new Date(c.lastMessageTime || c.last_message_time || c.createdAt || c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
             lastMessageAt: c.lastMessageTime || c.last_message_time || null,
+            createdAt: c.createdAt || c.created_at || null,
             isCloud,
             isAi,
             isGroup,
@@ -297,12 +318,16 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
             unreadCount: c.unreadCount || c.unread_count || 0,
             otherUserId,
             nickname: myNickname || undefined,
+            role: myRole,
+            members: c.members || [],
             conversationTag: c.conversationTag || c.conversation_tag || undefined,
             conversationStatus: c.conversationStatus || c.conversation_status || 'NORMAL',
             isRequest: (c.conversationStatus || c.conversation_status) === 'PENDING',
             mutedUntil: c.mutedUntil || c.muted_until || null,
             isMarkedUnread: c.isMarkedUnread || c.is_marked_unread || false,
             autoDeleteDuration: c.autoDeleteDuration || c.auto_delete_duration || null,
+            invitationLink: c.invitationLink || c.invitation_link || undefined,
+            permissions: c.permissions || undefined,
           };
         });
         const sorted = sortConversations(mapped);
@@ -363,7 +388,11 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
             if (selectedChatId === group.conversationId) {
               setSelectedChatId('');
             }
+          } else if (group.type === 'UPDATED') {
+            // Lặng lẽ cập nhật lại danh sách nếu chỉ là đổi thông tin nhóm
+            fetchConversations();
           } else {
+            // Mặc định là CREATED hoặc không có type (fallback): Hiển thị thông báo "Bạn được thêm vào nhóm"
             toast.info(t('dashboard.added_to_group', { name: group.conversationName || group.conversation_name || 'Nhóm mới' }), {
               duration: 4000,
             });
@@ -464,6 +493,9 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
           ) {
             return;
           }
+
+          // Trigger refresh for media sidebars
+          setChatRefreshTrigger(prev => prev + 1);
 
           const user = currentUserRef.current;
           const isCurrentConversation = String(selectedChatIdRef.current) === String(conv.id);
@@ -595,6 +627,54 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
     []
   );
 
+  const handleOpenProfile = useCallback((userId?: string, onBack?: () => void) => {
+    setProfileTargetUserId(userId || null);
+    setProfileOnBack(onBack ? () => onBack : null);
+    setIsProfileModalOpen(true);
+  }, []);
+
+  const handleTogglePin = useCallback(async (id: string | number) => {
+    const target = conversations.find(c => String(c.id) === String(id));
+    if (!target) return;
+
+    const isPinned = !!target.pinned;
+    try {
+      // Use POST for toggle as seen in ConversationListLegacy
+      const res: any = await apiClient.post(`/conversations/${id}/pin`, {});
+      const newPinned = res?.data?.isPinned ?? res?.isPinned ?? !isPinned;
+      
+      if (newPinned) {
+        toast.success(t('chat.pin.pin_success') || 'Đã ghim hội thoại');
+      } else {
+        toast.success(t('chat.pin.unpin_success') || 'Đã bỏ ghim hội thoại');
+      }
+      
+      setConversations(prev => prev.map(c => {
+        if (String(c.id) !== String(id)) return c;
+        return { ...c, pinned: newPinned, pinnedAt: newPinned ? new Date().toISOString() : null };
+      }));
+    } catch (error: any) {
+      toast.error(error.message || 'Không thể thay đổi trạng thái ghim');
+    }
+  }, [conversations, t]);
+
+  const handleUpdateConversationMeta = useCallback((id: string | number, updates: { name?: string; avatar?: string }) => {
+    setConversations(prev => prev.map(c => {
+      if (String(c.id) !== String(id)) return c;
+      const nextConversation = { ...c };
+      if (typeof updates.name === 'string' && updates.name.trim()) {
+        nextConversation.name = updates.name.trim();
+      }
+      if (typeof updates.avatar === 'string') {
+        nextConversation.avatar = updates.avatar;
+        if (updates.avatar) {
+          nextConversation.groupAvatarUrls = [];
+        }
+      }
+      return nextConversation;
+    }));
+  }, []);
+
   return (
     <PresenceProvider currentUserId={currentUser?.id || null}>
       <div className="flex h-screen w-full bg-[var(--card-bg)] overflow-hidden text-[var(--text)] transition-colors duration-200">
@@ -604,11 +684,31 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
           onClose={() => setIsSettingsModalOpen(false)}
         />
 
-        <ProfileModal
-          isOpen={isProfileModalOpen}
-          onClose={() => setIsProfileModalOpen(false)}
-          onUpdate={fetchUserProfile}
-        />
+        {profileTargetUserId && profileTargetUserId !== currentUser?.id ? (
+          <MemberProfileModal
+            isOpen={isProfileModalOpen}
+            onClose={() => {
+              setIsProfileModalOpen(false);
+              setProfileTargetUserId(null);
+            }}
+            targetUserId={profileTargetUserId}
+            onStartChat={handleStartP2PChat}
+            onAddFriend={openAddFriendModal}
+            onBack={profileOnBack || undefined}
+          />
+        ) : (
+          <ProfileModal
+            isOpen={isProfileModalOpen}
+            onClose={() => {
+              setIsProfileModalOpen(false);
+              setProfileTargetUserId(null);
+            }}
+            onUpdate={fetchUserProfile}
+            targetUserId={profileTargetUserId}
+            onStartChat={handleStartP2PChat}
+            onAddFriend={openAddFriendModal}
+          />
+        )}
 
         <AddFriendModal
           isOpen={isAddFriendModalOpen}
@@ -763,6 +863,7 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
                     setSelectedChatId(newId);
                   }}
                   onUpdateConversation={(id, lastMsg, msgTime) => {
+                    setChatRefreshTrigger(prev => prev + 1);
                     setConversations(prev => {
                       const cloned = [...prev];
 
@@ -790,26 +891,7 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
                       return sortConversations(cloned);
                     });
                   }}
-                  onUpdateConversationMeta={(id, updates) => {
-                    setConversations(prev => prev.map(c => {
-                      if (String(c.id) !== String(id)) return c;
-
-                      const nextConversation = { ...c };
-
-                      if (typeof updates.name === 'string' && updates.name.trim()) {
-                        nextConversation.name = updates.name.trim();
-                      }
-
-                      if (typeof updates.avatar === 'string') {
-                        nextConversation.avatar = updates.avatar;
-                        if (updates.avatar) {
-                          nextConversation.groupAvatarUrls = [];
-                        }
-                      }
-
-                      return nextConversation;
-                    }));
-                  }}
+                  onUpdateConversationMeta={handleUpdateConversationMeta}
                   onNicknameChange={(id, nickname) => {
                     setConversations(prev =>
                       prev.map(c => c.id === id ? { ...c, nickname: nickname || undefined } : c)
@@ -818,6 +900,9 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
                   refreshTrigger={chatRefreshTrigger}
                   targetMessageId={targetMessageId}
                   onClearTargetMessage={() => setTargetMessageId(null)}
+                  onOpenProfile={handleOpenProfile}
+                  externalForwardingMsg={externalForwardingMsg}
+                  onClearForwardingMsg={() => setExternalForwardingMsg(null)}
                 />
                 {activeSidebar === 'info' && (
                   <ChatInfoSidebar
@@ -831,12 +916,27 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
                     conversationAvatar={(selectedChat as any).avatar}
                     currentUser={currentUser}
                     onClearChat={() => setChatRefreshTrigger(prev => prev + 1)}
+                    refreshTrigger={chatRefreshTrigger}
+                    initialIsPinned={!!(selectedChat as any).pinned}
+                    groupAvatarUrls={(selectedChat as any).groupAvatarUrls || []}
+                    onUpdateMeta={handleUpdateConversationMeta}
+                    onTogglePin={handleTogglePin}
+                    permissions={(selectedChat as any).permissions}
+                    onForward={(item) => setExternalForwardingMsg({
+                      id: item.messageId,
+                      text: item.content,
+                      type: item.messageType,
+                      sender: item.senderName || 'Người dùng',
+                      caption: item.caption,
+                    })}
+                    onUpdateMeta={handleUpdateConversationMeta}
+                    onTogglePin={handleTogglePin}
                   />
                 )}
                 {activeSidebar === 'search' && (
                   <div className="w-[340px] border-l border-[var(--border)] bg-[var(--card-bg)] flex flex-col transition-colors duration-200">
                     {/* Search Sidebar UI Header */}
-                    <div className="h-[64px] border-b border-[var(--border)] px-4 flex items-center justify-between shrink-0">
+                    <div className="h-[76px] border-b border-[var(--border)] px-4 flex items-center justify-between shrink-0">
                       <h3 className="text-[17px] font-bold">{t('chat.search_panel_title') || 'Tìm kiếm trong trò chuyện'}</h3>
                       <button onClick={() => setActiveSidebar(null)} className="p-1 hover:bg-[var(--hover-bg)] rounded-md cursor-pointer opacity-70">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>

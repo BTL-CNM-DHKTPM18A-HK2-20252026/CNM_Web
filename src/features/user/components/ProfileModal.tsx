@@ -53,11 +53,16 @@ interface ProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUpdate?: () => void;
+  targetUserId?: string | null;
+  onStartChat?: (userId: string, data: any) => void;
+  onAddFriend?: (prefill: any) => void;
 }
 
 interface UserProfileData {
   full_name?: string;
+  display_name?: string;
   id?: string;
+  user_id?: string;
   avatar_url?: string;
   cover_photo_url?: string;
   gender?: string;
@@ -68,6 +73,7 @@ interface UserProfileData {
   education?: string;
   workplace?: string;
   dob?: string;
+  friendship_status?: string;
 }
 
 interface ProfileSnapshot {
@@ -83,7 +89,7 @@ interface ProfileSnapshot {
   workplace: string;
 }
 
-export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
+export function ProfileModal({ isOpen, onClose, onUpdate, targetUserId, onStartChat, onAddFriend }: ProfileModalProps) {
   const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [userName, setUserName] = useState("");
@@ -114,23 +120,30 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverFileInputRef = useRef<HTMLInputElement>(null);
   const [initialUserData, setInitialUserData] = useState<ProfileSnapshot | null>(null);
+  const [friendshipStatus, setFriendshipStatus] = useState<string | null>(null);
+  const [isMe, setIsMe] = useState(true);
 
   useEffect(() => {
     if (isOpen) {
       const fetchUserData = async () => {
         try {
-          const response = await apiClient.get<UserProfileData | { success?: boolean; data?: UserProfileData }>('/users/me');
+          const endpoint = targetUserId ? `/users/${targetUserId}` : '/users/me';
+          const response = await apiClient.get<UserProfileData | { success?: boolean; data?: UserProfileData }>(endpoint);
 
-          // Handle both wrapped and unwrapped response for backward compatibility
-          // although our current apiClient already unwraps successful data
           const data = (response && typeof response === 'object' && 'success' in response && response.data)
             ? response.data
             : (response as UserProfileData);
 
-          if (data && (data.full_name || data.id || data.gmail)) {
+          if (data) {
             console.log("Profile data loaded:", data);
-            setUserName(data.full_name || "");
-            setUserId(data.id || "");
+            const fetchedUserId = data.id || data.user_id || "";
+            setUserId(fetchedUserId);
+            
+            // Check if it's "Me" (either no targetUserId or target matches fetched id)
+            // Note: In some cases backend might not return ID for /me, but our BE does.
+            setIsMe(!targetUserId);
+
+            setUserName(data.full_name || data.display_name || "");
             setAvatarUrl(data.avatar_url || "");
             setCoverPhotoUrl(data.cover_photo_url || "");
             setCoverPhotoPreview("");
@@ -141,6 +154,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
             setCity(data.city || "");
             setEducation(data.education || "");
             setWorkplace(data.workplace || "");
+            setFriendshipStatus(data.friendship_status || null);
 
             if (data.dob) {
               const date = new Date(data.dob);
@@ -179,8 +193,6 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
                 workplace: data.workplace || ""
               });
             }
-          } else {
-            console.error("User data not found in response:", response);
           }
         } catch (error) {
           console.error("Failed to fetch user data:", error);
@@ -189,7 +201,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
 
       fetchUserData();
     }
-  }, [isOpen]);
+  }, [isOpen, targetUserId]);
 
   if (!isOpen) return null;
 
@@ -658,7 +670,9 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
       <div className="w-full max-w-[550px] bg-[var(--card-bg)] rounded-md shadow-2xl relative z-[101] animate-in zoom-in-95 duration-200 overflow-visible flex flex-col">
         {/* Header */}
         <div className="h-[48px] border-b border-[var(--border)] flex items-center justify-between px-4 bg-[var(--card-bg)] shrink-0 rounded-t-md">
-          <h2 className="text-[17px] font-bold text-[var(--text)]">{t('profile.title')}</h2>
+          <h2 className="text-[17px] font-bold text-[var(--text)]">
+            {isMe ? t('profile.title') : 'Thông tin tài khoản'}
+          </h2>
           <button onClick={handleClose} className="text-[var(--text)] hover:bg-[var(--hover-bg)] p-1 rounded-full transition-all cursor-pointer">
             <XIcon size={24} />
           </button>
@@ -735,12 +749,14 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
                 <div className="w-[80px] h-[80px] rounded-full border-[3px] border-[var(--card-bg)] overflow-hidden bg-[var(--card-bg)] shadow-md relative">
                   <Image src={currentAvatar} fill alt="Avatar" className="object-cover" sizes="80px" />
                 </div>
-                <button
-                  onClick={() => setIsAvatarMenuOpen(!isAvatarMenuOpen)}
-                  className="absolute bottom-0 right-0 w-[30px] h-[30px] bg-[var(--hover-bg)] rounded-full flex items-center justify-center text-[var(--sub-text)] border border-[var(--card-bg)] hover:opacity-80 transition-colors cursor-pointer shadow-sm z-10"
-                >
-                  <CameraIcon size={16} />
-                </button>
+                {isMe && (
+                  <button
+                    onClick={() => setIsAvatarMenuOpen(!isAvatarMenuOpen)}
+                    className="absolute bottom-0 right-0 w-[30px] h-[30px] bg-[var(--hover-bg)] rounded-full flex items-center justify-center text-[var(--sub-text)] border border-[var(--card-bg)] hover:opacity-80 transition-colors cursor-pointer shadow-sm z-10"
+                  >
+                    <CameraIcon size={16} />
+                  </button>
+                )}
 
                 {/* Avatar Action Menu */}
                 {isAvatarMenuOpen && (
@@ -772,15 +788,39 @@ export function ProfileModal({ isOpen, onClose, onUpdate }: ProfileModalProps) {
 
               <div className="flex items-center gap-1.5 pt-2">
                 <h1 className="text-[18px] font-bold text-[var(--text)]">{userName}</h1>
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="w-8 h-8 flex items-center justify-center hover:bg-[var(--hover-bg)] rounded-full text-[var(--text)] opacity-70 transition-colors cursor-pointer ml-1"
-                >
-                  <PencilIcon size={18} />
-                </button>
-
+                {isMe && (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="w-8 h-8 flex items-center justify-center hover:bg-[var(--hover-bg)] rounded-full text-[var(--text)] opacity-70 transition-colors cursor-pointer ml-1"
+                  >
+                    <PencilIcon size={18} />
+                  </button>
+                )}
               </div>
             </div>
+
+            {/* Action Buttons for non-me profile */}
+            {!isMe && (
+              <div className="flex gap-2 mt-4 px-4">
+                {friendshipStatus !== 'ACCEPTED' && friendshipStatus !== 'FRIEND' && (
+                  <button 
+                    onClick={() => onAddFriend?.({ user: { user_id: userId, display_name: userName, avatar_url: avatarUrl } })}
+                    className="flex-1 h-9 bg-[#E8F2FF] hover:bg-[#D6E6FF] text-[#0068FF] font-bold text-[14px] rounded-md transition-colors cursor-pointer"
+                  >
+                    Kết bạn
+                  </button>
+                )}
+                <button 
+                  onClick={() => {
+                    onClose();
+                    onStartChat?.(userId, { display_name: userName, avatar_url: avatarUrl });
+                  }}
+                  className="flex-1 h-9 bg-[#E8F2FF] hover:bg-[#D6E6FF] text-[#0068FF] font-bold text-[14px] rounded-md transition-colors cursor-pointer"
+                >
+                  Nhắn tin
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="px-4 py-5">

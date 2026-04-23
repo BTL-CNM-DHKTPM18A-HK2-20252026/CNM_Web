@@ -16,6 +16,7 @@
 }
 
 body {
+  overflow-x: hidden;
   background: var(--background);
   color: var(--text);
   font-family: Arial, Helvetica, sans-serif;
@@ -37,13 +38,13 @@ body {
 
 /* Custom Scrollbar — hidden by default, visible on hover/scroll */
 .custom-scrollbar {
-  scrollbar-gutter: stable;
+  scrollbar-gutter: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0) transparent;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
+  width: 0px;
   background: transparent;
 }
 
@@ -83,11 +84,22 @@ body {
 /* Chat list rows should span full width without reserved scrollbar gutter */
 .chat-list-scrollbar {
   scrollbar-gutter: auto;
+  overflow-y: overlay !important;
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
+}
+
+.chat-list-scrollbar::-webkit-scrollbar {
+  display: none;
+  /* Chrome, Safari and Opera */
 }
 
 /* Message pane should not reserve a permanent right gutter; keeps highlight flush to edge. */
 .chat-message-scrollbar {
   scrollbar-gutter: auto;
+  overflow-y: overlay !important;
 }
 
 /* Modal scrollbar — always visible, compact & polished */
@@ -158,4 +170,15 @@ body {
 
 .typing-dot:nth-child(3) {
   animation-delay: 400ms;
+}
+@keyframes progress-glow {
+  0% { width: 0%; opacity: 0.6; }
+  30% { width: 40%; opacity: 0.9; }
+  60% { width: 75%; opacity: 1; }
+  90% { width: 98%; opacity: 0.8; }
+  100% { width: 100%; opacity: 0.6; }
+}
+
+.animate-progress-glow {
+  animation: progress-glow 8s ease-in-out infinite;
 }

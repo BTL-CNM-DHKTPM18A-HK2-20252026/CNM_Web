@@ -428,6 +428,7 @@
       "30d": "30 ngày",
       "success": "Đã cập nhật tin nhắn tự xóa"
     },
+    "copy_link_success": "Đã sao chép link nhóm",
     "stranger_warning": "Người này không có trong danh bạ của bạn. Hãy cẩn thận với các đường link lạ.",
     "hidden_conversations": "Cuộc trò chuyện đã ẩn",
     "hidden_empty": "Không có hội thoại nào bị ẩn",

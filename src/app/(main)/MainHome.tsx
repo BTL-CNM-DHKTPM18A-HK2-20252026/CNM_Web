@@ -223,6 +223,7 @@ export function MainHome({ initialChatId }: MainHomeProps) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginMethod, setLoginMethod] = useState<'qr' | 'email' | 'register'>('email');
   const [isClient, setIsClient] = useState(false);
+  const [currentChatId, setCurrentChatId] = useState<string | undefined>(initialChatId);
   const [scannedUser, setScannedUser] = useState<{ display_name: string; avatar_url: string } | null>(null);
 
   // Form states
@@ -272,6 +273,34 @@ export function MainHome({ initialChatId }: MainHomeProps) {
     };
     checkAuthStatus();
   }, []);
+
+  useEffect(() => {
+    if (initialChatId) {
+      setCurrentChatId(initialChatId);
+    }
+  }, [initialChatId]);
+
+  useEffect(() => {
+    if (isLoggedIn && isClient) {
+      const pendingJoinId = localStorage.getItem('pendingJoinGroupId');
+      if (pendingJoinId) {
+        localStorage.removeItem('pendingJoinGroupId');
+        const join = async () => {
+          try {
+            await apiClient.post(`/conversations/join/${pendingJoinId}`, {});
+            toast.success(t('group.join_success') || 'Tham gia nhóm thành công');
+            setCurrentChatId(pendingJoinId);
+          } catch (e: any) {
+             console.error('Auto join failed', e);
+             if (e.message?.includes('đã là thành viên') || e.message?.includes('already a member')) {
+               setCurrentChatId(pendingJoinId);
+             }
+          }
+        };
+        join();
+      }
+    }
+  }, [isLoggedIn, isClient, t]);
 
   useEffect(() => {
     const saved = localStorage.getItem('savedUsername');
@@ -591,7 +620,7 @@ export function MainHome({ initialChatId }: MainHomeProps) {
       : "flex min-h-screen font-sans text-[var(--text)] transition-colors duration-300"
     }>
       {isLoggedIn ? (
-        <ChatDashboard onLogout={handleLogout} userName={username} initialChatId={initialChatId} />
+        <ChatDashboard onLogout={handleLogout} userName={username} initialChatId={currentChatId} />
       ) : (
         <>
           {/* Left Panel - Carousel with full background change */}

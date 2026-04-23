@@ -428,6 +428,7 @@
       "30d": "30 days",
       "success": "Auto-delete updated"
     },
+    "copy_link_success": "Group link copied",
     "stranger_warning": "This person is not in your contacts. Be careful with suspicious links.",
     "hidden_conversations": "Hidden conversations",
     "hidden_empty": "No hidden conversations",

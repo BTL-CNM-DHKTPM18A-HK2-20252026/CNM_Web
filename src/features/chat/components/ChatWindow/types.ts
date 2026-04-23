@@ -9,12 +9,15 @@ export interface SelectedChat {
   avatar?: string;
   groupAvatarUrls?: string[];
   memberCount?: number;
+  invitationLink?: string;
   isNew?: boolean;
   recipientId?: string;
   otherUserId?: string;
   isRequest?: boolean;
   conversationStatus?: string;
   nickname?: string;
+  role?: string;
+  members?: any[];
 }
 
 export interface ChatWindowProps {
@@ -32,6 +35,9 @@ export interface ChatWindowProps {
   refreshTrigger?: number;
   targetMessageId?: string | null;
   onClearTargetMessage?: () => void;
+  onOpenProfile?: (userId: string) => void;
+  externalForwardingMsg?: ForwardingMessage | null;
+  onClearForwardingMsg?: () => void;
 }
 
 export type AiAccessSettings = {

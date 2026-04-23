@@ -1,4 +1,5 @@
 export { ProfileModal } from './components/ProfileModal';
+export { MemberProfileModal } from './components/MemberProfileModal';
 export { SettingsModal } from './components/SettingsModal';
 export { StatusIndicator } from './components/StatusIndicator';
 

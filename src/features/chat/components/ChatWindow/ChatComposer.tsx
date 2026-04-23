@@ -5,11 +5,34 @@ import {
   StickerIcon,
   VideoPickerIcon,
   VoiceIcon,
+  MoreHorizontalIcon,
+  PollIcon,
+  ReminderIcon,
+  NoteIcon,
+  ImportantIcon,
+  UrgentIcon,
+  BoldIcon,
+  ItalicIcon,
+  UnderlineIcon,
+  StrikeIcon,
+  FontSizeIcon,
+  TextColorIcon,
+  EraserIcon,
+  ListIcon,
+  NumberListIcon,
+  IndentIcon,
+  OutdentIcon,
+  UndoIcon,
+  RedoIcon,
+  FullscreenIcon,
 } from '@/components/ui/Icons';
 import { StickerPicker } from '@/features/chat/components/StickerPicker';
 import { ChatImageUpload } from '@/features/chat/components/ChatImageUpload';
 import { ChatInput } from '@/features/chat';
 import { MentionDropdown } from '@/features/chat/components/MentionDropdown';
+import { CreatePollModal } from './CreatePollModal';
+import { CreateReminderModal } from './CreateReminderModal';
+import { CreateNoteModal } from './CreateNoteModal';
 import type { ChatComposerProps } from '@/features/chat/components/ChatWindow/types';
 
 const SMART_REPLY_TOGGLE_STORAGE_KEY = 'cnm_web_smart_reply_enabled';
@@ -32,6 +55,18 @@ export function ChatComposer({ vm }: ChatComposerProps) {
     handleImageClick,
     isChatImageUploadOpen,
     setIsShareContactOpen,
+    isMoreActionsOpen,
+    setIsMoreActionsOpen,
+    isPollModalOpen,
+    setIsPollModalOpen,
+    isReminderModalOpen,
+    setIsReminderModalOpen,
+    isNoteModalOpen,
+    setIsNoteModalOpen,
+    priority,
+    setPriority,
+    isFormattingActive,
+    setIsFormattingActive,
     imageInputRef,
     handleImageChange,
     videoInputRef,
@@ -72,6 +107,7 @@ export function ChatComposer({ vm }: ChatComposerProps) {
   } = vm;
 
   const [isSmartReplyEnabled, setIsSmartReplyEnabled] = React.useState(true);
+  const [editor, setEditor] = React.useState<any>(null);
 
   React.useEffect(() => {
     try {
@@ -214,6 +250,14 @@ export function ChatComposer({ vm }: ChatComposerProps) {
 
               <button onClick={() => setIsShareContactOpen(true)} title={t('share_contact.toolbar_tooltip')} className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] cursor-pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4" /><path d="M4 20c0-2.5 1.8-4 4-4" /><line x1="15" y1="8" x2="21" y2="8" /><line x1="15" y1="12" x2="21" y2="12" /></svg></button>
 
+              <button 
+                onClick={() => setIsFormattingActive(!isFormattingActive)} 
+                className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer ${isFormattingActive ? 'bg-[#E1EDFF] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}
+                title="Định dạng tin nhắn"
+              >
+                <TextColorIcon size={20} />
+              </button>
+
               <input type="file" ref={imageInputRef} onChange={handleImageChange} accept="image/*" multiple className="hidden" />
               <input type="file" ref={videoInputRef} onChange={handleVideoChange} accept="video/*" className="hidden" />
 
@@ -248,6 +292,84 @@ export function ChatComposer({ vm }: ChatComposerProps) {
                   <VoiceIcon size={20} />
                 )}
               </button>
+
+              <button
+                onClick={() => setIsMoreActionsOpen(!isMoreActionsOpen)}
+                className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer transition-all ${isMoreActionsOpen ? 'bg-[var(--hover-bg)] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}
+                title="Thêm"
+              >
+                <MoreHorizontalIcon size={20} />
+              </button>
+
+              {isMoreActionsOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsMoreActionsOpen(false)} />
+                  <div className="absolute bottom-[calc(100%+14px)] left-[120px] bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-2xl z-50 p-1 overflow-hidden min-w-[240px] animate-in slide-in-from-bottom-2 zoom-in-95 duration-200">
+                    <div className="flex flex-col">
+                      <button 
+                        onClick={() => {
+                          setIsMoreActionsOpen(false);
+                          setIsPollModalOpen(true);
+                        }}
+                        className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--hover-bg)] w-full text-left text-[var(--text)] transition-colors cursor-pointer group"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                          <PollIcon size={18} />
+                        </div>
+                        <span className="text-[14px] font-medium">Tạo bình chọn</span>
+                      </button>
+                      
+                      <button 
+                        onClick={() => {
+                          setIsMoreActionsOpen(false);
+                          setIsReminderModalOpen(true);
+                        }}
+                        className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--hover-bg)] w-full text-left text-[var(--text)] transition-colors cursor-pointer group"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center text-orange-600 group-hover:scale-110 transition-transform">
+                          <ReminderIcon size={18} />
+                        </div>
+                        <span className="text-[14px] font-medium">Nhắc hẹn</span>
+                      </button>
+
+                      <button 
+                        onClick={() => { setIsNoteModalOpen(true); setIsMoreActionsOpen(false); }}
+                        className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--hover-bg)] w-full text-left text-[var(--text)] transition-colors cursor-pointer group"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-green-50 dark:bg-green-500/10 flex items-center justify-center text-green-600 group-hover:scale-110 transition-transform">
+                          <NoteIcon size={18} />
+                        </div>
+                        <span className="text-[14px] font-medium">Tạo ghi chú</span>
+                      </button>
+
+                      <div className="h-[1px] bg-[var(--border)] my-1 mx-2 opacity-50" />
+
+                      <button 
+                        onClick={() => { setPriority('important'); setIsMoreActionsOpen(false); }}
+                        className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--hover-bg)] w-full text-left text-[var(--text)] transition-colors cursor-pointer group"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-red-50 dark:bg-red-500/10 flex items-center justify-center text-red-600 group-hover:scale-110 transition-transform">
+                          <ImportantIcon size={18} />
+                        </div>
+                        <span className="text-[14px] font-medium">Đánh dấu tin quan trọng</span>
+                      </button>
+
+                      <button 
+                        onClick={() => { setPriority('urgent'); setIsMoreActionsOpen(false); }}
+                        className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--hover-bg)] w-full text-left text-[var(--text)] transition-colors cursor-pointer group"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-yellow-50 dark:bg-yellow-500/10 flex items-center justify-center text-yellow-600 group-hover:scale-110 transition-transform">
+                          <UrgentIcon size={18} />
+                        </div>
+                        <span className="text-[14px] font-medium">Đánh dấu tin khẩn cấp</span>
+                      </button>
+                    </div>
+                    <div className="absolute top-[calc(100%-1px)] left-8 w-4 h-4 overflow-hidden">
+                      <div className="w-2.5 h-2.5 bg-[var(--card-bg)] border-b border-r border-[var(--border)] rotate-45 -translate-y-1.5 mx-auto" />
+                    </div>
+                  </div>
+                </>
+              )}
 
               <button
                 onClick={handleToggleSmartReply}
@@ -377,6 +499,25 @@ export function ChatComposer({ vm }: ChatComposerProps) {
           </div>
         )}
 
+        {priority !== 'normal' && (
+          <div className="px-4 py-2 border-t border-[var(--border)] flex items-center bg-white dark:bg-transparent">
+            <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded bg-[#F1F2F4] dark:bg-black/20 text-[13px] font-semibold ${
+              priority === 'important' ? 'text-red-600' : 'text-yellow-600'
+            }`}>
+              <span className="w-4 h-4 flex items-center justify-center">
+                {priority === 'important' ? '!' : '⚡'}
+              </span>
+              <span>{priority === 'important' ? 'Quan trọng' : 'Khẩn cấp'}</span>
+              <button 
+                onClick={() => setPriority('normal')}
+                className="ml-1 p-0.5 hover:bg-gray-200 dark:hover:bg-white/10 rounded-full transition-colors cursor-pointer"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="relative">
           {mentionDropdownOpen && conversationMembers.length > 0 && (
             <MentionDropdown
@@ -386,8 +527,14 @@ export function ChatComposer({ vm }: ChatComposerProps) {
             />
           )}
           <ChatInput
-            inputRef={messageInputRef}
+            onEditorReady={setEditor}
             value={message}
+            placeholder={isFormattingActive 
+              ? "Nhấn Ctrl + Shift + X để định dạng tin nhắn"
+              : selectedChat.isAi 
+                ? t('chat.input_placeholder_ai') 
+                : t('chat.input_placeholder', { name: selectedChat.name })
+            }
             onChange={(value) => {
               handleMentionInput(value);
               sendTypingIndicator();
@@ -425,7 +572,128 @@ export function ChatComposer({ vm }: ChatComposerProps) {
             onSendLike={() => handleSendMessage('👍')}
           />
         </div>
+
+        {isFormattingActive && editor && (
+          <div className="flex items-center px-4 py-1.5 gap-0.5 border-t border-[var(--border)] animate-in slide-in-from-bottom-1 duration-200 overflow-x-auto no-scrollbar">
+            <button 
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              className={`w-8 h-8 flex items-center justify-center rounded transition-colors cursor-pointer ${editor.isActive('bold') ? 'bg-[#E1EDFF] text-[#0068FF]' : 'hover:bg-[var(--hover-bg)] text-[var(--text)]'}`}
+            >
+              <BoldIcon size={18} />
+            </button>
+            <button 
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              className={`w-8 h-8 flex items-center justify-center rounded transition-colors cursor-pointer ${editor.isActive('italic') ? 'bg-[#E1EDFF] text-[#0068FF]' : 'hover:bg-[var(--hover-bg)] text-[var(--text)]'}`}
+            >
+              <ItalicIcon size={18} />
+            </button>
+            <button 
+              onClick={() => editor.chain().focus().toggleUnderline().run()}
+              className={`w-8 h-8 flex items-center justify-center rounded transition-colors cursor-pointer ${editor.isActive('underline') ? 'bg-[#E1EDFF] text-[#0068FF]' : 'hover:bg-[var(--hover-bg)] text-[var(--text)]'}`}
+            >
+              <UnderlineIcon size={18} />
+            </button>
+            <button 
+              onClick={() => editor.chain().focus().toggleStrike().run()}
+              className={`w-8 h-8 flex items-center justify-center rounded transition-colors cursor-pointer ${editor.isActive('strike') ? 'bg-[#E1EDFF] text-[#0068FF]' : 'hover:bg-[var(--hover-bg)] text-[var(--text)]'}`}
+            >
+              <StrikeIcon size={18} />
+            </button>
+            <div className="w-[1px] h-4 bg-[var(--border)] mx-1" />
+            <button 
+              onClick={() => {}} // Font size placeholder
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-[var(--hover-bg)] text-[var(--text)] transition-colors cursor-pointer"
+            >
+              <FontSizeIcon size={18} />
+            </button>
+            <button 
+              onClick={() => editor.chain().focus().setColor('#ef4444').run()} // Default red for demo
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-[var(--hover-bg)] text-[var(--text)] transition-colors cursor-pointer"
+            >
+              <TextColorIcon size={18} />
+            </button>
+            <button 
+              onClick={() => editor.chain().focus().unsetAllMarks().run()}
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-[var(--hover-bg)] text-[var(--text)] transition-colors cursor-pointer"
+            >
+              <EraserIcon size={18} />
+            </button>
+            <div className="w-[1px] h-4 bg-[var(--border)] mx-1" />
+            <button 
+              onClick={() => editor.chain().focus().toggleBulletList().run()}
+              className={`w-8 h-8 flex items-center justify-center rounded transition-colors cursor-pointer ${editor.isActive('bulletList') ? 'bg-[#E1EDFF] text-[#0068FF]' : 'hover:bg-[var(--hover-bg)] text-[var(--text)]'}`}
+            >
+              <ListIcon size={18} />
+            </button>
+            <button 
+              onClick={() => editor.chain().focus().toggleOrderedList().run()}
+              className={`w-8 h-8 flex items-center justify-center rounded transition-colors cursor-pointer ${editor.isActive('orderedList') ? 'bg-[#E1EDFF] text-[#0068FF]' : 'hover:bg-[var(--hover-bg)] text-[var(--text)]'}`}
+            >
+              <NumberListIcon size={18} />
+            </button>
+            <button 
+              onClick={() => editor.chain().focus().lift('listItem').run()}
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-[var(--hover-bg)] text-[var(--text)] transition-colors cursor-pointer"
+            >
+              <OutdentIcon size={18} />
+            </button>
+            <button 
+              onClick={() => editor.chain().focus().sink('listItem').run()}
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-[var(--hover-bg)] text-[var(--text)] transition-colors cursor-pointer"
+            >
+              <IndentIcon size={18} />
+            </button>
+            <div className="w-[1px] h-4 bg-[var(--border)] mx-1" />
+            <button 
+              onClick={() => editor.chain().focus().undo().run()}
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-[var(--hover-bg)] text-[var(--text)] transition-colors cursor-pointer"
+            >
+              <UndoIcon size={18} />
+            </button>
+            <button 
+              onClick={() => editor.chain().focus().redo().run()}
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-[var(--hover-bg)] text-[var(--text)] transition-colors cursor-pointer"
+            >
+              <RedoIcon size={18} />
+            </button>
+            <div className="w-[1px] h-4 bg-[var(--border)] mx-1" />
+            <button 
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-[var(--hover-bg)] text-[var(--text)] transition-colors cursor-pointer ml-auto"
+            >
+              <FullscreenIcon size={18} />
+            </button>
+          </div>
+        )}
       </div>
+
+      <CreatePollModal
+        isOpen={isPollModalOpen}
+        onClose={() => setIsPollModalOpen(false)}
+        onSubmit={(data) => {
+          console.log('Poll created:', data);
+          setIsPollModalOpen(false);
+          toast.success('Đã tạo bình chọn!');
+          // Future: Implement actual message sending with POLL type
+        }}
+      />
+      <CreateReminderModal
+        isOpen={isReminderModalOpen}
+        onClose={() => setIsReminderModalOpen(false)}
+        onSubmit={(data) => {
+          console.log('Reminder created:', data);
+          setIsReminderModalOpen(false);
+          toast.success('Đã tạo nhắc hẹn!');
+        }}
+      />
+      <CreateNoteModal 
+        isOpen={isNoteModalOpen} 
+        onClose={() => setIsNoteModalOpen(false)}
+        onSubmit={(data) => {
+          console.log('Note Created:', data);
+          setIsNoteModalOpen(false);
+          toast.success('Đã tạo ghi chú mới');
+        }}
+      />
     </>
   );
 }
