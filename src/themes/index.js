@@ -19,7 +19,8 @@ export const ThemeProvider = ({ children }) => {
     return light;
   };
 
-  const [theme, setTheme] = useState(getThemeObject(currentTheme));
+  const [theme, setThemeObj] = useState(getThemeObject(currentTheme));
+  const [resolvedTheme, setResolvedTheme] = useState(currentTheme);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -31,7 +32,8 @@ export const ThemeProvider = ({ children }) => {
       }
 
       const themeObj = getThemeObject(activeTheme);
-      setTheme(themeObj);
+      setThemeObj(themeObj);
+      setResolvedTheme(activeTheme);
 
       // Inject CSS variables for backward compatibility and styling ease
       const root = document.documentElement;
@@ -59,7 +61,7 @@ export const ThemeProvider = ({ children }) => {
   }, [currentTheme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, setCurrentTheme, currentTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme: setCurrentTheme, setCurrentTheme, currentTheme, resolvedTheme }}>
       {children}
     </ThemeContext.Provider>
   );

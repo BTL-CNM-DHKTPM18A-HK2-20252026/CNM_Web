@@ -10,9 +10,16 @@ interface StickerPickerProps {
   onClose: () => void;
   onSelect: (sticker: any) => void;
   activeTab?: 'sticker' | 'emoji' | 'gif';
+  className?: string;
 }
 
-export function StickerPicker({ isOpen, onClose, onSelect, activeTab: initialTab = 'sticker' }: StickerPickerProps) {
+export function StickerPicker({ 
+  isOpen, 
+  onClose, 
+  onSelect, 
+  activeTab: initialTab = 'sticker',
+  className = ""
+}: StickerPickerProps) {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
   const pickerRef = useRef<HTMLDivElement>(null);
@@ -42,7 +49,6 @@ export function StickerPicker({ isOpen, onClose, onSelect, activeTab: initialTab
   const tabs = [
     { id: 'sticker', label: 'STICKER' },
     { id: 'emoji', label: 'EMOJI' },
-    { id: 'gif', label: 'GIF' },
   ];
 
   // STICKER DATA (Empty for now)
@@ -57,7 +63,7 @@ export function StickerPicker({ isOpen, onClose, onSelect, activeTab: initialTab
   return (
     <div
       ref={pickerRef}
-      className="absolute bottom-full left-4 mb-2 w-[400px] bg-[var(--card-bg)] border border-[var(--border)] rounded-lg shadow-2xl z-[50] flex flex-col h-[480px] animate-in slide-in-from-bottom-2 fade-in duration-200"
+      className={`absolute mb-2 bg-[var(--card-bg)] border border-[var(--border)] rounded-lg shadow-2xl z-[50] flex flex-col animate-in slide-in-from-bottom-2 fade-in duration-200 ${className || 'w-[400px] h-[480px] left-4 bottom-full'}`}
     >
       {/* Tabs Header */}
       <div className="flex items-center justify-between border-b border-[var(--border)] px-4 h-12 shrink-0">
@@ -87,7 +93,7 @@ export function StickerPicker({ isOpen, onClose, onSelect, activeTab: initialTab
         <div className="relative shrink-0">
           <input
             type="text"
-            placeholder={activeTab === 'sticker' ? t('sticker.search_sticker') : activeTab === 'emoji' ? t('sticker.search_emoji') : t('sticker.search_gif')}
+            placeholder={activeTab === 'sticker' ? t('sticker.search_sticker') : t('sticker.search_emoji')}
             className="w-full h-9 bg-[var(--hover-bg)] border border-transparent rounded-full pl-9 pr-4 text-[13px] text-[var(--text)] focus:bg-[var(--card-bg)] focus:border-[#0068FF] outline-none transition-all placeholder:text-[var(--sub-text)]"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -120,37 +126,17 @@ export function StickerPicker({ isOpen, onClose, onSelect, activeTab: initialTab
             </div>
           )}
 
-          {activeTab === 'gif' && (
-            <div className="text-center py-10 text-[var(--sub-text)] opacity-60">
-              <p>Chưa có GIF</p>
-            </div>
-          )}
+
         </div>
       </div>
 
       {/* Bottom Navigation */}
-      <div className="h-12 border-t border-[var(--border)] flex items-center px-2 shrink-0 bg-[var(--card-bg)]">
-        <button className="p-2 text-[var(--sub-text)] hover:text-[var(--text)] cursor-pointer">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6" /></svg>
-        </button>
-        <div className="flex-1 flex items-center gap-1 overflow-x-hidden px-2">
-          <button className="h-9 min-w-[36px] flex items-center justify-center rounded-md bg-[var(--hover-bg)] text-[#0068FF] transition-all cursor-pointer">
-            <ClockIcon size={18} />
+      <div className="h-12 border-t border-[var(--border)] flex items-center px-4 shrink-0 bg-[var(--card-bg)]">
+        <div className="flex items-center gap-1">
+          <button className="h-9 w-9 flex items-center justify-center rounded-md bg-[var(--hover-bg)] text-[#0068FF] transition-all cursor-pointer">
+            <ClockIcon size={20} />
           </button>
-          <div className="h-9 min-w-[36px] flex items-center justify-center rounded-md hover:bg-[var(--hover-bg)] transition-all cursor-pointer">
-            <Image src="https://picsum.photos/id/102/24/24" width={24} height={24} alt="Set" className="rounded-sm" />
-          </div>
-          <div className="h-9 min-w-[36px] flex items-center justify-center rounded-md hover:bg-[var(--hover-bg)] transition-all cursor-pointer opacity-50">
-            <Image src="https://picsum.photos/id/105/24/24" width={24} height={24} alt="Set" className="rounded-sm grayscale" />
-          </div>
         </div>
-        <button className="p-2 text-[var(--sub-text)] hover:text-[var(--text)] cursor-pointer">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6" /></svg>
-        </button>
-        <div className="w-[1px] h-6 bg-[var(--border)] mx-1" />
-        <button className="p-2.5 text-[var(--sub-text)] hover:text-[var(--text)] cursor-pointer">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14" /></svg>
-        </button>
       </div>
     </div>
   );

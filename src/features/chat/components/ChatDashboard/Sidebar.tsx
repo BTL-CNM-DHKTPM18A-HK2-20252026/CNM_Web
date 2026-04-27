@@ -5,9 +5,11 @@ import {
   SettingsIcon, UserCircleIcon, DatabaseIcon, GlobeIcon,
   HelpIcon,
   LogOutIcon,
+  UsersIcon,
   ZaloChatIcon,
   ZaloContactIcon,
-  ZaloSettingsIcon
+  ZaloSettingsIcon,
+  ZaloSocialIcon
 } from '@/components/ui/Icons';
 
 interface SidebarProps {
@@ -130,6 +132,14 @@ export function Sidebar({
           )}
         </button>
 
+        <button
+          onClick={() => { setActiveTab('social'); setShowUserMenu(false); }}
+          className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${activeTab === 'social' ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'hover:bg-[var(--sidebar-hover-bg)] text-[var(--sidebar-text)]'}`}
+          title={t('social.title')}
+        >
+          <ZaloSocialIcon size={26} active={activeTab === 'social'} />
+        </button>
+
       </div>
 
       {/* Bottom Actions */}
@@ -146,10 +156,21 @@ export function Sidebar({
             </button>
             <button
               onClick={() => { setIsSettingsModalOpen(true); setShowSettingsMenu(false); }}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[var(--hover-bg)] transition-colors text-[var(--text)] text-[15px] group border-b border-[var(--border)] cursor-pointer"
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[var(--hover-bg)] transition-colors text-[var(--text)] text-[15px] group cursor-pointer"
             >
               <span className="text-gray-400 group-hover:text-[#0068FF] transition-colors"><SettingsIcon size={18} /></span>
               <span className="font-medium group-hover:text-[#0068FF] transition-colors">{t('sidebar.settings')}</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setActiveTab('social');
+                setShowSettingsMenu(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[var(--hover-bg)] transition-colors text-[var(--text)] text-[15px] group border-b border-[var(--border)] cursor-pointer"
+            >
+              <span className="text-gray-400 group-hover:text-[#0068FF] transition-colors"><UsersIcon size={18} /></span>
+              <span className="font-medium group-hover:text-[#0068FF] transition-colors">{t('sidebar.your_social_network')}</span>
             </button>
 
             <div className="py-1">

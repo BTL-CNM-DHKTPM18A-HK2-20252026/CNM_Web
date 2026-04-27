@@ -34,7 +34,11 @@ export function MessageList({ messages }: MessageListProps) {
               </button>
             ) : (
               <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
-                {msg.text}
+                {/<[a-z][\s\S]*>/i.test(msg.text) ? (
+                  <div dangerouslySetInnerHTML={{ __html: msg.text }} />
+                ) : (
+                  msg.text
+                )}
               </div>
             )}
           </div>

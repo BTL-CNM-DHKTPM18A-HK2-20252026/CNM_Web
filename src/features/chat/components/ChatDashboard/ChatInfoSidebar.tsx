@@ -1331,7 +1331,20 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
           </div>
         </div>
       )}
+
+      {/* Media Viewer Modal */}
+      <GroupMediaViewer
+        isOpen={isMediaViewerOpen}
+        onClose={() => setIsMediaViewerOpen(false)}
+        mediaItems={mediaItems}
+        initialIndex={mediaViewerIndex}
+        groupName={conversationName || 'Ảnh/Video'}
+        currentUser={currentUser}
+        members={members}
+        onForward={onForward}
+      />
     </div>
+
   );
 }
 

@@ -357,7 +357,7 @@ function GroupJoinLinkPreview({ url, onSelectConversation }: { url: string; onSe
   };
 
   if (loading) return (
-    <div className="mt-2.5 p-3.5 rounded-2xl bg-white/50 dark:bg-white/5 border border-[var(--border)] animate-pulse flex items-center gap-4">
+    <div className="mt-2.5 p-3.5 rounded-2xl bg-white/50 dark:bg-white/5 border border-[var(--border)] flex items-center gap-4 opacity-70">
       <div className="w-14 h-14 rounded-2xl bg-gray-200 dark:bg-gray-700/50" />
       <div className="flex-1 space-y-2.5">
         <div className="h-4 bg-gray-200 dark:bg-gray-700/50 rounded-full w-3/4" />
@@ -371,7 +371,7 @@ function GroupJoinLinkPreview({ url, onSelectConversation }: { url: string; onSe
   return (
     <>
       <div
-        className="mt-2 rounded-lg bg-white dark:bg-[#1E1E1E] border border-[var(--border)] overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer group/join-card w-full"
+        className="mt-2 rounded-lg bg-white dark:bg-[#1E1E1E] border border-[var(--border)] overflow-hidden shadow-sm hover:shadow-md transition-colors duration-200 cursor-pointer group/join-card w-full"
         onClick={(e) => {
           e.stopPropagation();
           if (groupInfo?.isMember) {
@@ -430,7 +430,7 @@ function GroupJoinLinkPreview({ url, onSelectConversation }: { url: string; onSe
           onClick={(e) => { e.stopPropagation(); setShowJoinModal(false); }}
         >
           <div 
-            className="bg-[var(--card-bg)] border border-[var(--border)] w-full max-w-[340px] rounded-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+            className="bg-[var(--card-bg)] border border-[var(--border)] w-full max-w-[340px] rounded-lg shadow-2xl overflow-hidden animate-in fade-in duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5 text-center">
@@ -807,7 +807,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
       )}
 
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar chat-message-scrollbar px-4 pt-4 pb-2 bg-[var(--chat-bg)]" onScroll={() => setContextMenu(null)}>
-        {isInitialLoading ? (
+        {isInitialLoading && messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="w-7 h-7 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
           </div>
@@ -1299,7 +1299,11 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                               const cleanText = displayText.replace(url, '').trim();
                                               return (
                                                 <>
-                                                  {cleanText && renderText(cleanText, msg.mentions)}
+                                                  {cleanText && (/<[a-z][\s\S]*>/i.test(cleanText) ? (
+                                                    <div className="tiptap-content" dangerouslySetInnerHTML={{ __html: cleanText }} />
+                                                  ) : (
+                                                    renderText(cleanText, msg.mentions)
+                                                  ))}
                                                    <GroupJoinLinkPreview url={url} onSelectConversation={vm.onSelectConversation} />
                                                 </>
                                               );
@@ -1307,7 +1311,11 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                             
                                             return (
                                               <>
-                                                {renderText(displayText, msg.mentions)}
+                                                {(/<[a-z][\s\S]*>/i.test(displayText)) ? (
+                                                  <div className="tiptap-content" dangerouslySetInnerHTML={{ __html: displayText }} />
+                                                ) : (
+                                                  renderText(displayText, msg.mentions)
+                                                )}
                                                 {url && (
                                                   <LinkPreview
                                                     url={url}

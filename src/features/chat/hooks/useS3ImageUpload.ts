@@ -71,7 +71,7 @@ export function useS3ImageUpload(): UseS3ImageUploadResult {
 
     try {
       // 1) Get pre-signed URL from backend
-      const presignedRes = await httpClient.get<ApiEnvelope<PresignedUrlPayload>>("/images/presigned-url", {
+      const presignedRes = await httpClient.get<ApiEnvelope<PresignedUrlPayload>>("/files/presigned-url", {
         params: {
           fileName: file.name,
           contentType: file.type,
@@ -100,7 +100,7 @@ export function useS3ImageUpload(): UseS3ImageUploadResult {
       const dimensions = await getImageDimensions(file);
 
       // 3) Notify backend to save metadata in MongoDB
-      const completeRes = await httpClient.post<ApiEnvelope<CompleteUploadPayload>>("/images/save", {
+      const completeRes = await httpClient.post<ApiEnvelope<CompleteUploadPayload>>("/files/metadata", {
         originalName: file.name,
         s3Key: presignedData.s3Key,
         s3Url: presignedData.s3Url,

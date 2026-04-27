@@ -68,8 +68,8 @@ export const EyeIcon = ({ size = 18 }: { size?: number }) => (
   </svg>
 );
 
-export const EyeOffIcon = ({ size = 18 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+export const EyeOffIcon = ({ size = 18, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" />
   </svg>
 );
@@ -77,6 +77,12 @@ export const EyeOffIcon = ({ size = 18 }: { size?: number }) => (
 export const ChevronDownIcon = ({ size = 16 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="m6 9 6 6 6-6" />
+  </svg>
+);
+
+export const ArrowLeftIcon = ({ size = 24, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
   </svg>
 );
 
@@ -145,8 +151,8 @@ export const ImagePickerIcon = ({ size = 22 }: { size?: number }) => (
   </svg>
 );
 
-export const VideoPickerIcon = ({ size = 22 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+export const VideoPickerIcon = ({ size = 22, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <rect x="3" y="5" width="18" height="14" rx="2" ry="2" />
     <polygon points="11 9 11 15 16 12 11 9" fill="currentColor" stroke="none" />
   </svg>
@@ -187,6 +193,12 @@ export const VoiceIcon = ({ size = 22 }: { size?: number }) => (
 export const EmojiIcon = ({ size = 22 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z" /><circle cx="9" cy="9" r="1.5" /><circle cx="15" cy="9" r="1.5" /><path d="M8 14s1.5 3 4 3 4-3 4-3" />
+  </svg>
+);
+
+export const HeartIcon = ({ size = 24, className = "", fill = "none", stroke = "currentColor" }: { size?: number; className?: string; fill?: string; stroke?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
   </svg>
 );
 
@@ -356,6 +368,16 @@ export const ZaloSettingsIcon = ({ size = 26 }: { size?: number }) => (
   </svg>
 );
 
+export const ZaloSocialIcon = ({ size = 26, active = false }: { size?: number; active?: boolean }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="7" cy="7" r="2.4" fill={active ? "currentColor" : "none"} />
+    <circle cx="17" cy="7" r="2.4" fill={active ? "currentColor" : "none"} />
+    <circle cx="12" cy="16" r="2.6" fill={active ? "currentColor" : "none"} />
+    <path d="M9 8.5l2 4M15 8.5l-2 4M9.6 16h4.8" />
+    {active && <path d="M5 22a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2" opacity="0.35" />}
+  </svg>
+);
+
 // Contact Sidebar Icons (Zalo Style - Precise)
 export const FriendsIcon = ({ size = 22, className = "" }: { size?: number; className?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -474,8 +496,193 @@ export const FontSizeIcon = ({ size = 18 }: { size?: number }) => (
   </svg>
 );
 
+export const ShareIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" />
+  </svg>
+);
+
+export const LockIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </svg>
+);
+
+export const LocationIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+  </svg>
+);
+
+export const MapPinIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+  </svg>
+);
+
+
 export const TextColorIcon = ({ size = 18 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M4 20h16" /><path d="m6 16 6-12 6 12" /><path d="M8 12h8" />
+  </svg>
+);
+
+export const BookmarkIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+  </svg>
+);
+
+export const TvIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect width="20" height="15" x="2" y="3" rx="2" /><path d="m12 18 3 3H9l3-3z" />
+  </svg>
+);
+
+export const StoreIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" /><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" /><path d="M2 7h20" /><path d="M22 7v3a2 2 0 0 1-2 2v0a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12v0a2 2 0 0 1-2-2V7" />
+  </svg>
+);
+
+export const HomeIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" />
+  </svg>
+);
+
+export const VideoIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="m22 8-6 4 6 4V8Z" /><rect width="14" height="12" x="2" y="6" rx="2" ry="2" />
+  </svg>
+);
+
+export const ImageIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+  </svg>
+);
+
+export const SmileIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" />
+  </svg>
+);
+
+export const PlusIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+
+export const MessageCircleIcon = ({ size = 20, className = "", fill = "none", stroke = "currentColor" }: { size?: number; className?: string; fill?: string; stroke?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+  </svg>
+);
+
+export const PhoneIcon = ({ size = 20, className = '' }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' className={className}>
+    <path d='M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.27-2.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z' />
+  </svg>
+);
+
+export const GifIcon = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
+    <rect x='3' y='3' width='18' height='18' rx='2' ry='2' />
+    <path d='M7 8h3v2H8v2h2' />
+    <path d='M14 8h.01' />
+    <path d='M14 12v.01' />
+    <path d='M17 8h3' />
+    <path d='M18.5 8v8' />
+  </svg>
+);
+
+export const MinusIcon = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
+    <line x1='5' y1='12' x2='19' y2='12' />
+  </svg>
+);
+
+export const XIcon = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
+    <line x1='18' y1='6' x2='6' y2='18' />
+    <line x1='6' y1='6' x2='18' y2='18' />
+  </svg>
+);
+
+export const FBHomeIcon = ({ size = 28, active = false }: { size?: number; active?: boolean }) => (
+  <svg width={size} height={size} viewBox='0 0 28 28' fill={active ? '#1877F2' : 'none'} stroke={active ? 'none' : 'currentColor'} strokeWidth='2'>
+    <path d='M25.424 13.56c.148-.13.148-.37 0-.5l-11-9.625a.625.625 0 0 0-.848 0l-11 9.625a.375.375 0 0 0 0 .5V24.5c0 .414.336.75.75.75H10.5a.5.5 0 0 0 .5-.5V17.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 .5.5v7a.5.5 0 0 0 .5.5h7.124a.75.75 0 0 0 .75-.75V13.56z' />
+  </svg>
+);
+
+export const FBVideoIcon = ({ size = 28, active = false }: { size?: number; active?: boolean }) => (
+  <svg width={size} height={size} viewBox='0 0 28 28' fill={active ? '#1877F2' : 'none'} stroke={active ? 'none' : 'currentColor'} strokeWidth='2'>
+    <path d='M7 3.5h14a3.5 3.5 0 0 1 3.5 3.5v14a3.5 3.5 0 0 1-3.5 3.5H7a3.5 3.5 0 0 1-3.5-3.5V7a3.5 3.5 0 0 1 3.5-3.5zM6.5 8v12c0 .276.224.5.5.5h14a.5.5 0 0 0 .5-.5V8a.5.5 0 0 0-.5-.5H7a.5.5 0 0 0-.5.5zM11 10.5v7a.5.5 0 0 0 .788.409l4.5-3.5a.5.5 0 0 0 0-.818l-4.5-3.5A.5.5 0 0 0 11 10.5z' />
+  </svg>
+);
+
+export const FBStoreIcon = ({ size = 28, active = false }: { size?: number; active?: boolean }) => (
+  <svg width={size} height={size} viewBox='0 0 28 28' fill={active ? '#1877F2' : 'none'} stroke={active ? 'none' : 'currentColor'} strokeWidth='2'>
+    <path d='M23 10.5v12.25a1.25 1.25 0 0 1-1.25 1.25H6.25a1.25 1.25 0 0 1-1.25-1.25V10.5M4 8.75h20M7.5 8.75V5.25a1.25 1.25 0 0 1 1.25-1.25h10.5a1.25 1.25 0 0 1 1.25 1.25v3.5M10.5 13.5h7a.5.5 0 0 1 .5.5v2.5a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5v-2.5a.5.5 0 0 1 .5-.5z' />
+  </svg>
+);
+
+export const FBGroupsIcon = ({ size = 28, active = false }: { size?: number; active?: boolean }) => (
+  <svg width={size} height={size} viewBox='0 0 28 28' fill={active ? '#1877F2' : 'none'} stroke={active ? 'none' : 'currentColor'} strokeWidth='2'>
+    <circle cx='14' cy='14' r='10' />
+    <path d='M14 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM20 21c0-2.5-2.5-4-6-4s-6 1.5-6 4' />
+    <circle cx='8' cy='12' r='3' opacity='0.6' />
+    <circle cx='20' cy='12' r='3' opacity='0.6' />
+  </svg>
+);
+
+export const FBGamingIcon = ({ size = 28, active = false }: { size?: number; active?: boolean }) => (
+  <svg width={size} height={size} viewBox='0 0 28 28' fill={active ? '#1877F2' : 'none'} stroke={active ? 'none' : 'currentColor'} strokeWidth='2'>
+    <path d='M21 7.5H7A4.5 4.5 0 0 0 2.5 12v4a4.5 4.5 0 0 0 4.5 4.5h14a4.5 4.5 0 0 0 4.5-4.5v-4A4.5 4.5 0 0 0 21 7.5zM11 14h-1v1.5a.5.5 0 0 1-1 0V14H7.5a.5.5 0 0 1 0-1H9v-1.5a.5.5 0 0 1 1 0V13h1a.5.5 0 0 1 0 1zm8.5.5a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5zm2.5-2.5a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5z' />
+  </svg>
+);
+
+export const FileIcon = ({ size = 24, className = '' }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' className={className}>
+    <path d='M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z' />
+    <polyline points='14 2 14 8 20 8' />
+  </svg>
+);
+
+export const GridIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+  </svg>
+);
+
+export const TagIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" />
+  </svg>
+);
+
+export const CheckIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
+export const ImagePlusIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /><line x1="16" y1="5" x2="16" y2="11" /><line x1="13" y1="8" x2="19" y2="8" />
+  </svg>
+);
+
+export const TypeIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polyline points="4 7 4 4 20 4 20 7" /><line x1="9" y1="20" x2="15" y2="20" /><line x1="12" y1="4" x2="12" y2="20" />
+  </svg>
+);
+
+export const MusicIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
   </svg>
 );

@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+@utility scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
@@ -171,14 +180,65 @@ body {
 .typing-dot:nth-child(3) {
   animation-delay: 400ms;
 }
+
 @keyframes progress-glow {
-  0% { width: 0%; opacity: 0.6; }
-  30% { width: 40%; opacity: 0.9; }
-  60% { width: 75%; opacity: 1; }
-  90% { width: 98%; opacity: 0.8; }
-  100% { width: 100%; opacity: 0.6; }
+  0% {
+    width: 0%;
+    opacity: 0.6;
+  }
+
+  30% {
+    width: 40%;
+    opacity: 0.9;
+  }
+
+  60% {
+    width: 75%;
+    opacity: 1;
+  }
+
+  90% {
+    width: 98%;
+    opacity: 0.8;
+  }
+
+  100% {
+    width: 100%;
+    opacity: 0.6;
+  }
 }
 
 .animate-progress-glow {
   animation: progress-glow 8s ease-in-out infinite;
+}
+
+/* Tiptap content rendering */
+.tiptap-content p {
+  margin: 0;
+}
+
+.tiptap-content p:not(:last-child) {
+  margin-bottom: 0.25rem;
+}
+
+.tiptap-content strong {
+  font-weight: 700;
+}
+
+.tiptap-content em {
+  font-style: italic;
+}
+
+.tiptap-content u {
+  text-decoration: underline;
+}
+
+.tiptap-content s {
+  text-decoration: line-through;
+}
+
+.tiptap-content mark {
+  background-color: #fef08a;
+  border-radius: 2px;
+  padding: 0 2px;
 }

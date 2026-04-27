@@ -15,6 +15,7 @@ import { websocketService } from '@/lib/realtime/websocketService';
 import { friendService } from '@/features/friends';
 import { PresenceProvider } from '@/features/user';
 import { messageService } from '@/features/chat';
+import { SocialFeed } from '@/features/social';
 
 export interface ChatDashboardProps {
   onLogout: () => void;
@@ -24,7 +25,13 @@ export interface ChatDashboardProps {
 
 export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatDashboardProps) {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState('chat');
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem('fruvia_active_tab') || 'chat';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('fruvia_active_tab', activeTab);
+  }, [activeTab]);
   const [contactCategory, setContactCategory] = useState('friends');
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -298,12 +305,37 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
             }
           }
 
+          const lastSenderId = c.lastMessageSenderId || c.last_message_sender_id || '';
+          let lastSenderName = c.lastMessageSenderName || c.last_message_sender_name || '';
+          
+          // Fallback: If backend hasn't denormalized sender name yet, find it in members
+          if (!lastSenderName && lastSenderId && isGroup && c.members) {
+            const senderMember = c.members.find((m: any) => (m.userId || m.user_id) === lastSenderId);
+            if (senderMember) {
+              lastSenderName = senderMember.displayName || senderMember.display_name || senderMember.nickname || '';
+            }
+          }
+
+          const isFromMe = (lastSenderId === currentUser?.id || lastSenderId === currentUser?.user_id) && lastSenderId !== '';
+
+          let displayLastMsg = c.lastMessageContent
+            || c.last_message_content
+            || (isAi ? t('chat.ai_subheading') : t('chat.start_conversation'));
+
+          if (displayLastMsg && displayLastMsg !== t('chat.start_conversation') && displayLastMsg !== t('chat.ai_subheading')) {
+            if (isFromMe) {
+              displayLastMsg = `${t('social.messenger.you')}: ${displayLastMsg}`;
+            } else if (isGroup && lastSenderName) {
+              displayLastMsg = `${lastSenderName}: ${displayLastMsg}`;
+            }
+          }
+
           return {
             id,
             name: displayName,
-            lastMsg: c.lastMessageContent
-              || c.last_message_content
-              || (isAi ? t('chat.ai_subheading') : t('chat.start_conversation')),
+            lastMsg: displayLastMsg,
+            lastSenderId,
+            lastSenderName,
             time: (c.lastMessageTime || c.last_message_time || c.createdAt || c.created_at) ? new Date(c.lastMessageTime || c.last_message_time || c.createdAt || c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
             lastMessageAt: c.lastMessageTime || c.last_message_time || null,
             createdAt: c.createdAt || c.created_at || null,
@@ -499,7 +531,7 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
 
           const user = currentUserRef.current;
           const isCurrentConversation = String(selectedChatIdRef.current) === String(conv.id);
-          const isFromMe = newMsg.senderId === user?.id;
+          const isFromMe = newMsg.senderId === user?.id || newMsg.senderId === user?.user_id;
 
           const getSnippet = (content: string, type?: string) => {
             switch (type) {
@@ -512,14 +544,26 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
               default: return content;
             }
           };
-          const snippet = getSnippet(newMsg.content || '', newMsg.messageType);
-          const time = newMsg.createdAt
-            ? new Date(newMsg.createdAt).toLocaleTimeString('vi-VN', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false,
-              })
-            : new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+          let snippet = getSnippet(newMsg.content || '', newMsg.messageType);
+          let senderName = newMsg.senderName;
+          
+          // Fallback for senderName if missing in group message
+          if (!senderName && !isFromMe && conv.isGroup && conv.members) {
+            const member = conv.members.find((m: any) => (m.userId || m.user_id) === newMsg.senderId);
+            if (member) senderName = member.displayName || member.display_name || member.nickname;
+          }
+
+          if (snippet) {
+            if (isFromMe) {
+              snippet = `${t('social.messenger.you')}: ${snippet}`;
+            } else if (conv.isGroup && senderName) {
+              snippet = `${senderName}: ${snippet}`;
+            }
+          }
+
+          const msgAt = newMsg.createdAt || new Date().toISOString();
+          const formattedTime = new Date(msgAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
           setConversations(prev => {
             const updated = prev.map(c => {
@@ -527,8 +571,10 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
               return {
                 ...c,
                 lastMsg: snippet || c.lastMsg,
-                time,
-                lastMessageAt: newMsg.createdAt || new Date().toISOString(),
+                lastSenderId: newMsg.senderId,
+                lastSenderName: senderName || c.lastSenderName,
+                time: formattedTime,
+                lastMessageAt: msgAt,
                 // Only increment unreadCount when message is from someone else AND not in this conversation
                 unreadCount:
                   !isCurrentConversation && !isFromMe ? (c.unreadCount || 0) + 1 : c.unreadCount,
@@ -642,13 +688,13 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
       // Use POST for toggle as seen in ConversationListLegacy
       const res: any = await apiClient.post(`/conversations/${id}/pin`, {});
       const newPinned = res?.data?.isPinned ?? res?.isPinned ?? !isPinned;
-      
+
       if (newPinned) {
         toast.success(t('chat.pin.pin_success') || 'Đã ghim hội thoại');
       } else {
         toast.success(t('chat.pin.unpin_success') || 'Đã bỏ ghim hội thoại');
       }
-      
+
       setConversations(prev => prev.map(c => {
         if (String(c.id) !== String(id)) return c;
         return { ...c, pinned: newPinned, pinnedAt: newPinned ? new Date().toISOString() : null };
@@ -739,106 +785,110 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
           onClose={() => setIsUserDataModalOpen(false)}
         />
 
-        {/* 1. LEFT SIDEBAR */}
-        <Sidebar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          showSettingsMenu={showSettingsMenu}
-          setShowSettingsMenu={setShowSettingsMenu}
-          setIsSettingsModalOpen={setIsSettingsModalOpen}
-          setIsProfileModalOpen={setIsProfileModalOpen}
-          onLogout={onLogout}
-          user={currentUser}
-          invitationCount={invitationCount}
-        />
+        {/* 1. LEFT SIDEBAR (Hidden in Social mode) */}
+        {activeTab !== 'social' && (
+          <Sidebar
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            showSettingsMenu={showSettingsMenu}
+            setShowSettingsMenu={setShowSettingsMenu}
+            setIsSettingsModalOpen={setIsSettingsModalOpen}
+            setIsProfileModalOpen={setIsProfileModalOpen}
+            onLogout={onLogout}
+            user={currentUser}
+            invitationCount={invitationCount}
+          />
+        )}
 
         {/* 2. MIDDLE LIST */}
-        {activeTab === 'chat' || activeTab === 'contacts' ? (
-          <ConversationList
-            conversations={conversations.map(c => ({ ...c, active: c.id === selectedChatId }))}
-            onAddFriend={(prefill) => openAddFriendModal(prefill)}
-            onCreateGroup={() => setIsCreateGroupModalOpen(true)}
-            onSelectConversation={(id) => {
-              setSelectedChatId(id);
-              setActiveTab('chat');
-              // Optimistically clear unreadCount when opening a conversation
-              setConversations(prev =>
-                prev.map(c => c.id === id ? { ...c, unreadCount: 0, isMarkedUnread: false } : c)
-              );
-              // Auto-clear "marked unread" when opening conversation
-              const conv = conversations.find(c => c.id === id);
-              if (conv?.isMarkedUnread) {
-                apiClient.post(`/conversations/${id}/mark-unread`, {}).catch(() => {});
-              }
-            }}
-            onJumpToMessage={(convId, messageId) => {
-              setSelectedChatId(convId);
-              setActiveTab('chat');
-              setTargetMessageId(messageId);
-              setConversations(prev =>
-                prev.map(c => c.id === convId ? { ...c, unreadCount: 0, isMarkedUnread: false } : c)
-              );
-            }}
-            onPinConversation={(id, pinned) => {
-              setConversations(prev =>
-                sortConversations(
-                  prev.map(c =>
-                    c.id === id
-                      ? {
-                        ...c,
-                        pinned,
-                        pinnedAt: pinned ? new Date().toISOString() : null,
-                      }
-                      : c
+        {activeTab !== 'social' && (
+          activeTab === 'chat' || activeTab === 'contacts' ? (
+            <ConversationList
+              conversations={conversations.map(c => ({ ...c, active: c.id === selectedChatId }))}
+              onAddFriend={(prefill) => openAddFriendModal(prefill)}
+              onCreateGroup={() => setIsCreateGroupModalOpen(true)}
+              onSelectConversation={(id) => {
+                setSelectedChatId(id);
+                setActiveTab('chat');
+                // Optimistically clear unreadCount when opening a conversation
+                setConversations(prev =>
+                  prev.map(c => c.id === id ? { ...c, unreadCount: 0, isMarkedUnread: false } : c)
+                );
+                // Auto-clear "marked unread" when opening conversation
+                const conv = conversations.find(c => c.id === id);
+                if (conv?.isMarkedUnread) {
+                  apiClient.post(`/conversations/${id}/mark-unread`, {}).catch(() => { });
+                }
+              }}
+              onJumpToMessage={(convId, messageId) => {
+                setSelectedChatId(convId);
+                setActiveTab('chat');
+                setTargetMessageId(messageId);
+                setConversations(prev =>
+                  prev.map(c => c.id === convId ? { ...c, unreadCount: 0, isMarkedUnread: false } : c)
+                );
+              }}
+              onPinConversation={(id, pinned) => {
+                setConversations(prev =>
+                  sortConversations(
+                    prev.map(c =>
+                      c.id === id
+                        ? {
+                          ...c,
+                          pinned,
+                          pinnedAt: pinned ? new Date().toISOString() : null,
+                        }
+                        : c
+                    )
                   )
-                )
-              );
-            }}
-            onDeleteConversation={(id) => {
-              setConversations(prev => prev.filter(c => c.id !== id));
-              if (selectedChatId === id) setSelectedChatId('');
-            }}
-            onTagConversation={(id, tag) => {
-              setConversations(prev =>
-                prev.map(c => c.id === id ? { ...c, conversationTag: tag || undefined } : c)
-              );
-            }}
-            onMuteConversation={(id, mutedUntil) => {
-              setConversations(prev =>
-                prev.map(c => c.id === id ? { ...c, mutedUntil } : c)
-              );
-            }}
-            onMarkUnread={(id, isMarkedUnread) => {
-              setConversations(prev =>
-                prev.map(c => c.id === id ? { ...c, isMarkedUnread } : c)
-              );
-            }}
-            onMarkAsRead={(ids) => {
-              const idSet = new Set(ids.map(String));
-              setConversations(prev =>
-                prev.map(c => idSet.has(String(c.id)) ? { ...c, unreadCount: 0, isMarkedUnread: false } : c)
-              );
-            }}
-            onAutoDeleteConversation={(id, duration) => {
-              setConversations(prev =>
-                prev.map(c => c.id === id ? { ...c, autoDeleteDuration: duration } : c)
-              );
-            }}
-            onUnhideConversation={() => {
-              fetchConversations();
-            }}
-            currentUser={currentUser}
-            nonSearchContent={activeTab === 'contacts' ? (
-              <ContactList
-                selectedCategory={contactCategory}
-                onSelectCategory={setContactCategory}
-              />
-            ) : undefined}
-          />
-        ) : (
-          <div className="w-[340px] border-r border-[var(--border)] bg-[var(--card-bg)] flex items-center justify-center text-gray-400">
-            {t('common.coming_soon')}
-          </div>
+                );
+              }}
+              onDeleteConversation={(id) => {
+                setConversations(prev => prev.filter(c => c.id !== id));
+                if (selectedChatId === id) setSelectedChatId('');
+              }}
+              onTagConversation={(id, tag) => {
+                setConversations(prev =>
+                  prev.map(c => c.id === id ? { ...c, conversationTag: tag || undefined } : c)
+                );
+              }}
+              onMuteConversation={(id, mutedUntil) => {
+                setConversations(prev =>
+                  prev.map(c => c.id === id ? { ...c, mutedUntil } : c)
+                );
+              }}
+              onMarkUnread={(id, isMarkedUnread) => {
+                setConversations(prev =>
+                  prev.map(c => c.id === id ? { ...c, isMarkedUnread } : c)
+                );
+              }}
+              onMarkAsRead={(ids) => {
+                const idSet = new Set(ids.map(String));
+                setConversations(prev =>
+                  prev.map(c => idSet.has(String(c.id)) ? { ...c, unreadCount: 0, isMarkedUnread: false } : c)
+                );
+              }}
+              onAutoDeleteConversation={(id, duration) => {
+                setConversations(prev =>
+                  prev.map(c => c.id === id ? { ...c, autoDeleteDuration: duration } : c)
+                );
+              }}
+              onUnhideConversation={() => {
+                fetchConversations();
+              }}
+              currentUser={currentUser}
+              nonSearchContent={activeTab === 'contacts' ? (
+                <ContactList
+                  selectedCategory={contactCategory}
+                  onSelectCategory={setContactCategory}
+                />
+              ) : undefined}
+            />
+          ) : (
+            <div className="w-[340px] border-r border-[var(--border)] bg-[var(--card-bg)] flex items-center justify-center text-gray-400">
+              {t('common.coming_soon')}
+            </div>
+          )
         )}
 
         {/* 3. MAIN CONTENT AREA */}
@@ -998,18 +1048,18 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
                               }
 
                               return (
-                              <div
-                                key={msg.messageId}
-                                className="p-3 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors border border-transparent hover:border-[var(--border)]"
-                              >
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="text-[13px] font-medium text-[var(--text)]">{msg.senderName}</span>
-                                  <span className="text-[11px] text-[var(--sub-text)]">
-                                    {msg.createdAt ? new Date(msg.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}
-                                  </span>
+                                <div
+                                  key={msg.messageId}
+                                  className="p-3 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors border border-transparent hover:border-[var(--border)]"
+                                >
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-[13px] font-medium text-[var(--text)]">{msg.senderName}</span>
+                                    <span className="text-[11px] text-[var(--sub-text)]">
+                                      {msg.createdAt ? new Date(msg.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}
+                                    </span>
+                                  </div>
+                                  <p className="text-[13px] text-[var(--sub-text)] line-clamp-2">{displayContent}</p>
                                 </div>
-                                <p className="text-[13px] text-[var(--sub-text)] line-clamp-2">{displayContent}</p>
-                              </div>
                               );
                             })}
                           </div>
@@ -1070,6 +1120,8 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
               currentUser={currentUser}
               onSelectUser={handleStartP2PChat}
             />
+          ) : activeTab === 'social' ? (
+            <SocialFeed user={currentUser} onBack={() => setActiveTab('chat')} />
           ) : (
             <div className="flex-1 bg-[var(--background)] flex items-center justify-center text-[var(--sub-text)]">
               {t('common.coming_soon')}

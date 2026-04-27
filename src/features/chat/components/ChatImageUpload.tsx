@@ -202,7 +202,7 @@ async function uploadSingleImage(
   onUploadError?: (message: ChatImageUploadMessage, error: string) => void
 ) {
   try {
-    const presignedRes = await apiClient.get<ApiEnvelope<PresignedUrlPayload>>("/images/presigned-url", {
+    const presignedRes = await apiClient.get<ApiEnvelope<PresignedUrlPayload>>("/files/presigned-url", {
       params: {
         fileName: file.name,
         contentType: file.type,
@@ -226,7 +226,7 @@ async function uploadSingleImage(
       },
     });
 
-    const savedRes = await apiClient.post<ApiEnvelope<SaveImagePayload>>("/images/save", {
+    const savedRes = await apiClient.post<ApiEnvelope<SaveImagePayload>>("/files/metadata", {
       originalName: file.name,
       s3Key: presigned.s3Key,
       s3Url: presigned.s3Url,

@@ -1016,6 +1016,8 @@ export function useChatWindow({
       const newMsg = data.message || data;
       const newConv = data.conversation;
 
+      console.log('[ChatWindow] Message sent response:', { res, data, newMsg });
+
       if (newMsg?.messageId || newMsg?.id) {
         const currentId = selectedChat.id;
         const finalConvId = newConv ? (newConv.conversationId || newConv.id) : currentId;
@@ -1810,6 +1812,8 @@ export function useChatWindow({
 
         totalMessagesRef.current = totalFromServer;
 
+        console.log('[ChatWindow] API Messages fetched:', { count: items.length, totalFromServer, firstItem: items[0] });
+
         const sorted = [...items].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
         const mapped = filterLocallyDeletedMessages(sorted.map(item => mapIncomingMessage(item, currentUser?.id)));
 
@@ -2082,19 +2086,19 @@ export function useChatWindow({
       if (isInitialLoadRef.current) {
         container.dataset.programmaticScroll = '1';
         container.scrollTop = container.scrollHeight;
-        // Double rAF ensures layout is fully settled (especially for images with aspect-ratio)
+        
+        // Single rAF as a fallback for slow-rendering elements (like images)
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            if (container.scrollTop < container.scrollHeight - container.clientHeight) {
-              container.scrollTop = container.scrollHeight;
-            }
-            delete container.dataset.programmaticScroll;
-          });
+          if (container.scrollTop < container.scrollHeight - container.clientHeight) {
+            container.scrollTop = container.scrollHeight;
+          }
+          delete container.dataset.programmaticScroll;
         });
+        
         isInitialLoadRef.current = false;
       } else {
         container.dataset.programmaticScroll = '1';
-        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+        container.scrollTop = container.scrollHeight;
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             if (container.scrollTop < container.scrollHeight - container.clientHeight) {

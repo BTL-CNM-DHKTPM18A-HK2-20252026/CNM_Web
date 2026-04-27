@@ -10,6 +10,8 @@ import { SidebarItem } from '@/features/chat';
 import { SearchOverlayDefault } from '../shared/SearchOverlayDefault';
 import { ChatSearchHeader } from '../shared/ChatSearchHeader';
 
+const stripHtml = (html: string) => (html || '').replace(/<[^>]*>?/gm, '');
+
 interface Conversation {
   id: string | number;
   name: string;
@@ -575,7 +577,31 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
     { key: 'colleagues', color: '#0068FF' }, // Blue
   ];
 
-  const recentSearches: SearchItem[] = [];
+  const [recentSearches, setRecentSearches] = useState<any[]>([]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('chat_recent_searches');
+      if (saved) {
+        setRecentSearches(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error('Failed to load recent searches', e);
+    }
+  }, []);
+
+  const saveRecentSearch = (item: { id: string | number; name: string; avatar?: string }) => {
+    try {
+      setRecentSearches(prev => {
+        const filtered = prev.filter(p => p.id !== item.id);
+        const next = [item, ...filtered].slice(0, 10);
+        localStorage.setItem('chat_recent_searches', JSON.stringify(next));
+        return next;
+      });
+    } catch (e) {
+      console.error('Failed to save recent search', e);
+    }
+  };
 
   const toggleTag = (key: string) => {
     setSelectedTags(prev =>
@@ -1184,7 +1210,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-[14px] font-medium text-[var(--text)] truncate">{conv.conversationName}</p>
-                                {conv.lastMessageContent && <p className="text-[12px] text-[var(--sub-text)] truncate">{conv.lastMessageContent}</p>}
+                                {conv.lastMessageContent && <p className="text-[12px] text-[var(--sub-text)] truncate">{stripHtml(conv.lastMessageContent)}</p>}
                               </div>
                               {conv.conversationType === 'GROUP' && (
                                 <span className="text-[11px] px-2 py-1 rounded-full font-semibold text-blue-600 bg-blue-50">
@@ -1358,7 +1384,13 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
             </div>
           ) : (
             /* Default: Recent + Filters */
-            <SearchOverlayDefault recentSearches={recentSearches} />
+            <SearchOverlayDefault 
+              recentSearches={recentSearches} 
+              onRecentClick={(item) => {
+                onSelectConversation(item.id);
+                closeSearchOverlay();
+              }}
+            />
           )}
         </div>
       ) : nonSearchContent ? (
@@ -1376,49 +1408,51 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
               </span>
             </div>
           ) : (
-            filteredConversations.map((conv) => (
-              <SidebarItem
-                key={conv.id}
-                id={conv.id}
-                name={conv.name}
-                nickname={conv.nickname}
-                lastMsg={conv.lastMsg}
-                subtitle={
-                  conv.otherUserId && conv.lastMsg === t('chat.start_conversation') ? (
-                    isOnline(conv.otherUserId) ? (
-                      <span className="text-green-500 font-medium">{t('presence.online')}</span>
-                    ) : getTimeAgo(conv.otherUserId) ? (
-                      <span className="truncate">{getTimeAgo(conv.otherUserId)}</span>
-                    ) : (
-                      <span className="truncate">{conv.lastMsg}</span>
-                    )
-                  ) : (
-                    <span className="truncate">{conv.lastMsg}</span>
-                  )
-                }
-                time={conv.time}
-                active={conv.active}
-                pinned={conv.pinned}
-                avatar={conv.avatar}
-                isGroup={conv.isGroup}
-                groupAvatarUrls={conv.groupAvatarUrls}
-                memberCount={conv.memberCount}
-                isCloud={conv.isCloud}
-                isAi={conv.isAi}
-                unreadCount={conv.unreadCount}
-                otherUserId={conv.otherUserId}
-                conversationTagColor={
-                  conv.conversationTag
-                    ? subMenuItems.find((tag) => tag.key === conv.conversationTag)?.color
-                    : undefined
-                }
-                mutedUntil={conv.mutedUntil}
-                isMarkedUnread={conv.isMarkedUnread}
-                onClick={onSelectConversation}
-                onContextMenu={(event) => handleContextMenu(event, conv.id)}
-                onMoreClick={(event) => openContextMenuFromButton(event, conv.id)}
-              />
-            ))
+            filteredConversations.map((conv) => {
+              const tagColor = conv.conversationTag
+                ? subMenuItems.find((tag) => tag.key === conv.conversationTag)?.color
+                : undefined;
+
+              const subtitle = conv.otherUserId && conv.lastMsg === t('chat.start_conversation') ? (
+                isOnline(conv.otherUserId) ? (
+                  <span className="text-green-500 font-medium">{t('presence.online')}</span>
+                ) : getTimeAgo(conv.otherUserId) ? (
+                  <span className="truncate">{getTimeAgo(conv.otherUserId)}</span>
+                ) : (
+                  <span className="truncate">{stripHtml(conv.lastMsg)}</span>
+                )
+              ) : (
+                <span className="truncate">{stripHtml(conv.lastMsg)}</span>
+              );
+
+              return (
+                <SidebarItem
+                  key={conv.id}
+                  id={conv.id}
+                  name={conv.name}
+                  nickname={conv.nickname}
+                  lastMsg={stripHtml(conv.lastMsg)}
+                  subtitle={subtitle}
+                  time={conv.time}
+                  active={conv.active}
+                  pinned={conv.pinned}
+                  avatar={conv.avatar}
+                  isGroup={conv.isGroup}
+                  groupAvatarUrls={conv.groupAvatarUrls}
+                  memberCount={conv.memberCount}
+                  isCloud={conv.isCloud}
+                  isAi={conv.isAi}
+                  unreadCount={conv.unreadCount}
+                  otherUserId={conv.otherUserId}
+                  conversationTagColor={tagColor}
+                  mutedUntil={conv.mutedUntil}
+                  isMarkedUnread={conv.isMarkedUnread}
+                  onClick={onSelectConversation}
+                  onContextMenu={(event) => handleContextMenu(event, conv.id)}
+                  onMoreClick={(event) => openContextMenuFromButton(event, conv.id)}
+                />
+              );
+            })
           )}
         </div>
       )}

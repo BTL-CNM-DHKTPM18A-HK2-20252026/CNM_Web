@@ -263,6 +263,16 @@ class WebSocketService {
     return this.subscribe(`/topic/friend-events/${userId}`, callback);
   }
 
+  // Subscribe to story-related events
+  subscribeToStoryEvents(userId: string, callback: (message: IMessage) => void) {
+    if (!userId) {
+      console.error('[WS-DEBUG] Cannot subscribeToStoryEvents: userId is null/undefined!');
+      return null;
+    }
+    // Listen for stories from friends and self
+    return this.subscribe(`/topic/stories/${userId}`, callback);
+  }
+
   /**
    * Send a message to a STOMP destination (e.g., /app/chat/{id}/typing)
    * @returns true if sent, false if WebSocket not connected

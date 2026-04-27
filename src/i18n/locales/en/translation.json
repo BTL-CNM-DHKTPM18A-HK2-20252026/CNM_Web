@@ -184,6 +184,7 @@
     "account_info": "Account Info",
     "upgrade_account": "Upgrade Account",
     "your_profile": "Your Profile",
+    "your_social_network": "Your Social Network",
     "settings": "Settings",
     "data": "Data",
     "language": "Language",
@@ -1166,5 +1167,129 @@
     "hint": "Select friends from the left",
     "error_load": "Cannot load friends list",
     "error_send": "Cannot send contact card"
+  },
+  "social": {
+    "stories": {
+      "create_title": "Create new story",
+      "select_desc": "Select a photo or video to start",
+      "select_subdesc": "Your story will be visible for 24 hours",
+      "upload_btn": "Upload from computer",
+      "text_btn": "Start with text",
+      "edit_settings": "Story settings",
+      "text_placeholder": "Start typing...",
+      "text_content": "Content",
+      "background": "Background",
+      "media_ready": "Your file is ready to share.",
+      "visibility_notice": "Public to everyone for 24h",
+      "share_btn": "Share to story"
+    },
+    "title": "Social Network",
+    "feed": "News Feed",
+    "create_post_placeholder": "{{name}}, what's on your mind?",
+    "create_post": {
+      "title": "Create new post",
+      "drag_hint": "Drag photos and videos here",
+      "select_btn": "Select from computer",
+      "share": "Share",
+      "sharing": "Sharing...",
+      "caption_placeholder": "Write a caption...",
+      "most_popular": "Most popular",
+      "add_location": "Add location",
+      "accessibility": "Accessibility",
+      "accessibility_desc": "Alt text describes your photos for people with visual impairments. Alt text will be automatically created for your photos or you can choose to write your own.",
+      "alt_text_placeholder": "Write alt text...",
+      "advanced_settings": "Advanced settings",
+      "hide_likes": "Hide like and view counts on this post",
+      "hide_likes_desc": "Only you will see the total number of likes and views on this post. You can change this later by going to the ... menu at the top of the post.",
+      "turn_off_comments": "Turn off commenting",
+      "turn_off_comments_desc": "You can change this later by going to the ... menu at the top of your post.",
+      "success": "New post created!",
+      "error": "Error sharing post",
+      "limit_warning": "You can only select up to {{images}} images, {{videos}} videos, and {{others}} other files."
+    },
+    "posts": {
+      "no_posts": "No posts yet. When you share photos, they'll appear here.",
+      "your_story": "Your story",
+      "likes": "likes",
+      "view_comments": "View all {{count}} comments",
+      "add_comment": "Add a comment...",
+      "no_comments": "No comments yet.",
+      "no_comments_desc": "Start the conversation.",
+      "following": "Following",
+      "reply": "Reply",
+      "reactions": {
+        "LIKE": "Like",
+        "LOVE": "Love",
+        "HAHA": "Haha",
+        "WOW": "Wow",
+        "SAD": "Sad",
+        "ANGRY": "Angry"
+      },
+      "options": {
+        "report": "Report",
+        "unfollow": "Unfollow",
+        "favorites": "Add to favorites",
+        "about": "About this account",
+        "go_to_post": "Go to post",
+        "share": "Share to...",
+        "copy_link": "Copy link",
+        "embed": "Embed",
+        "close": "Close"
+      }
+    },
+    "post_action": "Post",
+    "like": "Like",
+    "comment": "Comment",
+    "share": "Share",
+    "privacy": {
+      "public": "Public",
+      "friends": "Friends",
+      "private": "Only Me"
+    },
+    "sidebar": {
+      "home": "Home",
+      "search": "Search",
+      "explore": "Explore",
+      "reels": "Reels",
+      "messages": "Messages",
+      "notifications": "Notifications",
+      "create": "Create",
+      "profile": "Profile",
+      "more": "More"
+    },
+    "suggestions": {
+      "title": "Suggestions for you",
+      "see_all": "See All",
+      "follow": "Follow"
+    },
+    "messenger": {
+      "search": "Search",
+      "online": "Active now",
+      "say_hi": "Say hi to your friend!",
+      "input_placeholder": "Message...",
+      "send": "Send",
+      "no_messages": "No messages found.",
+      "you": "You"
+    },
+    "empty_feed": "Feed is empty",
+    "empty_feed_desc": "Be the first one to post something!",
+    "success_create": "Post created successfully!",
+    "error_fetch": "Failed to fetch feed",
+    "error_create": "Failed to create post",
+    "profile": {
+      "edit": "Edit profile",
+      "view_archive": "View archive",
+      "posts": "posts",
+      "followers": "followers",
+      "following": "following",
+      "reels": "Reels",
+      "saved": "Saved",
+      "tagged": "Tagged",
+      "suggested": "Suggested for you",
+      "insights": "Profile Insights",
+      "reach": "Reach",
+      "engagement": "Engagement",
+      "activity": "Recent Activity"
+    }
   }
 }
