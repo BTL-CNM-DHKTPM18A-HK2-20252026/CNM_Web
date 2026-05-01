@@ -19,15 +19,20 @@ import { Modal, Image as AntImage } from 'antd';
 import { CommentModal } from './CommentModal';
 import { useTheme } from '@/themes';
 import { PostOptionsDropdown } from './PostOptionsDropdown';
+import { toast } from 'sonner';
+import { SocialUser } from '../types';
 
 interface PostCardProps {
   post: PostResponse;
   onLike?: (postId: string) => void;
   onReact?: (postId: string, reaction: string) => void;
   onComment?: (postId: string) => void;
+  onDelete?: (postId: string) => void;
+  onEdit?: (post: PostResponse) => void;
+  onShareClick?: (post: PostResponse) => void;
   currentUser?: SocialUser | null;
 }
-export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onReact, onComment, currentUser }) => {
+export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onReact, onComment, onDelete, onEdit, onShareClick, currentUser }) => {
   const { t, i18n } = useTranslation();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
@@ -39,6 +44,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onReact, onCom
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(post.isSaved || false);
 
   // Reaction Picker states
   const [showReactions, setShowReactions] = useState(false);
@@ -99,6 +105,31 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onReact, onCom
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [previewVisible, mediaItems.length]);
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(`${window.location.origin}/p/${post.postId}`);
+    toast.success(t('social.posts.options.link_copied', 'Đã sao chép liên kết'));
+  };
+
+  const handleToggleBookmark = async () => {
+    try {
+      // Toggle local state
+      const newState = !isBookmarked;
+      setIsBookmarked(newState);
+      
+      // Call API
+      // await socialApi.toggleBookmark(post.postId);
+      
+      if (newState) {
+        toast.success(t('social.posts.bookmarks.added', 'Đã lưu bài viết'));
+      } else {
+        toast.success(t('social.posts.bookmarks.removed', 'Đã gỡ khỏi mục lưu trữ'));
+      }
+    } catch (error) {
+      // Rollback on error
+      setIsBookmarked(!isBookmarked);
+      toast.error(t('social.posts.bookmarks.error', 'Không thể thực hiện lúc này.'));
+    }
+  };
 
   const renderMediaItem = (item: any, className: string, index: number, showMoreCount?: number) => {
     const isVid = item.type?.toUpperCase() === 'VIDEO';
@@ -194,6 +225,44 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onReact, onCom
             )}
           </div>
         </a>
+      );
+    }
+
+    if (post.sharedPost) {
+      return (
+        <div className="mx-3 mb-3 border border-gray-100 dark:border-[#262626] rounded-xl overflow-hidden hover:bg-gray-50/50 dark:hover:bg-[#121212] transition-all bg-[#FAFAFA]/50 dark:bg-[#0A0A0A]/50">
+          <div className="p-3 flex items-center gap-2">
+            <div className="h-5 w-5 rounded-full overflow-hidden relative border border-gray-100 dark:border-zinc-800">
+              <Image
+                src={post.sharedPost.authorAvatar || "/avatar.jpg"}
+                fill
+                alt={post.sharedPost.authorName}
+                className="object-cover"
+              />
+            </div>
+            <span className="text-[12px] font-bold text-black dark:text-white">{post.sharedPost.authorName}</span>
+            <span className="text-[#8E8E8E] text-[11px]">
+              {formatDistanceToNow(new Date(post.sharedPost.createdAt), { locale: currentLocale, addSuffix: false }).replace('khoảng ', '').replace('about ', '')}
+            </span>
+          </div>
+          <div className="px-3 pb-3 text-[13px] text-gray-800 dark:text-gray-200">
+            {post.sharedPost.content}
+          </div>
+          {post.sharedPost.mediaList && post.sharedPost.mediaList.length > 0 && (
+             <div className="relative aspect-video w-full">
+                <img 
+                  src={post.sharedPost.mediaList[0].url} 
+                  alt="Original post" 
+                  className="w-full h-full object-cover"
+                />
+                {post.sharedPost.mediaList.length > 1 && (
+                  <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md text-white text-[10px] px-1.5 py-0.5 rounded">
+                    +{post.sharedPost.mediaList.length - 1}
+                  </div>
+                )}
+             </div>
+          )}
+        </div>
       );
     }
 
@@ -339,6 +408,8 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onReact, onCom
               currentUser={currentUser || null}
               isDark={isDark}
               onClose={() => setShowMoreOptions(false)}
+              onDelete={onDelete}
+              onEdit={onEdit}
             />
           )}
         </div>
@@ -421,11 +492,34 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onReact, onCom
             <MessageCircleIcon size={20} />
           </button>
 
-          <button className="text-black dark:text-white hover:text-gray-500 transition-all hover:scale-110 cursor-pointer">
-            <SendIcon size={18} />
+          <button 
+            onClick={() => onShareClick?.(post)}
+            className="text-black dark:text-white hover:text-gray-500 transition-all hover:scale-110 cursor-pointer p-1"
+            title="Chia sẻ lên tường của bạn"
+          >
+            <SendIcon size={18} className="rotate-[-20deg]" />
+          </button>
+
+          <button 
+            onClick={handleCopyLink}
+            className="text-black dark:text-white hover:text-gray-500 transition-all hover:scale-110 cursor-pointer p-1"
+            title="Sao chép liên kết"
+          >
+            <BookmarkIcon size={18} className="rotate-0" />
           </button>
         </div>
-        <div className="flex -space-x-1.5 items-center group/reactions relative cursor-pointer">
+
+        {/* Bookmark Button moved to options or kept? Let's keep it but change the icon to SendIcon for sharing maybe? */}
+        {/* Actually, SendIcon is usually for DM/Share. Bookmark is for Save. */}
+        {/* Let's follow Instagram: Heart, Comment, Share (SendIcon). Bookmark is on the right. */}
+        <button 
+          onClick={handleToggleBookmark}
+          className={`transition-all active:scale-125 hover:scale-110 cursor-pointer p-1 ${isBookmarked ? 'text-black dark:text-white' : 'text-black dark:text-white hover:text-gray-500'}`}
+        >
+          <BookmarkIcon size={20} className={isBookmarked ? "fill-current" : "stroke-current"} />
+        </button>
+
+        <div className="flex -space-x-1.5 items-center group/reactions relative cursor-pointer ml-3">
           {(post.reactionCounts && Object.entries(post.reactionCounts).length > 0) ? (
             <>
               {Object.entries(post.reactionCounts)
@@ -493,6 +587,12 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onReact, onCom
         {!post.hideLikes && (
           <p className="text-[13px] font-bold text-black dark:text-white">
             {post.likeCount.toLocaleString()} {t('social.posts.likes')}
+            {post.shareCount > 0 && (
+              <>
+                <span className="mx-1.5 opacity-30">•</span>
+                <span>{post.shareCount.toLocaleString()} {t('social.posts.shares', 'lượt chia sẻ')}</span>
+              </>
+            )}
           </p>
         )}
         

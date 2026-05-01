@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { ImagePickerIcon, LocationIcon, EmojiIcon, SendIcon } from '@/components/ui/Icons';
 
+const S3_BASE = process.env.NEXT_PUBLIC_S3_BASE_URL ?? '';
+
 interface CreatePostProps {
   user: any;
   onSubmit: (content: string) => Promise<void>;
@@ -28,7 +30,7 @@ export const CreatePost: React.FC<CreatePostProps> = ({ user, onSubmit }) => {
       <div className="flex gap-3">
         <div className="h-10 w-10 rounded-full overflow-hidden relative shrink-0 border border-[var(--border)]">
           <Image
-            src={user?.avatar_url || (user?.id ? `/default/image${(user.id.split('').reduce((sum: number, char: string) => sum + char.charCodeAt(0), 0) % 8) + 1}.jpg` : "/avatar.jpg")}
+            src={user?.avatar_url || (user?.id ? `${S3_BASE}/avatar/image${(user.id.split('').reduce((sum: number, char: string) => sum + char.charCodeAt(0), 0) % 8) + 1}.jpg` : "/avatar.jpg")}
             fill
             alt="User"
             className="object-cover"

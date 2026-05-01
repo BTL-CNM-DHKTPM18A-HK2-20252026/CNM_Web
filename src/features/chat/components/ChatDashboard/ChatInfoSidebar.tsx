@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+﻿import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ChevronDownIcon,
@@ -630,10 +630,8 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
         <div className="flex flex-col items-center pt-5 pb-4 px-6 border-b border-[var(--border)] transition-colors duration-200">
           {isAi ? (
             <>
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg mb-4">
-                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
-                </svg>
+              <div className="w-16 h-16 rounded-full overflow-hidden shadow-lg mb-4">
+                <img src={`${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/system/fruvia_chatbot.png`} alt="Fruvia Chatbot" className="w-full h-full object-cover" />
               </div>
               <h3 className="text-[18px] font-bold text-[var(--text)] mb-2 text-center">
                 {t('chat.ai_name')}
@@ -646,7 +644,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
             <>
               <div className="w-16 h-16 rounded-full bg-[#0068FF] flex items-center justify-center text-white shadow-lg mb-4">
                 <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-5 10c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0-6c-2.33 0-4.5 1.17-4.5 2.5V14h9v-1.5c0-1.33-2.17-2.5-4.5-2.5z" />
+                  <path d="M17.5 19c3.037 0 5.5-2.463 5.5-5.5 0-2.97-2.354-5.391-5.291-5.492a7 7 0 0 0-13.709 0C1.109 8.109 1 10.53 1 13.5c0 3.037 2.463 5.5 5.5 5.5h11z" />
                 </svg>
               </div>
               <h3 className="text-[18px] font-bold text-[var(--text)] mb-2 flex items-center gap-2">

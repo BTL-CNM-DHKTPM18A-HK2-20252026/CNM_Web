@@ -1,4 +1,4 @@
-{
+
   "common": {
     "cancel": "Cancel",
     "confirm": "Confirm",
@@ -182,7 +182,6 @@
   },
   "sidebar": {
     "account_info": "Account Info",
-    "upgrade_account": "Upgrade Account",
     "your_profile": "Your Profile",
     "your_social_network": "Your Social Network",
     "settings": "Settings",
@@ -201,10 +200,10 @@
     "tags": "Tags",
     "more": "More",
     "self_cloud": "My Documents",
-    "ai_name": "Fruvia AI",
-    "ai_subheading": "Ask anything to Fruvia AI",
+    "ai_name": "Fruvia Chatbot",
+    "ai_subheading": "Ask anything to Fruvia Chatbot",
     "cloud_subheading": "Transfer files across your devices",
-    "ai_input_placeholder": "Ask Fruvia AI...",
+    "ai_input_placeholder": "Ask Fruvia Chatbot...",
     "input_placeholder": "Enter @, message to My Documents",
     "you": "You",
     "time_unit": "min",
@@ -248,6 +247,21 @@
     "search_panel_placeholder": "Type a keyword to search",
     "search_panel_hint": "Enter a keyword to start searching messages and files in this conversation",
     "search_panel_found": "Found {{count}} results",
+    "search_panel_date_suggestion": "Date suggestion",
+    "search_panel_custom_range": "Custom range",
+    "search_panel_start_date": "Start date",
+    "search_panel_end_date": "End date",
+    "search_panel_last_7_days": "Last 7 days",
+    "search_panel_last_30_days": "Last 30 days",
+    "search_panel_last_3_months": "Last 3 months",
+    "search_panel_this_week": "This week",
+    "search_panel_last_week": "Last week",
+    "search_panel_this_month": "This month",
+    "search_panel_last_month": "Last month",
+    "search_panel_this_year": "This year",
+    "search_panel_last_year": "Last year",
+    "search_panel_cancel": "Cancel",
+    "search_panel_confirm": "Confirm",
     "date": {
       "today": "Today",
       "yesterday": "Yesterday"
@@ -596,8 +610,9 @@
     "title": "Conversation Info",
     "members": "members",
     "ai": {
-      "desc": "Fruvia AI helps you ask questions, summarize chats, and generate ideas directly in conversation.",
-      "capabilities_title": "What Fruvia AI can do",
+      "title": "Fruvia Chatbot Info",
+      "desc": "Fruvia Chatbot helps you ask questions, summarize chats, and generate ideas directly in conversation.",
+      "capabilities_title": "What Fruvia Chatbot can do",
       "capability_1": "Reply in the same language you are using in the app",
       "capability_2": "Summarize conversations and extract key points",
       "capability_3": "Suggest content, ideas, and clearer wording quickly",
@@ -828,7 +843,7 @@
   },
   "nickname_modal": {
     "title": "Set Nickname",
-    "description": "Give <span>{{name}}</span> a nickname to remember.",
+    "description": "Give <bold>{{name}}</bold> a nickname to remember.",
     "note": "Note: The nickname will only be visible to you.",
     "placeholder": "Enter nickname"
   },
@@ -862,7 +877,7 @@
     "title": "Settings",
     "tabs": {
       "general": "General Settings",
-      "ai": "Fruvia AI",
+      "ai": "Fruvia Chatbot",
       "privacy": "Privacy",
       "sync": "Message Sync",
       "interface": "Appearance",
@@ -871,8 +886,8 @@
       "utils": "Utilities"
     },
     "ai": {
-      "title": "Fruvia AI",
-      "desc": "Customize privacy, behavior, and productivity controls for Fruvia AI.",
+      "title": "Fruvia Chatbot",
+      "desc": "Customize privacy, behavior, and productivity controls for Fruvia Chatbot.",
       "full_access": {
         "title": "Allow AI to access all your data",
         "desc": "Give AI permission to access your full chat, document, and profile data for the most complete responses."
@@ -1183,6 +1198,26 @@
       "visibility_notice": "Public to everyone for 24h",
       "share_btn": "Share to story"
     },
+    "archive": {
+      "title": "Archive",
+      "subtitle": "Your archived projects, posts, or content.",
+      "create_new": "Create new",
+      "all": "All",
+      "posts": "Posts",
+      "stories": "Stories",
+      "files": "Documents",
+      "favorites": "Favorites",
+      "search_placeholder": "Search in archive...",
+      "filter": "Filter",
+      "restore": "Restore",
+      "archived_on": "Archived on {{date}}",
+      "empty": "No items found in archive.",
+      "loading": "Loading archive data...",
+      "post_untitled": "Untitled post",
+      "post_no_content": "No content",
+      "my_moment": "My moment",
+      "story_shared": "Shared story"
+    },
     "title": "Social Network",
     "feed": "News Feed",
     "create_post_placeholder": "{{name}}, what's on your mind?",
@@ -1233,8 +1268,23 @@
         "go_to_post": "Go to post",
         "share": "Share to...",
         "copy_link": "Copy link",
+        "link_copied": "Link copied",
         "embed": "Embed",
-        "close": "Close"
+        "close": "Close",
+        "delete": "Delete post",
+        "edit": "Edit",
+        "cancel": "Cancel",
+        "delete_confirm_title": "Delete post?",
+        "delete_confirm_desc": "This post will be permanently deleted and cannot be recovered.",
+        "deleting": "Deleting...",
+        "delete_success": "Post deleted",
+        "delete_error": "Cannot delete post",
+        "edit_title": "Edit post",
+        "save": "Save",
+        "saving": "Saving...",
+        "edit_success": "Post updated",
+        "edit_error": "Cannot update post",
+        "media_readonly": "Photos/videos cannot be edited from here"
       }
     },
     "post_action": "Post",
@@ -1254,6 +1304,8 @@
       "messages": "Messages",
       "notifications": "Notifications",
       "create": "Create",
+      "archive": "Archive",
+      "my-music": "My Music",
       "profile": "Profile",
       "more": "More"
     },
@@ -1289,7 +1341,51 @@
       "insights": "Profile Insights",
       "reach": "Reach",
       "engagement": "Engagement",
-      "activity": "Recent Activity"
+      "activity": "Recent Activity",
+      "share_photos": "Share Photos",
+      "no_bio": "No bio yet.",
+      "no_saved": "Save photos and videos that you want to see again.",
+      "no_tagged": "When people tag you in photos, they'll appear here.",
+      "no_content": "No content yet",
+      "new_highlight": "New"
+    },
+    "search": {
+      "placeholder": "Search",
+      "recent": "Recent",
+      "clear_all": "Clear all",
+      "no_results": "No results found.",
+      "no_recent": "No recent searches."
+    },
+    "explore": {
+      "all": "All",
+      "nature": "Nature",
+      "architecture": "Architecture",
+      "fashion": "Fashion",
+      "tech": "Tech",
+      "food": "Food",
+      "travel": "Travel",
+      "art": "Art",
+      "no_more": "You've seen all videos!",
+      "follow": "Follow"
+    },
+    "notifications": {
+      "all": "All",
+      "unread": "Unread",
+      "today": "Today",
+      "this_week": "This Week",
+      "this_month": "This Month",
+      "earlier": "Earlier",
+      "empty_title": "Activity On Your Posts",
+      "empty_desc": "When someone likes or comments on your posts, you'll see it here.",
+      "just_now": "Just now",
+      "min": "m",
+      "hour": "h",
+      "day": "d",
+      "week": "w",
+      "liked_post": "liked your post.",
+      "commented_post": "commented: ",
+      "followed_you": "started following you.",
+      "mentioned_you": "mentioned you in a comment."
     }
   }
 }

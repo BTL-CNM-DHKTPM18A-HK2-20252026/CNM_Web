@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
+﻿import React, { useCallback, useEffect, useState } from 'react';
+import Image from 'next/image';
 import { toast } from 'sonner';
 import { SearchIcon, SparklesIcon, GroupVideoCallIcon } from '@/components/ui/Icons';
 import { StatusIndicator } from '@/features/user';
@@ -7,7 +8,7 @@ import { apiClient } from '@/lib/http/apiClient';
 import { GroupMediaViewer } from './GroupMediaViewer';
 import type { ChatHeaderProps } from '@/features/chat/components/ChatWindow/types';
 
-const DEFAULT_GROUP_AVATARS = Array.from({ length: 12 }, (_, idx) => `/avatar_group/avtgr${idx + 1}.jpg`);
+const DEFAULT_GROUP_AVATARS = Array.from({ length: 12 }, (_, idx) => `${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/avatar_group/avtgr${idx + 1}.jpg`);
 
 export function ChatHeader({ vm }: ChatHeaderProps) {
   const {
@@ -253,12 +254,14 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
     <div className="relative h-[76px] bg-[var(--card-bg)] border-b border-[var(--border)] px-5 flex items-center justify-between shadow-sm flex-shrink-0 transition-colors duration-200">
       <div className="flex items-center gap-4">
         {selectedChat.isAi ? (
-          <div className="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold shrink-0 shadow-sm">
-            <SparklesIcon size={24} />
+          <div className="h-12 w-12 rounded-full overflow-hidden shrink-0 shadow-sm">
+            <Image src={`${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/system/fruvia_chatbot.png`} alt="Fruvia Chatbot" width={48} height={48} className="object-cover w-full h-full" unoptimized />
           </div>
         ) : selectedChat.isCloud ? (
-          <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center text-[#0068FF] font-bold shrink-0">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14l-4-4 1.41-1.41L10 13.17l7.59-7.59L19 7l-8 9z" /></svg>
+          <div className="h-12 w-12 rounded-full bg-[#0068FF] flex items-center justify-center text-white font-bold shrink-0 shadow-sm">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17.5 19c3.037 0 5.5-2.463 5.5-5.5 0-2.97-2.354-5.391-5.291-5.492a7 7 0 0 0-13.709 0C1.109 8.109 1 10.53 1 13.5c0 3.037 2.463 5.5 5.5 5.5h11z" />
+            </svg>
           </div>
         ) : shouldShowGroupAvatarFallback ? (
           <button
@@ -294,20 +297,30 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
               )}
             </button>
           ) : (
-            <div className="h-12 w-12 rounded-full overflow-hidden shrink-0 relative">
+            <button
+              type="button"
+              onClick={() => selectedChat.otherUserId && onOpenProfile?.(selectedChat.otherUserId)}
+              className="h-12 w-12 rounded-full overflow-hidden shrink-0 relative cursor-pointer"
+              aria-label="Xem hồ sơ"
+            >
               <img src={displayGroupAvatar} alt={selectedChat.name} className="w-full h-full object-cover" />
               {selectedChat.otherUserId && (
                 <StatusIndicator userId={selectedChat.otherUserId} dotOnly dotSize={12} className="absolute bottom-0 right-0" />
               )}
-            </div>
+            </button>
           )
         ) : (
-          <div className="h-12 w-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0 relative">
+          <button
+            type="button"
+            onClick={() => selectedChat.otherUserId && onOpenProfile?.(selectedChat.otherUserId)}
+            className="h-12 w-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0 relative cursor-pointer"
+            aria-label="Xem hồ sơ"
+          >
             <span className="text-[#0068FF] font-bold text-lg">{selectedChat.name?.charAt(0) || '?'}</span>
             {selectedChat.otherUserId && (
               <StatusIndicator userId={selectedChat.otherUserId} dotOnly dotSize={12} className="absolute bottom-0 right-0" />
             )}
-          </div>
+          </button>
         )}
 
         <div className="min-w-0 group/info cursor-pointer flex items-center gap-2 overflow-x-hidden">
@@ -347,13 +360,13 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
       <div className="flex items-center gap-2 text-[var(--sub-text)] pr-1 shrink-0">
         {!selectedChat.isCloud && !selectedChat.isAi && !selectedChat.isGroup && (
           <button onClick={handleVideoCall} className="cursor-pointer transition-all p-1 rounded-md hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-80" title={t('chat.header.video_call')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></svg>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></svg>
           </button>
         )}
 
         {!selectedChat.isCloud && !selectedChat.isAi && selectedChat.isGroup && (
           <button onClick={handleGroupVideoCall} className="cursor-pointer transition-all p-1 rounded-md hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-80" title="Cuộc gọi nhóm">
-            <GroupVideoCallIcon size={20} />
+            <GroupVideoCallIcon size={22} />
           </button>
         )}
 
@@ -365,11 +378,11 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
             title="Tóm tắt cuộc trò chuyện"
           >
             {summaryLoading ? (
-              <div className="w-[20px] h-[20px] flex items-center justify-center">
+              <div className="w-[22px] h-[22px] flex items-center justify-center">
                 <div className="w-3.5 h-3.5 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
               </div>
             ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
             )}
           </button>
         )}
@@ -378,14 +391,14 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
           onClick={() => onToggleSidebar('search')}
           className={`cursor-pointer transition-all p-1 rounded-md ${activeSidebar === 'search' ? 'text-[#0068FF] bg-[var(--hover-bg)]' : 'hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-80'}`}
         >
-          <SearchIcon size={20} />
+          <SearchIcon size={22} />
         </button>
 
         <button
           onClick={() => onToggleSidebar('info')}
           className={`cursor-pointer transition-all p-1 rounded-md ${activeSidebar === 'info' ? 'text-[#0068FF] bg-[var(--hover-bg)]' : 'hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-80'}`}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="9" y1="3" x2="9" y2="21" /></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="9" y1="3" x2="9" y2="21" /></svg>
         </button>
       </div>
 

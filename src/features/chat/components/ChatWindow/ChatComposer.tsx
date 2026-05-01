@@ -104,10 +104,11 @@ export function ChatComposer({ vm }: ChatComposerProps) {
     smartReplies,
     smartRepliesLoading,
     dismissSmartReplies,
+    editor,
+    setEditor,
   } = vm;
 
   const [isSmartReplyEnabled, setIsSmartReplyEnabled] = React.useState(true);
-  const [editor, setEditor] = React.useState<any>(null);
 
   React.useEffect(() => {
     try {
@@ -180,7 +181,7 @@ export function ChatComposer({ vm }: ChatComposerProps) {
       {/* Smart Reply Suggestions */}
       {isSmartReplyEnabled && smartReplies.length > 0 && !message.trim() && (
         <div className="bg-[var(--card-bg)] border-t border-[var(--border)] px-4 py-2 flex items-center gap-2 animate-in slide-in-from-bottom-2 duration-200">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-60"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-60"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
           <div className="flex items-center gap-2 flex-1 overflow-x-auto scrollbar-hide">
             {smartReplies.map((reply, idx) => (
               <button
@@ -250,8 +251,8 @@ export function ChatComposer({ vm }: ChatComposerProps) {
 
               <button onClick={() => setIsShareContactOpen(true)} title={t('share_contact.toolbar_tooltip')} className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF] cursor-pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4" /><path d="M4 20c0-2.5 1.8-4 4-4" /><line x1="15" y1="8" x2="21" y2="8" /><line x1="15" y1="12" x2="21" y2="12" /></svg></button>
 
-              <button 
-                onClick={() => setIsFormattingActive(!isFormattingActive)} 
+              <button
+                onClick={() => setIsFormattingActive(!isFormattingActive)}
                 className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer ${isFormattingActive ? 'bg-[#E1EDFF] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}
                 title="Định dạng tin nhắn"
               >
@@ -306,7 +307,7 @@ export function ChatComposer({ vm }: ChatComposerProps) {
                   <div className="fixed inset-0 z-40" onClick={() => setIsMoreActionsOpen(false)} />
                   <div className="absolute bottom-[calc(100%+14px)] left-[120px] bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-2xl z-50 p-1 overflow-hidden min-w-[240px] animate-in slide-in-from-bottom-2 zoom-in-95 duration-200">
                     <div className="flex flex-col">
-                      <button 
+                      <button
                         onClick={() => {
                           setIsMoreActionsOpen(false);
                           setIsPollModalOpen(true);
@@ -318,8 +319,8 @@ export function ChatComposer({ vm }: ChatComposerProps) {
                         </div>
                         <span className="text-[14px] font-medium">Tạo bình chọn</span>
                       </button>
-                      
-                      <button 
+
+                      <button
                         onClick={() => {
                           setIsMoreActionsOpen(false);
                           setIsReminderModalOpen(true);
@@ -332,7 +333,7 @@ export function ChatComposer({ vm }: ChatComposerProps) {
                         <span className="text-[14px] font-medium">Nhắc hẹn</span>
                       </button>
 
-                      <button 
+                      <button
                         onClick={() => { setIsNoteModalOpen(true); setIsMoreActionsOpen(false); }}
                         className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--hover-bg)] w-full text-left text-[var(--text)] transition-colors cursor-pointer group"
                       >
@@ -344,7 +345,7 @@ export function ChatComposer({ vm }: ChatComposerProps) {
 
                       <div className="h-[1px] bg-[var(--border)] my-1 mx-2 opacity-50" />
 
-                      <button 
+                      <button
                         onClick={() => { setPriority('important'); setIsMoreActionsOpen(false); }}
                         className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--hover-bg)] w-full text-left text-[var(--text)] transition-colors cursor-pointer group"
                       >
@@ -354,7 +355,7 @@ export function ChatComposer({ vm }: ChatComposerProps) {
                         <span className="text-[14px] font-medium">Đánh dấu tin quan trọng</span>
                       </button>
 
-                      <button 
+                      <button
                         onClick={() => { setPriority('urgent'); setIsMoreActionsOpen(false); }}
                         className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--hover-bg)] w-full text-left text-[var(--text)] transition-colors cursor-pointer group"
                       >
@@ -501,14 +502,13 @@ export function ChatComposer({ vm }: ChatComposerProps) {
 
         {priority !== 'normal' && (
           <div className="px-4 py-2 border-t border-[var(--border)] flex items-center bg-white dark:bg-transparent">
-            <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded bg-[#F1F2F4] dark:bg-black/20 text-[13px] font-semibold ${
-              priority === 'important' ? 'text-red-600' : 'text-yellow-600'
-            }`}>
+            <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded bg-[#F1F2F4] dark:bg-black/20 text-[13px] font-semibold ${priority === 'important' ? 'text-red-600' : 'text-yellow-600'
+              }`}>
               <span className="w-4 h-4 flex items-center justify-center">
                 {priority === 'important' ? '!' : '⚡'}
               </span>
               <span>{priority === 'important' ? 'Quan trọng' : 'Khẩn cấp'}</span>
-              <button 
+              <button
                 onClick={() => setPriority('normal')}
                 className="ml-1 p-0.5 hover:bg-gray-200 dark:hover:bg-white/10 rounded-full transition-colors cursor-pointer"
               >
@@ -529,10 +529,10 @@ export function ChatComposer({ vm }: ChatComposerProps) {
           <ChatInput
             onEditorReady={setEditor}
             value={message}
-            placeholder={isFormattingActive 
+            placeholder={isFormattingActive
               ? "Nhấn Ctrl + Shift + X để định dạng tin nhắn"
-              : selectedChat.isAi 
-                ? t('chat.input_placeholder_ai') 
+              : selectedChat.isAi
+                ? t('chat.input_placeholder_ai')
                 : t('chat.input_placeholder', { name: selectedChat.name })
             }
             onChange={(value) => {
@@ -575,89 +575,89 @@ export function ChatComposer({ vm }: ChatComposerProps) {
 
         {isFormattingActive && editor && (
           <div className="flex items-center px-4 py-1.5 gap-0.5 border-t border-[var(--border)] animate-in slide-in-from-bottom-1 duration-200 overflow-x-auto no-scrollbar">
-            <button 
+            <button
               onClick={() => editor.chain().focus().toggleBold().run()}
               className={`w-8 h-8 flex items-center justify-center rounded transition-colors cursor-pointer ${editor.isActive('bold') ? 'bg-[#E1EDFF] text-[#0068FF]' : 'hover:bg-[var(--hover-bg)] text-[var(--text)]'}`}
             >
               <BoldIcon size={18} />
             </button>
-            <button 
+            <button
               onClick={() => editor.chain().focus().toggleItalic().run()}
               className={`w-8 h-8 flex items-center justify-center rounded transition-colors cursor-pointer ${editor.isActive('italic') ? 'bg-[#E1EDFF] text-[#0068FF]' : 'hover:bg-[var(--hover-bg)] text-[var(--text)]'}`}
             >
               <ItalicIcon size={18} />
             </button>
-            <button 
+            <button
               onClick={() => editor.chain().focus().toggleUnderline().run()}
               className={`w-8 h-8 flex items-center justify-center rounded transition-colors cursor-pointer ${editor.isActive('underline') ? 'bg-[#E1EDFF] text-[#0068FF]' : 'hover:bg-[var(--hover-bg)] text-[var(--text)]'}`}
             >
               <UnderlineIcon size={18} />
             </button>
-            <button 
+            <button
               onClick={() => editor.chain().focus().toggleStrike().run()}
               className={`w-8 h-8 flex items-center justify-center rounded transition-colors cursor-pointer ${editor.isActive('strike') ? 'bg-[#E1EDFF] text-[#0068FF]' : 'hover:bg-[var(--hover-bg)] text-[var(--text)]'}`}
             >
               <StrikeIcon size={18} />
             </button>
             <div className="w-[1px] h-4 bg-[var(--border)] mx-1" />
-            <button 
-              onClick={() => {}} // Font size placeholder
+            <button
+              onClick={() => { }} // Font size placeholder
               className="w-8 h-8 flex items-center justify-center rounded hover:bg-[var(--hover-bg)] text-[var(--text)] transition-colors cursor-pointer"
             >
               <FontSizeIcon size={18} />
             </button>
-            <button 
+            <button
               onClick={() => editor.chain().focus().setColor('#ef4444').run()} // Default red for demo
               className="w-8 h-8 flex items-center justify-center rounded hover:bg-[var(--hover-bg)] text-[var(--text)] transition-colors cursor-pointer"
             >
               <TextColorIcon size={18} />
             </button>
-            <button 
+            <button
               onClick={() => editor.chain().focus().unsetAllMarks().run()}
               className="w-8 h-8 flex items-center justify-center rounded hover:bg-[var(--hover-bg)] text-[var(--text)] transition-colors cursor-pointer"
             >
               <EraserIcon size={18} />
             </button>
             <div className="w-[1px] h-4 bg-[var(--border)] mx-1" />
-            <button 
+            <button
               onClick={() => editor.chain().focus().toggleBulletList().run()}
               className={`w-8 h-8 flex items-center justify-center rounded transition-colors cursor-pointer ${editor.isActive('bulletList') ? 'bg-[#E1EDFF] text-[#0068FF]' : 'hover:bg-[var(--hover-bg)] text-[var(--text)]'}`}
             >
               <ListIcon size={18} />
             </button>
-            <button 
+            <button
               onClick={() => editor.chain().focus().toggleOrderedList().run()}
               className={`w-8 h-8 flex items-center justify-center rounded transition-colors cursor-pointer ${editor.isActive('orderedList') ? 'bg-[#E1EDFF] text-[#0068FF]' : 'hover:bg-[var(--hover-bg)] text-[var(--text)]'}`}
             >
               <NumberListIcon size={18} />
             </button>
-            <button 
+            <button
               onClick={() => editor.chain().focus().lift('listItem').run()}
               className="w-8 h-8 flex items-center justify-center rounded hover:bg-[var(--hover-bg)] text-[var(--text)] transition-colors cursor-pointer"
             >
               <OutdentIcon size={18} />
             </button>
-            <button 
+            <button
               onClick={() => editor.chain().focus().sink('listItem').run()}
               className="w-8 h-8 flex items-center justify-center rounded hover:bg-[var(--hover-bg)] text-[var(--text)] transition-colors cursor-pointer"
             >
               <IndentIcon size={18} />
             </button>
             <div className="w-[1px] h-4 bg-[var(--border)] mx-1" />
-            <button 
+            <button
               onClick={() => editor.chain().focus().undo().run()}
               className="w-8 h-8 flex items-center justify-center rounded hover:bg-[var(--hover-bg)] text-[var(--text)] transition-colors cursor-pointer"
             >
               <UndoIcon size={18} />
             </button>
-            <button 
+            <button
               onClick={() => editor.chain().focus().redo().run()}
               className="w-8 h-8 flex items-center justify-center rounded hover:bg-[var(--hover-bg)] text-[var(--text)] transition-colors cursor-pointer"
             >
               <RedoIcon size={18} />
             </button>
             <div className="w-[1px] h-4 bg-[var(--border)] mx-1" />
-            <button 
+            <button
               className="w-8 h-8 flex items-center justify-center rounded hover:bg-[var(--hover-bg)] text-[var(--text)] transition-colors cursor-pointer ml-auto"
             >
               <FullscreenIcon size={18} />
@@ -685,8 +685,8 @@ export function ChatComposer({ vm }: ChatComposerProps) {
           toast.success('Đã tạo nhắc hẹn!');
         }}
       />
-      <CreateNoteModal 
-        isOpen={isNoteModalOpen} 
+      <CreateNoteModal
+        isOpen={isNoteModalOpen}
         onClose={() => setIsNoteModalOpen(false)}
         onSubmit={(data) => {
           console.log('Note Created:', data);

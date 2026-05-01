@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   SettingsIcon,
   ShieldIcon,
@@ -451,7 +451,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             </button>
           </div>
 
-          <div className="px-8 pb-8 overflow-y-auto flex-1 space-y-8">
+          <div className="px-8 pb-8 overflow-y-auto flex-1 space-y-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {activeTab === 'general' && (
               <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
                 {/* Danh bạ Section */}
@@ -607,7 +607,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     <p className="text-[12px] text-[var(--sub-text)] mt-1">
                       {i18n.language === 'vi'
                         ? 'Chọn chế độ theo đúng nhu cầu: đời sống, công việc hoặc nâng cao.'
-                        : 'Choose the response style for Fruvia AI based on your current task.'}
+                        : 'Choose the response style for Fruvia Chatbot based on your current task.'}
                     </p>
                   </div>
 

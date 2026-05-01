@@ -10,6 +10,8 @@ type RawPostResponse = Partial<PostResponse> & {
   reaction_counts?: Record<string, number>;
   reactionNames?: Record<string, string[]>;
   reaction_names?: Record<string, string[]>;
+  sharedPost?: RawPostResponse;
+  shareCount?: number;
 };
 
 const toIsoString = (value: unknown) => {
@@ -57,6 +59,8 @@ const normalizePost = (post: RawPostResponse): PostResponse => {
     reactionNames: post.reactionNames || (post as any).reaction_names || {},
     hideLikes: (post as any).hideLikes ?? false,
     turnOffComments: (post as any).turnOffComments ?? false,
+    sharedPost: post.sharedPost ? normalizePost(post.sharedPost) : undefined,
+    shareCount: post.shareCount ?? 0,
     createdAt: toIsoString(post.createdAt),
     updatedAt: toIsoString(post.updatedAt || post.createdAt),
   };
@@ -104,6 +108,7 @@ export const socialApi = {
     altText?: string;
     hideLikes?: boolean;
     turnOffComments?: boolean;
+    sharedPostId?: string;
   }, userId?: string) => {
     let mediaUrls: string[] = [];
     if (data.files && data.files.length > 0) {
@@ -119,7 +124,8 @@ export const socialApi = {
         altText: data.altText
       })),
       hideLikes: data.hideLikes,
-      turnOffComments: data.turnOffComments
+      turnOffComments: data.turnOffComments,
+      sharedPostId: data.sharedPostId
     };
 
     const response = await apiClient.post<RawPostResponse>('/posts', request, {
@@ -157,6 +163,11 @@ export const socialApi = {
 
   deletePost: (postId: string) => {
     return apiClient.delete(`/posts/${postId}`);
+  },
+
+  editPost: async (postId: string, data: { content: string; privacy: PrivacyLevel }) => {
+    const response = await apiClient.put<RawPostResponse>(`/posts/${postId}`, data);
+    return normalizePost(response);
   },
 
   // Story APIs
@@ -202,5 +213,99 @@ export const socialApi = {
     return apiClient.get<StoryResponse[]>(`/stories/feed${friendIdsStr}`, {
       headers: { 'X-User-Id': userId }
     });
-  }
+  },
+
+  reactToStory: async (storyId: string, reaction: string, userId: string) => {
+    return apiClient.post(`/stories/${storyId}/react`, { reaction }, {
+      headers: { 'X-User-Id': userId }
+    });
+  },
+
+  replyToStory: async (storyId: string, content: string, userId: string) => {
+    return apiClient.post(`/stories/${storyId}/reply`, { content }, {
+      headers: { 'X-User-Id': userId }
+    });
+  },
+
+  getStoryViewers: async (storyId: string, userId: string) => {
+    return apiClient.get<StoryViewerResponse[]>(`/stories/${storyId}/viewers`, {
+      headers: { 'X-User-Id': userId }
+    });
+  },
+
+  getExplorePosts: async (page = 0, size = 20) => {
+    // Fetch a variety of posts for the explore page
+    const response = await apiClient.get<{ content: RawPostResponse[] }>(`/posts/explore?page=${page}&size=${size}`);
+    return {
+      ...response,
+      content: Array.isArray(response?.content) ? response.content.map(normalizePost) : [],
+    };
+  },
+
+  toggleBookmark: async (postId: string) => {
+    return apiClient.post(`/posts/${postId}/bookmark`, {});
+  },
+
+  // ── Recommendation APIs ──────────────────────────────────────────────────
+
+  /**
+   * Ranked feed — applies affinity × engagement × time_decay scoring.
+   * Falls back to regular feed if backend doesn't support it yet.
+   */
+  getRankedFeed: async (page = 0, size = 20) => {
+    try {
+      const response = await apiClient.get<{ content: RawPostResponse[] }>(`/posts/feed/ranked?page=${page}&size=${size}`);
+      return {
+        ...response,
+        content: Array.isArray(response?.content) ? response.content.map(normalizePost) : [],
+      };
+    } catch {
+      // Fallback to normal feed
+      return socialApi.getFeed(page, size);
+    }
+  },
+
+  /**
+   * Track that a user viewed a post (used for affinity scoring).
+   */
+  trackPostView: async (postId: string) => {
+    try {
+      await apiClient.post('/interactions/post-view', { postId });
+    } catch {
+      // Non-critical — fire and forget
+    }
+  },
+
+  /**
+   * Track reel watch progress (used for watch-completion scoring).
+   */
+  trackReelWatch: async (data: {
+    reelId: string;
+    watchedDuration: number;
+    totalDuration: number;
+    isCompleted: boolean;
+    rewatchCount?: number;
+    source?: 'feed' | 'explore' | 'search';
+  }) => {
+    try {
+      await apiClient.post('/interactions/reel-watch', data);
+    } catch {
+      // Non-critical — fire and forget
+    }
+  },
+
+  /**
+   * Get suggested posts for Discovery/Explore section.
+   */
+  getSuggestedPosts: async (page = 0, size = 10) => {
+    try {
+      const response = await apiClient.get<{ content: RawPostResponse[] }>(`/posts/suggested?page=${page}&size=${size}`);
+      return {
+        ...response,
+        content: Array.isArray(response?.content) ? response.content.map(normalizePost) : [],
+      };
+    } catch {
+      return { content: [] };
+    }
+  },
 };

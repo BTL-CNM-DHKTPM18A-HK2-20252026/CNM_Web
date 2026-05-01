@@ -8,6 +8,8 @@ import { apiClient } from '@/lib/http/apiClient';
 import { toast } from 'sonner';
 import { useS3ImageUpload } from '@/features/chat/hooks/useS3ImageUpload';
 
+const S3_BASE = process.env.NEXT_PUBLIC_S3_BASE_URL ?? '';
+
 interface Friend {
   user_id?: string;
   id?: string;
@@ -50,18 +52,18 @@ const BackIcon = ({ size = 24 }: { size?: number }) => (
 );
 
 const DEFAULT_GROUP_AVATARS = [
-  '/avatar_group/avtgr1.jpg',
-  '/avatar_group/avtgr2.jpg',
-  '/avatar_group/avtgr3.jpg',
-  '/avatar_group/avtgr4.jpg',
-  '/avatar_group/avtgr5.jpg',
-  '/avatar_group/avtgr6.jpg',
-  '/avatar_group/avtgr7.jpg',
-  '/avatar_group/avtgr8.jpg',
-  '/avatar_group/avtgr9.jpg',
-  '/avatar_group/avtgr10.jpg',
-  '/avatar_group/avtgr11.jpg',
-  '/avatar_group/avtgr12.jpg',
+  `${S3_BASE}/avatar_group/avtgr1.jpg`,
+  `${S3_BASE}/avatar_group/avtgr2.jpg`,
+  `${S3_BASE}/avatar_group/avtgr3.jpg`,
+  `${S3_BASE}/avatar_group/avtgr4.jpg`,
+  `${S3_BASE}/avatar_group/avtgr5.jpg`,
+  `${S3_BASE}/avatar_group/avtgr6.jpg`,
+  `${S3_BASE}/avatar_group/avtgr7.jpg`,
+  `${S3_BASE}/avatar_group/avtgr8.jpg`,
+  `${S3_BASE}/avatar_group/avtgr9.jpg`,
+  `${S3_BASE}/avatar_group/avtgr10.jpg`,
+  `${S3_BASE}/avatar_group/avtgr11.jpg`,
+  `${S3_BASE}/avatar_group/avtgr12.jpg`,
 ];
 
 export function CreateGroupModal({ isOpen, onClose, onGroupCreated }: CreateGroupModalProps) {

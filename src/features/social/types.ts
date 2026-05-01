@@ -8,6 +8,16 @@ export interface SocialUser {
   avatar_url?: string;
   avatarUrl?: string;
   phone_number?: string;
+  firstName?: string;
+  lastName?: string;
+  bio?: string;
+  gender?: string;
+  gmail?: string;
+  address?: string;
+  city?: string;
+  education?: string;
+  workplace?: string;
+  dob?: string;
 }
 
 export interface PostMedia {
@@ -45,6 +55,8 @@ export interface PostResponse {
   reactionNames?: Record<string, string[]>;
   hideLikes?: boolean;
   turnOffComments?: boolean;
+  sharedPost?: PostResponse;
+  shareCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -77,6 +89,7 @@ export interface CreatePostRequest {
   }>;
   hideLikes?: boolean;
   turnOffComments?: boolean;
+  sharedPostId?: string;
 }
 
 export interface StoryResponse {
@@ -99,4 +112,12 @@ export interface CreateStoryRequest {
   mediaType: 'IMAGE' | 'VIDEO' | 'TEXT';
   caption?: string;
   background?: string;
+}
+
+export interface StoryViewerResponse {
+  userId: string;
+  displayName: string;
+  avatarUrl?: string;
+  viewedAt: string;
+  reaction?: string;
 }

@@ -150,12 +150,22 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
   const displayName = activeConversation?.name || t('common.unknown_user');
   const avatarUrl = activeConversation?.avatar || '/avatar.jpg';
   const isAi = (activeConversation as any)?.isAi || false;
+  const isSelf = (activeConversation as any)?.isSelf || false;
 
-  const renderAvatar = (url: string, isAiConv: boolean, size: number = 32) => {
+  const renderAvatar = (url: string, isAiConv: boolean, isSelfConv: boolean, size: number = 32) => {
     if (isAiConv) {
       return (
         <div className="w-full h-full bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 flex items-center justify-center text-white">
           <SparklesIcon size={Math.round(size * 0.6)} />
+        </div>
+      );
+    }
+    if (isSelfConv) {
+      return (
+        <div className="w-full h-full bg-[#0068FF] flex items-center justify-center text-white">
+          <svg width={Math.round(size * 0.65)} height={Math.round(size * 0.65)} viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.5 19c3.037 0 5.5-2.463 5.5-5.5 0-2.97-2.354-5.391-5.291-5.492a7 7 0 0 0-13.709 0C1.109 8.109 1 10.53 1 13.5c0 3.037 2.463 5.5 5.5 5.5h11z" />
+          </svg>
         </div>
       );
     }
@@ -529,7 +539,7 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
                 className="flex items-center gap-3 px-3 py-2 hover:bg-gray-100 dark:hover:bg-[#262626] cursor-pointer transition-all group border-b border-gray-50 dark:border-gray-900 last:border-none"
               >
                 <div className="w-10 h-10 rounded-full overflow-hidden relative shrink-0 border border-gray-100 dark:border-gray-800 cursor-pointer">
-                  {renderAvatar(conv.avatar, conv.isAi, 40)}
+                  {renderAvatar(conv.avatar, conv.isAi, conv.isSelf, 40)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-[13px] truncate cursor-pointer">{conv.name}</p>
@@ -569,7 +579,7 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
       <div className="py-2 px-3 border-b border-gray-100 dark:border-[#262626] flex items-center justify-between bg-white dark:bg-[#121212] sticky top-0 rounded-t-2xl">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <div className="h-8 w-8 rounded-full overflow-hidden relative border border-gray-100 dark:border-gray-800 cursor-pointer shrink-0">
-            {renderAvatar(avatarUrl, isAi, 32)}
+            {renderAvatar(avatarUrl, isAi, isSelf, 32)}
           </div>
           <div className="min-w-0 flex-1 cursor-pointer">
             <p className="text-[14px] font-bold truncate pr-2">{displayName}</p>

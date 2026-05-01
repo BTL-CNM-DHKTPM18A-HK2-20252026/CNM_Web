@@ -1,22 +1,32 @@
-import React, { useCallback, useEffect, useState } from 'react';
+﻿import React, { useCallback, useEffect, useState } from 'react';
+import { Bell } from 'lucide-react';
 import Image from 'next/image';
 import { SocialSidebarLeft } from './layout/SocialSidebarLeft';
 import { SocialSidebarRight } from './layout/SocialSidebarRight';
 import { SocialFeedMain } from './layout/SocialFeedMain';
 import { SocialProfile } from './SocialProfile';
+import { SocialEditProfile } from './SocialEditProfile';
 import { SocialExplore } from './SocialExplore';
+import { SocialArchive } from './SocialArchive';
+import { SocialMusicLibrary } from './SocialMusicLibrary';
+import { SocialMusicMiniPlayer } from './SocialMusicMiniPlayer';
 import { MessengerPopup } from './layout/MessengerPopup';
 import { FloatingMessengerSidebar } from './layout/FloatingMessengerSidebar';
 import { CreatePostModal } from './layout/CreatePostModal';
 import { CreateStoryModal } from './layout/CreateStoryModal';
+import { EditPostModal } from './layout/EditPostModal';
+import { StoryViewer } from './layout/StoryViewer';
+import { NotificationsPanel } from './layout/NotificationsPanel';
 import { socialApi } from '../api';
+import { friendService } from '@/features/friends/services/friendService';
 import { messageService } from '@/features/chat/services/messageService';
 import { websocketService } from '@/lib/realtime/websocketService';
-import { PostResponse, SocialUser } from '../types';
+import { PostResponse, SocialUser, StoryResponse } from '../types';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/themes';
 import { authService } from '@/features/auth/services/authService';
+import { userService } from '@/features/user/services/userService';
 
 interface SocialFeedProps {
   user: SocialUser | null;
@@ -80,11 +90,17 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
   const [stories, setStories] = useState<StoryResponse[]>([]);
   const [conversations, setConversations] = useState<SocialConversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [view, setView] = useState<'feed' | 'profile' | 'explore'>('feed');
+  const [view, setView] = useState<'feed' | 'profile' | 'explore' | 'edit-profile' | 'archive' | 'music'>('feed');
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [activePopup, setActivePopup] = useState<SocialConversation | null>(null);
   const [isMessengerOpen, setIsMessengerOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreateStoryOpen, setIsCreateStoryOpen] = useState(false);
+  const [viewingStoryAuthorId, setViewingStoryAuthorId] = useState<string | null>(null);
+  const [editingPost, setEditingPost] = useState<PostResponse | null>(null);
+  const [sharingPost, setSharingPost] = useState<PostResponse | null>(null);
+  const [currentMusic, setCurrentMusic] = useState<any>(null);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const { t } = useTranslation();
   const { currentTheme } = useTheme();
 
@@ -112,10 +128,13 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
       const avatar = conversation.conversationAvatarUrl || conversation.conversation_avatar_url || '';
       const id = conversation.conversationId || conversation.conversation_id || `conv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-      let displayName = rawName || 'Cuoc tro chuyen';
+      // Robust Cloud detection
+      const isActuallyCloud = isSelf || (!isGroup && (rawName === 'Cloud của tôi' || rawName === 'My Documents'));
+
+      let displayName = rawName || (isActuallyCloud ? t('chat.self_cloud') : 'Cuoc tro chuyen');
       let displayAvatar = avatar;
 
-      if (isPrivate && members.length > 0) {
+      if (isPrivate && members.length > 0 && !isActuallyCloud) {
         const otherUser = members.find((member) => (
           (member.userId || member.user_id) !== user?.id
           && (member.userId || member.user_id) !== user?.user_id
@@ -132,8 +151,8 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
         name: displayName,
         avatar: displayAvatar,
         isGroup,
-        isSelf,
-        isAi: isSelf && (displayName === 'Fruvia AI' || rawName === 'Fruvia AI'),
+        isSelf: isActuallyCloud,
+        isAi: isActuallyCloud && (displayName === 'Fruvia Chatbot' || rawName === 'Fruvia Chatbot'),
         members,
         lastMessage: conversation.lastMessageContent || conversation.last_message_content || conversation.lastMessage || conversation.last_message || (isSelf ? 'Chào chính mình!' : 'Xin chào!'),
         lastSenderId: conversation.lastMessageSenderId || conversation.last_message_sender_id || conversation.lastSenderId || conversation.last_sender_id || '',
@@ -143,37 +162,57 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
   }, [user?.id, user?.user_id]);
 
   const fetchData = useCallback(async () => {
+    if (!currentUserId) return;
+
     try {
       setIsLoading(true);
-      const [postRes, convRes, storyRes] = await Promise.all([
-        socialApi.getFeed(),
-        messageService.getConversations(),
-        socialApi.getStoryFeed(currentUserId, []),
-      ]);
-      
-      setStories(storyRes);
 
-      if (postRes?.content?.length > 0) {
-        setPosts(postRes.content.map(enrichPost));
-      } else {
-        setPosts([]);
+      // Fetch friends first to get their stories
+      const friends = await friendService.getFriends().catch((err) => {
+        console.warn('Failed to fetch friends for stories:', err);
+        return [];
+      });
+      const friendIds = Array.isArray(friends) ? friends.map(f => f.userId || f.user_id).filter(Boolean) as string[] : [];
+
+      const [postRes, convRes, storyRes] = await Promise.allSettled([
+        socialApi.getRankedFeed(),
+        messageService.getConversations(),
+        socialApi.getStoryFeed(currentUserId, friendIds),
+      ]);
+
+      // Handle Story Results
+      if (storyRes.status === 'fulfilled') {
+        setStories(storyRes.value);
       }
 
-      const envelope = convRes as ConversationEnvelope | RawConversation[];
-      const rawConversations = Array.isArray(envelope)
-        ? envelope
-        : envelope.success
-          ? envelope.data || []
-          : (envelope as RawConversation[]);
+      // Handle Post Results
+      if (postRes.status === 'fulfilled') {
+        const data = postRes.value;
+        if (data?.content && Array.isArray(data.content)) {
+          setPosts(data.content.map(enrichPost));
+        } else if (Array.isArray(data)) {
+          setPosts((data as any).map(enrichPost));
+        }
+      }
 
-      setConversations(mapConversations(rawConversations));
+      // Handle Conversation Results
+      if (convRes.status === 'fulfilled') {
+        const envelope = convRes.value as ConversationEnvelope | RawConversation[];
+        const rawConversations = Array.isArray(envelope)
+          ? envelope
+          : envelope.success
+            ? envelope.data || []
+            : (envelope as RawConversation[]);
+
+        setConversations(mapConversations(rawConversations));
+      }
     } catch (error) {
-      console.error('Failed to fetch data:', error);
-      setPosts([]);
+      console.error('Critical failure in fetchData:', error);
+      // Don't clear posts here to avoid flickering empty states on minor errors
     } finally {
       setIsLoading(false);
     }
-  }, [enrichPost, mapConversations]);
+  }, [currentUserId, enrichPost, mapConversations]);
 
   useEffect(() => {
     void fetchData();
@@ -182,7 +221,7 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
   // Real-time story updates
   useEffect(() => {
     if (!currentUserId) return;
-    
+
     const sub = websocketService.subscribeToStoryEvents(currentUserId, (message) => {
       if (message.body === 'NEW_STORY') {
         void fetchData();
@@ -270,8 +309,8 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
     }
   };
 
-  const handleSharePost = async (data: { 
-    content: string; 
+  const handleSharePost = async (data: {
+    content: string;
     files: File[];
     location?: string;
     altText?: string;
@@ -310,7 +349,7 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
         caption: data.type === 'TEXT' ? data.content : undefined,
         background: data.background
       }, currentUserId);
-      
+
       toast.success(t('social.stories.success_create', 'Đã chia sẻ tin của bạn!'));
       setIsCreateStoryOpen(false);
       fetchData(); // Re-fetch all data including the new story
@@ -358,9 +397,45 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
       window.location.href = '/login';
     }
   };
+  const handleDeletePost = (postId: string) => {
+    setPosts(prev => prev.filter(p => p.postId !== postId));
+  };
+
+  const handleEditPost = (post: PostResponse) => {
+    setEditingPost(post);
+  };
+
+  const handlePostUpdated = (updatedPost: PostResponse) => {
+    setPosts(prev => prev.map(p => p.postId === updatedPost.postId ? { ...p, ...updatedPost } : p));
+  };
 
   return (
     <div className="flex h-screen w-full bg-white dark:bg-black overflow-hidden text-black dark:text-white font-sans relative">
+      {/* Top Right Notifications */}
+      <div className="absolute top-6 right-8 z-[60] hidden lg:block">
+        <button 
+          onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+          className={`w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer relative group border shadow-sm active:scale-95 ${
+            isNotificationsOpen 
+              ? 'bg-[#0095F6] text-white border-[#0095F6]' 
+              : 'bg-gray-50/50 dark:bg-[#1A1A1A]/50 backdrop-blur-md text-black dark:text-white border-gray-100 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-[#262626]'
+          }`}
+        >
+          <Bell size={20} fill={isNotificationsOpen ? "currentColor" : "none"} />
+          {!isNotificationsOpen && <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-black" />}
+          <div className="absolute top-full right-0 mt-2 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-xl">
+            Thông báo
+          </div>
+        </button>
+      </div>
+
+      <NotificationsPanel
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+        currentUserId={user?.id}
+        variant="dropdown"
+      />
+
       {/* Left Sidebar (Fixed container, Expandable content) */}
       <div className="hidden md:block w-[64px] lg:hover:w-[280px] transition-all duration-300 ease-in-out h-full shrink-0 relative z-50 group/sidebar">
         <SocialSidebarLeft
@@ -370,16 +445,18 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
           onHomeClick={() => setView('feed')}
           onExploreClick={() => setView('explore')}
           onCreatePostClick={() => setIsCreateModalOpen(true)}
+          onArchiveClick={() => setView('archive')}
+          onMyMusicClick={() => setView('music')}
           onLogout={handleLogout}
         />
       </div>
 
       {/* Main Content Area (Scrollable) */}
-      <div className="flex-1 h-full overflow-y-auto scrollbar-hide flex justify-center lg:pl-[64px]">
-        <div className={`w-full ${view === 'profile' ? 'max-w-[1280px]' : 'max-w-[1150px]'} flex flex-col lg:flex-row px-4 md:px-8 lg:px-0 justify-between`}>
+      <div className={`flex-1 h-full overflow-y-auto scrollbar-hide flex ${view === 'explore' ? 'justify-start' : 'justify-center'} lg:pl-[64px]`}>
+        <div className={`w-full ${['profile', 'edit-profile', 'archive'].includes(view) ? 'max-w-[1280px]' : (view === 'explore' || view === 'music') ? '' : 'max-w-[1150px]'} flex flex-col lg:flex-row px-4 md:px-8 lg:px-0 justify-between`}>
 
           {/* Middle Column (Feed or Profile) */}
-          <div className={`${view === 'profile' || view === 'explore' ? 'flex-1 max-w-[935px]' : 'w-full lg:max-w-[630px]'} pt-4`}>
+          <div className={`${view === 'profile' ? 'flex-1 max-w-[935px] pt-4' : (view === 'explore' || view === 'music') ? 'flex-1 w-full pt-0' : ['edit-profile', 'archive'].includes(view) ? 'flex-1 w-full max-w-[1280px] mx-auto lg:px-8 pt-4' : 'w-full lg:max-w-[630px] pt-4'}`}>
             {view === 'feed' ? (
               <div className="max-w-[680px]">
                 <SocialFeedMain
@@ -390,26 +467,95 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
                   onCreatePost={handleCreatePost}
                   onLike={handleLike}
                   onReact={handleReact}
+                  onDelete={handleDeletePost}
+                  onEdit={handleEditPost}
+                  onShare={(post) => {
+                    setSharingPost(post);
+                    setIsCreateModalOpen(true);
+                  }}
                   onCreateStory={() => setIsCreateStoryOpen(true)}
+                  onViewStory={(authorId) => setViewingStoryAuthorId(authorId)}
+                  isRanked={true}
                 />
               </div>
             ) : view === 'profile' ? (
-              <SocialProfile user={user} />
+              <SocialProfile
+                user={user}
+                onEditClick={() => setView('edit-profile')}
+                onArchiveClick={() => setView('archive')}
+              />
+            ) : view === 'edit-profile' ? (
+              <SocialEditProfile
+                user={user}
+                onBack={() => setView('profile')}
+                onUpdate={async (data) => {
+                  try {
+                    console.log('Update profile data:', data);
+                    const fullName = [data.firstName, data.lastName].filter(Boolean).join(' ').trim();
+                    const payload = {
+                      full_name: fullName || undefined,
+                      gender: data.gender,
+                      bio: data.bio,
+                      address: data.address,
+                      city: data.city,
+                      education: data.education,
+                      workplace: data.workplace,
+                    };
+
+                    await userService.updateProfile(payload);
+
+                    const response = await userService.getMe();
+                    if (response?.data) {
+                      const updatedUser = response.data;
+                      setUser((prev) => ({
+                        ...prev,
+                        ...updatedUser,
+                        firstName: data.firstName,
+                        lastName: data.lastName,
+                        bio: data.bio,
+                        gender: data.gender,
+                        workplace: data.workplace,
+                        education: data.education,
+                        city: data.city,
+                        address: data.address
+                      }));
+                      localStorage.setItem('user_info', JSON.stringify({
+                        ...JSON.parse(localStorage.getItem('user_info') || '{}'),
+                        ...updatedUser
+                      }));
+                    }
+                    setView('profile');
+                  } catch (error) {
+                    console.error('Failed to update profile', error);
+                    throw error;
+                  }
+                }}
+              />
+            ) : view === 'archive' ? (
+              <SocialArchive user={user} onBack={() => setView('profile')} />
+            ) : view === 'music' ? (
+              <SocialMusicLibrary
+                isDark={currentTheme === 'dark'}
+                onSongSelect={(song) => {
+                  setCurrentMusic(song);
+                  setIsMusicPlaying(true);
+                }}
+              />
             ) : (
               <SocialExplore />
             )}
           </div>
 
           {/* Right Column (Widgets) */}
-          <div className="hidden lg:block w-[320px] pt-10 pl-10 shrink-0">
-            {view === 'feed' ? (
+          {view === 'feed' && (
+            <div className="hidden lg:block w-[320px] pt-10 pl-10 shrink-0">
               <SocialSidebarRight
                 user={user}
                 conversations={conversations}
                 onSelectContact={handleOpenPopup}
               />
-            ) : null}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -425,10 +571,14 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
 
       {/* Create Post Modal */}
       {isCreateModalOpen && (
-        <CreatePostModal 
-          user={user} 
-          onClose={() => setIsCreateModalOpen(false)} 
+        <CreatePostModal
+          user={user}
+          onClose={() => {
+            setIsCreateModalOpen(false);
+            setSharingPost(null);
+          }}
           onShare={handleSharePost}
+          sharedPost={sharingPost}
         />
       )}
 
@@ -441,11 +591,42 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
         />
       )}
 
+      {/* Story Viewer */}
+      {viewingStoryAuthorId && (
+        <StoryViewer
+          stories={stories}
+          initialAuthorId={viewingStoryAuthorId}
+          onClose={() => setViewingStoryAuthorId(null)}
+          currentUserId={currentUserId}
+        />
+      )}
+
+      {/* Edit Post Modal */}
+      {editingPost && (
+        <EditPostModal
+          post={editingPost}
+          user={user}
+          onClose={() => setEditingPost(null)}
+          onUpdated={handlePostUpdated}
+        />
+      )}
+
       {/* Floating Messages Bar */}
       <FloatingMessengerSidebar
         conversations={conversations}
         onSelectContact={handleOpenPopup}
       />
+
+      {/* Mini Player */}
+      {view !== 'music' && currentMusic && (
+        <SocialMusicMiniPlayer
+          song={currentMusic}
+          isPlaying={isMusicPlaying}
+          onTogglePlay={() => setIsMusicPlaying(!isMusicPlaying)}
+          onExpand={() => setView('music')}
+          isDark={currentTheme === 'dark'}
+        />
+      )}
     </div>
   );
 };

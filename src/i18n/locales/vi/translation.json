@@ -1,4 +1,4 @@
-{
+
   "common": {
     "cancel": "Hủy",
     "confirm": "Xác nhận",
@@ -182,7 +182,6 @@
   },
   "sidebar": {
     "account_info": "Thông tin tài khoản",
-    "upgrade_account": "Nâng cấp tài khoản",
     "your_profile": "Hồ sơ của bạn",
     "your_social_network": "Mạng xã hội của bạn",
     "settings": "Cài đặt",
@@ -201,10 +200,10 @@
     "tags": "Thẻ",
     "more": "Thêm",
     "self_cloud": "Cloud của tôi",
-    "ai_name": "Fruvia AI",
-    "ai_subheading": "Hỏi đáp với Fruvia AI",
+    "ai_name": "Fruvia Chatbot",
+    "ai_subheading": "Hỏi đáp với Fruvia Chatbot",
     "cloud_subheading": "Truyền file giữa các thiết bị của bạn",
-    "ai_input_placeholder": "Nhập câu hỏi cho Fruvia AI",
+    "ai_input_placeholder": "Nhập câu hỏi cho Fruvia Chatbot",
     "input_placeholder": "Nhập @, tin nhắn tới Cloud của tôi",
     "you": "Bạn",
     "time_unit": "phút",
@@ -248,6 +247,21 @@
     "search_panel_placeholder": "Nhập từ khóa để tìm kiếm",
     "search_panel_hint": "Hãy nhập từ khóa để bắt đầu tìm kiếm tin nhắn và file trong trò chuyện",
     "search_panel_found": "Tìm thấy {{count}} kết quả",
+    "search_panel_date_suggestion": "Gợi ý ngày",
+    "search_panel_custom_range": "Khoảng tùy chọn",
+    "search_panel_start_date": "Ngày bắt đầu",
+    "search_panel_end_date": "Ngày kết thúc",
+    "search_panel_last_7_days": "7 ngày qua",
+    "search_panel_last_30_days": "30 ngày qua",
+    "search_panel_last_3_months": "3 tháng qua",
+    "search_panel_this_week": "Tuần này",
+    "search_panel_last_week": "Tuần trước",
+    "search_panel_this_month": "Tháng này",
+    "search_panel_last_month": "Tháng trước",
+    "search_panel_this_year": "Năm nay",
+    "search_panel_last_year": "Năm ngoái",
+    "search_panel_cancel": "Hủy",
+    "search_panel_confirm": "Xác nhận",
     "date": {
       "today": "Hôm nay",
       "yesterday": "Hôm qua"
@@ -598,8 +612,9 @@
     "title": "Thông tin hội thoại",
     "members": "thành viên",
     "ai": {
+      "title": "Thông tin Fruvia Chatbot",
       "desc": "Trợ lý AI của Fruvia giúp bạn hỏi đáp, tóm tắt và gợi ý nội dung ngay trong cuộc trò chuyện.",
-      "capabilities_title": "Fruvia AI có thể giúp",
+      "capabilities_title": "Fruvia Chatbot có thể giúp",
       "capability_1": "Trả lời theo ngôn ngữ bạn đang sử dụng trong ứng dụng",
       "capability_2": "Tóm tắt cuộc trò chuyện và rút ý chính",
       "capability_3": "Gợi ý nội dung, ý tưởng và cách diễn đạt nhanh",
@@ -827,7 +842,7 @@
   },
   "nickname_modal": {
     "title": "Đặt tên gợi nhớ",
-    "description": "Hãy đặt cho <span>{{name}}</span> một cái tên dễ nhớ.",
+    "description": "Hãy đặt cho <bold>{{name}}</bold> một cái tên dễ nhớ.",
     "note": "Lưu ý: Tên gợi nhớ sẽ chỉ hiển thị riêng với bạn.",
     "placeholder": "Nhập tên gợi nhớ"
   },
@@ -861,7 +876,7 @@
     "title": "Cài đặt",
     "tabs": {
       "general": "Cài đặt chung",
-      "ai": "Fruvia AI",
+      "ai": "Fruvia Chatbot",
       "privacy": "Quyền riêng tư",
       "sync": "Đồng bộ tin nhắn",
       "interface": "Giao diện",
@@ -870,8 +885,8 @@
       "utils": "Tiện ích"
     },
     "ai": {
-      "title": "Fruvia AI",
-      "desc": "Tùy chỉnh quyền riêng tư, cách phản hồi và năng suất của Fruvia AI theo nhu cầu của bạn.",
+      "title": "Fruvia Chatbot",
+      "desc": "Tùy chỉnh quyền riêng tư, cách phản hồi và năng suất của Fruvia Chatbot theo nhu cầu của bạn.",
       "full_access": {
         "title": "Cấp quyền AI truy cập toàn bộ dữ liệu của bạn",
         "desc": "Cho phép AI truy cập mọi dữ liệu hội thoại, tài liệu và hồ sơ để đưa ra phản hồi đầy đủ nhất."
@@ -1182,6 +1197,26 @@
       "visibility_notice": "Công khai với mọi người trong 24h",
       "share_btn": "Chia sẻ lên tin"
     },
+    "archive": {
+      "title": "Kho lưu trữ",
+      "subtitle": "Các dự án, bài viết hoặc nội dung đã được lưu trữ của bạn.",
+      "create_new": "Tạo mới",
+      "all": "Tất cả",
+      "posts": "Bài viết",
+      "stories": "Stories",
+      "files": "Tài liệu",
+      "favorites": "Yêu thích",
+      "search_placeholder": "Tìm kiếm trong kho lưu trữ...",
+      "filter": "Bộ lọc",
+      "restore": "Khôi phục",
+      "archived_on": "Đã lưu trữ ngày {{date}}",
+      "empty": "Không tìm thấy mục nào trong kho lưu trữ.",
+      "loading": "Đang tải dữ liệu lưu trữ...",
+      "post_untitled": "Bài viết không có tiêu đề",
+      "post_no_content": "Không có nội dung",
+      "my_moment": "Khoảnh khắc của tôi",
+      "story_shared": "Story đã chia sẻ"
+    },
     "title": "Mạng xã hội",
     "feed": "Bảng tin",
     "create_post_placeholder": "{{name}}, bạn đang nghĩ gì?",
@@ -1232,8 +1267,23 @@
         "go_to_post": "Đi đến bài viết",
         "share": "Chia sẻ lên...",
         "copy_link": "Sao chép liên kết",
+        "link_copied": "Đã sao chép liên kết",
         "embed": "Nhúng",
-        "close": "Đóng"
+        "close": "Đóng",
+        "delete": "Xóa bài viết",
+        "edit": "Chỉnh sửa",
+        "cancel": "Hủy",
+        "delete_confirm_title": "Xóa bài viết?",
+        "delete_confirm_desc": "Bài viết sẽ bị xóa vĩnh viễn và không thể khôi phục.",
+        "deleting": "Đang xóa...",
+        "delete_success": "Đã xóa bài viết",
+        "delete_error": "Không thể xóa bài viết",
+        "edit_title": "Chỉnh sửa bài viết",
+        "save": "Lưu",
+        "saving": "Đang lưu...",
+        "edit_success": "Đã cập nhật bài viết",
+        "edit_error": "Không thể cập nhật bài viết",
+        "media_readonly": "Ảnh/video không thể chỉnh sửa từ đây"
       }
     },
     "post_action": "Đăng",
@@ -1253,6 +1303,8 @@
       "messages": "Tin nhắn",
       "notifications": "Thông báo",
       "create": "Tạo",
+      "archive": "Kho lưu trữ",
+      "my-music": "Nhạc của tôi",
       "profile": "Trang cá nhân",
       "more": "Xem thêm"
     },
@@ -1288,7 +1340,51 @@
       "insights": "Thông tin chi tiết",
       "reach": "Lượt tiếp cận",
       "engagement": "Tương tác",
-      "activity": "Hoạt động gần đây"
+      "activity": "Hoạt động gần đây",
+      "share_photos": "Chia sẻ ảnh",
+      "no_bio": "Chưa có tiểu sử.",
+      "no_saved": "Lưu ảnh và video mà bạn muốn xem lại.",
+      "no_tagged": "Khi mọi người gắn thẻ bạn trong ảnh, ảnh sẽ xuất hiện ở đây.",
+      "no_content": "Chưa có nội dung",
+      "new_highlight": "Mới"
+    },
+    "search": {
+      "placeholder": "Tìm kiếm",
+      "recent": "Gần đây",
+      "clear_all": "Xóa tất cả",
+      "no_results": "Không tìm thấy kết quả.",
+      "no_recent": "Không có tìm kiếm gần đây."
+    },
+    "explore": {
+      "all": "Tất cả",
+      "nature": "Thiên nhiên",
+      "architecture": "Kiến trúc",
+      "fashion": "Thời trang",
+      "tech": "Công nghệ",
+      "food": "Ẩm thực",
+      "travel": "Du lịch",
+      "art": "Nghệ thuật",
+      "no_more": "Bạn đã xem hết video!",
+      "follow": "Theo dõi"
+    },
+    "notifications": {
+      "all": "Tất cả",
+      "unread": "Chưa đọc",
+      "today": "Hôm nay",
+      "this_week": "Tuần này",
+      "this_month": "Tháng này",
+      "earlier": "Trước đó",
+      "empty_title": "Hoạt động trên bài viết của bạn",
+      "empty_desc": "Khi có người thích hoặc bình luận trên bài viết của bạn, bạn sẽ thấy ở đây.",
+      "just_now": "Vừa xong",
+      "min": " phút",
+      "hour": " giờ",
+      "day": " ngày",
+      "week": " tuần",
+      "liked_post": "đã thích bài viết của bạn.",
+      "commented_post": "đã bình luận: ",
+      "followed_you": "đã bắt đầu theo dõi bạn.",
+      "mentioned_you": "đã nhắc đến bạn trong bình luận."
     }
   }
 }

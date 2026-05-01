@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Sidebar } from './Sidebar';
@@ -55,9 +55,20 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
 
   // Sidebar search state (search within current conversation)
   const [sidebarSearchQuery, setSidebarSearchQuery] = useState('');
-  const [sidebarSearchResults, setSidebarSearchResults] = useState<{ messageId: string; senderId: string; senderName: string; content: string; messageType: string; createdAt: string }[]>([]);
+  const [sidebarSearchResults, setSidebarSearchResults] = useState<{ messageId: string; senderId: string; senderName: string; senderAvatar?: string; content: string; messageType: string; createdAt: string }[]>([]);
   const [isSidebarSearchLoading, setIsSidebarSearchLoading] = useState(false);
   const sidebarSearchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [sidebarFilterSender, setSidebarFilterSender] = useState<string>('');
+  const [sidebarFilterTime, setSidebarFilterTime] = useState<string>('');
+  const [senderDropdownOpen, setSenderDropdownOpen] = useState(false);
+  const [timeDropdownOpen, setTimeDropdownOpen] = useState(false);
+  const [senderSearch, setSenderSearch] = useState('');
+  const [calendarViewDate, setCalendarViewDate] = useState(() => new Date());
+  const [calendarStartDate, setCalendarStartDate] = useState<Date | null>(null);
+  const [calendarEndDate, setCalendarEndDate] = useState<Date | null>(null);
+  const [calendarHoverDate, setCalendarHoverDate] = useState<Date | null>(null);
+  const [dateSuggestionOpen, setDateSuggestionOpen] = useState(false);
+  const dateSuggestionLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const hasToasted = React.useRef(false);
   const [chatRefreshTrigger, setChatRefreshTrigger] = useState(0);
@@ -148,6 +159,7 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
           messageId: doc.messageId,
           senderId: doc.senderId,
           senderName: doc.senderName,
+          senderAvatar: doc.senderAvatar || null,
           content: normalizedContent,
           messageType: doc.messageType,
           createdAt: doc.createdAt,
@@ -178,11 +190,12 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
     }
   }, []);
 
-  const handleSidebarSearch = useCallback((value: string) => {
+  const handleSidebarSearch = useCallback((value: string, filterSenderId?: string, filterTime?: string) => {
     setSidebarSearchQuery(value);
     if (sidebarSearchTimerRef.current) clearTimeout(sidebarSearchTimerRef.current);
 
-    if (!value.trim() || !selectedChat?.id) {
+    const hasFilter = !!(filterSenderId || filterTime);
+    if (!value.trim() && !hasFilter || !selectedChat?.id) {
       setSidebarSearchResults([]);
       setIsSidebarSearchLoading(false);
       return;
@@ -191,10 +204,30 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
     setIsSidebarSearchLoading(true);
     sidebarSearchTimerRef.current = setTimeout(async () => {
       try {
+        let fromDate: string | undefined;
+        let toDate: string | undefined;
+        const now = new Date();
+        if (filterTime === 'week') {
+          const d = new Date(now); d.setDate(d.getDate() - 7);
+          fromDate = d.toISOString();
+        } else if (filterTime === 'month') {
+          const d = new Date(now); d.setMonth(d.getMonth() - 1);
+          fromDate = d.toISOString();
+        } else if (filterTime === '3months') {
+          const d = new Date(now); d.setMonth(d.getMonth() - 3);
+          fromDate = d.toISOString();
+        } else if (filterTime?.startsWith('custom|')) {
+          const parts = filterTime.split('|');
+          if (parts[1]) fromDate = parts[1];
+          if (parts[2]) toDate = parts[2];
+        }
         const res = await messageService.searchMessages({
           query: value.trim(),
           conversationId: selectedChat.id,
-          size: 20,
+          size: 50,
+          senderId: filterSenderId || undefined,
+          fromDate,
+          toDate,
         });
         setSidebarSearchResults(parseEsMessageResults(res) as any);
       } catch {
@@ -217,6 +250,14 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
   useEffect(() => {
     setSidebarSearchQuery('');
     setSidebarSearchResults([]);
+    setSidebarFilterSender('');
+    setSidebarFilterTime('');
+    setSenderDropdownOpen(false);
+    setTimeDropdownOpen(false);
+    setSenderSearch('');
+    setCalendarStartDate(null);
+    setCalendarEndDate(null);
+    setCalendarHoverDate(null);
   }, [selectedChat?.id, activeSidebar]);
 
   const parseDateToMillis = (value?: string | null) => {
@@ -257,11 +298,12 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
       const data = (res && res.success && res.data) ? res.data : res;
       if (Array.isArray(data)) {
         const mapped = data.map((c: any) => {
+          const rawName = c.conversationName || c.conversation_name || '';
           const isSelf = c.conversationType === 'SELF' || c.conversation_type === 'SELF';
           const isGroup = c.conversationType === 'GROUP' || c.conversation_type === 'GROUP';
-          const rawName = c.conversationName || c.conversation_name || '';
-          const isAi = isSelf && rawName.trim().toLowerCase() === 'fruvia ai';
-          const isCloud = isSelf && !isAi;
+          const isAi = isSelf && rawName.trim().toLowerCase() === 'Fruvia Chatbot';
+          // Robust detection for "Cloud của tôi" (Self Chat)
+          const isCloud = (isSelf && !isAi) || (!isGroup && (rawName === 'Cloud của tôi' || rawName === 'My Documents'));
           const name = isAi
             ? t('chat.ai_name')
             : (rawName || (isCloud ? t('chat.self_cloud') : 'Conversation'));
@@ -985,7 +1027,7 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
                 )}
                 {activeSidebar === 'search' && (
                   <div className="w-[340px] border-l border-[var(--border)] bg-[var(--card-bg)] flex flex-col transition-colors duration-200">
-                    {/* Search Sidebar UI Header */}
+                    {/* Header */}
                     <div className="h-[76px] border-b border-[var(--border)] px-4 flex items-center justify-between shrink-0">
                       <h3 className="text-[17px] font-bold">{t('chat.search_panel_title') || 'Tìm kiếm trong trò chuyện'}</h3>
                       <button onClick={() => setActiveSidebar(null)} className="p-1 hover:bg-[var(--hover-bg)] rounded-md cursor-pointer opacity-70">
@@ -994,88 +1036,391 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
                     </div>
 
                     {/* Search Content */}
-                    <div className="flex-1 p-4 overflow-y-auto custom-scrollbar">
-                      <div className="relative mb-4">
-                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                      {/* Search input */}
+                      <div className="px-4 pt-4">
+                        <div className="flex items-center gap-2 border border-[var(--border)] rounded-md px-3 py-2 bg-[var(--card-bg)] focus-within:border-[#0068FF] transition-all">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 shrink-0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                          <input
+                            type="text"
+                            value={sidebarSearchQuery}
+                            onChange={(e) => { setSidebarSearchQuery(e.target.value); handleSidebarSearch(e.target.value, sidebarFilterSender, sidebarFilterTime); }}
+                            placeholder={t('chat.search_panel_placeholder') || 'Tìm kiếm'}
+                            className="flex-1 bg-transparent text-sm outline-none text-[var(--text)] placeholder:text-gray-400"
+                          />
+                          {sidebarSearchQuery && (
+                            <button
+                              onClick={() => { setSidebarSearchQuery(''); setSidebarSearchResults([]); setSidebarFilterSender(''); setSidebarFilterTime(''); }}
+                              className="text-[13px] text-[#0068FF] font-medium shrink-0 hover:underline"
+                            >
+                              Xóa
+                            </button>
+                          )}
                         </div>
-                        <input
-                          type="text"
-                          value={sidebarSearchQuery}
-                          onChange={(e) => handleSidebarSearch(e.target.value)}
-                          placeholder={t('chat.search_panel_placeholder') || 'Nhập từ khóa để tìm kiếm'}
-                          className="w-full bg-[var(--card-bg)] border border-[var(--border)] rounded-md py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-[#0068FF] transition-all"
-                        />
                       </div>
 
-                      {sidebarSearchQuery.trim() ? (
-                        /* Search Results */
+                      {/* Filters */}
+                      <div className="px-4 pt-3 pb-2 flex items-center gap-2">
+                        {/* Sender custom dropdown */}
+                        {(() => {
+                          const senderOptions = [
+                            ...(currentUser?.id ? [{ id: currentUser.id, name: 'Bạn', avatar: currentUser.avatarUrl }] : []),
+                            ...(selectedChat?.members
+                              ?.filter((m: any) => (m.userId || m.user_id) !== currentUser?.id)
+                              .map((m: any) => ({
+                                id: m.userId || m.user_id,
+                                name: m.displayName || m.display_name || m.nickname || m.userId || m.user_id,
+                                avatar: m.avatarUrl || m.avatar_url || null,
+                              })) ?? []),
+                          ];
+                          const filteredSenders = senderOptions.filter(o => o.name.toLowerCase().includes(senderSearch.toLowerCase()));
+                          const selectedSenderName = senderOptions.find(o => o.id === sidebarFilterSender)?.name;
+                          return (
+                            <div className="relative flex-1 min-w-0" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setSenderDropdownOpen(false); setSenderSearch(''); } }} tabIndex={-1}>
+                              <button
+                                type="button"
+                                onClick={() => { setSenderDropdownOpen(v => !v); setTimeDropdownOpen(false); }}
+                                className={`w-full flex items-center gap-1.5 px-3 py-[6px] rounded-lg text-[12px] font-medium border transition-colors cursor-pointer ${
+                                  sidebarFilterSender
+                                    ? 'bg-[#e8f0fe] border-[#0068FF] text-[#0068FF]'
+                                    : 'bg-[var(--input-bg,#f3f4f6)] border-transparent text-[var(--sub-text)] hover:border-[var(--border)]'
+                                }`}
+                              >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                <span className="truncate flex-1 text-left">{selectedSenderName || 'Sender'}</span>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`shrink-0 transition-transform ${senderDropdownOpen ? 'rotate-180' : ''}`}><polyline points="6 9 12 15 18 9"/></svg>
+                              </button>
+                              {senderDropdownOpen && (
+                                <div className="absolute left-0 top-full mt-1 w-[200px] bg-white dark:bg-[#242526] rounded-xl shadow-xl border border-[var(--border)] z-50 overflow-hidden">
+                                  <div className="p-2">
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--input-bg,#f3f4f6)] rounded-lg">
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 shrink-0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                      <input
+                                        autoFocus
+                                        value={senderSearch}
+                                        onChange={e => setSenderSearch(e.target.value)}
+                                        placeholder="Search"
+                                        className="flex-1 text-[12px] bg-transparent outline-none text-[var(--text)] placeholder:text-gray-400"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="max-h-[180px] overflow-y-auto pb-2">
+                                    {filteredSenders.map(opt => (
+                                      <button
+                                        key={opt.id}
+                                        type="button"
+                                        onMouseDown={() => { setSidebarFilterSender(opt.id); setSenderDropdownOpen(false); setSenderSearch(''); handleSidebarSearch(sidebarSearchQuery, opt.id, sidebarFilterTime); }}
+                                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-[13px] cursor-pointer hover:bg-[var(--hover-bg,#f3f4f6)] transition-colors ${
+                                          sidebarFilterSender === opt.id ? 'text-[#0068FF] font-medium' : 'text-[var(--text)]'
+                                        }`}
+                                      >
+                                        {opt.avatar
+                                          ? <img src={opt.avatar} className="w-7 h-7 rounded-full object-cover shrink-0" alt="" />
+                                          : <div className="w-7 h-7 rounded-full bg-[#0068FF] flex items-center justify-center text-white text-[11px] font-bold shrink-0">{opt.name.charAt(0).toUpperCase()}</div>
+                                        }
+                                        <span className="truncate">{opt.name}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+
+                        {/* Time custom dropdown */}
+                        {(() => {
+                          const quickOptions = [
+                            { value: 'week', label: 'Last 7 days' },
+                            { value: 'month', label: 'Last 30 days' },
+                            { value: '3months', label: 'Last 3 months' },
+                          ];
+                          let timeLabel = 'Time';
+                          if (sidebarFilterTime === 'week') timeLabel = 'Last 7 days';
+                          else if (sidebarFilterTime === 'month') timeLabel = 'Last 30 days';
+                          else if (sidebarFilterTime === '3months') timeLabel = 'Last 3 months';
+                          else if (sidebarFilterTime?.startsWith('custom|')) {
+                            const parts = sidebarFilterTime.split('|');
+                            const fmt = (iso: string) => { const d = new Date(iso); return `${d.getDate()}/${d.getMonth()+1}`; };
+                            if (parts[1] && parts[2]) timeLabel = `${fmt(parts[1])} - ${fmt(parts[2])}`;
+                          }
+
+                          const cvYear = calendarViewDate.getFullYear();
+                          const cvMonth = calendarViewDate.getMonth();
+                          const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                          const firstDow = new Date(cvYear, cvMonth, 1).getDay();
+                          const daysInMonth = new Date(cvYear, cvMonth + 1, 0).getDate();
+                          const prevMonthDays = new Date(cvYear, cvMonth, 0).getDate();
+                          const cells: { date: Date; currentMonth: boolean }[] = [];
+                          for (let i = firstDow - 1; i >= 0; i--) cells.push({ date: new Date(cvYear, cvMonth - 1, prevMonthDays - i), currentMonth: false });
+                          for (let d = 1; d <= daysInMonth; d++) cells.push({ date: new Date(cvYear, cvMonth, d), currentMonth: true });
+                          let nd = 1; while (cells.length % 7 !== 0) cells.push({ date: new Date(cvYear, cvMonth + 1, nd++), currentMonth: false });
+
+                          const todayNorm = new Date(); todayNorm.setHours(0,0,0,0);
+                          const isSameDay = (a: Date, b: Date | null) => !!b && a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+                          const effEnd = calendarEndDate || calendarHoverDate;
+                          const rStart = calendarStartDate && effEnd ? (calendarStartDate <= effEnd ? calendarStartDate : effEnd) : calendarStartDate;
+                          const rEnd   = calendarStartDate && effEnd ? (calendarStartDate <= effEnd ? effEnd : calendarStartDate) : null;
+
+                          const handleDayClick = (date: Date) => {
+                            if (!calendarStartDate || (calendarStartDate && calendarEndDate)) {
+                              setCalendarStartDate(date); setCalendarEndDate(null);
+                            } else {
+                              if (date < calendarStartDate) { setCalendarEndDate(calendarStartDate); setCalendarStartDate(date); }
+                              else setCalendarEndDate(date);
+                            }
+                          };
+                          const handleConfirm = () => {
+                            if (calendarStartDate) {
+                              const s = new Date(calendarStartDate); s.setHours(0,0,0,0);
+                              const e = calendarEndDate ? new Date(calendarEndDate) : new Date(calendarStartDate); e.setHours(23,59,59,999);
+                              const nft = `custom|${s.toISOString()}|${e.toISOString()}`;
+                              setSidebarFilterTime(nft); setTimeDropdownOpen(false);
+                              handleSidebarSearch(sidebarSearchQuery, sidebarFilterSender, nft);
+                            }
+                          };
+                          const fmtInput = (d: Date | null) => d ? `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}` : '';
+
+                          return (
+                            <div className="relative flex-1 min-w-0" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setTimeDropdownOpen(false); }} tabIndex={-1}>
+                              <button
+                                type="button"
+                                onClick={() => { setTimeDropdownOpen(v => !v); setSenderDropdownOpen(false); }}
+                                className={`w-full flex items-center gap-1.5 px-3 py-[6px] rounded-lg text-[12px] font-medium border transition-colors cursor-pointer ${
+                                  sidebarFilterTime ? 'bg-[#e8f0fe] border-[#0068FF] text-[#0068FF]' : 'bg-[var(--input-bg,#f3f4f6)] border-transparent text-[var(--sub-text)] hover:border-[var(--border)]'
+                                }`}
+                              >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                <span className="truncate flex-1 text-left">{timeLabel}</span>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`shrink-0 transition-transform ${timeDropdownOpen ? 'rotate-180' : ''}`}><polyline points="6 9 12 15 18 9"/></svg>
+                              </button>
+                              {timeDropdownOpen && (
+                                <div className="absolute right-0 top-full mt-1 flex bg-white dark:bg-[#1e1e1e] rounded-xl shadow-2xl border border-[var(--border)] z-50 overflow-hidden">
+                                  {/* Left: quick options */}
+                                  <div className="w-[140px] border-r border-[var(--border)] py-2 shrink-0">
+                                    {quickOptions.map(opt => (
+                                      <button key={opt.value} type="button"
+                                        onMouseDown={() => { setSidebarFilterTime(opt.value); setTimeDropdownOpen(false); handleSidebarSearch(sidebarSearchQuery, sidebarFilterSender, opt.value); }}
+                                        className={`w-full text-left px-4 py-2.5 text-[13px] cursor-pointer hover:bg-[var(--hover-bg,#f5f5f5)] transition-colors ${
+                                          sidebarFilterTime === opt.value ? 'text-[#0068FF] font-semibold' : 'text-[var(--text)]'
+                                        }`}
+                                      >{t(opt.value === 'week' ? 'chat.search_panel_last_7_days' : opt.value === 'month' ? 'chat.search_panel_last_30_days' : 'chat.search_panel_last_3_months')}</button>
+                                    ))}
+                                  </div>
+                                  {/* Right: calendar */}
+                                  <div className="w-[300px] p-4">
+                                    {/* Date suggestion */}
+                                    {(() => {
+                                      const now = new Date();
+                                      const startOfWeek = (d: Date) => { const r = new Date(d); r.setDate(r.getDate() - r.getDay()); r.setHours(0,0,0,0); return r; };
+                                      const endOfWeek   = (d: Date) => { const r = new Date(d); r.setDate(r.getDate() + (6 - r.getDay())); r.setHours(23,59,59,999); return r; };
+                                      const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1, 0,0,0,0);
+                                      const endOfMonth   = (d: Date) => new Date(d.getFullYear(), d.getMonth()+1, 0, 23,59,59,999);
+                                      const dateSuggestions = [
+                                        { label: t('chat.search_panel_this_week'),  from: startOfWeek(now), to: endOfWeek(now) },
+                                        { label: t('chat.search_panel_last_week'),  from: startOfWeek(new Date(now.getFullYear(), now.getMonth(), now.getDate()-7)), to: endOfWeek(new Date(now.getFullYear(), now.getMonth(), now.getDate()-7)) },
+                                        { label: t('chat.search_panel_this_month'), from: startOfMonth(now), to: endOfMonth(now) },
+                                        { label: t('chat.search_panel_last_month'), from: startOfMonth(new Date(now.getFullYear(), now.getMonth()-1, 1)), to: endOfMonth(new Date(now.getFullYear(), now.getMonth()-1, 1)) },
+                                        { label: t('chat.search_panel_this_year'),  from: new Date(now.getFullYear(), 0, 1, 0,0,0,0), to: new Date(now.getFullYear(), 11, 31, 23,59,59,999) },
+                                        { label: t('chat.search_panel_last_year'),  from: new Date(now.getFullYear()-1, 0, 1, 0,0,0,0), to: new Date(now.getFullYear()-1, 11, 31, 23,59,59,999) },
+                                      ];
+                                      const handleSuggEnter = () => { if (dateSuggestionLeaveTimer.current) clearTimeout(dateSuggestionLeaveTimer.current); setDateSuggestionOpen(true); };
+                                      const handleSuggLeave = () => { dateSuggestionLeaveTimer.current = setTimeout(() => setDateSuggestionOpen(false), 120); };
+                                      return (
+                                        <div onMouseEnter={handleSuggEnter} onMouseLeave={handleSuggLeave}>
+                                          <button type="button" className="w-full flex items-center justify-between py-1.5 mb-1 text-[13px] cursor-pointer text-[var(--text)] hover:text-[#0068FF] transition-colors">
+                                            <span>{t('chat.search_panel_date_suggestion')}</span>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`transition-transform ${dateSuggestionOpen ? 'rotate-90' : ''}`}><polyline points="9 18 15 12 9 6"/></svg>
+                                          </button>
+                                          {dateSuggestionOpen && (
+                                            <div className="mb-2 rounded-lg border border-[var(--border)] overflow-hidden">
+                                              {dateSuggestions.map(s => (
+                                                <button key={s.label} type="button"
+                                                  onMouseDown={() => {
+                                                    const nft = `custom|${s.from.toISOString()}|${s.to.toISOString()}`;
+                                                    setCalendarStartDate(s.from); setCalendarEndDate(s.to);
+                                                    setSidebarFilterTime(nft); setTimeDropdownOpen(false); setDateSuggestionOpen(false);
+                                                    handleSidebarSearch(sidebarSearchQuery, sidebarFilterSender, nft);
+                                                  }}
+                                                  className="w-full text-left px-3 py-1.5 text-[13px] cursor-pointer hover:bg-[#f0f4ff] hover:text-[#0068FF] transition-colors text-[var(--text)]"
+                                                >{s.label}</button>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
+                                    <div className="h-px bg-[var(--border)] mb-3" />
+                                    <p className="text-[11px] text-[var(--sub-text)] font-semibold uppercase tracking-wide mb-2">{t('chat.search_panel_custom_range')}</p>
+                                    {/* Start/End inputs */}
+                                    <div className="flex gap-2 mb-4">
+                                      <div className={`flex-1 flex items-center gap-1 border rounded-lg px-2 py-1.5 text-[12px] cursor-default ${
+                                        calendarStartDate ? 'border-[#0068FF]' : 'border-[var(--border)] text-gray-400'
+                                      }`}>
+                                        <span className="flex-1 truncate text-[var(--text)]">{fmtInput(calendarStartDate) || t('chat.search_panel_start_date')}</span>
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 shrink-0"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                      </div>
+                                      <div className={`flex-1 flex items-center gap-1 border rounded-lg px-2 py-1.5 text-[12px] cursor-default ${
+                                        calendarEndDate ? 'border-[#0068FF]' : 'border-[var(--border)] text-gray-400'
+                                      }`}>
+                                        <span className="flex-1 truncate text-[var(--text)]">{fmtInput(calendarEndDate) || t('chat.search_panel_end_date')}</span>
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 shrink-0"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                      </div>
+                                    </div>
+                                    {/* Month nav */}
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="text-[13px] font-semibold text-[var(--text)]">{monthNames[cvMonth]}, {cvYear}</span>
+                                      <div className="flex gap-0.5">
+                                        <button type="button" onMouseDown={() => setCalendarViewDate(new Date(cvYear, cvMonth - 1, 1))} className="w-7 h-7 flex items-center justify-center rounded-lg cursor-pointer hover:bg-[var(--hover-bg,#f5f5f5)] text-[var(--sub-text)] transition-colors">
+                                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                                        </button>
+                                        <button type="button" onMouseDown={() => setCalendarViewDate(new Date(cvYear, cvMonth + 1, 1))} className="w-7 h-7 flex items-center justify-center rounded-lg cursor-pointer hover:bg-[var(--hover-bg,#f5f5f5)] text-[var(--sub-text)] transition-colors">
+                                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                                        </button>
+                                      </div>
+                                    </div>
+                                    {/* Day headers */}
+                                    <div className="grid grid-cols-7 mb-1">
+                                      {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
+                                        <div key={d} className="text-center text-[11px] text-[var(--sub-text)] font-medium py-1">{d}</div>
+                                      ))}
+                                    </div>
+                                    {/* Day cells */}
+                                    <div className="grid grid-cols-7">
+                                      {cells.map((cell, idx) => {
+                                        const isToday = isSameDay(cell.date, todayNorm);
+                                        const isStart = isSameDay(cell.date, rStart ?? null);
+                                        const isEnd = isSameDay(cell.date, rEnd);
+                                        const inRange = !!rStart && !!rEnd && cell.date > rStart && cell.date < rEnd;
+                                        return (
+                                          <div key={idx} className="relative flex items-center justify-center h-8">
+                                            {inRange && <div className="absolute inset-0 bg-[#deeaff]" />}
+                                            {isStart && rEnd && <div className="absolute inset-y-0 left-1/2 right-0 bg-[#deeaff]" />}
+                                            {isEnd && <div className="absolute inset-y-0 left-0 right-1/2 bg-[#deeaff]" />}
+                                            <button
+                                              type="button"
+                                              onMouseDown={() => handleDayClick(cell.date)}
+                                              onMouseEnter={() => calendarStartDate && !calendarEndDate && setCalendarHoverDate(cell.date)}
+                                              onMouseLeave={() => setCalendarHoverDate(null)}
+                                              className={[
+                                                'relative z-10 w-7 h-7 text-[12px] rounded-full flex items-center justify-center transition-colors select-none cursor-pointer',
+                                                !cell.currentMonth ? 'text-gray-300 dark:text-gray-600' : '',
+                                                (isStart || isEnd) ? 'bg-[#0068FF] !text-white font-semibold' : '',
+                                                isToday && !isStart && !isEnd ? 'border border-[#0068FF] text-[#0068FF] font-medium' : '',
+                                                !isStart && !isEnd && cell.currentMonth ? 'hover:bg-[#f0f4ff] text-[var(--text)]' : '',
+                                              ].join(' ')}
+                                            >{cell.date.getDate()}</button>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                    {/* Actions */}
+                                    <div className="flex gap-2 mt-3 pt-3 border-t border-[var(--border)]">
+                                      <button type="button"
+                                        onMouseDown={() => { setTimeDropdownOpen(false); setCalendarStartDate(null); setCalendarEndDate(null); setCalendarHoverDate(null); }}
+                                        className="flex-1 py-1.5 rounded-lg text-[13px] cursor-pointer text-[var(--text)] border border-[var(--border)] hover:bg-[var(--hover-bg,#f5f5f5)] transition-colors"
+                                      >{t('chat.search_panel_cancel')}</button>
+                                      <button type="button"
+                                        onMouseDown={handleConfirm}
+                                        className={`flex-1 py-1.5 rounded-lg text-[13px] font-medium transition-colors ${
+                                          calendarStartDate ? 'bg-[#0068FF] text-white hover:bg-[#005ce0] cursor-pointer' : 'bg-[#c8d8f0] text-white cursor-not-allowed'
+                                        }`}
+                                      >{t('chat.search_panel_confirm')}</button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      {(sidebarSearchQuery.trim() || sidebarFilterSender || sidebarFilterTime) ? (
                         isSidebarSearchLoading ? (
                           <div className="flex items-center justify-center py-8">
                             <div className="w-6 h-6 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
                           </div>
                         ) : sidebarSearchResults.length === 0 ? (
-                          <div className="flex flex-col items-center justify-center pt-8 text-center opacity-60">
+                          <div className="flex flex-col items-center justify-center pt-8 text-center opacity-60 px-4">
                             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="opacity-30 mb-3">
-                              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                             </svg>
                             <p className="text-[14px] text-[var(--sub-text)]">{t('chat.search_overlay.no_results') || 'Không tìm thấy kết quả'}</p>
                           </div>
                         ) : (
-                          <div className="space-y-1">
-                            <p className="text-[13px] text-[var(--sub-text)] mb-3">
-                              {t('chat.search_panel_found', { count: sidebarSearchResults.length }) || `Tìm thấy ${sidebarSearchResults.length} kết quả`}
+                          <div className="px-4 pb-4">
+                            <p className="text-[13px] font-semibold text-[var(--text)] mt-3 mb-2">
+                              Tin nhắn
                             </p>
-                            {sidebarSearchResults.map(msg => {
-                              let displayContent = msg.content;
-                              if (msg.messageType === 'SHARE_CONTACT') {
-                                try {
-                                  const contact = JSON.parse(msg.content || '{}');
-                                  displayContent = `📇 ${contact.fullName || 'Danh thiếp'}`;
-                                } catch {
-                                  displayContent = '📇 Danh thiếp';
-                                }
-                              } else if (msg.messageType === 'IMAGE') {
-                                displayContent = '📷 Hình ảnh';
-                              } else if (msg.messageType === 'VIDEO') {
-                                displayContent = '🎬 Video';
-                              } else if (msg.messageType === 'VOICE') {
-                                displayContent = '🎤 Tin nhắn thoại';
-                              } else if (msg.messageType === 'MEDIA') {
-                                displayContent = '📎 Tệp đính kèm';
-                              } else if (msg.messageType === 'STICKER') {
-                                displayContent = '😀 Sticker';
-                              }
+                            <div>
+                              {sidebarSearchResults.map((msg, idx) => {
+                                const stripHtml = (html: string) => {
+                                  const tmp = document.createElement('div');
+                                  tmp.innerHTML = html;
+                                  return tmp.textContent || tmp.innerText || '';
+                                };
+                                let displayContent = msg.content ? stripHtml(msg.content) : '';
+                                if (msg.messageType === 'SHARE_CONTACT') {
+                                  try { displayContent = `📇 ${JSON.parse(msg.content || '{}').fullName || 'Danh thiếp'}`; } catch { displayContent = '📇 Danh thiếp'; }
+                                } else if (msg.messageType === 'IMAGE') { displayContent = '📷 Hình ảnh'; }
+                                else if (msg.messageType === 'VIDEO') { displayContent = '🎬 Video'; }
+                                else if (msg.messageType === 'VOICE') { displayContent = '🎤 Tin nhắn thoại'; }
+                                else if (msg.messageType === 'MEDIA') { displayContent = '📎 Tệp đính kèm'; }
+                                else if (msg.messageType === 'STICKER') { displayContent = '😀 Sticker'; }
 
-                              return (
-                                <div
-                                  key={msg.messageId}
-                                  className="p-3 hover:bg-[var(--hover-bg)] rounded-lg cursor-pointer transition-colors border border-transparent hover:border-[var(--border)]"
-                                >
-                                  <div className="flex items-center justify-between mb-1">
-                                    <span className="text-[13px] font-medium text-[var(--text)]">{msg.senderName}</span>
-                                    <span className="text-[11px] text-[var(--sub-text)]">
-                                      {msg.createdAt ? new Date(msg.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}
-                                    </span>
+                                const highlightText = (text: string, query: string) => {
+                                  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                  const regex = new RegExp(`(${escaped})`, 'gi');
+                                  const parts = text.split(regex);
+                                  return parts.map((part, i) =>
+                                    regex.test(part)
+                                      ? <span key={i} className="text-[#0068FF] font-medium">{part}</span>
+                                      : part
+                                  );
+                                };
+
+                                const initials = msg.senderName?.split(' ').slice(-2).map((w: string) => w[0]).join('').toUpperCase() || '?';
+
+                                return (
+                                  <div key={msg.messageId}>
+                                    {idx > 0 && <div className="border-t border-[var(--border)]" />}
+                                    <div className="py-3 flex items-start gap-3 cursor-pointer hover:bg-[var(--hover-bg)] rounded-lg px-1 transition-colors">
+                                      {/* Avatar */}
+                                      <div className="shrink-0 w-10 h-10 rounded-full overflow-hidden bg-[#0068FF] flex items-center justify-center text-white text-[13px] font-semibold">
+                                        {msg.senderAvatar
+                                          ? <img src={msg.senderAvatar} alt={msg.senderName} className="w-full h-full object-cover" />
+                                          : initials}
+                                      </div>
+                                      {/* Content */}
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between gap-1">
+                                          <span className="text-[13px] font-semibold text-[var(--text)] truncate">{msg.senderName}</span>
+                                          <span className="text-[11px] text-[var(--sub-text)] shrink-0">
+                                            {msg.createdAt ? new Date(msg.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: '2-digit' }) : ''}
+                                          </span>
+                                        </div>
+                                        <p className="text-[13px] text-[var(--sub-text)] line-clamp-2 mt-0.5">
+                                          {highlightText(displayContent, sidebarSearchQuery)}
+                                        </p>
+                                      </div>
+                                    </div>
                                   </div>
-                                  <p className="text-[13px] text-[var(--sub-text)] line-clamp-2">{displayContent}</p>
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
+                            </div>
                           </div>
                         )
                       ) : (
                         /* Empty State */
-                        <div className="flex flex-col items-center justify-center pt-12 text-center opacity-60">
-                          <div className="w-[180px] h-[180px] mb-6 relative">
+                        <div className="flex flex-col items-center justify-center pt-12 text-center opacity-60 px-4">
+                          <div className="w-[160px] h-[160px] mb-6 relative">
                             <div className="absolute inset-0 bg-blue-50 dark:bg-blue-500/10 rounded-full blur-2xl"></div>
                             <svg viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="1" className="relative z-10 w-full h-full opacity-30">
-                              <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                              <path d="M9 10h4M9 14h6" opacity="0.5" />
+                              <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                             </svg>
                           </div>
                           <p className="text-[14px] leading-relaxed text-[var(--sub-text)]">
-                            {t('chat.search_panel_hint') || 'Hãy nhập từ khóa để bắt đầu tìm kiếm tin nhắn và file trong trò chuyện'}
+                            {t('chat.search_panel_hint') || 'Nhập từ khóa để tìm kiếm tin nhắn trong trò chuyện'}
                           </p>
                         </div>
                       )}
@@ -1132,3 +1477,4 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
     </PresenceProvider>
   );
 }
+

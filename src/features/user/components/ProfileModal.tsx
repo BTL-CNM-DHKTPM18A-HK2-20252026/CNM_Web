@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import { apiClient } from '@/lib/http/apiClient';
 import { useRef } from 'react';
 
+const S3_BASE = process.env.NEXT_PUBLIC_S3_BASE_URL ?? '';
+
 const XIcon = ({ size = 20 }: { size?: number }) => (
 
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -144,8 +146,13 @@ export function ProfileModal({ isOpen, onClose, onUpdate, targetUserId, onStartC
             setIsMe(!targetUserId);
 
             setUserName(data.full_name || data.display_name || "");
-            setAvatarUrl(data.avatar_url || "");
-            setCoverPhotoUrl(data.cover_photo_url || "");
+            const normalizeUrl = (url?: string | null) => {
+              if (!url) return '';
+              if (url.startsWith('http')) return url;
+              return `${S3_BASE}${url}`;
+            };
+            setAvatarUrl(normalizeUrl(data.avatar_url));
+            setCoverPhotoUrl(normalizeUrl(data.cover_photo_url));
             setCoverPhotoPreview("");
             setGender(data.gender || "Nam");
             setEmailAddress(data.gmail || "");
@@ -289,11 +296,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate, targetUserId, onStartC
     setIsAvatarMenuOpen(false);
   };
 
-  const SYSTEM_BACKGROUNDS = [
-    '/background/image1.jpg',
-    '/background/image2.jpg',
-    '/background/image3.jpg',
-  ];
+  const SYSTEM_BACKGROUNDS = Array.from({ length: 12 }, (_, i) => `${S3_BASE}/background_profile/image${i + 1}.jpg`);
 
   const handleSystemBgSelect = async (url: string) => {
     setCoverPhotoPreview(url); // instant preview
@@ -407,19 +410,19 @@ export function ProfileModal({ isOpen, onClose, onUpdate, targetUserId, onStartC
 
   // Calculate default avatar based on userId (Case 2 logic)
   const getDefaultAvatar = (uid: string) => {
-    if (!uid) return "/avatar.jpg";
+    if (!uid) return `${S3_BASE}/avatar/image1.jpg`;
     // Sum char codes to handle non-numeric IDs too
     const charCodeSum = uid.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
     const index = (charCodeSum % 8) + 1;
-    return `/default/image${index}.jpg`;
+    return `${S3_BASE}/avatar/image${index}.jpg`;
   };
 
-  // Pick a deterministic default background from /background/ when user hasn't set one
+  // Pick a deterministic default background from /background_profile/ when user hasn't set one
   const getDefaultCoverPhoto = (uid: string) => {
-    if (!uid) return '/background/image1.jpg';
+    if (!uid) return `${S3_BASE}/background_profile/image1.jpg`;
     const charCodeSum = uid.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
-    const index = (charCodeSum % 3) + 1;
-    return `/background/image${index}.jpg`;
+    const index = (charCodeSum % 12) + 1;
+    return `${S3_BASE}/background_profile/image${index}.jpg`;
   };
 
   const currentAvatar = avatarUrl || getDefaultAvatar(userId);
@@ -880,11 +883,11 @@ export function ProfileModal({ isOpen, onClose, onUpdate, targetUserId, onStartC
               {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
                 <button
                   key={i}
-                  onClick={() => handleSystemAvatarSelect(`/default/image${i}.jpg`)}
+                  onClick={() => handleSystemAvatarSelect(`${S3_BASE}/avatar/image${i}.jpg`)}
                   className="relative aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-[#0068FF] transition-all cursor-pointer group shadow-sm bg-white dark:bg-gray-800"
                 >
-                  <Image src={`/default/image${i}.jpg`} fill alt={`Default ${i}`} className="object-cover group-hover:scale-110 transition-transform" />
-                  {currentAvatar === `/default/image${i}.jpg` && (
+                  <Image src={`${S3_BASE}/avatar/image${i}.jpg`} fill alt={`Default ${i}`} className="object-cover group-hover:scale-110 transition-transform" />
+                  {currentAvatar === `${S3_BASE}/avatar/image${i}.jpg` && (
                     <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
                       <div className="bg-white rounded-full p-0.5">
                         <CheckIcon size={14} />

@@ -299,7 +299,7 @@ export function LoginForm({
                   <div className="absolute -inset-1 bg-gradient-to-tr from-[#0068FF] to-[#00C2FF] rounded-full blur opacity-5 transition duration-500"></div>
                   <div className="relative h-28 w-28 rounded-full overflow-hidden border-[0.5px] border-black/10 dark:border-white/10 shadow-lg">
                     <img
-                      src={scannedUser.avatar_url || "/default/image1.jpg"}
+                      src={scannedUser.avatar_url || `${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/avatar/image1.jpg`}
                       alt={scannedUser.display_name}
                       className="h-full w-full object-cover"
                     />

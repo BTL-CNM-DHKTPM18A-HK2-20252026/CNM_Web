@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from 'react';
+﻿import type { MouseEvent, ReactNode } from 'react';
 import Image from 'next/image';
 import { PinIcon, SparklesIcon } from '@/components/ui/Icons';
 import { StatusIndicator } from '@/features/user';
@@ -79,17 +79,17 @@ export function SidebarItem({
       )}
       <div
         className={`h-12 w-12 rounded-full border-[1px] border-black/[0.06] dark:border-white/10 overflow-hidden shrink-0 flex items-center justify-center relative ${isAi
-            ? 'bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 text-white'
+            ? 'bg-transparent'
             : isCloud
               ? 'bg-[#0068FF]'
               : 'bg-gray-100 dark:bg-gray-800'
           }`}
       >
         {isAi ? (
-          <SparklesIcon size={24} />
+          <Image src={`${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/system/fruvia_chatbot.png`} alt="Fruvia Chatbot" width={48} height={48} className="object-cover w-full h-full" unoptimized />
         ) : isCloud ? (
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="white">
-            <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-5 10c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0-6c-2.33 0-4.5 1.17-4.5 2.5V14h9v-1.5c0-1.33-2.17-2.5-4.5-2.5z" />
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+            <path d="M17.5 19c3.037 0 5.5-2.463 5.5-5.5 0-2.97-2.354-5.391-5.291-5.492a7 7 0 0 0-13.709 0C1.109 8.109 1 10.53 1 13.5c0 3.037 2.463 5.5 5.5 5.5h11z" />
           </svg>
         ) : avatar ? (
           <Image src={avatar} alt={name} width={48} height={48} className="object-cover" unoptimized />

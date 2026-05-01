@@ -1,6 +1,16 @@
 import { apiClient } from '@/lib/http/apiClient';
 import type { UserResponse } from '@/features/user';
 
+export interface FriendSuggestion {
+  userId: string;
+  fullName: string;
+  username?: string;
+  avatarUrl?: string;
+  mutualFriendCount: number;
+  mutualFriendNames?: string[];
+  reason?: string; // e.g. '3 bạn chung'
+}
+
 export interface FriendRequestResponse {
   requestId: string;
   senderId: string;
@@ -72,5 +82,33 @@ export const friendService = {
    */
   async blockUser(userId: string) {
     return apiClient.post('/friends/block', { userId });
-  }
+  },
+
+  /**
+   * Get friend suggestions (BFS level-2 mutual friends + scoring)
+   */
+  async getSuggestions(limit = 10): Promise<FriendSuggestion[]> {
+    return await apiClient.get(`/friends/suggestions?limit=${limit}`);
+  },
+
+  /**
+   * Follow a user (one-way)
+   */
+  async followUser(userId: string) {
+    return apiClient.post('/friends/follow', { userId });
+  },
+
+  /**
+   * Unfollow a user
+   */
+  async unfollowUser(userId: string) {
+    return apiClient.post('/friends/unfollow', { userId });
+  },
+
+  /**
+   * Dismiss a suggestion
+   */
+  async dismissSuggestion(userId: string) {
+    return apiClient.post('/friends/suggestions/dismiss', { userId });
+  },
 };

@@ -1,6 +1,6 @@
 import React from 'react';
 import Image from 'next/image';
-import { SendIcon } from '@/components/ui/Icons';
+import { SendIcon, SparklesIcon } from '@/components/ui/Icons';
 import { useTranslation } from 'react-i18next';
 
 interface FloatingMessengerSidebarProps {
@@ -29,15 +29,27 @@ export const FloatingMessengerSidebar: React.FC<FloatingMessengerSidebarProps> =
           {displayedAvatars.map((conv, idx) => (
             <div 
               key={conv.id || idx} 
-              className="w-7 h-7 rounded-full overflow-hidden border-2 border-white dark:border-[#262626] relative z-[1]"
+              className="w-7 h-7 rounded-full overflow-hidden border-2 border-white dark:border-[#262626] relative z-[1] flex items-center justify-center bg-gray-100"
               style={{ zIndex: 10 - idx }}
             >
-              <Image 
-                src={conv.avatar || "/avatar.jpg"} 
-                fill 
-                alt="Contact" 
-                className="object-cover" 
-              />
+              {conv.isAi ? (
+                <div className="w-full h-full bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 flex items-center justify-center text-white">
+                  <SparklesIcon size={14} />
+                </div>
+              ) : conv.isSelf ? (
+                <div className="w-full h-full bg-[#0068FF] flex items-center justify-center text-white">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.5 19c3.037 0 5.5-2.463 5.5-5.5 0-2.97-2.354-5.391-5.291-5.492a7 7 0 0 0-13.709 0C1.109 8.109 1 10.53 1 13.5c0 3.037 2.463 5.5 5.5 5.5h11z" />
+                  </svg>
+                </div>
+              ) : (
+                <Image 
+                  src={conv.avatar || "/avatar.jpg"} 
+                  fill 
+                  alt="Contact" 
+                  className="object-cover" 
+                />
+              )}
             </div>
           ))}
           {conversations.length > 2 && (

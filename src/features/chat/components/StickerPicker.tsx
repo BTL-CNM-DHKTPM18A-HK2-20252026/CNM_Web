@@ -2,13 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import Image from 'next/image';
 import { SearchIcon, ClockIcon } from '@/components/ui/Icons';
-import EmojiPicker, { Theme, EmojiClickData } from 'emoji-picker-react';
 import { useTheme } from '@/themes';
+import emojiPack from '@/data/emoji-pack.json';
 
 interface StickerPickerProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelect: (sticker: any) => void;
+  onSelect: (emoji: string) => void;
   activeTab?: 'sticker' | 'emoji' | 'gif';
   className?: string;
 }
@@ -22,6 +22,7 @@ export function StickerPicker({
 }: StickerPickerProps) {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState(emojiPack.categories[0]?.id || 'smileys');
   const pickerRef = useRef<HTMLDivElement>(null);
   const { currentTheme } = useTheme();
   const { t } = useTranslation();
@@ -51,14 +52,22 @@ export function StickerPicker({
     { id: 'emoji', label: 'EMOJI' },
   ];
 
-  // STICKER DATA (Empty for now)
-  const amiStickers: any[] = [];
-  const recentStickers: any[] = [];
-
-  const onEmojiClick = (emojiData: EmojiClickData) => {
-    onSelect(emojiData.emoji);
+  const handleEmojiClick = (emoji: any) => {
+    onSelect(emoji.shortcode);
     onClose();
   };
+
+  // Optimization: If no search query, only render the active category to prevent DOM bloat and lag.
+  // If searching, show all matching categories.
+  const displayCategories = searchQuery.trim() 
+    ? emojiPack.categories.map(cat => ({
+        ...cat,
+        icons: cat.icons.filter(icon => 
+          icon.shortcode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          icon.keywords.some(k => k.toLowerCase().includes(searchQuery.toLowerCase()))
+        )
+      })).filter(cat => cat.icons.length > 0)
+    : emojiPack.categories.filter(cat => cat.id === activeCategory);
 
   return (
     <div
@@ -66,7 +75,7 @@ export function StickerPicker({
       className={`absolute mb-2 bg-[var(--card-bg)] border border-[var(--border)] rounded-lg shadow-2xl z-[50] flex flex-col animate-in slide-in-from-bottom-2 fade-in duration-200 ${className || 'w-[400px] h-[480px] left-4 bottom-full'}`}
     >
       {/* Tabs Header */}
-      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 h-12 shrink-0">
+      <div className="flex items-center justify-between border-b border-[var(--border)] px-3 h-10 shrink-0">
         <div className="flex items-center h-full">
           {tabs.map((tab) => (
             <button
@@ -89,12 +98,12 @@ export function StickerPicker({
       </div>
 
       {/* Search Bar Area */}
-      <div className="p-4 flex flex-col gap-4 flex-1 min-h-0 overflow-hidden">
+      <div className="p-2.5 shrink-0 border-b border-[var(--border)]">
         <div className="relative shrink-0">
           <input
             type="text"
-            placeholder={activeTab === 'sticker' ? t('sticker.search_sticker') : t('sticker.search_emoji')}
-            className="w-full h-9 bg-[var(--hover-bg)] border border-transparent rounded-full pl-9 pr-4 text-[13px] text-[var(--text)] focus:bg-[var(--card-bg)] focus:border-[#0068FF] outline-none transition-all placeholder:text-[var(--sub-text)]"
+            placeholder={activeTab === 'sticker' ? t('sticker.search_sticker') : "Tìm kiếm emoji..."}
+            className="w-full h-8 bg-[var(--hover-bg)] border border-transparent rounded-full pl-9 pr-4 text-[13px] text-[var(--text)] focus:bg-[var(--card-bg)] focus:border-[#0068FF] outline-none transition-all placeholder:text-[var(--sub-text)]"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -102,9 +111,10 @@ export function StickerPicker({
             <SearchIcon size={16} />
           </div>
         </div>
+      </div>
 
-        {/* Content Scroll Area */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
+      {/* Content Scroll Area */}
+      <div className="flex-1 overflow-y-auto px-1 py-4 modal-scrollbar">
           {activeTab === 'sticker' && (
             <div className="flex flex-col items-center justify-center h-full text-[var(--sub-text)] opacity-60 py-10">
               <p>Chưa có sticker</p>
@@ -112,32 +122,87 @@ export function StickerPicker({
           )}
 
           {activeTab === 'emoji' && (
-            <div className="absolute inset-0 top-[108px] bottom-12 overflow-hidden bg-[var(--card-bg)]">
-              <EmojiPicker
-                onEmojiClick={onEmojiClick}
-                width="100%"
-                height="100%"
-                theme={currentTheme === 'dark' ? Theme.DARK : Theme.LIGHT}
-                searchDisabled={true} // We have our own search if we want, but library search is better
-                skinTonesDisabled={true}
-                previewConfig={{ showPreview: false }}
-                autoFocusSearch={false}
-              />
+            <div className="flex flex-col gap-6">
+              {displayCategories.map((cat) => (
+                <div key={cat.id}>
+                  <h3 className="text-[12px] font-bold text-[var(--sub-text)] uppercase mb-3 px-1">{cat.name}</h3>
+                  <div className="grid grid-cols-8 gap-1">
+                    {cat.icons.map((icon) => (
+                      <button
+                        key={icon.id}
+                        onClick={() => handleEmojiClick(icon)}
+                        className="p-1 rounded-md hover:bg-[var(--hover-bg)] transition-colors flex items-center justify-center cursor-pointer group"
+                        title={icon.shortcode}
+                      >
+                        <Image 
+                          src={`${emojiPack.base_path}${icon.src}`}
+                          alt={icon.alt}
+                          width={32}
+                          height={32}
+                          className="group-hover:scale-110 transition-transform"
+                          unoptimized // Optimization for local emojis
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {displayCategories.length === 0 && (
+                <div className="text-center py-20 text-[var(--sub-text)]">
+                  Không tìm thấy emoji nào phù hợp
+                </div>
+              )}
             </div>
           )}
-
-
         </div>
-      </div>
 
-      {/* Bottom Navigation */}
-      <div className="h-12 border-t border-[var(--border)] flex items-center px-4 shrink-0 bg-[var(--card-bg)]">
-        <div className="flex items-center gap-1">
-          <button className="h-9 w-9 flex items-center justify-center rounded-md bg-[var(--hover-bg)] text-[#0068FF] transition-all cursor-pointer">
-            <ClockIcon size={20} />
-          </button>
+      {/* Bottom Navigation - Categories */}
+      {activeTab === 'emoji' && (
+        <div className="h-10 border-t border-[var(--border)] flex items-center px-2 shrink-0 bg-[var(--card-bg)] overflow-x-auto no-scrollbar gap-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          {emojiPack.categories.map((cat) => {
+            const representativeIcon = cat.icons[0];
+            return (
+              <button
+                key={cat.id}
+                onClick={() => {
+                  setActiveCategory(cat.id);
+                  setSearchQuery('');
+                }}
+                className={`p-1.5 rounded-lg transition-all cursor-pointer shrink-0 flex items-center justify-center
+                  ${activeCategory === cat.id 
+                    ? 'bg-[#0068FF]/10 text-[#0068FF] ring-1 ring-[#0068FF]/30' 
+                    : 'hover:bg-[var(--hover-bg)] opacity-60 hover:opacity-100'
+                  }
+                `}
+                title={cat.name}
+              >
+                {representativeIcon ? (
+                  <Image 
+                    src={`${emojiPack.base_path}${representativeIcon.src}`}
+                    alt={cat.name}
+                    width={24}
+                    height={24}
+                    className="w-6 h-6 object-contain"
+                    unoptimized
+                  />
+                ) : (
+                  <span className="text-[10px] font-bold uppercase">{cat.name.substring(0, 2)}</span>
+                )}
+              </button>
+            );
+          })}
         </div>
-      </div>
+      )}
+
+      {activeTab === 'sticker' && (
+        <div className="h-12 border-t border-[var(--border)] flex items-center px-4 shrink-0 bg-[var(--card-bg)]">
+          <div className="flex items-center gap-1">
+            <button className="h-9 w-9 flex items-center justify-center rounded-md bg-[var(--hover-bg)] text-[#0068FF] transition-all cursor-pointer">
+              <ClockIcon size={20} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

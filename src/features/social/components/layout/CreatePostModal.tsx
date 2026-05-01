@@ -21,7 +21,9 @@ interface CreatePostModalProps {
     altText?: string;
     hideLikes?: boolean;
     turnOffComments?: boolean;
+    sharedPostId?: string;
   }) => Promise<void>;
+  sharedPost?: any;
 }
 
 type Step = 'select' | 'details';
@@ -42,6 +44,13 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ user, onClose,
   const [currentIndex, setCurrentIndex] = useState(0);
   const [videoThumbnails, setVideoThumbnails] = useState<Record<number, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // If sharing, start at details step
+  React.useEffect(() => {
+    if (sharedPost) {
+      setStep('details');
+    }
+  }, [sharedPost]);
 
   const emojis = ['😀', '😍', '🔥', '🙌', '✨', '❤️', '📍', '💯', '🚀', '📸'];
   const mockLocations = [
@@ -186,7 +195,8 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ user, onClose,
         location,
         altText,
         hideLikes,
-        turnOffComments: disableComments
+        turnOffComments: disableComments,
+        sharedPostId: sharedPost?.postId
       });
       onClose();
     } catch (error) {
@@ -338,6 +348,25 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ user, onClose,
 
                 {/* 90% Image Area */}
                 <div className="flex-1 relative group/media overflow-hidden flex items-center justify-center">
+                  {sharedPost && files.length === 0 && (
+                    <div className="w-full max-w-[420px] bg-white dark:bg-black rounded-xl overflow-hidden border border-gray-100 dark:border-zinc-800 shadow-2xl animate-in zoom-in-95 duration-500 mx-auto">
+                      <div className="p-3 flex items-center gap-2 border-b border-gray-100 dark:border-zinc-800">
+                        <div className="w-6 h-6 rounded-full overflow-hidden relative">
+                           <Image src={sharedPost.authorAvatar || "/avatar.jpg"} fill alt="Original Author" className="object-cover" />
+                        </div>
+                        <span className="text-[13px] font-bold">{sharedPost.authorName}</span>
+                      </div>
+                      <div className="p-4 text-[14px]">
+                        {sharedPost.content}
+                      </div>
+                      {sharedPost.mediaList && sharedPost.mediaList.length > 0 && (
+                        <div className="relative aspect-video">
+                          <img src={sharedPost.mediaList[0].url} className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {previews[currentIndex] && (() => {
                     const file = files[currentIndex];
                     const name = file?.name || '';

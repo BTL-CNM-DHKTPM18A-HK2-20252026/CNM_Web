@@ -4,6 +4,9 @@ import Image from 'next/image';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/http/apiClient';
+import { NicknameModal } from '@/features/chat/components/modals/NicknameModal';
+
+const S3_BASE = process.env.NEXT_PUBLIC_S3_BASE_URL ?? '';
 
 const XIcon = ({ size = 20 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -21,7 +24,7 @@ interface MemberProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   targetUserId: string | null;
-  onStartChat?: (userId: string, data: any) => void;
+  onStartChat?: (user: { user_id: string; display_name: string; avatar_url: string }) => void;
   onAddFriend?: (prefill: any) => void;
   onBack?: () => void;
 }
@@ -42,10 +45,11 @@ interface UserProfileData {
   common_groups_count?: number;
 }
 
-export function MemberProfileModal({ isOpen, onClose, targetUserId, onStartChat, onAddFriend }: MemberProfileModalProps) {
+export function MemberProfileModal({ isOpen, onClose, targetUserId, onStartChat, onAddFriend, onBack }: MemberProfileModalProps) {
   const { t } = useTranslation();
   const [userData, setUserData] = useState<UserProfileData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showNicknameModal, setShowNicknameModal] = useState(false);
 
   useEffect(() => {
     if (isOpen && targetUserId) {
@@ -70,18 +74,31 @@ export function MemberProfileModal({ isOpen, onClose, targetUserId, onStartChat,
 
   if (!isOpen) return null;
 
+  // Khi đang mở nickname modal → chỉ render nickname modal (ẩn profile)
+  if (showNicknameModal) {
+    return (
+      <NicknameModal
+        isOpen={true}
+        onClose={() => setShowNicknameModal(false)}
+        currentName={userData?.full_name || userData?.display_name || ''}
+        avatar={userData?.avatar_url}
+        onConfirm={(newName) => toast.success(`Đã lưu tên gợi nhớ: ${newName}`)}
+      />
+    );
+  }
+
   const getDefaultAvatar = (uid: string) => {
     if (!uid) return "/avatar.jpg";
     const charCodeSum = uid.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
     const index = (charCodeSum % 8) + 1;
-    return `/default/image${index}.jpg`;
+    return `${S3_BASE}/avatar/image${index}.jpg`;
   };
 
   const getDefaultCoverPhoto = (uid: string) => {
-    if (!uid) return '/background/image1.jpg';
+    if (!uid) return `${S3_BASE}/background/image1.jpg`;
     const charCodeSum = uid.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
     const index = (charCodeSum % 3) + 1;
-    return `/background/image${index}.jpg`;
+    return `${S3_BASE}/background/image${index}.jpg`;
   };
 
   const userId = userData?.id || userData?.user_id || targetUserId || "";
@@ -100,19 +117,14 @@ export function MemberProfileModal({ isOpen, onClose, targetUserId, onStartChat,
       <div className="w-full max-w-[420px] bg-white rounded-lg shadow-2xl relative z-[151] animate-in zoom-in-95 duration-200 flex flex-col h-[85vh] max-h-[620px] overflow-hidden">
         {/* Header */}
         <div className="h-[48px] border-b border-[#E5E7EB] flex items-center justify-between px-3 shrink-0">
-          <div className="flex items-center gap-2">
-            <button onClick={onBack || onClose} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors cursor-pointer">
-              <ChevronLeftIcon size={20} />
-            </button>
-            <h2 className="text-[16px] font-bold text-[#13233F]">Thông tin tài khoản</h2>
-          </div>
+          <h2 className="text-[16px] font-bold text-[#13233F]">Thông tin tài khoản</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors cursor-pointer">
             <XIcon size={20} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar bg-white">
+        <div className="flex-1 overflow-y-auto scrollbar-hide bg-white" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {/* Cover & Avatar */}
           <div className="h-[140px] w-full relative bg-gray-200">
             <Image src={coverUrl} alt="Cover" fill className="object-cover" unoptimized />
@@ -126,7 +138,7 @@ export function MemberProfileModal({ isOpen, onClose, targetUserId, onStartChat,
               <div className="flex-1 pb-1">
                 <div className="flex items-center gap-2">
                   <h1 className="text-[20px] font-bold text-[#13233F]">{userName}</h1>
-                  <button className="p-1 hover:bg-gray-100 rounded text-gray-400">
+                  <button onClick={() => setShowNicknameModal(true)} className="p-1 hover:bg-gray-100 rounded text-gray-400 cursor-pointer" title="Đặt tên gợi nhớ">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
                   </button>
                 </div>
@@ -136,7 +148,7 @@ export function MemberProfileModal({ isOpen, onClose, targetUserId, onStartChat,
             <button
               onClick={() => {
                 onClose();
-                onStartChat?.(userId, { display_name: userName, avatar_url: avatarUrl });
+                onStartChat?.({ user_id: userId, display_name: userName, avatar_url: avatarUrl });
               }}
               className="w-full h-[38px] bg-[#E8F2FF] hover:bg-[#D6E6FF] text-[#0068FF] font-bold text-[15px] rounded transition-colors cursor-pointer"
             >

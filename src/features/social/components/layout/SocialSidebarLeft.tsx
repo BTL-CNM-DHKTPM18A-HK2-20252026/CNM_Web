@@ -6,7 +6,8 @@ import {
   HomeIcon, 
   SearchIcon, 
   MessageBubbleIcon, 
-  GlobeIcon, 
+  CompassIcon,
+  ClapperboardIcon, 
   BellIcon, 
   PlusIcon,
   SettingsIcon,
@@ -15,6 +16,7 @@ import {
   LogOutIcon,
 } from '@/components/ui/Icons';
 import { useTheme } from '@/themes';
+import { Archive as ArchiveIcon, Music as MusicIcon } from 'lucide-react';
 
 interface SocialSidebarLeftProps {
   user: any;
@@ -23,6 +25,10 @@ interface SocialSidebarLeftProps {
   onHomeClick?: () => void;
   onExploreClick?: () => void;
   onCreatePostClick?: () => void;
+  onArchiveClick?: () => void;
+  onSearchClick?: () => void;
+  onNotificationsClick?: () => void;
+  onMyMusicClick?: () => void;
   onLogout?: () => void;
 }
 
@@ -33,6 +39,10 @@ export const SocialSidebarLeft: React.FC<SocialSidebarLeftProps> = ({
   onHomeClick,
   onExploreClick,
   onCreatePostClick,
+  onArchiveClick,
+  onSearchClick,
+  onNotificationsClick,
+  onMyMusicClick,
   onLogout 
 }) => {
   const { t, i18n } = useTranslation();
@@ -45,12 +55,12 @@ export const SocialSidebarLeft: React.FC<SocialSidebarLeftProps> = ({
 
   const menuItems = [
     { id: 'home', icon: HomeIcon, active: true },
-    { id: 'search', icon: SearchIcon },
-    { id: 'explore', icon: GlobeIcon },
-    { id: 'reels', icon: GlobeIcon }, 
+    { id: 'explore', icon: CompassIcon },
+    { id: 'reels', icon: ClapperboardIcon }, 
     { id: 'messages', icon: MessageBubbleIcon },
-    { id: 'notifications', icon: BellIcon },
     { id: 'create', icon: PlusIcon },
+    { id: 'archive', icon: ArchiveIcon },
+    { id: 'my-music', icon: MusicIcon },
     { id: 'profile', icon: null }, 
   ];
 
@@ -84,10 +94,17 @@ export const SocialSidebarLeft: React.FC<SocialSidebarLeftProps> = ({
               key={item.id}
               onClick={() => {
                 if (item.id === 'home' && onHomeClick) onHomeClick();
+                if (item.id === 'search' && onSearchClick) onSearchClick();
                 if (item.id === 'messages' && onMessagesClick) onMessagesClick();
                 if (item.id === 'profile' && onProfileClick) onProfileClick();
-                if (item.id === 'explore' && onExploreClick) onExploreClick();
+                if (item.id === 'explore' && onHomeClick) onHomeClick(); // Khám phá hiển thị màn hình trang chủ
+                if (item.id === 'reels' && onExploreClick) onExploreClick(); // Reels hiển thị video
                 if (item.id === 'create' && onCreatePostClick) onCreatePostClick();
+                if (item.id === 'archive' && onArchiveClick) onArchiveClick();
+                if (item.id === 'notifications' && onNotificationsClick) onNotificationsClick();
+                if (item.id === 'my-music') {
+                  if (onMyMusicClick) onMyMusicClick();
+                }
               }}
               className="flex items-center gap-3 px-[18px] py-3 hover:bg-[#FAFAFA] dark:hover:bg-[#1A1A1A] cursor-pointer transition-all group/item text-black dark:text-white shrink-0"
             >

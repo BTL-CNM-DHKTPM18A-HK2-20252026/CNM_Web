@@ -1,10 +1,21 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ChevronDownIcon, ChevronRightIcon, MessageBubbleIcon, MoreHorizontalIcon, SparklesIcon } from '@/components/ui/Icons';
 import { AI_TYPING_USER_ID } from '@/features/chat/components/ChatWindow/useChatWindow';
 import type { ChatMessage, ChatMessageListProps } from '@/features/chat/components/ChatWindow/types';
 import { usePresence } from '@/features/user';
 import { apiClient } from '@/lib/http/apiClient';
+import emojiPack from '@/data/emoji-pack.json';
+
+// Initialize emoji lookup map
+const emojiMap: Record<string, string> = {};
+emojiPack.categories.forEach((cat: any) => {
+  cat.icons.forEach((icon: any) => {
+    emojiMap[icon.shortcode] = icon.src;
+  });
+});
+
+const zaloEmojiRegex = /(:zalo_\d+_\d+:)/g;
 
 const formatFileSize = (bytes?: number) => {
   if (!bytes) return '';
@@ -63,29 +74,31 @@ function CallHistoryMessage({
           )}
         </div>
       )}
-      <div className="w-[162px] rounded-xl border border-[#c5d5e7] bg-[#d8e5f4] px-4 py-3 shadow-sm">
-        <h4 className="text-[15px] font-bold leading-tight text-[#1f2f46]">{cardTitle}</h4>
+      <div className="w-[190px] rounded-lg border border-[#dde3ea] bg-white px-4 py-3 shadow-sm dark:bg-[#1e2a38] dark:border-white/10">
+        <h4 className="text-[15px] font-bold leading-tight text-[#1f2f46] dark:text-white">{cardTitle}</h4>
 
-        <div className="mt-1.5 flex items-center gap-2 text-[13px] text-[#586b82]">
-          <span className="relative flex h-4.5 w-5 items-center justify-center">
-            <svg width="18" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" className="text-[#6b7d90]">
+        <div className="mt-1.5 flex items-center gap-2 text-[13px] text-[#586b82] dark:text-[#8ea3b8]">
+          <span className="relative flex h-5 w-5 items-center justify-center">
+            <svg width="18" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" className="text-[#6b7d90] dark:text-[#8ea3b8]">
               <rect x="2.5" y="7" width="12" height="10" rx="2" />
               <path d="M15 10.5 21 7v10l-6-3.5" />
             </svg>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round" className={`absolute -top-1 -right-1 ${statusColor}`}>
-              <path d="M7 17L17 7" />
-              <path d="M9 7h8v8" />
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`absolute -top-1 -right-1 ${statusColor}`}>
+              {isCaller
+                ? <><path d="M7 17L17 7" /><path d="M9 7h8v8" /></>
+                : <><path d="M17 7L7 17" /><path d="M15 17H7V9" /></>
+              }
             </svg>
           </span>
-          <span className="font-semibold">{detailText}</span>
+          <span className="font-medium">{detailText}</span>
         </div>
 
-        <div className="my-2 border-t border-[#b8c9dd]" />
+        <div className="my-2 border-t border-[#e8ecf0] dark:border-white/10" />
 
         <button
           type="button"
           onClick={() => toast.info(t('chat.call.redial_hint'))}
-          className="w-full cursor-pointer text-center text-[15px] font-bold text-[#0068FF] transition-colors hover:text-[#0052cc]"
+          className="w-full cursor-pointer text-center text-[15px] font-semibold text-[#0068FF] transition-colors hover:text-[#0052cc]"
         >
           {t('chat.call.redial')}
         </button>
@@ -107,7 +120,7 @@ function GroupCallCard({
 }) {
   const isMe = msg.senderId === currentUserId || msg.sender === 'Me';
   const senderName = isMe ? 'Bạn' : (msg.senderName || msg.sender || 'Thành viên');
-  
+
   return (
     <div className={`flex items-end gap-2 my-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
       {!isMe && (
@@ -122,25 +135,25 @@ function GroupCallCard({
       <div className="w-[260px] rounded-2xl border border-[#c5d5e7] bg-white dark:bg-[#1E1E1E] overflow-hidden shadow-sm">
         <div className="bg-gradient-to-r from-[#0068FF] to-[#0095FF] p-4 text-white">
           <div className="flex items-center gap-3">
-             <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M16 10V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3l4 3V7l-4 3Z" />
-                  <path d="M12 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" /><path d="M14 13a3 3 0 0 0-4 0" />
-                </svg>
-             </div>
-             <div>
-               <div className="text-[15px] font-bold">Cuộc gọi video nhóm</div>
-               <div className="text-[12px] opacity-90">{senderName} đã bắt đầu</div>
-             </div>
+            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 10V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3l4 3V7l-4 3Z" />
+                <path d="M12 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" /><path d="M14 13a3 3 0 0 0-4 0" />
+              </svg>
+            </div>
+            <div>
+              <div className="text-[15px] font-bold">Cuộc gọi video nhóm</div>
+              <div className="text-[12px] opacity-90">{senderName} đã bắt đầu</div>
+            </div>
           </div>
         </div>
         <div className="p-2.5 bg-white dark:bg-[#1E1E1E]">
-           <button 
-             onClick={() => toast.info('Tham gia cuộc gọi nhóm đang được kết nối...')}
-             className="w-full py-2 bg-[#0068FF] hover:bg-[#0052CC] text-white text-[14px] font-bold rounded-lg transition-colors cursor-pointer"
-           >
-             Tham gia
-           </button>
+          <button
+            onClick={() => toast.info('Tham gia cuộc gọi nhóm đang được kết nối...')}
+            className="w-full py-2 bg-[#0068FF] hover:bg-[#0052CC] text-white text-[14px] font-bold rounded-lg transition-colors cursor-pointer"
+          >
+            Tham gia
+          </button>
         </div>
       </div>
     </div>
@@ -236,9 +249,9 @@ const renderText = (text: string, mentions?: string[]) => {
           rel="noopener noreferrer"
           className="text-[#0068FF] hover:underline break-all cursor-pointer font-medium"
           onClick={(e) => {
-             e.stopPropagation();
-             // If it's a join link, we let the card handle the modal, but if they click the link directly...
-             // We could also open the modal here if we want.
+            e.stopPropagation();
+            // If it's a join link, we let the card handle the modal, but if they click the link directly...
+            // We could also open the modal here if we want.
           }}
         >
           {cleanDisplay}
@@ -260,7 +273,42 @@ const renderText = (text: string, mentions?: string[]) => {
         return sub;
       });
     }
+    // 4. Zalo Emoji
+    if (part.match(zaloEmojiRegex)) {
+      const src = emojiMap[part];
+      if (src) {
+        return (
+          <img
+            key={`emoji-${idx}`}
+            src={src}
+            alt={part}
+            className="inline-block w-6 h-6 mx-0.5 align-text-bottom"
+            style={{ display: 'inline-block', verticalAlign: 'text-bottom' }}
+            title={part}
+          />
+        );
+      }
+    }
+
+    // 5. Regular text
     return part;
+  });
+};
+
+const replaceEmojiWithHtml = (text: string) => {
+  if (!text) return '';
+  
+  // Use a more sophisticated replacement to avoid double-replacing inside <img> tags (alt, title, etc.)
+  // We look for the shortcode and check if it's preceded by =" (typical of an attribute)
+  return text.replace(/:zalo_\d+_\d+:/g, (match, offset, fullText) => {
+    // Basic check: if preceded by 'alt="' or 'title="' or '>', it's likely already inside a tag
+    const prevChar = fullText.slice(Math.max(0, offset - 5), offset);
+    if (prevChar.includes('="') || prevChar.includes('alt=') || prevChar.includes('title=')) {
+      return match;
+    }
+    
+    const src = emojiMap[match];
+    return src ? `<img src="${src}" alt="${match}" class="inline-block w-6 h-6 mx-0.5 align-text-bottom" style="width: 24px; height: 24px; display: inline-block; margin: 0 2px; vertical-align: text-bottom;" title="${match}" />` : match;
   });
 };
 
@@ -268,7 +316,7 @@ const getDisplayText = (msg: ChatMessage, isAiConversation: boolean): string => 
   const text = msg.text ?? '';
   const isAiMessage = isAiConversation
     || msg.senderId === AI_TYPING_USER_ID
-    || (msg.sender || '').trim().toLowerCase() === 'fruvia ai';
+    || (msg.sender || '').trim().toLowerCase() === 'Fruvia Chatbot';
 
   if (!isAiMessage) return text;
 
@@ -343,7 +391,7 @@ function GroupJoinLinkPreview({ url, onSelectConversation }: { url: string; onSe
       await apiClient.post(`/conversations/join/${id}`, {});
       toast.success('Tham gia nhóm thành công');
       setShowJoinModal(false);
-      
+
       if (onSelectConversation) {
         onSelectConversation(id);
       } else {
@@ -390,7 +438,7 @@ function GroupJoinLinkPreview({ url, onSelectConversation }: { url: string; onSe
         <div className="relative h-[160px] w-full bg-gradient-to-br from-[#0095FF] to-[#0068FF] flex items-center px-5 gap-4 overflow-hidden">
           <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full border-[20px] border-white/10 pointer-events-none" />
           <div className="absolute -left-12 -bottom-12 w-48 h-48 rounded-full border-[30px] border-white/5 pointer-events-none" />
-          
+
           <div className="relative z-10 flex items-center gap-4">
             <div className="w-[70px] h-[70px] rounded-xl overflow-hidden border-2 border-white/40 bg-white/20 flex items-center justify-center shrink-0 shadow-lg">
               {groupInfo.avatar ? (
@@ -409,7 +457,7 @@ function GroupJoinLinkPreview({ url, onSelectConversation }: { url: string; onSe
             </div>
           </div>
         </div>
-        
+
         <div className="p-3.5 bg-white dark:bg-[#1E1E1E]">
           <div className="text-[15px] font-bold text-[var(--text)] mb-1 truncate">
             {groupInfo.name}
@@ -425,11 +473,11 @@ function GroupJoinLinkPreview({ url, onSelectConversation }: { url: string; onSe
 
       {/* Join Confirmation Modal */}
       {showJoinModal && (
-        <div 
+        <div
           className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={(e) => { e.stopPropagation(); setShowJoinModal(false); }}
         >
-          <div 
+          <div
             className="bg-[var(--card-bg)] border border-[var(--border)] w-full max-w-[340px] rounded-lg shadow-2xl overflow-hidden animate-in fade-in duration-200"
             onClick={(e) => e.stopPropagation()}
           >
@@ -447,10 +495,10 @@ function GroupJoinLinkPreview({ url, onSelectConversation }: { url: string; onSe
               </div>
               <h3 className="text-[17px] font-semibold text-[var(--text)] mb-1.5">Tham gia nhóm?</h3>
               <p className="text-[13px] text-[var(--sub-text)] mb-7 px-4 leading-relaxed">
-                Bạn có chắc chắn muốn tham gia vào nhóm <br/>
+                Bạn có chắc chắn muốn tham gia vào nhóm <br />
                 <span className="font-medium text-[var(--text)]">"{groupInfo.name}"</span> không?
               </p>
-              
+
               <div className="flex gap-2.5">
                 <button
                   onClick={() => setShowJoinModal(false)}
@@ -641,7 +689,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
     if (peerId && !selectedChat.isGroup && !selectedChat.isCloud && !selectedChat.isAi) {
       refreshUserStatus(peerId);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChat.otherUserId, selectedChat.recipientId]);
 
 
@@ -687,53 +735,53 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
       {pinnedMessages.length > 0 && (
         <div className={`relative ${showPinnedList ? 'z-[60]' : 'z-20'}`}>
           {!showPinnedList && (
-          <div className="bg-[var(--card-bg)] border-b border-[var(--border)] flex items-center justify-between gap-3 px-3 py-2 select-none">
-            <div
-              className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
-              onClick={() => {
-                const pin = pinnedMessages[0];
-                const el = document.getElementById(`msg-${pin.messageId}`);
-                if (el) {
-                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  el.classList.add('highlight-msg');
-                  setTimeout(() => el.classList.remove('highlight-msg'), 2000);
-                }
-              }}
-            >
-              <div className="shrink-0 w-7 h-7 rounded-full border border-[#0B63F6]/30 text-[#0B63F6] flex items-center justify-center bg-[#F1F6FF]">
-                <MessageBubbleIcon size={14} />
-              </div>
+            <div className="bg-[var(--card-bg)] border-b border-[var(--border)] flex items-center justify-between gap-3 px-3 py-2 select-none">
+              <div
+                className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+                onClick={() => {
+                  const pin = pinnedMessages[0];
+                  const el = document.getElementById(`msg-${pin.messageId}`);
+                  if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.classList.add('highlight-msg');
+                    setTimeout(() => el.classList.remove('highlight-msg'), 2000);
+                  }
+                }}
+              >
+                <div className="shrink-0 w-7 h-7 rounded-full border border-[#0B63F6]/30 text-[#0B63F6] flex items-center justify-center bg-[#F1F6FF]">
+                  <MessageBubbleIcon size={14} />
+                </div>
 
-              <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-semibold text-[var(--text)] leading-tight">Tin nhắn</div>
-                <div className="text-[13px] text-[var(--sub-text)] truncate leading-snug mt-0.5">
-                  <span className="font-medium text-[var(--text)]">{pinnedMessages[0].senderName}: </span>
-                  {(getPinnedPreviewText(pinnedMessages[0]).length > 120
-                    ? `${getPinnedPreviewText(pinnedMessages[0]).slice(0, 120)}...`
-                    : getPinnedPreviewText(pinnedMessages[0]))}
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-semibold text-[var(--text)] leading-tight">Tin nhắn</div>
+                  <div className="text-[13px] text-[var(--sub-text)] truncate leading-snug mt-0.5">
+                    <span className="font-medium text-[var(--text)]">{pinnedMessages[0].senderName}: </span>
+                    {(getPinnedPreviewText(pinnedMessages[0]).length > 120
+                      ? `${getPinnedPreviewText(pinnedMessages[0]).slice(0, 120)}...`
+                      : getPinnedPreviewText(pinnedMessages[0]))}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="shrink-0 flex items-center gap-1">
-              <button
-                onClick={() => setShowPinnedList(true)}
-                className="h-8 px-2.5 rounded-md border border-[#C7CFDB] text-[#1F2D49] text-[11px] font-semibold hover:bg-[#EEF2F7] transition-colors cursor-pointer inline-flex items-center gap-1"
-                aria-label="Xem tất cả tin nhắn ghim"
-              >
-                <span>+{pinnedMessages.length} ghim</span>
-                <ChevronDownIcon size={12} />
-              </button>
+              <div className="shrink-0 flex items-center gap-1">
+                <button
+                  onClick={() => setShowPinnedList(true)}
+                  className="h-8 px-2.5 rounded-md border border-[#C7CFDB] text-[#1F2D49] text-[11px] font-semibold hover:bg-[#EEF2F7] transition-colors cursor-pointer inline-flex items-center gap-1"
+                  aria-label="Xem tất cả tin nhắn ghim"
+                >
+                  <span>+{pinnedMessages.length} ghim</span>
+                  <ChevronDownIcon size={12} />
+                </button>
 
-              <button
-                onClick={() => setShowPinnedList(true)}
-                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
-                aria-label="Mở menu tin nhắn ghim"
-              >
-                <MoreHorizontalIcon size={16} />
-              </button>
+                <button
+                  onClick={() => setShowPinnedList(true)}
+                  className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-[var(--sub-text)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
+                  aria-label="Mở menu tin nhắn ghim"
+                >
+                  <MoreHorizontalIcon size={16} />
+                </button>
+              </div>
             </div>
-          </div>
           )}
 
           {showPinnedList && (
@@ -828,8 +876,8 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                 const paddingClass = showTimestamp
                   ? 'pb-4'
                   : hasReactions
-                  ? 'pb-5'
-                  : 'pb-1';
+                    ? 'pb-5'
+                    : 'pb-1';
                 const displayText = getDisplayText(msg, Boolean(selectedChat.isAi));
 
                 return (
@@ -908,9 +956,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                 {(msg as any).avatar ? (
                                   <img src={(msg as any).avatar} alt="Avatar" className="w-full h-full object-cover" />
                                 ) : selectedChat.isAi || (msg as any).senderId === AI_TYPING_USER_ID ? (
-                                  <div className="w-full h-full rounded-full bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 flex items-center justify-center text-white">
-                                    <SparklesIcon size={16} />
-                                  </div>
+                                  <img src={`${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/system/fruvia_chatbot.png`} alt="Fruvia Chatbot" className="w-full h-full object-cover" />
                                 ) : selectedChat.avatar ? (
                                   <img src={selectedChat.avatar} alt="Avatar" className="w-full h-full object-cover" />
                                 ) : (
@@ -934,18 +980,18 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                               const replySnippet = repliedMsg.isRecalled
                                 ? t('chat.message.recalled')
                                 : repliedMsg.type === 'IMAGE'
-                                ? `📷 ${t('chat.snippet.image')}`
-                                : repliedMsg.type === 'VIDEO'
-                                ? `🎬 ${t('chat.snippet.video')}`
-                                : repliedMsg.type === 'VOICE'
-                                ? `🎤 ${t('chat.snippet.voice')}`
-                                : repliedMsg.type === 'MEDIA'
-                                ? `📎 ${t('chat.snippet.file')}`
-                                : repliedMsg.type === 'SHARE_CONTACT'
-                                ? (() => { try { const c = JSON.parse(repliedMsg.text || '{}'); return `📇 ${c.fullName || t('share_contact.snippet')}`; } catch { return `📇 ${t('share_contact.snippet')}`; } })()
-                                : repliedMsg.text?.length > 80
-                                ? `${repliedMsg.text.slice(0, 80)}...`
-                                : repliedMsg.text;
+                                  ? `📷 ${t('chat.snippet.image')}`
+                                  : repliedMsg.type === 'VIDEO'
+                                    ? `🎬 ${t('chat.snippet.video')}`
+                                    : repliedMsg.type === 'VOICE'
+                                      ? `🎤 ${t('chat.snippet.voice')}`
+                                      : repliedMsg.type === 'MEDIA'
+                                        ? `📎 ${t('chat.snippet.file')}`
+                                        : repliedMsg.type === 'SHARE_CONTACT'
+                                          ? (() => { try { const c = JSON.parse(repliedMsg.text || '{}'); return `📇 ${c.fullName || t('share_contact.snippet')}`; } catch { return `📇 ${t('share_contact.snippet')}`; } })()
+                                          : repliedMsg.text?.length > 80
+                                            ? `${repliedMsg.text.slice(0, 80)}...`
+                                            : repliedMsg.text;
 
                               return (
                                 <div
@@ -960,7 +1006,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                   className={`mb-1 px-2.5 py-1.5 rounded-md border-l-[3px] cursor-pointer transition-colors text-[12px] leading-snug ${msg.sender === 'Me'
                                     ? 'bg-black/5 dark:bg-white/5 border-white/40 dark:border-white/30 hover:bg-black/10 dark:hover:bg-white/10'
                                     : 'bg-black/5 dark:bg-white/5 border-[#0068FF]/40 hover:bg-black/10 dark:hover:bg-white/10'
-                                  }`}
+                                    }`}
                                 >
                                   <div className="font-bold text-[11px] text-[#0068FF] mb-0.5">{repliedMsg.sender === 'Me' ? t('common.you') : repliedMsg.sender}</div>
                                   <div className="text-[var(--sub-text)] truncate max-w-[280px]">{replySnippet}</div>
@@ -972,12 +1018,12 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                               className={`relative group w-fit min-w-[100px] ${msg.isRecalled
                                 ? `px-3 pt-2 pb-2 rounded-md shadow-sm text-[15px] border border-dashed ${msg.sender === 'Me' ? 'border-gray-300 dark:border-gray-600' : 'border-gray-300 dark:border-gray-600'}`
                                 : msg.type === 'MEDIA' || msg.type === 'IMAGE' || msg.type === 'IMAGE_GROUP' || msg.type === 'VIDEO' || msg.type === 'SHARE_CONTACT'
-                                ? ''
-                                : `px-3 pt-2 pb-2 rounded-md shadow-sm text-[15px] border ${msg.sender === 'Me'
-                                  ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)] border-[var(--message-me-border)]'
-                                  : 'bg-[var(--message-other-bg)] text-[var(--message-other-text)] border-[var(--message-other-border)]'
-                                }`
-                              }`}
+                                  ? ''
+                                  : `px-3 pt-2 pb-2 rounded-md shadow-sm text-[15px] border ${msg.sender === 'Me'
+                                    ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)] border-[var(--message-me-border)]'
+                                    : 'bg-[var(--message-other-bg)] text-[var(--message-other-text)] border-[var(--message-other-border)]'
+                                  }`
+                                }`}
                               onContextMenu={(e) => openContextMenu(e, msg)}
                             >
                               <div className="leading-relaxed">
@@ -1058,11 +1104,10 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                       <video src={msg.text} controls className="max-w-[320px] max-h-[360px] rounded-md shadow-sm object-contain" />
                                     )}
                                     {msg.caption && (
-                                      <div className={`px-2.5 py-1.5 text-[14px] leading-snug break-words rounded-b-md max-w-[320px] shadow-sm ${
-                                        msg.sender === 'Me'
+                                      <div className={`px-2.5 py-1.5 text-[14px] leading-snug break-words rounded-b-md max-w-[320px] shadow-sm ${msg.sender === 'Me'
                                           ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)]'
                                           : 'bg-[var(--message-other-bg)] text-[var(--message-other-text)]'
-                                      }`}>
+                                        }`}>
                                         {msg.caption}
                                       </div>
                                     )}
@@ -1165,11 +1210,10 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                       </div>
                                     )}
                                     {msg.caption && (
-                                      <div className={`px-2.5 py-1.5 text-[14px] leading-snug break-words rounded-b-md max-w-[320px] shadow-sm ${
-                                        msg.sender === 'Me'
+                                      <div className={`px-2.5 py-1.5 text-[14px] leading-snug break-words rounded-b-md max-w-[320px] shadow-sm ${msg.sender === 'Me'
                                           ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)]'
                                           : 'bg-[var(--message-other-bg)] text-[var(--message-other-text)]'
-                                      }`}>
+                                        }`}>
                                         {msg.caption}
                                       </div>
                                     )}
@@ -1248,14 +1292,14 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                   const isPDF = ext === 'PDF';
                                   const isWord = ['DOC', 'DOCX'].includes(ext);
                                   const isExcel = ['XLS', 'XLSX'].includes(ext);
-                                  
+
                                   return (
                                     <div className={`border rounded-xl p-3 flex items-center gap-3 min-w-[280px] max-w-[380px] hover:shadow-lg transition-all cursor-pointer group/file relative ${msg.sender === 'Me' ? 'bg-[#EBF5FF] border-[#D0E7FF]' : 'bg-[#F0F7FF] border-[#E0EFFF]'}`} onClick={() => window.open(getPreviewUrl(msg.text), '_blank')}>
                                       <div className={`h-12 w-10 rounded-lg flex flex-col items-center justify-center text-white font-bold shadow-sm shrink-0 ${isPDF ? 'bg-[#FF5C5C]' : isWord ? 'bg-[#2B7CF6]' : isExcel ? 'bg-[#1D6F42]' : 'bg-gray-400'}`}>
                                         {isWord ? (
                                           <span className="text-[14px]">W</span>
                                         ) : isPDF ? (
-                                           <span className="text-[8px]">PDF</span>
+                                          <span className="text-[8px]">PDF</span>
                                         ) : (
                                           <span className="text-[8px]">{ext.slice(0, 3)}</span>
                                         )}
@@ -1270,8 +1314,8 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                           </div>
                                         </div>
                                       </div>
-                                      <button 
-                                        onClick={(e) => handleDownloadFile(e, msg.text, getFileNameFromUrl(msg.text))} 
+                                      <button
+                                        onClick={(e) => handleDownloadFile(e, msg.text, getFileNameFromUrl(msg.text))}
                                         className="h-8 w-8 rounded-md flex items-center justify-center border border-[#D0E7FF] group-hover/file:bg-white transition-all shrink-0 cursor-pointer hover:scale-110 active:scale-95 shadow-sm bg-white/50"
                                         title="Tải xuống"
                                       >
@@ -1293,26 +1337,26 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                           {(() => {
                                             const urlMatch = displayText.match(/(https?:\/\/[^\s]+|fruvia\.chat\/g\/[^\s]+)/);
                                             const url = msg.type === 'LINK' ? displayText : (urlMatch ? urlMatch[0] : null);
-                                            
+
                                             if (url && url.includes('/g/')) {
                                               // If it's a group join link, hide the raw link text if it's the only content
                                               const cleanText = displayText.replace(url, '').trim();
                                               return (
                                                 <>
                                                   {cleanText && (/<[a-z][\s\S]*>/i.test(cleanText) ? (
-                                                    <div className="tiptap-content" dangerouslySetInnerHTML={{ __html: cleanText }} />
+                                                    <div className="tiptap-content" dangerouslySetInnerHTML={{ __html: replaceEmojiWithHtml(cleanText) }} />
                                                   ) : (
                                                     renderText(cleanText, msg.mentions)
                                                   ))}
-                                                   <GroupJoinLinkPreview url={url} onSelectConversation={vm.onSelectConversation} />
+                                                  <GroupJoinLinkPreview url={url} onSelectConversation={vm.onSelectConversation} />
                                                 </>
                                               );
                                             }
-                                            
+
                                             return (
                                               <>
                                                 {(/<[a-z][\s\S]*>/i.test(displayText)) ? (
-                                                  <div className="tiptap-content" dangerouslySetInnerHTML={{ __html: displayText }} />
+                                                  <div className="tiptap-content" dangerouslySetInnerHTML={{ __html: replaceEmojiWithHtml(displayText) }} />
                                                 ) : (
                                                   renderText(displayText, msg.mentions)
                                                 )}
@@ -1477,9 +1521,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
             <div key={user.userId} className="flex items-center gap-2 animate-in fade-in slide-in-from-bottom-1 duration-200">
               <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 border border-[var(--border)] flex items-center justify-center bg-blue-50">
                 {user.userId === AI_TYPING_USER_ID ? (
-                  <div className="w-full h-full rounded-full bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 flex items-center justify-center text-white">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L9.09 8.26 2 9.27l5 4.87L5.82 21 12 17.77 18.18 21l-1.18-6.86L22 9.27l-7.09-1.01L12 2z" /></svg>
-                  </div>
+                  <img src={`${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/system/fruvia_chatbot.png`} alt="Fruvia Chatbot" className="w-full h-full object-cover" />
                 ) : user.avatarUrl ? (
                   <img src={user.avatarUrl} alt={user.displayName} className="w-full h-full object-cover" />
                 ) : (

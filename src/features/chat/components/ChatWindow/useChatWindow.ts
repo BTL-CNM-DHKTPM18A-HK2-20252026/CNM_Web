@@ -1,10 +1,20 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 import { useTranslation } from 'react-i18next';
-import { useInView } from 'react-intersection-observer';
+import { usePresence } from '@/features/user';
 import { apiClient } from '@/lib/http/apiClient';
+import emojiPack from '@/data/emoji-pack.json';
+
+// Initialize emoji lookup map for useChatWindow
+const emojiMap: Record<string, string> = {};
+emojiPack.categories.forEach((cat: any) => {
+  cat.icons.forEach((icon: any) => {
+    emojiMap[icon.shortcode] = icon.src;
+  });
+});
+import { useInView } from 'react-intersection-observer';
 import { websocketService } from '@/lib/realtime/websocketService';
 import { friendService } from '@/features/friends';
 import { getLocalMessages, getLocalMessagesBefore, upsertLocalMessages } from '@/lib/db/chatDB';
@@ -125,7 +135,7 @@ const AI_TEXT_TYPES = new Set(['TEXT', 'LINK']);
 const isAiSender = (senderId?: string, senderName?: string): boolean => {
   if (senderId === AI_TYPING_USER_ID) return true;
   const normalizedName = (senderName || '').trim().toLowerCase();
-  return normalizedName === 'fruvia ai';
+  return normalizedName === 'Fruvia Chatbot';
 };
 
 const stripAiMarkdownMarkers = (content: string | null | undefined): string => {
@@ -210,8 +220,8 @@ const mapIncomingMessage = (m: any, currentUserId?: string): ChatMessage => ({
     m.senderId === 'SYSTEM'
       ? 'SYSTEM'
       : m.senderId === currentUserId
-      ? 'Me'
-      : m.senderName,
+        ? 'Me'
+        : m.senderName,
   senderId: m.senderId,
   time: m.createdAt
     ? new Date(m.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
@@ -282,6 +292,7 @@ export function useChatWindow({
 
   const [nickname, setNickname] = useState<string | null>(null);
   const [isSendingAi, setIsSendingAi] = useState(false);
+  const [editor, setEditor] = useState<any>(null);
 
   const [replyingTo, setReplyingTo] = useState<ReplyingTo | null>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
@@ -571,7 +582,7 @@ export function useChatWindow({
     return () => {
       if (linkPreviewDebounceRef.current) clearTimeout(linkPreviewDebounceRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [message]);
 
   // ── Smart Reply: auto-fetch when messages change (new message from others) ──
@@ -608,7 +619,7 @@ export function useChatWindow({
     return () => {
       if (smartReplyDebounceRef.current) clearTimeout(smartReplyDebounceRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, selectedChat?.id]);
 
   // Clear smart replies when switching conversations, then auto-fetch
@@ -619,7 +630,7 @@ export function useChatWindow({
     if (!selectedChat?.id || selectedChat.isAi || selectedChat.isCloud) return;
     const t = setTimeout(() => fetchSmartReplies(), 600);
     return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChat?.id]);
 
   // ── Message Summary ──
@@ -864,7 +875,7 @@ export function useChatWindow({
                   width: imageMessage.width,
                   height: imageMessage.height,
                   replyToMessageId: imageMessage.replyToMessageId || null,
-                  sender: imageMessage.senderName || 'Fruvia AI',
+                  sender: imageMessage.senderName || 'Fruvia Chatbot',
                   senderId: imageMessage.senderId,
                   time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
                   avatar: imageMessage.senderAvatarUrl,
@@ -885,7 +896,7 @@ export function useChatWindow({
                   text: assistantContent,
                   type: assistantMessage.messageType || 'TEXT',
                   replyToMessageId: assistantMessage.replyToMessageId || null,
-                  sender: assistantMessage.senderName || 'Fruvia AI',
+                  sender: assistantMessage.senderName || 'Fruvia Chatbot',
                   senderId: assistantMessage.senderId,
                   time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
                   avatar: assistantMessage.senderAvatarUrl,
@@ -915,7 +926,7 @@ export function useChatWindow({
               text: errorText,
               type: 'TEXT',
               replyToMessageId: null,
-              sender: 'Fruvia AI',
+              sender: 'Fruvia Chatbot',
               senderId: AI_TYPING_USER_ID,
               time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
               reactions: [],
@@ -1477,7 +1488,7 @@ export function useChatWindow({
 
       // Cleanup preview URLs
       previewUrls.forEach(url => {
-        try { URL.revokeObjectURL(url); } catch {}
+        try { URL.revokeObjectURL(url); } catch { }
       });
     } catch (error) {
       console.error('[IMAGE_GROUP] Upload/send error:', error);
@@ -1489,7 +1500,7 @@ export function useChatWindow({
         attachments: s3Urls.length ? s3Urls.map((url: string) => ({ url })) : m.attachments,
       } : m));
       previewUrls.forEach(url => {
-        try { URL.revokeObjectURL(url); } catch {}
+        try { URL.revokeObjectURL(url); } catch { }
       });
       toast.error(t('chat.upload.error'));
     } finally {
@@ -1604,7 +1615,7 @@ export function useChatWindow({
         if (data.userId === currentUser?.id) return;
 
         const resolvedDisplayName = data.displayName
-          || (data.userId === AI_TYPING_USER_ID ? (selectedChat.name || 'Fruvia AI') : t('common.unknown_user'));
+          || (data.userId === AI_TYPING_USER_ID ? (selectedChat.name || 'Fruvia Chatbot') : t('common.unknown_user'));
 
         if (data.typing) {
           setTypingUsers(prev => {
@@ -1682,7 +1693,7 @@ export function useChatWindow({
     };
 
     scrollToTarget();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetMessageId]);
 
   useEffect(() => {
@@ -1815,10 +1826,34 @@ export function useChatWindow({
         console.log('[ChatWindow] API Messages fetched:', { count: items.length, totalFromServer, firstItem: items[0] });
 
         const sorted = [...items].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-        const mapped = filterLocallyDeletedMessages(sorted.map(item => mapIncomingMessage(item, currentUser?.id)));
+        let mapped = filterLocallyDeletedMessages(sorted.map(item => mapIncomingMessage(item, currentUser?.id)));
+
+        // Fallback: nếu AI conversation chưa có tin nhắn nào (conversation cũ chưa có welcome),
+        // inject virtual greeting phía frontend
+        if (selectedChat.isAi && mapped.length === 0) {
+          const userName = currentUser?.full_name || currentUser?.display_name || '';
+          const greetingText = userName
+            ? `Chào mừng bạn trở lại **${userName}**! 👋\n\nTôi là **Fruvia Chatbot** — trợ lý thông minh của bạn. Hãy hỏi tôi bất cứ điều gì nhé! 😊`
+            : `Xin chào! 👋\n\nTôi là **Fruvia Chatbot** — trợ lý thông minh của bạn. Hãy hỏi tôi bất cứ điều gì nhé! 😊`;
+          mapped = [{
+            id: 'ai-greeting-virtual',
+            text: greetingText,
+            type: 'TEXT',
+            sender: 'Other',
+            senderId: AI_TYPING_USER_ID,
+            senderName: 'Fruvia Chatbot',
+            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+            reactions: [],
+            rawDate: new Date(),
+            isEdited: false,
+            isPinned: false,
+            isDeleted: false,
+            replyToMessageId: null,
+          } as any];
+        }
 
         // Upsert API results to IndexedDB for future instant loads
-        upsertLocalMessages(items).catch(() => {});
+        upsertLocalMessages(items).catch(() => { });
 
         // Merge: keep any real-time WebSocket messages that arrived during fetch
         setMessages(prev => {
@@ -1830,7 +1865,7 @@ export function useChatWindow({
           );
           return merged;
         });
-        apiClient.patch(`/conversations/${selectedChat.id}/mark-as-read`, {}).catch(() => {});
+        apiClient.patch(`/conversations/${selectedChat.id}/mark-as-read`, {}).catch(() => { });
         setHasMore(hasMoreData);
         setIsLoadingMore(false);
         setIsInitialLoading(false);
@@ -1985,8 +2020,8 @@ export function useChatWindow({
               sender: newMsg.senderId === 'SYSTEM'
                 ? 'SYSTEM'
                 : newMsg.senderId === currentUser?.id
-                ? 'Me'
-                : (newMsg.senderId === AI_TYPING_USER_ID ? (newMsg.senderName || 'Fruvia AI') : newMsg.senderName),
+                  ? 'Me'
+                  : (newMsg.senderId === AI_TYPING_USER_ID ? (newMsg.senderName || 'Fruvia Chatbot') : newMsg.senderName),
               senderId: newMsg.senderId,
               time: newMsg.createdAt
                 ? new Date(newMsg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
@@ -2086,7 +2121,7 @@ export function useChatWindow({
       if (isInitialLoadRef.current) {
         container.dataset.programmaticScroll = '1';
         container.scrollTop = container.scrollHeight;
-        
+
         // Single rAF as a fallback for slow-rendering elements (like images)
         requestAnimationFrame(() => {
           if (container.scrollTop < container.scrollHeight - container.clientHeight) {
@@ -2094,7 +2129,7 @@ export function useChatWindow({
           }
           delete container.dataset.programmaticScroll;
         });
-        
+
         isInitialLoadRef.current = false;
       } else {
         container.dataset.programmaticScroll = '1';
@@ -2151,7 +2186,7 @@ export function useChatWindow({
           items = Array.from(mergedMap.values());
 
           // Upsert API results to IndexedDB
-          upsertLocalMessages(apiItems).catch(() => {});
+          upsertLocalMessages(apiItems).catch(() => { });
         } else if (res.content) {
           const apiItems: any[] = res.content;
           const totalElements = res.totalElements ?? totalMessagesRef.current;
@@ -2162,7 +2197,7 @@ export function useChatWindow({
           for (const m of apiItems) mergedMap.set(String(m.messageId || m.id), m);
           items = Array.from(mergedMap.values());
 
-          upsertLocalMessages(apiItems).catch(() => {});
+          upsertLocalMessages(apiItems).catch(() => { });
         }
       }
 
@@ -2214,10 +2249,24 @@ export function useChatWindow({
   }, [isPickerOpen, pickerTab]);
 
   const onSelectSticker = useCallback((sticker: any) => {
-    if (typeof sticker === 'string') {
-      setMessage(prev => prev + sticker);
+    const shortcode = typeof sticker === 'string' ? sticker : sticker.shortcode;
+    const src = emojiMap[shortcode];
+    
+    if (editor) {
+      if (src) {
+        // Insert as an image node for visual feedback in the editor
+        editor.chain().focus().setImage({ 
+          src: src, 
+          alt: shortcode, 
+          title: shortcode 
+        }).run();
+      } else {
+        editor.chain().focus().insertContent(shortcode).run();
+      }
+    } else {
+      setMessage(prev => prev + shortcode);
     }
-  }, []);
+  }, [editor]);
 
   const handleReactMessage = useCallback(async (messageId: string, emoji: string) => {
     try {
@@ -2473,7 +2522,7 @@ export function useChatWindow({
       // This triggers the browser's native download behavior via Content-Disposition header from the server.
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
       const proxyUrl = `${apiBaseUrl}/files/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(fileName)}`;
-      
+
       const link = document.createElement('a');
       link.href = proxyUrl;
       // No need for link.download as the server provides the filename
@@ -2670,5 +2719,7 @@ export function useChatWindow({
     setIsSummaryOpen,
     fetchSummary,
     onOpenProfile,
+    editor,
+    setEditor,
   };
 }

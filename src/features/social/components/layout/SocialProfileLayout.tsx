@@ -1,14 +1,18 @@
 import React from 'react';
 import Image from 'next/image';
 import { useTranslation } from 'react-i18next';
-import { SettingsIcon, GridIcon, BookmarkIcon, TagIcon } from '@/components/ui/Icons';
+import { SettingsIcon, GridIcon, BookmarkIcon, TagIcon, ClapperboardIcon } from '@/components/ui/Icons';
 import { NewNoteModal } from './NewNoteModal';
+// import { Film } from 'lucide-react';
 
 interface SocialProfileHeaderProps {
   user: any;
+  postCount?: number;
+  onEditClick?: () => void;
+  onArchiveClick?: () => void;
 }
 
-export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({ user }) => {
+export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({ user, postCount = 0, onEditClick, onArchiveClick }) => {
   const { t } = useTranslation();
   const [isNoteModalOpen, setIsNoteModalOpen] = React.useState(false);
   const [activeNote, setActiveNote] = React.useState<string | null>(null);
@@ -59,10 +63,16 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({ user }
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <h2 className="text-xl font-normal text-black dark:text-white">{user?.full_name || user?.display_name || 'Username'}</h2>
           <div className="flex items-center gap-2">
-            <button className="px-4 py-1.5 bg-[#efefef] dark:bg-[#363636] hover:bg-[#dbdbdb] dark:hover:bg-[#262626] rounded-lg text-sm font-semibold text-black dark:text-white transition-colors">
+            <button 
+              onClick={onEditClick}
+              className="px-4 py-1.5 bg-[#efefef] dark:bg-[#363636] hover:bg-[#dbdbdb] dark:hover:bg-[#262626] rounded-lg text-sm font-semibold text-black dark:text-white transition-colors"
+            >
               {t('social.profile.edit')}
             </button>
-            <button className="px-4 py-1.5 bg-[#efefef] dark:bg-[#363636] hover:bg-[#dbdbdb] dark:hover:bg-[#262626] rounded-lg text-sm font-semibold text-black dark:text-white transition-colors">
+            <button 
+              onClick={onArchiveClick}
+              className="px-4 py-1.5 bg-[#efefef] dark:bg-[#363636] hover:bg-[#dbdbdb] dark:hover:bg-[#262626] rounded-lg text-sm font-semibold text-black dark:text-white transition-colors"
+            >
               {t('social.profile.view_archive')}
             </button>
             <button className="p-2 text-black dark:text-white cursor-pointer">
@@ -71,18 +81,18 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({ user }
           </div>
         </div>
 
-        {/* Row 2: Stats */}
+        {/* Row 2: Stats - Using real post count */}
         <div className="flex items-center gap-10">
           <div className="flex items-center gap-1">
-            <span className="font-bold text-black dark:text-white">0</span>
+            <span className="font-bold text-black dark:text-white">{postCount}</span>
             <span className="text-black dark:text-white">{t('social.profile.posts')}</span>
           </div>
-          <div className="flex items-center gap-1 cursor-pointer">
-            <span className="font-bold text-black dark:text-white">1.2k</span>
+          <div className="flex items-center gap-1 cursor-pointer hover:opacity-70 transition-opacity">
+            <span className="font-bold text-black dark:text-white">0</span>
             <span className="text-black dark:text-white">{t('social.profile.followers')}</span>
           </div>
-          <div className="flex items-center gap-1 cursor-pointer">
-            <span className="font-bold text-black dark:text-white">450</span>
+          <div className="flex items-center gap-1 cursor-pointer hover:opacity-70 transition-opacity">
+            <span className="font-bold text-black dark:text-white">0</span>
             <span className="text-black dark:text-white">{t('social.profile.following')}</span>
           </div>
         </div>
@@ -91,7 +101,7 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({ user }
         <div className="flex flex-col">
           <span className="font-semibold text-sm text-black dark:text-white">{user?.full_name || 'User Name'}</span>
           <p className="text-sm text-black dark:text-white mt-1 whitespace-pre-line">
-            {user?.bio || 'Chưa có tiểu sử.'}
+            {user?.bio || t('social.profile.no_bio', 'Chưa có tiểu sử.')}
           </p>
         </div>
       </div>
@@ -108,13 +118,17 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({ user }
   );
 };
 
-export const SocialProfileTabs: React.FC = () => {
+interface SocialProfileTabsProps {
+  activeTab: string;
+  onTabChange: (tab: string) => void;
+}
+
+export const SocialProfileTabs: React.FC<SocialProfileTabsProps> = ({ activeTab, onTabChange }) => {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = React.useState('posts');
 
   const tabs = [
     { id: 'posts', label: t('social.profile.posts'), icon: GridIcon },
-    { id: 'reels', label: t('social.profile.reels'), icon: GridIcon },
+    { id: 'reels', label: t('social.profile.reels'), icon: ClapperboardIcon },
     { id: 'saved', label: t('social.profile.saved'), icon: BookmarkIcon },
     { id: 'tagged', label: t('social.profile.tagged'), icon: TagIcon },
   ];
@@ -124,11 +138,11 @@ export const SocialProfileTabs: React.FC = () => {
       {tabs.map((tab) => (
         <button
           key={tab.id}
-          onClick={() => setActiveTab(tab.id)}
-          className={`flex items-center gap-1.5 py-4 border-t transition-all uppercase tracking-widest text-[12px] font-semibold ${
+          onClick={() => onTabChange(tab.id)}
+          className={`flex items-center gap-1.5 py-4 border-t transition-all uppercase tracking-widest text-[12px] font-semibold cursor-pointer bg-transparent ${
             activeTab === tab.id 
               ? 'border-black dark:border-white text-black dark:text-white' 
-              : 'border-transparent text-gray-400 dark:text-gray-500'
+              : 'border-transparent text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
           }`}
         >
           <tab.icon size={12} />

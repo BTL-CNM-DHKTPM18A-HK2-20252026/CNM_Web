@@ -35,5 +35,12 @@ export const userService = {
    */
   async getMe() {
     return apiClient.get('/users/me');
+  },
+
+  /**
+   * Update current user profile
+   */
+  async updateProfile(data: any) {
+    return apiClient.patch('/users/me', data);
   }
 };

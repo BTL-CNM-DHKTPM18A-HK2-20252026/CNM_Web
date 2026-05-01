@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDownIcon, MoreHorizontalIcon, SparklesIcon } from '@/components/ui/Icons';
 import Image from 'next/image';
@@ -1232,8 +1232,8 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                         {searchMessages.map(msg => {
                           const conv = conversations.find(c => String(c.id) === msg.conversationId);
                           const isAiSender = msg.senderId === 'FRUVIA_AI_ASSISTANT';
-                          const displayConvName = conv?.name || (isAiSender ? 'Fruvia AI' : (msg.senderName && msg.senderName !== 'Unknown' ? msg.senderName : null)) || msg.senderName;
-                          const displaySenderName = isAiSender ? 'Fruvia AI' : (msg.senderName && msg.senderName !== 'Unknown' ? msg.senderName : (conv?.name || 'Unknown'));
+                          const displayConvName = conv?.name || (isAiSender ? 'Fruvia Chatbot' : (msg.senderName && msg.senderName !== 'Unknown' ? msg.senderName : null)) || msg.senderName;
+                          const displaySenderName = isAiSender ? 'Fruvia Chatbot' : (msg.senderName && msg.senderName !== 'Unknown' ? msg.senderName : (conv?.name || 'Unknown'));
 
                           // Highlight keywords in message content
                           const highlightContent = (text: string, query: string) => {
@@ -1271,7 +1271,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                                 {conv?.avatar ? (
                                   <Image src={conv.avatar} alt={conv.name} width={40} height={40} className="object-cover w-full h-full" />
                                 ) : isAiSender ? (
-                                  <span className="w-full h-full bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 flex items-center justify-center text-white text-[14px] font-bold">F</span>
+                                  <img src={`${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/system/fruvia_chatbot.png`} alt="Fruvia Chatbot" className="w-full h-full object-cover" />
                                 ) : (
                                   <span className="text-[14px] font-bold text-white bg-[#0068FF] w-full h-full flex items-center justify-center">
                                     {displayConvName?.charAt(0)?.toUpperCase() || '?'}
@@ -1658,9 +1658,10 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                     const convType = conv.conversationType || conv.conversation_type;
                     const isPrivate = convType === 'PRIVATE';
                     const isSelf = convType === 'SELF';
+                    const isGroup = convType === 'GROUP';
                     const rawName = conv.conversationName || conv.conversation_name || '';
-                    const isAiConv = isSelf && rawName === 'Fruvia AI';
-                    const isCloudConv = isSelf && !isAiConv;
+                    const isAiConv = isSelf && rawName === 'Fruvia Chatbot';
+                    const isCloudConv = (isSelf && !isAiConv) || (!isGroup && (rawName === 'Cloud của tôi' || rawName === 'My Documents'));
                     let name = rawName;
                     let avatar = conv.conversationAvatarUrl || conv.conversation_avatar_url || '';
                     if (isPrivate && conv.members) {
@@ -1676,12 +1677,12 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                     const lastMsg = conv.lastMessageContent || conv.last_message_content || '';
                     return (
                       <div key={convId} className="flex items-center gap-3 p-3 rounded-lg hover:bg-[var(--hover-bg)] transition-colors">
-                        <div className={`w-10 h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center ${isAiConv ? 'bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500' : isCloudConv ? 'bg-[#0068FF]' : 'bg-gray-200'}`}>
+                        <div className={`w-10 h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center ${isAiConv ? '' : isCloudConv ? 'bg-[#0068FF]' : 'bg-gray-200'}`}>
                           {isAiConv ? (
-                            <SparklesIcon size={20} />
+                            <img src={`${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/system/fruvia_chatbot.png`} alt="Fruvia Chatbot" className="w-full h-full object-cover" />
                           ) : isCloudConv ? (
                             <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
-                              <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-5 10c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0-6c-2.33 0-4.5 1.17-4.5 2.5V14h9v-1.5c0-1.33-2.17-2.5-4.5-2.5z" />
+                              <path d="M17.5 19c3.037 0 5.5-2.463 5.5-5.5 0-2.97-2.354-5.391-5.291-5.492a7 7 0 0 0-13.709 0C1.109 8.109 1 10.53 1 13.5c0 3.037 2.463 5.5 5.5 5.5h11z" />
                             </svg>
                           ) : avatar ? (
                             <Image src={avatar} alt={name} width={40} height={40} className="w-full h-full object-cover" />

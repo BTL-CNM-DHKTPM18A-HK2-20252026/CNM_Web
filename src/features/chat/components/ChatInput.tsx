@@ -7,6 +7,18 @@ import { Color } from '@tiptap/extension-color';
 import { Strike } from '@tiptap/extension-strike';
 import { Highlight } from '@tiptap/extension-highlight';
 import { Placeholder } from '@tiptap/extension-placeholder';
+import { Image as TiptapImage } from '@tiptap/extension-image';
+import { InputRule } from '@tiptap/core';
+import emojiPack from '@/data/emoji-pack.json';
+
+// Mapping for input rules
+const shortcodeToSrc: Record<string, string> = {};
+emojiPack.categories.forEach(cat => {
+  cat.icons.forEach(icon => {
+    shortcodeToSrc[icon.shortcode] = icon.src;
+  });
+});
+
 import { EmojiIcon, LikeIcon, SendIcon } from '@/components/ui/Icons';
 
 interface ChatInputProps {
@@ -59,11 +71,39 @@ export function ChatInput({
           return placeholder || '';
         },
       }),
+      TiptapImage.configure({
+        inline: true,
+        allowBase64: true,
+        HTMLAttributes: {
+          class: 'inline-block w-6 h-6 mx-0.5 align-text-bottom',
+        },
+      }),
+      // Custom input rule to convert :zalo_r_c: to images as you type
+      new InputRule({
+        find: /(:zalo_\d+_\d+:)\s$/, // Triggers when you type shortcode followed by a space
+        handler: ({ state, range, match }) => {
+          const shortcode = match[1];
+          const src = shortcodeToSrc[shortcode];
+          if (!src) return null;
+
+          const { tr } = state;
+          const start = range.from;
+          const end = range.to;
+
+          tr.replaceWith(start, end, state.schema.nodes.image.create({
+            src: src,
+            alt: shortcode,
+            title: shortcode,
+          }));
+
+          return tr;
+        },
+      }),
     ],
     content: value,
     editorProps: {
       attributes: {
-        class: 'outline-none text-[15px] py-0 text-[var(--text)] min-h-[20px] max-h-[120px] overflow-y-auto [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.is-editor-empty:first-child::before]:text-[var(--sub-text)] [&_.is-editor-empty:first-child::before]:opacity-50 [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:pointer-events-none [&_.is-editor-empty:first-child::before]:h-0',
+        class: 'outline-none text-[15px] py-0 text-[var(--text)] min-h-[20px] max-h-[120px] overflow-y-auto [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.is-editor-empty:first-child::before]:text-[var(--sub-text)] [&_.is-editor-empty:first-child::before]:opacity-50 [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:pointer-events-none [&_.is-editor-empty:first-child::before]:h-0 [&_img]:inline-block [&_img]:w-6 [&_img]:h-6 [&_img]:mx-0.5 [&_img]:align-text-bottom',
       },
     },
     onUpdate: ({ editor }) => {

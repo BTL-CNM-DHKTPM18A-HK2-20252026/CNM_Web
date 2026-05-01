@@ -8,6 +8,8 @@ import { userService } from '@/features/user';
 import { friendService } from '@/features/friends';
 import { toast } from 'sonner';
 
+const S3_BASE = process.env.NEXT_PUBLIC_S3_BASE_URL ?? '';
+
 interface AddFriendModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -326,7 +328,7 @@ export function AddFriendModal({
                 <div className="absolute inset-0 animate-pulse bg-gray-300" />
               ) : (
                 <Image
-                  src={(detailUser?.cover_photo_url) || (() => { const uid = searchResult?.user_id || ''; const s = uid.split('').reduce((a,c)=>a+c.charCodeAt(0),0); return `/background/image${(s%3)+1}.jpg`; })()}
+                  src={(detailUser?.cover_photo_url) || (() => { const uid = searchResult?.user_id || ''; const s = uid.split('').reduce((a,c)=>a+c.charCodeAt(0),0); return `${S3_BASE}/background/image${(s%3)+1}.jpg`; })()}
                   alt="Cover"
                   fill
                   className="object-cover"
