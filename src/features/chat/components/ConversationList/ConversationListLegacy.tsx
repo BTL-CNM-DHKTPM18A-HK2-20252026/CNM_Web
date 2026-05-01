@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDownIcon, MoreHorizontalIcon, SparklesIcon } from '@/components/ui/Icons';
 import Image from 'next/image';

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ChevronDownIcon, ChevronRightIcon, MessageBubbleIcon, MoreHorizontalIcon, SparklesIcon } from '@/components/ui/Icons';
 import { AI_TYPING_USER_ID } from '@/features/chat/components/ChatWindow/useChatWindow';
@@ -9,9 +9,10 @@ import emojiPack from '@/data/emoji-pack.json';
 
 // Initialize emoji lookup map
 const emojiMap: Record<string, string> = {};
+const _emojiS3Base = process.env.NEXT_PUBLIC_S3_BASE_URL ?? '';
 emojiPack.categories.forEach((cat: any) => {
   cat.icons.forEach((icon: any) => {
-    emojiMap[icon.shortcode] = icon.src;
+    emojiMap[icon.shortcode] = `${_emojiS3Base}${icon.src.replace('/fruvia_emoji', '')}`;
   });
 });
 

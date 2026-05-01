@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Sidebar } from './Sidebar';
@@ -301,7 +301,7 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
           const rawName = c.conversationName || c.conversation_name || '';
           const isSelf = c.conversationType === 'SELF' || c.conversation_type === 'SELF';
           const isGroup = c.conversationType === 'GROUP' || c.conversation_type === 'GROUP';
-          const isAi = isSelf && rawName.trim().toLowerCase() === 'Fruvia Chatbot';
+          const isAi = isSelf && rawName.trim().toLowerCase() === 'fruvia chatbot';
           // Robust detection for "Cloud của tôi" (Self Chat)
           const isCloud = (isSelf && !isAi) || (!isGroup && (rawName === 'Cloud của tôi' || rawName === 'My Documents'));
           const name = isAi

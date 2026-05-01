@@ -1,4 +1,4 @@
-﻿import type { MouseEvent, ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import Image from 'next/image';
 import { PinIcon, SparklesIcon } from '@/components/ui/Icons';
 import { StatusIndicator } from '@/features/user';

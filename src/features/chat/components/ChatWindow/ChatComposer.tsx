@@ -108,7 +108,7 @@ export function ChatComposer({ vm }: ChatComposerProps) {
     setEditor,
   } = vm;
 
-  const [isSmartReplyEnabled, setIsSmartReplyEnabled] = React.useState(true);
+  const [isSmartReplyEnabled, setIsSmartReplyEnabled] = React.useState(false);
 
   React.useEffect(() => {
     try {

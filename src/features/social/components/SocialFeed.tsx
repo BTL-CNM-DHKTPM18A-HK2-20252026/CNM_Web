@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Bell } from 'lucide-react';
 import Image from 'next/image';
 import { SocialSidebarLeft } from './layout/SocialSidebarLeft';

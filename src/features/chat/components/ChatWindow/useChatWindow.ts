@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
@@ -9,9 +9,10 @@ import emojiPack from '@/data/emoji-pack.json';
 
 // Initialize emoji lookup map for useChatWindow
 const emojiMap: Record<string, string> = {};
+const _emojiS3Base = process.env.NEXT_PUBLIC_S3_BASE_URL ?? '';
 emojiPack.categories.forEach((cat: any) => {
   cat.icons.forEach((icon: any) => {
-    emojiMap[icon.shortcode] = icon.src;
+    emojiMap[icon.shortcode] = `${_emojiS3Base}${icon.src.replace('/fruvia_emoji', '')}`;
   });
 });
 import { useInView } from 'react-intersection-observer';
@@ -135,7 +136,7 @@ const AI_TEXT_TYPES = new Set(['TEXT', 'LINK']);
 const isAiSender = (senderId?: string, senderName?: string): boolean => {
   if (senderId === AI_TYPING_USER_ID) return true;
   const normalizedName = (senderName || '').trim().toLowerCase();
-  return normalizedName === 'Fruvia Chatbot';
+  return normalizedName === 'fruvia chatbot';
 };
 
 const stripAiMarkdownMarkers = (content: string | null | undefined): string => {
@@ -176,6 +177,7 @@ const isLinkPlaceholderText = (value?: string | null): boolean => {
 const getSnippet = (content: string, messageType: string | undefined, t: (key: string) => string) => {
   switch (messageType) {
     case 'IMAGE':
+      if (content && content.includes('/stickers/')) return 'Đã gửi 1 nhãn dán';
       return t('chat.snippet.image');
     case 'IMAGE_GROUP':
       return '[Album ảnh]';
@@ -2250,6 +2252,13 @@ export function useChatWindow({
 
   const onSelectSticker = useCallback((sticker: any) => {
     const shortcode = typeof sticker === 'string' ? sticker : sticker.shortcode;
+
+    // Sticker từ sticker tab — value là S3 URL trực tiếp, gửi ngay như IMAGE
+    if (shortcode.startsWith('http')) {
+      handleSendMessage(shortcode, 'IMAGE');
+      return;
+    }
+
     const src = emojiMap[shortcode];
     
     if (editor) {
@@ -2266,7 +2275,7 @@ export function useChatWindow({
     } else {
       setMessage(prev => prev + shortcode);
     }
-  }, [editor]);
+  }, [editor, handleSendMessage]);
 
   const handleReactMessage = useCallback(async (messageId: string, emoji: string) => {
     try {

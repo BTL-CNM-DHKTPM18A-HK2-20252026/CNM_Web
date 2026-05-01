@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import Image from 'next/image';
 import { useTranslation } from 'react-i18next';
 import {
@@ -112,6 +112,7 @@ export function Sidebar({
           onClick={() => { setActiveTab('chat'); setShowUserMenu(false); }}
           className={`w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer ${activeTab === 'chat' ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'hover:bg-[var(--sidebar-hover-bg)] text-[var(--sidebar-text)]'}`}
         >
+          <ZaloChatIcon size={28} active={activeTab === 'chat'} />
         </button>
 
         <button

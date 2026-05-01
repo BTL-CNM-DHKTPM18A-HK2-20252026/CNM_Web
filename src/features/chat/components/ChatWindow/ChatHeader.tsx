@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { toast } from 'sonner';
 import { SearchIcon, SparklesIcon, GroupVideoCallIcon } from '@/components/ui/Icons';

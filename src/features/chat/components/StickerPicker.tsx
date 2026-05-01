@@ -13,6 +13,18 @@ interface StickerPickerProps {
   className?: string;
 }
 
+interface StickerItem {
+  id: string;
+  src: string;
+}
+
+interface StickerPackData {
+  id: string;
+  name: string;
+  icon: string;
+  stickers: StickerItem[];
+}
+
 export function StickerPicker({ 
   isOpen, 
   onClose, 
@@ -22,10 +34,18 @@ export function StickerPicker({
 }: StickerPickerProps) {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState(emojiPack.categories[0]?.id || 'smileys');
+  const [activeCategory, setActiveCategory] = useState('smileys');
+  const [stickerPacks, setStickerPacks] = useState<StickerPackData[]>([]);
+  const [activeStickerPackId, setActiveStickerPackId] = useState('');
+  const [stickerLoading, setStickerLoading] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
   const { currentTheme } = useTheme();
   const { t } = useTranslation();
+  const S3_BASE = process.env.NEXT_PUBLIC_S3_BASE_URL ?? '';
+  const normalizeSrc = (src: string) =>
+    S3_BASE + src.replace(/\\/g, '/').replace(/\.webp$/i, '.png');
+  const normalizeEmojiSrc = (src: string) =>
+    S3_BASE + src.replace('/fruvia_emoji', '');
 
   useEffect(() => {
     setActiveTab(initialTab);
@@ -44,6 +64,28 @@ export function StickerPicker({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen, onClose]);
+
+  // Lazy-load sticker packs from S3 the first time the sticker tab is opened
+  useEffect(() => {
+    if (activeTab !== 'sticker' || stickerPacks.length > 0) return;
+    setStickerLoading(true);
+    fetch(`${S3_BASE}/stickers/sticker-pack.json`)
+      .then(r => r.json())
+      .then((data: { packs: StickerPackData[] }) => {
+        const packs = data.packs.filter(p => p.id !== 'pack_0');
+        setStickerPacks(packs);
+        setActiveStickerPackId(packs[0]?.id ?? '');
+      })
+      .catch(() => { /* silent – giữ nguyên "Chưa có sticker" khi lỗi */ })
+      .finally(() => setStickerLoading(false));
+  }, [activeTab, S3_BASE, stickerPacks.length]);
+
+  const activePack = stickerPacks.find(p => p.id === activeStickerPackId);
+  const filteredStickers = activePack
+    ? (searchQuery.trim()
+        ? activePack.stickers.filter(s => s.id.toLowerCase().includes(searchQuery.toLowerCase()))
+        : activePack.stickers)
+    : [];
 
   if (!isOpen) return null;
 
@@ -115,9 +157,33 @@ export function StickerPicker({
 
       {/* Content Scroll Area */}
       <div className="flex-1 overflow-y-auto px-1 py-4 modal-scrollbar">
-          {activeTab === 'sticker' && (
+          {activeTab === 'sticker' && stickerLoading && (
+            <div className="flex items-center justify-center h-full">
+              <div className="w-6 h-6 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+          {activeTab === 'sticker' && !stickerLoading && stickerPacks.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-[var(--sub-text)] opacity-60 py-10">
               <p>Chưa có sticker</p>
+            </div>
+          )}
+          {activeTab === 'sticker' && !stickerLoading && stickerPacks.length > 0 && (
+            <div className="grid grid-cols-5 gap-1 px-1">
+              {filteredStickers.map((sticker) => (
+                <button
+                  key={sticker.id}
+                  onClick={() => { onSelect(normalizeSrc(sticker.src)); onClose(); }}
+                  className="p-1 rounded-md hover:bg-[var(--hover-bg)] transition-colors flex items-center justify-center cursor-pointer group"
+                  title={sticker.id}
+                >
+                  <img
+                    src={normalizeSrc(sticker.src)}
+                    alt={sticker.id}
+                    className="w-14 h-14 object-contain group-hover:scale-110 transition-transform"
+                    loading="lazy"
+                  />
+                </button>
+              ))}
             </div>
           )}
 
@@ -135,12 +201,12 @@ export function StickerPicker({
                         title={icon.shortcode}
                       >
                         <Image 
-                          src={`${emojiPack.base_path}${icon.src}`}
+                          src={normalizeEmojiSrc(icon.src)}
                           alt={icon.alt}
                           width={32}
                           height={32}
                           className="group-hover:scale-110 transition-transform"
-                          unoptimized // Optimization for local emojis
+                          unoptimized
                         />
                       </button>
                     ))}
@@ -178,11 +244,11 @@ export function StickerPicker({
               >
                 {representativeIcon ? (
                   <Image 
-                    src={`${emojiPack.base_path}${representativeIcon.src}`}
+                    src={normalizeEmojiSrc(representativeIcon.src)}
                     alt={cat.name}
-                    width={24}
-                    height={24}
-                    className="w-6 h-6 object-contain"
+                    width={18}
+                    height={18}
+                    className="w-[18px] h-[18px] object-contain"
                     unoptimized
                   />
                 ) : (
@@ -195,12 +261,41 @@ export function StickerPicker({
       )}
 
       {activeTab === 'sticker' && (
-        <div className="h-12 border-t border-[var(--border)] flex items-center px-4 shrink-0 bg-[var(--card-bg)]">
-          <div className="flex items-center gap-1">
-            <button className="h-9 w-9 flex items-center justify-center rounded-md bg-[var(--hover-bg)] text-[#0068FF] transition-all cursor-pointer">
-              <ClockIcon size={20} />
-            </button>
-          </div>
+        <div className="h-12 border-t border-[var(--border)] flex items-center px-2 shrink-0 bg-[var(--card-bg)] overflow-x-auto no-scrollbar gap-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <button
+            className="h-9 w-9 shrink-0 flex items-center justify-center rounded-md hover:bg-[var(--hover-bg)] text-[var(--sub-text)] transition-all cursor-pointer"
+            title="Gần đây"
+          >
+            <ClockIcon size={18} />
+          </button>
+          {stickerPacks.map((pack) => {
+            const iconSticker = pack.stickers[0];
+            return (
+              <button
+                key={pack.id}
+                onClick={() => { setActiveStickerPackId(pack.id); setSearchQuery(''); }}
+                className={`h-9 w-9 shrink-0 rounded-lg flex items-center justify-center transition-all cursor-pointer
+                  ${
+                    activeStickerPackId === pack.id
+                      ? 'bg-[#0068FF]/10 ring-1 ring-[#0068FF]/30'
+                      : 'hover:bg-[var(--hover-bg)] opacity-60 hover:opacity-100'
+                  }
+                `}
+                title={pack.name}
+              >
+                {iconSticker ? (
+                  <img
+                    src={normalizeSrc(iconSticker.src)}
+                    alt={pack.name}
+                    className="w-6 h-6 object-contain"
+                    loading="lazy"
+                  />
+                ) : (
+                  <span className="text-[9px] font-bold uppercase">{pack.name.substring(0, 2)}</span>
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
