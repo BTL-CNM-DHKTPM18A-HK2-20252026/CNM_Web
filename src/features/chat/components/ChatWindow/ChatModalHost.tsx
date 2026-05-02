@@ -269,6 +269,7 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
               </button>
             )}
 
+            {!contextMenu.isSticker && (
             <button
               onClick={() => {
                 const msg = messages.find(m => m.id === contextMenu.msgId);
@@ -288,8 +289,9 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1l-1.2 3.3a.75.75 0 0 0 .95.95l3.3-1.2A10 10 0 1 0 12 2z" /></svg>
               {t('chat.actions.reply')}
             </button>
+            )}
 
-            {(() => {
+            {!contextMenu.isSticker && (() => {
               const isPinned = pinnedMessages.some(p => p.messageId === contextMenu.msgId);
               return (
                 <button

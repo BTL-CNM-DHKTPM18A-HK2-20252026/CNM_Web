@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import Image from 'next/image';
-import { SearchIcon, ClockIcon } from '@/components/ui/Icons';
+import { SearchIcon } from '@/components/ui/Icons';
 import { useTheme } from '@/themes';
 import emojiPack from '@/data/emoji-pack.json';
 
@@ -262,12 +262,6 @@ export function StickerPicker({
 
       {activeTab === 'sticker' && (
         <div className="h-12 border-t border-[var(--border)] flex items-center px-2 shrink-0 bg-[var(--card-bg)] overflow-x-auto no-scrollbar gap-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-          <button
-            className="h-9 w-9 shrink-0 flex items-center justify-center rounded-md hover:bg-[var(--hover-bg)] text-[var(--sub-text)] transition-all cursor-pointer"
-            title="Gần đây"
-          >
-            <ClockIcon size={18} />
-          </button>
           {stickerPacks.map((pack) => {
             const iconSticker = pack.stickers[0];
             return (

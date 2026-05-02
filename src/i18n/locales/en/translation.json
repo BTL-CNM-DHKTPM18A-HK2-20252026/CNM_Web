@@ -276,6 +276,7 @@
     },
     "upload": {
       "loading": "Uploading {{name}}...",
+      "uploading": "Uploading",
       "success": "Media sent successfully!",
       "error": "Error uploading media"
     },
@@ -470,7 +471,13 @@
       "accept_error": "Cannot accept message request",
       "decline_success": "Message request declined",
       "block_success": "User blocked"
-    }
+    },
+    "smart_reply_loading": "Generating suggestions...",
+    "format_message": "Format message",
+    "more": "More",
+    "add_caption": "Add caption",
+    "remove_image": "Remove image",
+    "format_keyboard_hint": "Press Ctrl + Shift + X to format message"
   },
   "presence": {
     "online": "Active now",
@@ -701,6 +708,22 @@
       "files": "Files",
       "voice": "Voice messages",
       "other": "Other"
+    },
+    "group": {
+      "title": "Group Info",
+      "permissions_title": "Allow group members to:",
+      "perm": {
+        "editInfo": "Change group name & avatar",
+        "pinContent": "Pin messages, notes, polls to top",
+        "createNotes": "Create notes and reminders",
+        "createPolls": "Create polls",
+        "sendMessages": "Send messages"
+      },
+      "moderation": {
+        "memberApproval": "Approve new members",
+        "highlightAdmin": "Highlight admin messages",
+        "newMemberRead": "Allow new members to read recent messages"
+      }
     }
   },
   "pin": {

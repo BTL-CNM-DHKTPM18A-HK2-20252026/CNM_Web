@@ -1371,7 +1371,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
                                   {name}
                                 </p>
-                                <p className="text-[12px] text-[var(--sub-text)] truncate">{conv.lastMessageContent || ''}</p>
+                                <p className="text-[12px] text-[var(--sub-text)] truncate">{stripHtml(conv.lastMessageContent || '')}</p>
                               </div>
                             </div>
                           );
@@ -1674,7 +1674,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                       }
                     }
                     if (!name) name = 'Unknown';
-                    const lastMsg = conv.lastMessageContent || conv.last_message_content || '';
+                    const lastMsg = stripHtml(conv.lastMessageContent || conv.last_message_content || '');
                     return (
                       <div key={convId} className="flex items-center gap-3 p-3 rounded-lg hover:bg-[var(--hover-bg)] transition-colors">
                         <div className={`w-10 h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center ${isAiConv ? '' : isCloudConv ? 'bg-[#0068FF]' : 'bg-gray-200'}`}>

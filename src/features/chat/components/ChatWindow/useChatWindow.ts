@@ -324,6 +324,8 @@ export function useChatWindow({
   const [isNicknameModalOpen, setIsNicknameModalOpen] = useState(false);
   const [isFilePopoverOpen, setIsFilePopoverOpen] = useState(false);
   const [isChatImageUploadOpen, setIsChatImageUploadOpen] = useState(false);
+  const [pendingAttachment, setPendingAttachment] = useState<{ file: File; previewUrl: string | null } | null>(null);
+  const pendingAttachmentRef = useRef<{ file: File; previewUrl: string | null } | null>(null);
   const [isMoreActionsOpen, setIsMoreActionsOpen] = useState(false);
   const [isPollModalOpen, setIsPollModalOpen] = useState(false);
   const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
@@ -382,6 +384,7 @@ export function useChatWindow({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const currentConversationIdRef = useRef<typeof selectedChat.id | null>(selectedChat?.id ?? null);
   currentConversationIdRef.current = selectedChat?.id ?? null;
+  const prevFetchedConvIdRef = useRef<string | null>(null);
 
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const typingTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
@@ -441,7 +444,7 @@ export function useChatWindow({
     setCaptionModalIdx(null);
   }, []);
 
-  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLInputElement>) => {
+  const handlePaste = useCallback((e: ClipboardEvent) => {
     const items = e.clipboardData?.items;
     if (!items) return;
 
@@ -733,6 +736,8 @@ export function useChatWindow({
                 isRecalled: false,
                 forwardedFromSenderName: null,
                 caption: newMsg.caption || caption || undefined,
+                fileName: newMsg.fileName || fileName,
+                fileSize: newMsg.fileSize || fileSize,
                 isUploading: false,
               };
 
@@ -760,6 +765,224 @@ export function useChatWindow({
             });
 
             setReplyingTo(null);
+          }
+
+          // After saving IMAGE in AI chat, call AI with vision analysis
+          if (msgType === 'IMAGE' && newMsg?.content && !isSendingAi) {
+            const locale = (i18n.resolvedLanguage || i18n.language || 'vi').toLowerCase();
+            const aiQuestion = caption?.trim() || (locale.startsWith('en') ? 'Describe the content of this image.' : 'Hãy mô tả nội dung trong ảnh này.');
+            const convIdAtSend = selectedChat.id;
+
+            setIsSendingAi(true);
+            setTypingUsers(prev => {
+              if (prev.some(u => u.userId === AI_TYPING_USER_ID)) return prev;
+              return [...prev, { userId: AI_TYPING_USER_ID, displayName: selectedChat.name || t('chat.ai_name'), avatarUrl: undefined }];
+            });
+
+            const imageAiPayload: any = {
+              content: aiQuestion,
+              useRag: false,
+              language: locale.startsWith('en') ? 'en' : 'vi',
+              fullAccessGranted: getAiFullAccessGranted(),
+              themeType: getAiThemeType(),
+              userImageUrl: newMsg.content,
+            };
+            if (!selectedChat.isNew) imageAiPayload.conversationId = selectedChat.id.toString();
+
+            try {
+              const aiRes = await apiClient.post<any>('/messages/ai', imageAiPayload);
+              const aiData = aiRes?.success ? aiRes.data : aiRes;
+              const assistantMessage = aiData?.assistantMessage;
+              const assistantContent = normalizeIncomingContent(
+                assistantMessage?.content,
+                assistantMessage?.senderId,
+                assistantMessage?.messageType,
+                assistantMessage?.senderName
+              );
+              const aiConversation = aiData?.conversation;
+              const finalConvId = String(aiConversation?.conversationId || aiConversation?.id || selectedChat.id);
+
+              if (onSelectConversationRef.current && finalConvId !== String(selectedChat.id)) {
+                onSelectConversationRef.current(finalConvId);
+              }
+
+              if (String(currentConversationIdRef.current) !== finalConvId && String(currentConversationIdRef.current) !== String(convIdAtSend)) {
+                return;
+              }
+
+              if (assistantContent) {
+                onUpdateConversationRef.current?.(
+                  finalConvId,
+                  getSnippet(assistantContent, assistantMessage?.messageType || 'TEXT', t),
+                  new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
+                );
+              }
+
+              if (assistantMessage) {
+                setMessages(prev => {
+                  const assistantId = String(assistantMessage.messageId || assistantMessage.id);
+                  if (prev.some(m => m.id === assistantId)) return prev;
+                  return [...prev, {
+                    id: assistantId,
+                    text: assistantContent,
+                    type: assistantMessage.messageType || 'TEXT',
+                    replyToMessageId: assistantMessage.replyToMessageId || null,
+                    sender: assistantMessage.senderName || 'Fruvia Chatbot',
+                    senderId: assistantMessage.senderId,
+                    time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+                    avatar: assistantMessage.senderAvatarUrl,
+                    reactions: [],
+                    rawDate: assistantMessage.createdAt ? new Date(assistantMessage.createdAt) : new Date(),
+                    isEdited: false,
+                    isRecalled: false,
+                    forwardedFromSenderName: null,
+                  }];
+                });
+                setShouldScrollToBottom(true);
+              }
+            } catch (aiError: any) {
+              const errorLocale = (i18n.resolvedLanguage || i18n.language || 'vi').toLowerCase();
+              const errorText = aiError?.response?.data?.message || (errorLocale.startsWith('en')
+                ? 'Sorry, AI is temporarily unavailable. Please try again in a moment.'
+                : 'Xin lỗi, AI tạm thời không phản hồi được. Bạn thử lại sau vài giây nhé.');
+              setMessages(prev => [...prev, {
+                id: `ai-error-${Date.now()}`,
+                text: errorText,
+                type: 'TEXT',
+                replyToMessageId: null,
+                sender: 'Fruvia Chatbot',
+                senderId: AI_TYPING_USER_ID,
+                time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+                reactions: [],
+                rawDate: new Date(),
+                isEdited: false,
+                isRecalled: false,
+                forwardedFromSenderName: null,
+              }]);
+              setShouldScrollToBottom(true);
+            } finally {
+              setIsSendingAi(false);
+              setTypingUsers(prev => prev.filter(u => u.userId !== AI_TYPING_USER_ID));
+              const existing = typingTimeoutRef.current.get(AI_TYPING_USER_ID);
+              if (existing) {
+                clearTimeout(existing);
+                typingTimeoutRef.current.delete(AI_TYPING_USER_ID);
+              }
+            }
+          }
+
+          // After saving a PDF/DOCX in AI chat, ask the AI to read and summarize it
+          if (msgType === 'MEDIA' && newMsg?.content && !isSendingAi) {
+            const docFileName = fileName || newMsg.fileName || '';
+            const isPdfOrDocx = /\.(pdf|docx|xlsx|xls)$/i.test(docFileName);
+            if (isPdfOrDocx) {
+              const locale = (i18n.resolvedLanguage || i18n.language || 'vi').toLowerCase();
+              const isEn = locale.startsWith('en');
+              const userCaption = (caption?.trim() || newMsg.caption?.replace(/<[^>]*>/g, '').trim() || '');
+              const docQuestion = userCaption
+                ? userCaption
+                : (isEn
+                  ? `I've uploaded the document "${docFileName}". Please read its content and provide a summary.`
+                  : `Tôi vừa tải lên tài liệu "${docFileName}". Hãy đọc nội dung và tóm tắt tài liệu này cho tôi.`);
+              const convIdAtSend = selectedChat.id;
+
+              setIsSendingAi(true);
+              setTypingUsers(prev => {
+                if (prev.some(u => u.userId === AI_TYPING_USER_ID)) return prev;
+                return [...prev, { userId: AI_TYPING_USER_ID, displayName: selectedChat.name || t('chat.ai_name'), avatarUrl: undefined }];
+              });
+
+              const docAiPayload: any = {
+                content: docQuestion,
+                useRag: false,
+                language: isEn ? 'en' : 'vi',
+                fullAccessGranted: getAiFullAccessGranted(),
+                themeType: getAiThemeType(),
+                userDocumentUrl: newMsg.content,
+                userDocumentName: docFileName,
+              };
+              if (!selectedChat.isNew) docAiPayload.conversationId = selectedChat.id.toString();
+
+              try {
+                const aiRes = await apiClient.post<any>('/messages/ai', docAiPayload);
+                const aiData = aiRes?.success ? aiRes.data : aiRes;
+                const assistantMessage = aiData?.assistantMessage;
+                const assistantContent = normalizeIncomingContent(
+                  assistantMessage?.content,
+                  assistantMessage?.senderId,
+                  assistantMessage?.messageType,
+                  assistantMessage?.senderName
+                );
+                const aiConversation = aiData?.conversation;
+                const finalConvId = String(aiConversation?.conversationId || aiConversation?.id || selectedChat.id);
+
+                if (onSelectConversationRef.current && finalConvId !== String(selectedChat.id)) {
+                  onSelectConversationRef.current(finalConvId);
+                }
+
+                if (String(currentConversationIdRef.current) !== finalConvId && String(currentConversationIdRef.current) !== String(convIdAtSend)) {
+                  return;
+                }
+
+                if (assistantContent) {
+                  onUpdateConversationRef.current?.(
+                    finalConvId,
+                    getSnippet(assistantContent, assistantMessage?.messageType || 'TEXT', t),
+                    new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
+                  );
+                }
+
+                if (assistantMessage) {
+                  setMessages(prev => {
+                    const assistantId = String(assistantMessage.messageId || assistantMessage.id);
+                    if (prev.some(m => m.id === assistantId)) return prev;
+                    return [...prev, {
+                      id: assistantId,
+                      text: assistantContent,
+                      type: assistantMessage.messageType || 'TEXT',
+                      replyToMessageId: assistantMessage.replyToMessageId || null,
+                      sender: assistantMessage.senderName || 'Fruvia Chatbot',
+                      senderId: assistantMessage.senderId,
+                      time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+                      avatar: assistantMessage.senderAvatarUrl,
+                      reactions: [],
+                      rawDate: assistantMessage.createdAt ? new Date(assistantMessage.createdAt) : new Date(),
+                      isEdited: false,
+                      isRecalled: false,
+                      forwardedFromSenderName: null,
+                    }];
+                  });
+                  setShouldScrollToBottom(true);
+                }
+              } catch (docAiError: any) {
+                const errorText = docAiError?.response?.data?.message || (isEn
+                  ? 'Sorry, I could not read the document. Please try again.'
+                  : 'Xin lỗi, AI không thể đọc tài liệu. Bạn thử lại sau nhé.');
+                setMessages(prev => [...prev, {
+                  id: `ai-error-${Date.now()}`,
+                  text: errorText,
+                  type: 'TEXT',
+                  replyToMessageId: null,
+                  sender: 'Fruvia Chatbot',
+                  senderId: AI_TYPING_USER_ID,
+                  time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+                  reactions: [],
+                  rawDate: new Date(),
+                  isEdited: false,
+                  isRecalled: false,
+                  forwardedFromSenderName: null,
+                }]);
+                setShouldScrollToBottom(true);
+              } finally {
+                setIsSendingAi(false);
+                setTypingUsers(prev => prev.filter(u => u.userId !== AI_TYPING_USER_ID));
+                const existing = typingTimeoutRef.current.get(AI_TYPING_USER_ID);
+                if (existing) {
+                  clearTimeout(existing);
+                  typingTimeoutRef.current.delete(AI_TYPING_USER_ID);
+                }
+              }
+            }
           }
 
           return;
@@ -805,6 +1028,15 @@ export function useChatWindow({
           themeType: getAiThemeType(),
         };
 
+        // Vision: if user recently sent an image (within last 5 messages), include it for AI analysis
+        const recentUserImage = [...messages]
+          .reverse()
+          .slice(0, 5)
+          .find(m => m.sender === 'Me' && m.type === 'IMAGE' && !m.text?.includes('/stickers/'));
+        if (recentUserImage?.text && !recentUserImage.text.startsWith('blob:')) {
+          aiPayload.userImageUrl = recentUserImage.text;
+        }
+
         if (!selectedChat.isNew) {
           aiPayload.conversationId = selectedChat.id.toString();
         }
@@ -824,10 +1056,17 @@ export function useChatWindow({
             assistantMessage?.senderName
           );
           const aiConversation = aiData?.conversation;
-          const finalConvId = aiConversation?.conversationId || aiConversation?.id || selectedChat.id;
+          const finalConvId = String(aiConversation?.conversationId || aiConversation?.id || selectedChat.id);
 
-          if (onSelectConversationRef.current && finalConvId !== selectedChat.id) {
+          if (onSelectConversationRef.current && finalConvId !== String(selectedChat.id)) {
             onSelectConversationRef.current(finalConvId);
+          }
+
+          if (
+            String(currentConversationIdRef.current) !== finalConvId
+            && String(currentConversationIdRef.current) !== String(convIdAtSend)
+          ) {
+            return;
           }
 
           if (assistantContent) {
@@ -836,13 +1075,6 @@ export function useChatWindow({
               getSnippet(assistantContent, assistantMessage.messageType || 'TEXT', t),
               new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
             );
-          }
-
-          if (
-            currentConversationIdRef.current !== finalConvId
-            && currentConversationIdRef.current !== convIdAtSend
-          ) {
-            return;
           }
 
           setMessages(prev => {
@@ -1065,6 +1297,8 @@ export function useChatWindow({
             isRecalled: false,
             forwardedFromSenderName: null,
             caption: newMsg.caption || caption || undefined,
+            fileName: newMsg.fileName || fileName,
+            fileSize: newMsg.fileSize || fileSize,
             isUploading: false,
           };
 
@@ -1116,6 +1350,10 @@ export function useChatWindow({
       if (!optimisticId && msgType === 'TEXT') {
         setMessages(prev => prev.filter(m => m.id !== tempOptimisticId));
         setMessage(contentToUse);
+      }
+      // Remove stuck MEDIA/IMAGE/VIDEO optimistic message on failure
+      if (optimisticId) {
+        setMessages(prev => prev.filter(m => m.id !== optimisticId));
       }
     }
   }, [message, selectedChat, currentUser?.id, replyingTo?.id, isSendingAi, i18n.resolvedLanguage, i18n.language, t]);
@@ -1226,6 +1464,42 @@ export function useChatWindow({
     });
   }, []);
 
+  // Resize + compress an image File to max 1568px on the longest side at JPEG 0.85.
+  // GPT-4o high-detail tiles are 512px each; 1568px = 3×512 + 32 — the sweet spot
+  // that maximises recognised detail while minimising token cost and transfer size.
+  const compressImageForAiVision = useCallback((file: File): Promise<File> => {
+    const MAX_DIM = 1568;
+    const QUALITY = 0.85;
+    return new Promise((resolve) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        const { naturalWidth: w, naturalHeight: h } = img;
+        const scale = Math.min(1, MAX_DIM / Math.max(w, h));
+        const tw = Math.round(w * scale);
+        const th = Math.round(h * scale);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = tw;
+        canvas.height = th;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { resolve(file); return; }
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, tw, th);
+
+        canvas.toBlob((blob) => {
+          if (!blob) { resolve(file); return; }
+          const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' });
+          resolve(compressed);
+        }, 'image/jpeg', QUALITY);
+      };
+      img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
+      img.src = objectUrl;
+    });
+  }, []);
+
   const handleFileUpload = useCallback(async (file: File, caption?: string) => {
     if (file.size > MAX_FILE_SIZE) {
       toast.error(`File "${file.name}" vượt quá giới hạn 50MB`);
@@ -1233,6 +1507,13 @@ export function useChatWindow({
     }
     const isImage = file.type.startsWith('image/');
     const isVideo = file.type.startsWith('video/');
+
+    // For AI vision: compress/resize to ≤1568px before S3 upload so GPT-4o
+    // receives a high-detail-friendly image without oversized base64 payload.
+    let uploadFile = file;
+    if (isImage && selectedChat?.isAi) {
+      uploadFile = await compressImageForAiVision(file);
+    }
     const localPreviewUrl = (isImage || isVideo) ? URL.createObjectURL(file) : undefined;
 
     let imageDimensions: { width: number; height: number } | undefined;
@@ -1270,10 +1551,33 @@ export function useChatWindow({
       }]);
       setShouldScrollToBottom(true);
       setReplyingTo(null);
+    } else {
+      // Optimistic message for non-media file attachments (MEDIA type)
+      setMessages(prev => [...prev, {
+        id: tempId,
+        text: '',
+        type: 'MEDIA',
+        fileName: file.name,
+        fileSize: file.size,
+        replyToMessageId: capturedReplyTo?.id || null,
+        sender: 'Me',
+        senderId: currentUser?.id,
+        time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        reactions: [],
+        rawDate: new Date(),
+        isEdited: false,
+        isRecalled: false,
+        forwardedFromSenderName: null,
+        caption: caption?.trim() || undefined,
+        isUploading: true,
+        uploadProgress: 0,
+      }]);
+      setShouldScrollToBottom(true);
+      setReplyingTo(null);
     }
 
     try {
-      const res = await apiClient.get<any>(`/messages/presigned-url?fileName=${encodeURIComponent(file.name)}&fileType=${encodeURIComponent(file.type)}`);
+      const res = await apiClient.get<any>(`/messages/presigned-url?fileName=${encodeURIComponent(uploadFile.name)}&fileType=${encodeURIComponent(uploadFile.type)}`);  
       const presignedUrl = typeof res === 'string' ? res : (res?.data || res?.url || res);
 
       if (!presignedUrl || typeof presignedUrl !== 'string') {
@@ -1284,7 +1588,7 @@ export function useChatWindow({
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('PUT', presignedUrl);
-        xhr.setRequestHeader('Content-Type', file.type);
+        xhr.setRequestHeader('Content-Type', uploadFile.type);
         xhr.upload.onprogress = (event) => {
           if (event.lengthComputable) {
             const percent = Math.round((event.loaded / event.total) * 100);
@@ -1299,7 +1603,7 @@ export function useChatWindow({
           }
         };
         xhr.onerror = () => reject(new Error('S3 upload failed'));
-        xhr.send(file);
+        xhr.send(uploadFile);
       });
 
       const s3Url = presignedUrl.split('?')[0];
@@ -1328,7 +1632,7 @@ export function useChatWindow({
         file.size,
         undefined,
         videoDur,
-        localPreviewUrl ? tempId : undefined,
+        tempId,
         imageDimensions?.width,
         imageDimensions?.height,
         caption?.trim() || undefined
@@ -1338,18 +1642,19 @@ export function useChatWindow({
         setTimeout(() => URL.revokeObjectURL(localPreviewUrl), 2000);
       }
     } catch (error) {
+      setMessages(prev => prev.filter(m => m.id !== tempId));
       if (localPreviewUrl) {
-        setMessages(prev => prev.filter(m => m.id !== tempId));
         URL.revokeObjectURL(localPreviewUrl);
       }
       console.error('Upload error:', error);
       toast.error(t('chat.upload.error'));
     }
-  }, [currentUser?.id, handleSendMessage, readImageDimensionsFromUrl, replyingTo, t]);
+  }, [compressImageForAiVision, currentUser?.id, handleSendMessage, readImageDimensionsFromUrl, replyingTo, selectedChat, t]);
 
   const handleSendImageQueue = useCallback(async () => {
     const items = [...imageQueue];
-    const globalCaption = message?.trim() || undefined;
+    const rawMsg = message?.trim() || '';
+    const globalCaption = rawMsg.replace(/<[^>]*>/g, '').trim() ? rawMsg : undefined;
     if (globalCaption) setMessage('');
 
     // Single image: send as individual IMAGE message (existing behavior)
@@ -1530,13 +1835,44 @@ export function useChatWindow({
 
   const handleVideoChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) handleFileUpload(file);
-  }, [handleFileUpload]);
+    if (file) {
+      const previewUrl = URL.createObjectURL(file);
+      const attachment = { file, previewUrl };
+      pendingAttachmentRef.current = attachment;
+      setPendingAttachment(attachment);
+    }
+    e.target.value = '';
+  }, []);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) handleFileUpload(file);
-  }, [handleFileUpload]);
+    if (file) {
+      const attachment = { file, previewUrl: null };
+      pendingAttachmentRef.current = attachment;
+      setPendingAttachment(attachment);
+    }
+    e.target.value = '';
+  }, []);
+
+  const clearPendingAttachment = useCallback(() => {
+    if (pendingAttachmentRef.current?.previewUrl) {
+      URL.revokeObjectURL(pendingAttachmentRef.current.previewUrl);
+    }
+    pendingAttachmentRef.current = null;
+    setPendingAttachment(null);
+  }, []);
+
+  const handleSendWithAttachment = useCallback(async () => {
+    const attachment = pendingAttachmentRef.current;
+    if (attachment) {
+      const captionText = message?.trim() || undefined;
+      clearPendingAttachment();
+      if (captionText) setMessage('');
+      await handleFileUpload(attachment.file, captionText);
+      return;
+    }
+    await handleSendMessage();
+  }, [clearPendingAttachment, handleFileUpload, handleSendMessage, message]);
 
   const sendTypingIndicator = useCallback(() => {
     if (!selectedChat?.id || selectedChat.isNew || selectedChat.isAi || !currentUser?.id) return;
@@ -1773,6 +2109,10 @@ export function useChatWindow({
         return;
       }
 
+      const convIdStr = String(selectedChat.id);
+      const isConversationChange = prevFetchedConvIdRef.current !== convIdStr;
+      prevFetchedConvIdRef.current = convIdStr;
+
       try {
         setIsInitialLoading(true);
         setIsLoadingMore(true);
@@ -1782,11 +2122,23 @@ export function useChatWindow({
           const localItems = await getLocalMessages(String(selectedChat.id), 20);
           if (localItems.length > 0) {
             const localSorted = [...localItems].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-            const localMapped = localSorted.map(item => mapIncomingMessage(item, currentUser?.id));
-            setMessages(filterLocallyDeletedMessages(localMapped));
+            const localMapped = filterLocallyDeletedMessages(localSorted.map(item => mapIncomingMessage(item, currentUser?.id)));
+            if (isConversationChange) {
+              // Full reset when switching conversations
+              setMessages(localMapped);
+            } else {
+              // On refresh trigger: merge to preserve realtime messages not yet in IndexedDB
+              setMessages(prev => {
+                const localIds = new Set(localMapped.map(m => m.id));
+                const realtimeOnly = prev.filter(m => !localIds.has(m.id) && !m.id.startsWith('temp-') && !locallyDeletedMessageIdsRef.current.has(String(m.id)));
+                if (realtimeOnly.length === 0) return localMapped;
+                return [...localMapped, ...realtimeOnly].sort((a, b) => (a.rawDate?.getTime() ?? 0) - (b.rawDate?.getTime() ?? 0));
+              });
+            }
             setIsInitialLoading(false);
             setShouldScrollToBottom(true);
-          } else {
+          } else if (isConversationChange) {
+            // Only clear messages when switching to a different conversation
             setMessages([]);
           }
         } else {
@@ -2035,6 +2387,8 @@ export function useChatWindow({
               isRecalled: newMsg.isRecalled || false,
               forwardedFromSenderName: newMsg.forwardedFromSenderName || null,
               caption: newMsg.caption || undefined,
+              fileName: newMsg.fileName || undefined,
+              fileSize: newMsg.fileSize || undefined,
               isUploading: false,
               attachments: newMsg.attachments || undefined,
             };
@@ -2051,6 +2405,8 @@ export function useChatWindow({
                   width: mappedMsg.width || optimisticMsg.width,
                   height: mappedMsg.height || optimisticMsg.height,
                   caption: mappedMsg.caption || optimisticMsg.caption,
+                  fileName: mappedMsg.fileName || optimisticMsg.fileName,
+                  fileSize: mappedMsg.fileSize || optimisticMsg.fileSize,
                 };
                 setShouldScrollToBottom(true);
                 return next;
@@ -2395,6 +2751,7 @@ export function useChatWindow({
       y: e.clientY,
       isMe: msg.sender === 'Me',
       type: msg.type,
+      isSticker: msg.type === 'STICKER' || (msg.type === 'IMAGE' && Boolean(msg.text?.includes('/stickers/'))),
     });
   }, []);
 
@@ -2618,6 +2975,7 @@ export function useChatWindow({
     isNicknameModalOpen,
     isFilePopoverOpen,
     isChatImageUploadOpen,
+    pendingAttachment,
     isMoreActionsOpen,
     setIsMoreActionsOpen,
     isPollModalOpen,
@@ -2676,6 +3034,8 @@ export function useChatWindow({
     handleVideoClick,
     handleVideoChange,
     handleFileChange,
+    clearPendingAttachment,
+    handleSendWithAttachment,
     handleSendImageQueue,
     sendTypingIndicator,
     togglePicker,

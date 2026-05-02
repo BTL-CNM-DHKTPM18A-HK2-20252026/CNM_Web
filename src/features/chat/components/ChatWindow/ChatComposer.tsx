@@ -77,6 +77,9 @@ export function ChatComposer({ vm }: ChatComposerProps) {
     handleFileClick,
     fileInputRef,
     handleFileChange,
+    pendingAttachment,
+    clearPendingAttachment,
+    handleSendWithAttachment,
     onSelectSticker,
     imageQueue,
     closeImageQueue,
@@ -150,8 +153,7 @@ export function ChatComposer({ vm }: ChatComposerProps) {
         </div>
       )}
 
-      {pendingLinkPreview && !linkPreviewDismissed && (
-        <div className="bg-[var(--card-bg)] border-t border-[var(--border)] px-4 py-2.5 flex items-start gap-3">
+      {pendingLinkPreview && !linkPreviewDismissed && (        <div className="bg-[var(--card-bg)] border-t border-[var(--border)] px-4 py-2.5 flex items-start gap-3">
           {pendingLinkPreview.thumbnail && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -204,7 +206,7 @@ export function ChatComposer({ vm }: ChatComposerProps) {
       {isSmartReplyEnabled && smartRepliesLoading && !message.trim() && smartReplies.length === 0 && (
         <div className="bg-[var(--card-bg)] border-t border-[var(--border)] px-4 py-2 flex items-center gap-2">
           <div className="w-3 h-3 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" />
-          <span className="text-[12px] text-[var(--sub-text)]">Đang tạo gợi ý...</span>
+          <span className="text-[12px] text-[var(--sub-text)]">{t('chat.smart_reply_loading')}</span>
         </div>
       )}
 
@@ -254,7 +256,7 @@ export function ChatComposer({ vm }: ChatComposerProps) {
               <button
                 onClick={() => setIsFormattingActive(!isFormattingActive)}
                 className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer ${isFormattingActive ? 'bg-[#E1EDFF] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}
-                title="Định dạng tin nhắn"
+                title={t('chat.format_message')}
               >
                 <TextColorIcon size={20} />
               </button>
@@ -268,7 +270,7 @@ export function ChatComposer({ vm }: ChatComposerProps) {
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => vm.setIsFilePopoverOpen(false)} />
                     <div className="absolute bottom-[calc(100%+14px)] left-[-10px] bg-[var(--card-bg)] border border-[var(--border)] rounded-lg shadow-xl z-50 p-0 overflow-hidden min-w-[140px]">
-                      <button onClick={handleVideoClick} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-[var(--hover-bg)] w-full text-left text-[var(--text)] text-[14px] font-medium cursor-pointer"><VideoPickerIcon size={18} />{t('chat.choose_video')}</button>
+                      {!selectedChat.isAi && <button onClick={handleVideoClick} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-[var(--hover-bg)] w-full text-left text-[var(--text)] text-[14px] font-medium cursor-pointer"><VideoPickerIcon size={18} />{t('chat.choose_video')}</button>}
                       <button onClick={handleFileClick} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-[var(--hover-bg)] w-full text-left text-[var(--text)] text-[14px] font-medium cursor-pointer"><FilePickerIcon size={18} />{t('chat.choose_file')}</button>
                       <div className="absolute top-[calc(100%-1px)] left-4 w-4 h-4 overflow-hidden"><div className="w-2.5 h-2.5 bg-[var(--card-bg)] border-b border-r border-[var(--border)] rotate-45 -translate-y-1.5 mx-auto" /></div>
                     </div>
@@ -278,6 +280,7 @@ export function ChatComposer({ vm }: ChatComposerProps) {
 
               <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
 
+              {!selectedChat.isAi && !selectedChat.isCloud && (
               <button
                 onClick={(e) => {
                   e.preventDefault();
@@ -293,14 +296,17 @@ export function ChatComposer({ vm }: ChatComposerProps) {
                   <VoiceIcon size={20} />
                 )}
               </button>
+              )}
 
+              {!selectedChat.isAi && !selectedChat.isCloud && (
               <button
                 onClick={() => setIsMoreActionsOpen(!isMoreActionsOpen)}
                 className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer transition-all ${isMoreActionsOpen ? 'bg-[var(--hover-bg)] text-[#0068FF]' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[#0068FF]'}`}
-                title="Thêm"
+                title={t('chat.more')}
               >
                 <MoreHorizontalIcon size={20} />
               </button>
+              )}
 
               {isMoreActionsOpen && (
                 <>
@@ -372,6 +378,7 @@ export function ChatComposer({ vm }: ChatComposerProps) {
                 </>
               )}
 
+              {!selectedChat.isAi && !selectedChat.isCloud && (
               <button
                 onClick={handleToggleSmartReply}
                 className="ml-auto inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[12px] font-medium text-[var(--sub-text)] hover:text-[#0068FF] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer whitespace-nowrap"
@@ -394,6 +401,7 @@ export function ChatComposer({ vm }: ChatComposerProps) {
                 </svg>
                 <span>Bật/tắt gợi ý tin nhắn</span>
               </button>
+              )}
 
             </>
           )}
@@ -459,7 +467,7 @@ export function ChatComposer({ vm }: ChatComposerProps) {
                         setCaptionModalIdx(idx);
                       }}
                       className="w-7 h-7 rounded-full bg-white/90 flex items-center justify-center hover:bg-white transition-colors cursor-pointer shadow"
-                      title="Thêm mô tả"
+                      title={t('chat.add_caption')}
                     >
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>
                     </button>
@@ -472,7 +480,7 @@ export function ChatComposer({ vm }: ChatComposerProps) {
                         vm.setImageQueue((prev) => prev.filter((_, i) => i !== idx));
                       }}
                       className="w-7 h-7 rounded-full bg-white/90 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors cursor-pointer shadow"
-                      title="Xoá ảnh"
+                      title={t('chat.remove_image')}
                     >
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                     </button>
@@ -530,7 +538,7 @@ export function ChatComposer({ vm }: ChatComposerProps) {
             onEditorReady={setEditor}
             value={message}
             placeholder={isFormattingActive
-              ? "Nhấn Ctrl + Shift + X để định dạng tin nhắn"
+              ? t('chat.format_keyboard_hint')
               : selectedChat.isAi
                 ? t('chat.input_placeholder_ai')
                 : t('chat.input_placeholder', { name: selectedChat.name })
@@ -550,7 +558,7 @@ export function ChatComposer({ vm }: ChatComposerProps) {
                 if (imageQueue.length > 0) {
                   handleSendImageQueue();
                 } else {
-                  handleSendMessage();
+                  handleSendWithAttachment();
                 }
               }
             }}
@@ -560,16 +568,18 @@ export function ChatComposer({ vm }: ChatComposerProps) {
               : (selectedChat.isAi ? t('chat.ai_input_placeholder') : t('chat.input_placeholder'))}
             disabled={selectedChat.isAi && isSendingAi}
             isEmojiOpen={isPickerOpen && pickerTab === 'emoji'}
-            showSendButton={Boolean(message.trim() || imageQueue.length > 0)}
+            showSendButton={Boolean(message.trim() || imageQueue.length > 0 || pendingAttachment)}
             onToggleEmoji={() => togglePicker('emoji')}
             onSend={() => {
               if (imageQueue.length > 0) {
                 handleSendImageQueue();
               } else {
-                handleSendMessage();
+                handleSendWithAttachment();
               }
             }}
             onSendLike={() => handleSendMessage('👍')}
+            pendingAttachment={pendingAttachment}
+            onClearAttachment={clearPendingAttachment}
           />
         </div>
 

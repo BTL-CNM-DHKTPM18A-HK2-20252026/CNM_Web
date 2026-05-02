@@ -574,17 +574,17 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
 
           {/* Permissions Section */}
           <div className="p-4 border-b border-[var(--border)] space-y-4">
-            <h3 className="text-[14px] font-bold text-[#0068FF]">Cho phép các thành viên trong nhóm:</h3>
+            <h3 className="text-[14px] font-bold text-[#0068FF]">{t('info.group.permissions_title')}</h3>
             <div className="space-y-4">
-              {[
-                { label: 'Thay đổi tên & ảnh đại diện của nhóm', id: 'editInfo' as const },
-                { label: 'Ghim tin nhắn, ghi chú, bình chọn lên đầu hội thoại', id: 'pinContent' as const },
-                { label: 'Tạo mới ghi chú, nhắc hẹn', id: 'createNotes' as const },
-                { label: 'Tạo mới bình chọn', id: 'createPolls' as const },
-                { label: 'Gửi tin nhắn', id: 'sendMessages' as const }
-              ].map((item) => (
+              {([
+                { labelKey: 'editInfo', id: 'editInfo' as const },
+                { labelKey: 'pinContent', id: 'pinContent' as const },
+                { labelKey: 'createNotes', id: 'createNotes' as const },
+                { labelKey: 'createPolls', id: 'createPolls' as const },
+                { labelKey: 'sendMessages', id: 'sendMessages' as const }
+              ] as { labelKey: string; id: 'editInfo' | 'pinContent' | 'createNotes' | 'createPolls' | 'sendMessages' }[]).map((item) => (
                 <div key={item.id} className="flex items-center justify-between group cursor-pointer" onClick={() => toggleGroupSetting(item.id)}>
-                  <span className="text-[14px] text-gray-600 dark:text-gray-300 leading-tight flex-1 pr-4">{item.label}</span>
+                  <span className="text-[14px] text-gray-600 dark:text-gray-300 leading-tight flex-1 pr-4">{t(`info.group.perm.${item.labelKey}`)}</span>
                   <div className={`w-5 h-5 rounded-md border-2 transition-colors flex items-center justify-center ${groupSettings[item.id] ? 'border-[#0068FF] bg-[#0068FF]' : 'border-gray-300 dark:border-gray-600'}`}>
                     {groupSettings[item.id] && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><polyline points="20 6 9 17 4 12" /></svg>}
                   </div>
@@ -595,14 +595,14 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
 
           {/* Moderation Section */}
           <div className="py-2">
-            {[
-              { label: 'Chế độ phê duyệt thành viên mới', id: 'memberApproval' as const, hasHelp: true },
-              { label: 'Đánh dấu tin nhắn từ trưởng/phó nhóm', id: 'highlightAdmin' as const, hasHelp: true },
-              { label: 'Cho phép thành viên mới đọc tin nhắn gần nhất', id: 'newMemberRead' as const, hasHelp: true }
-            ].map((item, idx) => (
+            {([
+              { labelKey: 'memberApproval', id: 'memberApproval' as const, hasHelp: true },
+              { labelKey: 'highlightAdmin', id: 'highlightAdmin' as const, hasHelp: true },
+              { labelKey: 'newMemberRead', id: 'newMemberRead' as const, hasHelp: true }
+            ] as { labelKey: string; id: 'memberApproval' | 'highlightAdmin' | 'newMemberRead'; hasHelp: boolean }[]).map((item, idx) => (
               <div key={idx} className="px-4 py-4 border-b border-[var(--border)] flex items-center justify-between transition-colors hover:bg-[var(--hover-bg)]/30 group cursor-pointer" onClick={() => toggleGroupSetting(item.id)}>
                 <div className="flex-1 pr-4 flex items-center gap-1.5">
-                  <span className="text-[14px] text-gray-700 dark:text-gray-200 font-medium leading-tight">{item.label}</span>
+                  <span className="text-[14px] text-gray-700 dark:text-gray-200 font-medium leading-tight">{t(`info.group.moderation.${item.labelKey}`)}</span>
                   {item.hasHelp && (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 opacity-60"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
                   )}
@@ -622,7 +622,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
     <div className="w-[340px] flex flex-col h-full bg-[var(--card-bg)] border-l border-[var(--border)] transition-colors duration-200">
       <div className="h-[76px] flex items-center justify-center border-b border-[var(--border)] shrink-0 px-4">
         <h2 className="text-[17px] font-bold text-[var(--text)]">
-          {isAi ? t('info.ai.title') : isCloud ? t('info.cloud.title') : isGroup ? 'Thông tin nhóm' : t('info.title')}
+          {isAi ? t('info.ai.title') : isCloud ? t('info.cloud.title') : isGroup ? t('info.group.title') : t('info.title')}
         </h2>
       </div>
       <div className="flex-1 overflow-y-auto custom-scrollbar">

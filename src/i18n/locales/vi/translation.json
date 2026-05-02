@@ -276,6 +276,7 @@
     },
     "upload": {
       "loading": "Đang tải {{name}}...",
+      "uploading": "Đang tải lên",
       "success": "Gửi media thành công!",
       "error": "Lỗi khi tải media lên S3"
     },
@@ -471,7 +472,13 @@
       "accept_error": "Không thể chấp nhận tin nhắn",
       "decline_success": "Đã từ chối tin nhắn",
       "block_success": "Đã chặn người dùng"
-    }
+    },
+    "smart_reply_loading": "Đang tạo gợi ý...",
+    "format_message": "Định dạng tin nhắn",
+    "more": "Thêm",
+    "add_caption": "Thêm mô tả",
+    "remove_image": "Xoá ảnh",
+    "format_keyboard_hint": "Nhấn Ctrl + Shift + X để định dạng tin nhắn"
   },
   "presence": {
     "online": "Đang hoạt động",
@@ -700,6 +707,22 @@
       "files": "File",
       "voice": "Tin nhắn thoại",
       "other": "Khác"
+    },
+    "group": {
+      "title": "Thông tin nhóm",
+      "permissions_title": "Cho phép các thành viên trong nhóm:",
+      "perm": {
+        "editInfo": "Thay đổi tên & ảnh đại diện của nhóm",
+        "pinContent": "Ghim tin nhắn, ghi chú, bình chọn lên đầu hội thoại",
+        "createNotes": "Tạo mới ghi chú, nhắc hẹn",
+        "createPolls": "Tạo mới bình chọn",
+        "sendMessages": "Gửi tin nhắn"
+      },
+      "moderation": {
+        "memberApproval": "Chế độ phê duyệt thành viên mới",
+        "highlightAdmin": "Đánh dấu tin nhắn từ trưởng/phó nhóm",
+        "newMemberRead": "Cho phép thành viên mới đọc tin nhắn gần nhất"
+      }
     }
   },
   "pin": {

@@ -206,6 +206,12 @@ const getPreviewUrl = (url: string) => {
   return url;
 };
 
+/** Returns true only if caption has actual visible text (not just empty HTML like <p></p>) */
+const hasVisibleCaption = (caption?: string | null): boolean => {
+  if (!caption) return false;
+  return caption.replace(/<[^>]*>/g, '').trim().length > 0;
+};
+
 const isDifferentDay = (d1?: Date, d2?: Date) => {
   if (!d1 || !d2) return true;
   return d1.toDateString() !== d2.toDateString();
@@ -874,6 +880,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                 const effectivePrev = showDateSeparator ? undefined : prevMsg;
                 const showAvatarAndName = isFirstInBlock(msg, effectivePrev);
                 const hasReactions = msg.reactions && msg.reactions.length > 0;
+                const isSticker = msg.type === 'STICKER' || (msg.type === 'IMAGE' && Boolean(msg.text?.includes('/stickers/')));
                 const paddingClass = showTimestamp
                   ? 'pb-4'
                   : hasReactions
@@ -1070,7 +1077,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                   <div className="relative group/media-content w-fit max-w-full">
                                     {msg.type === 'IMAGE' ? (
                                       <div
-                                        className={`relative w-full max-w-[320px] overflow-hidden bg-slate-100 shadow-sm ${msg.caption ? 'rounded-t-md' : 'rounded-md'}`}
+                                        className={`relative w-full max-w-[320px] overflow-hidden bg-slate-100 shadow-sm ${hasVisibleCaption(msg.caption) ? 'rounded-t-md' : 'rounded-md'}`}
                                         style={{ aspectRatio: resolveImageAspectRatio(msg) }}
                                       >
                                         <img
@@ -1104,16 +1111,20 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                     ) : (
                                       <video src={msg.text} controls className="max-w-[320px] max-h-[360px] rounded-md shadow-sm object-contain" />
                                     )}
-                                    {msg.caption && (
+                                    {hasVisibleCaption(msg.caption) && (
                                       <div className={`px-2.5 py-1.5 text-[14px] leading-snug break-words rounded-b-md max-w-[320px] shadow-sm ${msg.sender === 'Me'
                                           ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)]'
                                           : 'bg-[var(--message-other-bg)] text-[var(--message-other-text)]'
                                         }`}>
-                                        {msg.caption}
+                                        {/<[a-z][\s\S]*>/i.test(msg.caption!) ? (
+                                          <div className="tiptap-content" dangerouslySetInnerHTML={{ __html: replaceEmojiWithHtml(msg.caption!) }} />
+                                        ) : (
+                                          msg.caption
+                                        )}
                                       </div>
                                     )}
 
-                                    {!msg.isUploading && (
+                                    {!msg.isUploading && !isSticker && (
                                       <button
                                         onClick={(e) => handleDownloadFile(e, msg.text, getMediaDownloadName(msg.text, msg.type === 'IMAGE' ? 'IMAGE' : 'VIDEO'))}
                                         className="absolute top-2 right-2 h-8 w-8 rounded-lg flex items-center justify-center border border-black/10 bg-white/80 text-[#1f2937] backdrop-blur-sm transition-all cursor-pointer opacity-0 group-hover/media-content:opacity-100 hover:bg-white hover:scale-110 active:scale-95"
@@ -1210,12 +1221,16 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                         </div>
                                       </div>
                                     )}
-                                    {msg.caption && (
+                                    {hasVisibleCaption(msg.caption) && (
                                       <div className={`px-2.5 py-1.5 text-[14px] leading-snug break-words rounded-b-md max-w-[320px] shadow-sm ${msg.sender === 'Me'
                                           ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)]'
                                           : 'bg-[var(--message-other-bg)] text-[var(--message-other-text)]'
                                         }`}>
-                                        {msg.caption}
+                                        {/<[a-z][\s\S]*>/i.test(msg.caption!) ? (
+                                          <div className="tiptap-content" dangerouslySetInnerHTML={{ __html: replaceEmojiWithHtml(msg.caption!) }} />
+                                        ) : (
+                                          msg.caption
+                                        )}
                                       </div>
                                     )}
                                     {!msg.isUploading && (
@@ -1289,15 +1304,21 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                     </div>
                                   );
                                 })() : msg.type === 'MEDIA' ? (() => {
-                                  const ext = getFileExtension(msg.text).toUpperCase();
+                                  // For optimistic messages (isUploading), use msg.fileName; after upload use URL
+                                  const displayName = msg.fileName || getFileNameFromUrl(msg.text);
+                                  const extSource = msg.fileName || msg.text;
+                                  const ext = getFileExtension(extSource).toUpperCase();
                                   const isPDF = ext === 'PDF';
                                   const isWord = ['DOC', 'DOCX'].includes(ext);
                                   const isExcel = ['XLS', 'XLSX'].includes(ext);
 
                                   return (
-                                    <div className={`border rounded-xl p-3 flex items-center gap-3 min-w-[280px] max-w-[380px] hover:shadow-lg transition-all cursor-pointer group/file relative ${msg.sender === 'Me' ? 'bg-[#EBF5FF] border-[#D0E7FF]' : 'bg-[#F0F7FF] border-[#E0EFFF]'}`} onClick={() => window.open(getPreviewUrl(msg.text), '_blank')}>
+                                    <>
+                                    <div className={`border rounded-xl p-3 flex items-center gap-3 min-w-[280px] max-w-[380px] hover:shadow-lg transition-all group/file relative ${msg.isUploading ? 'cursor-default opacity-80' : 'cursor-pointer'} ${msg.sender === 'Me' ? 'bg-[#EBF5FF] border-[#D0E7FF]' : 'bg-[#F0F7FF] border-[#E0EFFF]'}`} onClick={() => !msg.isUploading && window.open(getPreviewUrl(msg.text), '_blank')}>
                                       <div className={`h-12 w-10 rounded-lg flex flex-col items-center justify-center text-white font-bold shadow-sm shrink-0 ${isPDF ? 'bg-[#FF5C5C]' : isWord ? 'bg-[#2B7CF6]' : isExcel ? 'bg-[#1D6F42]' : 'bg-gray-400'}`}>
-                                        {isWord ? (
+                                        {msg.isUploading ? (
+                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
+                                        ) : isWord ? (
                                           <span className="text-[14px]">W</span>
                                         ) : isPDF ? (
                                           <span className="text-[8px]">PDF</span>
@@ -1306,27 +1327,49 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                         )}
                                       </div>
                                       <div className="flex-1 min-w-0">
-                                        <h4 className="text-[13px] font-semibold text-[#1f2329] truncate mb-0.5">{getFileNameFromUrl(msg.text)}</h4>
+                                        <h4 className="text-[13px] font-semibold text-[#1f2329] truncate mb-0.5">{displayName}</h4>
                                         <div className="flex items-center gap-2 text-[10px] text-[#647081] opacity-90">
                                           {msg.fileSize && <span>{formatFileSize(msg.fileSize)}</span>}
                                           <div className="flex items-center gap-1">
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="shrink-0"><path d="M17.5 11.5c.34-.33.74-.5 1.14-.5a1.88 1.88 0 1 1 0 3.75h-10a3.13 3.13 0 1 1 0-6.25c.34 0 .66.05.97.15A4.38 4.38 0 1 1 17.5 11.5Z" /></svg>
-                                            <span>{t('chat.status.on_cloud')}</span>
+                                            {msg.isUploading ? (
+                                              <span className="italic">{t('chat.upload.uploading')} {msg.uploadProgress != null ? `${msg.uploadProgress}%` : ''}</span>
+                                            ) : (
+                                              <>
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="shrink-0"><path d="M17.5 11.5c.34-.33.74-.5 1.14-.5a1.88 1.88 0 1 1 0 3.75h-10a3.13 3.13 0 1 1 0-6.25c.34 0 .66.05.97.15A4.38 4.38 0 1 1 17.5 11.5Z" /></svg>
+                                                <span>{t('chat.status.on_cloud')}</span>
+                                              </>
+                                            )}
                                           </div>
                                         </div>
                                       </div>
-                                      <button
-                                        onClick={(e) => handleDownloadFile(e, msg.text, getFileNameFromUrl(msg.text))}
-                                        className="h-8 w-8 rounded-md flex items-center justify-center border border-[#D0E7FF] group-hover/file:bg-white transition-all shrink-0 cursor-pointer hover:scale-110 active:scale-95 shadow-sm bg-white/50"
-                                        title="Tải xuống"
-                                      >
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-[#1f2329]">
-                                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                          <polyline points="7 10 12 15 17 10" />
-                                          <line x1="12" x2="12" y1="15" y2="3" />
-                                        </svg>
-                                      </button>
+                                      {!msg.isUploading && (
+                                        <button
+                                          onClick={(e) => handleDownloadFile(e, msg.text, displayName)}
+                                          className="h-8 w-8 rounded-md flex items-center justify-center border border-[#D0E7FF] group-hover/file:bg-white transition-all shrink-0 cursor-pointer hover:scale-110 active:scale-95 shadow-sm bg-white/50"
+                                          title="Tải xuống"
+                                        >
+                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-[#1f2329]">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                            <polyline points="7 10 12 15 17 10" />
+                                            <line x1="12" x2="12" y1="15" y2="3" />
+                                          </svg>
+                                        </button>
+                                      )}
                                     </div>
+                                    {hasVisibleCaption(msg.caption) && (
+                                      <div className={`px-3 py-2 text-[13.5px] leading-snug break-words rounded-b-xl max-w-[380px] border border-t-0 ${
+                                        msg.sender === 'Me'
+                                          ? 'bg-[#dceeff] border-[#D0E7FF] text-[#1a3a5c]'
+                                          : 'bg-[#e8f3ff] border-[#E0EFFF] text-[#1a3a5c]'
+                                      }`}>
+                                        {/<[a-z][\s\S]*>/i.test(msg.caption!) ? (
+                                          <div className="tiptap-content" dangerouslySetInnerHTML={{ __html: replaceEmojiWithHtml(msg.caption!) }} />
+                                        ) : (
+                                          msg.caption
+                                        )}
+                                      </div>
+                                    )}
+                                    </>
                                   );
                                 })() : (
                                   <div className={`${showTimestamp || msg.isEdited ? 'pb-5' : 'pb-1'} relative min-h-[48px] flex flex-col justify-between`}>
@@ -1491,6 +1534,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
 
                           {!msg.isRecalled && (
                             <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity h-fit ${msg.sender === 'Me' ? 'mr-0.5 flex-row-reverse self-center' : 'ml-0.5 self-center'}`}>
+                              {!isSticker && (
                               <div className="relative group/react">
                                 <div className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer text-[13px] select-none leading-none">😊</div>
                                 <div className={`absolute ${msg.sender === 'Me' ? 'right-0' : 'left-0'} bottom-full opacity-0 invisible group-hover/react:opacity-100 group-hover/react:visible transition-all duration-150 flex items-center gap-0.5 bg-[var(--card-bg)] rounded-full px-2 py-1 shadow-xl border border-[var(--border)] z-50 whitespace-nowrap`}>
@@ -1499,8 +1543,11 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                   ))}
                                 </div>
                               </div>
+                              )}
 
+                              {!isSticker && (
                               <button title={t('chat.actions.forward')} onClick={() => setForwardingMsg({ id: msg.id, text: msg.text, type: msg.type, sender: msg.sender, caption: msg.caption || (msg.type !== 'TEXT' ? msg.text : undefined) })} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 10l5-5 5 5M8 6v8a4 4 0 004 4h9" /></svg></button>
+                              )}
                               <button title={t('chat.actions.more')} onClick={(e) => openContextMenu(e, msg)} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg></button>
                             </div>
                           )}

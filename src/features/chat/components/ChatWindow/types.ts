@@ -70,6 +70,7 @@ export interface ChatContextMenu {
   y: number;
   isMe: boolean;
   type: string;
+  isSticker?: boolean;
 }
 
 export interface ConfirmDialog {
