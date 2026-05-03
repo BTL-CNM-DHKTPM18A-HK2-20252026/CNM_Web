@@ -1,6 +1,7 @@
 'use client';
 
 import { SocketProvider } from '@/features/chat/providers/SocketProvider';
+import { NotificationProvider } from '@/features/notification/store/NotificationContext';
 
 export default function MainLayout({
   children,
@@ -9,7 +10,9 @@ export default function MainLayout({
 }>) {
   return (
     <SocketProvider>
-      <div className="min-h-screen w-full">{children}</div>
+      <NotificationProvider>
+        <div className="min-h-screen w-full">{children}</div>
+      </NotificationProvider>
     </SocketProvider>
   );
 }

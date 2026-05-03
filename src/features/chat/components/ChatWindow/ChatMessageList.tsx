@@ -684,11 +684,12 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
     handlePinMessage,
     handleUnpinMessage,
     readReceipts,
+    deliveredReceipts,
     handleAcceptFriendRequest,
     handleSendFriendRequest,
   } = vm;
 
-  const { isOnline, refreshUserStatus } = usePresence();
+  const { refreshUserStatus } = usePresence();
 
   // Fetch trạng thái online của người nhận khi mở hội thoại mới
   useEffect(() => {
@@ -1465,9 +1466,16 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                 })
                                 : [];
 
-                              // "Đã nhận": người kia đang online nhưng chưa xem
+                              // "Đã nhận": có delivery receipt từ người kia
                               const otherUserId = selectedChat.otherUserId || selectedChat.recipientId;
-                              const otherIsOnline = otherUserId ? isOnline(String(otherUserId)) : false;
+                              const isDelivered = showReadStatus && otherUserId
+                                ? (() => {
+                                    const receipt = deliveredReceipts[String(otherUserId)];
+                                    if (!receipt) return false;
+                                    const deliveredIdx = messages.findIndex(item => item.id === receipt.messageId);
+                                    return deliveredIdx >= index;
+                                  })()
+                                : false;
 
                               const showSection = msg.type !== 'TEXT' || showReadStatus;
                               if (!showSection) return null;
@@ -1509,8 +1517,8 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                       );
                                     }
 
-                                    // 2. Đã nhận — người kia online nhưng chưa xem
-                                    if (otherIsOnline) {
+                                    // 2. Đã nhận — có delivery ACK từ người nhận
+                                    if (isDelivered) {
                                       return (
                                         <div className="bg-green-500/10 rounded-full px-2 py-0.5 flex items-center gap-1 text-[11px] text-green-600 dark:text-green-400 font-medium">
                                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /><polyline points="14 6 3 17" /></svg>
@@ -1519,7 +1527,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                       );
                                     }
 
-                                    // 3. Đã gửi — người kia offline
+                                    // 3. Đã gửi — chưa có delivery ACK
                                     return (
                                       <div className="bg-black/5 dark:bg-white/10 rounded-full px-2 py-0.5 flex items-center gap-1 text-[11px] text-[var(--sub-text)] font-medium">
                                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--sub-text)] opacity-70"><polyline points="20 6 9 17 4 12" /></svg>

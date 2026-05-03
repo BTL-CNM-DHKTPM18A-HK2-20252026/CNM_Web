@@ -3,6 +3,8 @@ import Image from 'next/image';
 import { useTranslation } from 'react-i18next';
 import { SettingsIcon, GridIcon, BookmarkIcon, TagIcon, ClapperboardIcon } from '@/components/ui/Icons';
 import { NewNoteModal } from './NewNoteModal';
+import { FollowersModal } from './FollowersModal';
+import { friendService } from '@/features/friends/services/friendService';
 // import { Film } from 'lucide-react';
 
 interface SocialProfileHeaderProps {
@@ -10,12 +12,21 @@ interface SocialProfileHeaderProps {
   postCount?: number;
   onEditClick?: () => void;
   onArchiveClick?: () => void;
+  onViewProfile?: (userId: string) => void;
 }
 
-export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({ user, postCount = 0, onEditClick, onArchiveClick }) => {
+export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({ user, postCount = 0, onEditClick, onArchiveClick, onViewProfile }) => {
   const { t } = useTranslation();
   const [isNoteModalOpen, setIsNoteModalOpen] = React.useState(false);
   const [activeNote, setActiveNote] = React.useState<string | null>(null);
+  const [friendCount, setFriendCount] = React.useState<number | null>(null);
+  const [showFollowersModal, setShowFollowersModal] = React.useState<'followers' | 'following' | null>(null);
+
+  React.useEffect(() => {
+    friendService.getFriends().then((friends: any[]) => {
+      setFriendCount(Array.isArray(friends) ? friends.length : 0);
+    }).catch(() => setFriendCount(0));
+  }, []);
 
   const handleShareNote = (noteText: string) => {
     setActiveNote(noteText);
@@ -87,14 +98,24 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({ user, 
             <span className="font-bold text-black dark:text-white">{postCount}</span>
             <span className="text-black dark:text-white">{t('social.profile.posts')}</span>
           </div>
-          <div className="flex items-center gap-1 cursor-pointer hover:opacity-70 transition-opacity">
-            <span className="font-bold text-black dark:text-white">0</span>
+          <button
+            onClick={() => setShowFollowersModal('followers')}
+            className="flex items-center gap-1 cursor-pointer hover:opacity-70 transition-opacity bg-transparent border-none p-0"
+          >
+            <span className="font-bold text-black dark:text-white">
+              {friendCount !== null ? friendCount : '—'}
+            </span>
             <span className="text-black dark:text-white">{t('social.profile.followers')}</span>
-          </div>
-          <div className="flex items-center gap-1 cursor-pointer hover:opacity-70 transition-opacity">
-            <span className="font-bold text-black dark:text-white">0</span>
+          </button>
+          <button
+            onClick={() => setShowFollowersModal('following')}
+            className="flex items-center gap-1 cursor-pointer hover:opacity-70 transition-opacity bg-transparent border-none p-0"
+          >
+            <span className="font-bold text-black dark:text-white">
+              {friendCount !== null ? friendCount : '—'}
+            </span>
             <span className="text-black dark:text-white">{t('social.profile.following')}</span>
-          </div>
+          </button>
         </div>
 
         {/* Row 3: Bio */}
@@ -112,6 +133,16 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({ user, 
           user={user} 
           onClose={() => setIsNoteModalOpen(false)} 
           onShare={handleShareNote}
+        />
+      )}
+
+      {/* Followers/Following Modal */}
+      {showFollowersModal && (
+        <FollowersModal
+          type={showFollowersModal}
+          userId={user?.user_id || user?.id || ''}
+          onClose={() => setShowFollowersModal(null)}
+          onViewProfile={(uid) => { onViewProfile?.(uid); setShowFollowersModal(null); }}
         />
       )}
     </div>

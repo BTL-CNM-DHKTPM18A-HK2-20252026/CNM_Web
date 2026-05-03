@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { AUTH_TOKEN_CHANGED_EVENT, getAccessToken } from '@/features/auth';
+import { AUTH_TOKEN_CHANGED_EVENT, getAccessToken, isTabAuthenticated } from '@/features/auth';
 import { websocketService } from '@/lib/realtime/websocketService';
 import { webrtcService } from '@/lib/realtime/webrtcService';
 import { SessionKickModal } from '@/components/ui/SessionKickModal';
@@ -39,19 +39,24 @@ export function SocketProvider({ children }: SocketProviderProps) {
   useEffect(() => {
     // Đăng ký callback kick trước khi connect
     websocketService.onSessionKick(() => {
-      // Session bị kick → nếu đang gọi video thì kết thúc cuộc gọi
+      // Session bị kick → chỉ xử lý khi user đang authenticated
       const userId = currentUserIdRef.current;
-      if (userId) {
-        webrtcService.endCall(userId);
-      } else {
-        webrtcService.cleanup();
+      if (!userId) {
+        // Chưa login (hoặc đang ở màn hình Login) → bỏ qua kick, không hiện modal
+        console.log('[SocketProvider] Session kick ignored — no authenticated user on this tab');
+        return;
       }
+      webrtcService.endCall(userId);
       setKicked(true);
     });
 
     const syncSocketWithToken = () => {
       const token = getAccessToken();
-      if (token) {
+      // Chỉ kết nối WebSocket khi tab này ĐÃ chủ động đăng nhập (không phải inherited session).
+      // window.name = 'fruvia-session-active' chỉ được set khi gọi setAccessToken().
+      // window.name KHÔNG bị copy sang tab mới (khác với sessionStorage),
+      // nên Ctrl+Click mở tab mới sẽ KHÔNG tự kết nối và không kick tab cũ.
+      if (token && isTabAuthenticated()) {
         const userId = getUserIdFromToken(token);
         setCurrentUserId(userId);
         websocketService.connect(token);
@@ -59,6 +64,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
         setCurrentUserId(null);
         websocketService.disconnect();
         webrtcService.unsubscribeSignaling();
+        setKicked(false);
       }
     };
 
@@ -99,7 +105,8 @@ export function SocketProvider({ children }: SocketProviderProps) {
   return (
     <>
       {children}
-      <SessionKickModal isOpen={kicked} onReactivate={handleReactivate} />
+      {/* Chỉ hiện SessionKickModal khi user đang authenticated (currentUserId != null) */}
+      <SessionKickModal isOpen={kicked && !!currentUserId} onReactivate={handleReactivate} />
       {currentUserId && <VideoCallOverlay currentUserId={currentUserId} />}
     </>
   );

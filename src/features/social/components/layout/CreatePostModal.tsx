@@ -10,6 +10,7 @@ import {
   ChevronDownIcon,
   PlusIcon
 } from '@/components/ui/Icons';
+import { apiClient } from '@/lib/http/apiClient';
 
 interface CreatePostModalProps {
   user: any;
@@ -44,6 +45,14 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ user, onClose,
   const [currentIndex, setCurrentIndex] = useState(0);
   const [videoThumbnails, setVideoThumbnails] = useState<Record<number, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const captionRef = useRef<HTMLTextAreaElement>(null);
+
+  // @mention state
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionResults, setMentionResults] = useState<any[]>([]);
+  const [showMentionDropdown, setShowMentionDropdown] = useState(false);
+  const [mentionTriggerIdx, setMentionTriggerIdx] = useState(-1);
+  const mentionTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // If sharing, start at details step
   React.useEffect(() => {
@@ -183,6 +192,49 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ user, onClose,
 
     if (newFiles.length === 0) setStep('select');
     if (currentIndex >= newFiles.length) setCurrentIndex(Math.max(0, newFiles.length - 1));
+  };
+
+  const handleCaptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setCaption(val);
+
+    // Detect @mention
+    const cursorPos = e.target.selectionStart ?? val.length;
+    const textBefore = val.slice(0, cursorPos);
+    const mentionMatch = textBefore.match(/@([a-zA-Z0-9_\u00C0-\u024F]*)$/);
+
+    if (mentionMatch) {
+      const q = mentionMatch[1];
+      setMentionQuery(q);
+      setMentionTriggerIdx(cursorPos - mentionMatch[0].length);
+
+      if (mentionTimeout.current) clearTimeout(mentionTimeout.current);
+      if (q.length >= 1) {
+        mentionTimeout.current = setTimeout(async () => {
+          try {
+            const res = await apiClient.get<any>(`/search/autocomplete?prefix=${encodeURIComponent(q)}&size=5`);
+            const data = Array.isArray(res) ? res : res?.data || [];
+            setMentionResults(data);
+            setShowMentionDropdown(data.length > 0);
+          } catch { setShowMentionDropdown(false); }
+        }, 250);
+      } else {
+        setShowMentionDropdown(false);
+      }
+    } else {
+      setShowMentionDropdown(false);
+    }
+  };
+
+  const insertMention = (user: any) => {
+    const displayName = user.display_name || user.full_name || user.displayName || user.name || 'user';
+    const before = caption.slice(0, mentionTriggerIdx);
+    const after = caption.slice(captionRef.current?.selectionStart ?? caption.length);
+    const newCaption = `${before}@${displayName} ${after}`;
+    setCaption(newCaption);
+    setShowMentionDropdown(false);
+    setMentionResults([]);
+    setTimeout(() => captionRef.current?.focus(), 0);
   };
 
   const handleShare = async () => {
@@ -534,11 +586,39 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ user, onClose,
                 </div>
 
                 <textarea
+                  ref={captionRef}
                   placeholder={t('social.create_post.caption_placeholder')}
                   className="w-full min-h-[150px] p-4 bg-transparent resize-none outline-none text-[16px] shrink-0"
                   value={caption}
-                  onChange={(e) => setCaption(e.target.value)}
+                  onChange={handleCaptionChange}
                 />
+
+                {/* @mention dropdown */}
+                {showMentionDropdown && mentionResults.length > 0 && (
+                  <div className="mx-4 mb-2 bg-white dark:bg-[#363636] border border-gray-100 dark:border-gray-700 rounded-xl shadow-2xl overflow-hidden z-50">
+                    {mentionResults.map((user: any) => (
+                      <button
+                        key={user.user_id || user.id}
+                        onClick={() => insertMention(user)}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 dark:hover:bg-[#262626] transition-colors text-left cursor-pointer bg-transparent border-none"
+                      >
+                        <div className="w-8 h-8 rounded-full overflow-hidden relative shrink-0">
+                          <Image
+                            src={user.avatar_url || user.avatarUrl || '/avatar.jpg'}
+                            fill
+                            alt={user.display_name || ''}
+                            className="object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-semibold truncate text-black dark:text-white">
+                            {user.display_name || user.full_name || 'User'}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 <div className="p-4 border-t border-gray-100 dark:border-[#363636] space-y-2 relative">
                   <div className="flex items-center justify-between text-gray-400 mb-2 pr-2 relative">

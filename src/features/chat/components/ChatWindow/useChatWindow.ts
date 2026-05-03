@@ -392,6 +392,7 @@ export function useChatWindow({
 
   const [readReceipts, setReadReceipts] = useState<Record<string, ReadReceipt>>({});
   const lastSentReadRef = useRef<string | null>(null);
+  const [deliveredReceipts, setDeliveredReceipts] = useState<Record<string, { messageId: string; lastDeliveredAt?: string }>>({});
 
   // Link preview state
   const [pendingLinkPreview, setPendingLinkPreview] = useState<LinkPreviewData | null>(null);
@@ -2098,6 +2099,58 @@ export function useChatWindow({
   }, [messages, sendReadReceipt]);
 
   useEffect(() => {
+    if (!selectedChat?.id || selectedChat.isNew || selectedChat.isAi) return;
+
+    const fetchDeliveredStatus = async () => {
+      try {
+        const res = await apiClient.get(`/conversations/${selectedChat.id}/delivered-status`);
+        const data = res?.success ? res.data : (Array.isArray(res) ? res : []);
+        if (!Array.isArray(data)) return;
+
+        const initial: Record<string, { messageId: string; lastDeliveredAt?: string }> = {};
+        data.forEach((entry: any) => {
+          if (entry.userId && entry.messageId) {
+            initial[entry.userId] = {
+              messageId: entry.messageId,
+              lastDeliveredAt: entry.lastDeliveredAt || undefined,
+            };
+          }
+        });
+        setDeliveredReceipts(initial);
+      } catch (error) {
+        console.error('Failed to fetch delivered status:', error);
+      }
+    };
+
+    fetchDeliveredStatus();
+  }, [selectedChat?.id, selectedChat?.isAi]);
+
+  useEffect(() => {
+    if (!selectedChat?.id || selectedChat.isNew || selectedChat.isAi) return;
+
+    const deliveredSub = websocketRef.current.subscribe(`/topic/chat/${selectedChat.id}/delivered`, msg => {
+      try {
+        const data = JSON.parse(msg.body);
+        if (data.userId === currentUser?.id) return;
+
+        setDeliveredReceipts(prev => ({
+          ...prev,
+          [data.userId]: {
+            messageId: data.messageId,
+            lastDeliveredAt: data.lastDeliveredAt || new Date().toISOString(),
+          },
+        }));
+      } catch {
+        // Ignore malformed payload.
+      }
+    });
+
+    return () => {
+      deliveredSub?.unsubscribe();
+    };
+  }, [selectedChat?.id, selectedChat?.isAi, selectedChat?.isNew, currentUser?.id]);
+
+  useEffect(() => {
     const fetchMessages = async () => {
       if (!selectedChat?.id) return;
 
@@ -2355,6 +2408,15 @@ export function useChatWindow({
               ? new Date(newMsg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
               : undefined
           );
+
+          // Auto-send delivered ACK for messages from other users
+          if (newMsg.senderId && newMsg.senderId !== currentUser?.id && newMsg.senderId !== 'SYSTEM' && currentUser?.id) {
+            const msgIdForDelivery = String(newMsg.messageId || newMsg.id);
+            websocketRef.current.send(`/app/chat/${selectedChat.id}/delivered`, {
+              userId: currentUser.id,
+              messageId: msgIdForDelivery,
+            });
+          }
 
           setMessages(prev => {
             const exists = prev.some(m => m.id === String(newMsg.messageId || newMsg.id));
@@ -3005,6 +3067,7 @@ export function useChatWindow({
     scrollContainerRef,
     typingUsers,
     readReceipts,
+    deliveredReceipts,
     loadMoreRef,
     refreshTrigger,
 

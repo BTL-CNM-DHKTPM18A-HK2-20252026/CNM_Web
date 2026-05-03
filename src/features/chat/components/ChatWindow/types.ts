@@ -62,6 +62,7 @@ export interface ForwardingMessage {
   text: string;
   type: string;
   sender: string;
+  caption?: string;
 }
 
 export interface ChatContextMenu {
@@ -118,6 +119,7 @@ export interface AttachmentItem {
 export interface ChatMessage {
   id: string;
   text: string;
+  senderName?: string;
   type: string;
   width?: number;
   height?: number;

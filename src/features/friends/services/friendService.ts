@@ -111,4 +111,35 @@ export const friendService = {
   async dismissSuggestion(userId: string) {
     return apiClient.post('/friends/suggestions/dismiss', { userId });
   },
+
+  /**
+   * Get followers of a user (uses friends list as proxy — same social graph)
+   */
+  async getFollowers(userId?: string): Promise<UserResponse[]> {
+    if (userId) {
+      // For other users, get their friends via posts/user (no dedicated endpoint)
+      return [];
+    }
+    return apiClient.get('/friends');
+  },
+
+  /**
+   * Get following list (friends sent requests from)
+   */
+  async getFollowing(): Promise<UserResponse[]> {
+    return apiClient.get('/friends');
+  },
+
+  /**
+   * Check friendship status with a user
+   */
+  async getFriendshipStatus(targetUserId: string): Promise<{ status: 'NONE' | 'PENDING' | 'ACCEPTED' | 'FOLLOWING' | 'BLOCKED'; isRequester?: boolean }> {
+    try {
+      const result = await apiClient.get<any>(`/users/${encodeURIComponent(targetUserId)}`);
+      const status = result?.friendship_status || result?.friendshipStatus || 'NONE';
+      return { status, isRequester: result?.is_requester ?? false };
+    } catch {
+      return { status: 'NONE' };
+    }
+  },
 };

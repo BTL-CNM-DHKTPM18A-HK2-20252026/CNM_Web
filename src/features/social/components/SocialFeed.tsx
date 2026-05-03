@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Bell } from 'lucide-react';
 import Image from 'next/image';
 import { SocialSidebarLeft } from './layout/SocialSidebarLeft';
+import { OtherUserProfile } from './OtherUserProfile';
 import { SocialSidebarRight } from './layout/SocialSidebarRight';
 import { SocialFeedMain } from './layout/SocialFeedMain';
 import { SocialProfile } from './SocialProfile';
@@ -16,7 +17,9 @@ import { CreatePostModal } from './layout/CreatePostModal';
 import { CreateStoryModal } from './layout/CreateStoryModal';
 import { EditPostModal } from './layout/EditPostModal';
 import { StoryViewer } from './layout/StoryViewer';
-import { NotificationsPanel } from './layout/NotificationsPanel';
+import { NotificationsPanel } from '@/features/notification/components/NotificationsPanel';
+import { useNotificationSocket } from '@/features/notification/hooks/useNotificationSocket';
+import { useNotifications } from '@/features/notification/store/NotificationContext';
 import { socialApi } from '../api';
 import { friendService } from '@/features/friends/services/friendService';
 import { messageService } from '@/features/chat/services/messageService';
@@ -91,6 +94,8 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
   const [conversations, setConversations] = useState<SocialConversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState<'feed' | 'profile' | 'explore' | 'edit-profile' | 'archive' | 'music'>('feed');
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
+  const [hashtagFilter, setHashtagFilter] = useState<string | null>(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [activePopup, setActivePopup] = useState<SocialConversation | null>(null);
   const [isMessengerOpen, setIsMessengerOpen] = useState(false);
@@ -107,6 +112,10 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
   const currentUserId = user?.id || user?.user_id || '';
   const currentUserName = user?.full_name || user?.display_name || 'Fruvia user';
   const currentUserAvatar = user?.avatar_url || user?.avatarUrl || '/avatar.jpg';
+
+  // Realtime notifications
+  useNotificationSocket(currentUserId);
+  const { unreadCount: notifUnread } = useNotifications();
 
   const enrichPost = useCallback((post: PostResponse): PostResponse => ({
     ...post,
@@ -397,6 +406,19 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
       window.location.href = '/login';
     }
   };
+  const handleAuthorClick = (userId: string) => {
+    if (userId && userId !== currentUserId) {
+      setViewingUserId(userId);
+    } else {
+      setView('profile');
+    }
+  };
+
+  const handleHashtagClick = (tag: string) => {
+    setHashtagFilter(tag);
+    setView('explore');
+  };
+
   const handleDeletePost = (postId: string) => {
     setPosts(prev => prev.filter(p => p.postId !== postId));
   };
@@ -411,6 +433,17 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
 
   return (
     <div className="flex h-screen w-full bg-white dark:bg-black overflow-hidden text-black dark:text-white font-sans relative">
+      {/* Other User Profile overlay */}
+      {viewingUserId && (
+        <div className="absolute inset-0 z-[200] bg-white dark:bg-black overflow-y-auto">
+          <OtherUserProfile
+            userId={viewingUserId}
+            currentUserId={currentUserId}
+            onBack={() => setViewingUserId(null)}
+            onOpenPost={() => {}}
+          />
+        </div>
+      )}
       {/* Top Right Notifications */}
       <div className="absolute top-6 right-8 z-[60] hidden lg:block">
         <button 
@@ -422,7 +455,11 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
           }`}
         >
           <Bell size={20} fill={isNotificationsOpen ? "currentColor" : "none"} />
-          {!isNotificationsOpen && <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-black" />}
+          {!isNotificationsOpen && notifUnread > 0 && (
+            <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center border-2 border-white dark:border-black">
+              {notifUnread > 99 ? '99+' : notifUnread}
+            </span>
+          )}
           <div className="absolute top-full right-0 mt-2 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-xl">
             Thông báo
           </div>
@@ -476,6 +513,8 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
                   onCreateStory={() => setIsCreateStoryOpen(true)}
                   onViewStory={(authorId) => setViewingStoryAuthorId(authorId)}
                   isRanked={true}
+                  onAuthorClick={handleAuthorClick}
+                  onHashtagClick={handleHashtagClick}
                 />
               </div>
             ) : view === 'profile' ? (

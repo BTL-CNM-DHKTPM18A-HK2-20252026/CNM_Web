@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n/config';
-import { authService } from '@/features/auth';
+import { authService, isTabAuthenticated } from '@/features/auth';
 import { toast } from 'sonner';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
@@ -261,6 +261,11 @@ export function MainHome({ initialChatId }: MainHomeProps) {
   useEffect(() => {
     setIsClient(true);
     const checkAuthStatus = async () => {
+      // Chỉ auto-login khi tab này đã chủ động đăng nhập.
+      // isTabAuthenticated() kiểm tra window.name — KHÔNG bị copy sang tab mới (Ctrl+Click),
+      // nên tab mới sẽ không tự đăng nhập và không kick session của tab cũ.
+      if (!isTabAuthenticated()) return;
+
       const token = authService.getToken();
       if (token) {
         try {

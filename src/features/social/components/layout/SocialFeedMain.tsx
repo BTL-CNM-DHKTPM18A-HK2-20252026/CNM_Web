@@ -20,6 +20,8 @@ interface SocialFeedMainProps {
   onCreateStory?: () => void;
   onViewStory?: (authorId: string) => void;
   isRanked?: boolean;
+  onAuthorClick?: (userId: string) => void;
+  onHashtagClick?: (tag: string) => void;
 }
 
 // ── Tracked Post Card ─────────────────────────────────────────────────────
@@ -34,7 +36,9 @@ const TrackedPostCard: React.FC<{
   onEdit?: (post: PostResponse) => void;
   onShare?: (post: PostResponse) => void;
   currentUser: SocialUser | null;
-}> = ({ post, onLike, onReact, onDelete, onEdit, onShare, currentUser }) => {
+  onAuthorClick?: (userId: string) => void;
+  onHashtagClick?: (tag: string) => void;
+}> = ({ post, onLike, onReact, onDelete, onEdit, onShare, currentUser, onAuthorClick, onHashtagClick }) => {
   const ref = useRef<HTMLDivElement>(null);
   const hasTracked = useRef(false);
 
@@ -64,6 +68,8 @@ const TrackedPostCard: React.FC<{
         onEdit={onEdit}
         onShareClick={onShare}
         currentUser={currentUser}
+        onAuthorClick={onAuthorClick}
+        onHashtagClick={onHashtagClick}
       />
     </div>
   );
@@ -71,7 +77,7 @@ const TrackedPostCard: React.FC<{
 
 export const SocialFeedMain: React.FC<SocialFeedMainProps> = ({
   user, posts, stories = [], isLoading, onLike, onReact, onDelete, onEdit, onShare,
-  onCreateStory, onViewStory, isRanked = false,
+  onCreateStory, onViewStory, isRanked = false, onAuthorClick, onHashtagClick,
 }) => {
   const { t } = useTranslation();
 
@@ -213,6 +219,8 @@ export const SocialFeedMain: React.FC<SocialFeedMainProps> = ({
               onEdit={onEdit}
               onShare={onShare}
               currentUser={user}
+              onAuthorClick={onAuthorClick}
+              onHashtagClick={onHashtagClick}
             />
           ))
         )}

@@ -72,17 +72,32 @@ export const SocialSidebarLeft: React.FC<SocialSidebarLeftProps> = ({
   return (
     <div className="fixed top-0 left-0 w-[64px] lg:group-hover/sidebar:w-[280px] h-full bg-white dark:bg-black flex flex-col border-r border-[#DBDBDB] dark:border-[#262626] transition-all duration-300 ease-in-out group z-[9999] overflow-x-hidden lg:hover:shadow-2xl">
       {/* Logo */}
-      <div className="px-[16px] pt-8 mb-8 h-10 flex items-center shrink-0">
+      <div className="px-[16px] pt-6 mb-6 flex items-center shrink-0">
         <div className="flex items-center w-full">
-          {/* Collapsed Logo: 'F' Icon */}
-          <div className="w-8 h-8 bg-gradient-to-tr from-[#FFB800] to-[#FF0080] rounded-lg flex items-center justify-center text-white font-bold text-xl shrink-0 lg:group-hover:hidden transition-all duration-300">
-            F
+          {/* Collapsed Logo: Fruvia icon */}
+          <div className="w-10 h-10 shrink-0 lg:group-hover:hidden transition-all duration-300">
+            <Image
+              src="https://fruvia-chat-storage.s3.ap-southeast-1.amazonaws.com/public/system/fruvia_logo.png"
+              alt="Fruvia"
+              width={40}
+              height={40}
+              className="rounded-xl"
+            />
           </div>
           
-          {/* Expanded Logo: 'Fruvia' Wordmark */}
-          <h1 className="text-[26px] font-bold tracking-tight text-black dark:text-white hidden lg:group-hover:block whitespace-nowrap animate-in fade-in zoom-in duration-500 italic font-serif">
-            Fruvia
-          </h1>
+          {/* Expanded Logo: icon + wordmark */}
+          <div className="hidden lg:group-hover:flex items-center gap-2.5 whitespace-nowrap animate-in fade-in zoom-in duration-500">
+            <Image
+              src="https://fruvia-chat-storage.s3.ap-southeast-1.amazonaws.com/public/system/fruvia_logo.png"
+              alt="Fruvia"
+              width={36}
+              height={36}
+              className="rounded-xl shrink-0"
+            />
+            <h1 className="text-[22px] font-bold tracking-tight text-black dark:text-white italic font-serif">
+              Fruvia
+            </h1>
+          </div>
         </div>
       </div>
 

@@ -31,8 +31,10 @@ interface PostCardProps {
   onEdit?: (post: PostResponse) => void;
   onShareClick?: (post: PostResponse) => void;
   currentUser?: SocialUser | null;
+  onAuthorClick?: (userId: string) => void;
+  onHashtagClick?: (tag: string) => void;
 }
-export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onReact, onComment, onDelete, onEdit, onShareClick, currentUser }) => {
+export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onReact, onComment, onDelete, onEdit, onShareClick, currentUser, onAuthorClick, onHashtagClick }) => {
   const { t, i18n } = useTranslation();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
@@ -81,6 +83,31 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onReact, onCom
   };
 
   const reaction = getReactionDisplay();
+
+  // Parse text into segments: plain text | hashtag | mention
+  const renderRichContent = (text: string) => {
+    if (!text) return null;
+    const parts = text.split(/(#[a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]+|@[a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]+)/g);
+    return parts.map((part, i) => {
+      if (/^#[a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]+$/.test(part)) {
+        return (
+          <button
+            key={i}
+            onClick={() => onHashtagClick?.(part)}
+            className="text-[#0095F6] hover:underline font-semibold cursor-pointer bg-transparent border-none p-0 text-[13px]"
+          >
+            {part}
+          </button>
+        );
+      }
+      if (/^@[a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]+$/.test(part)) {
+        return (
+          <span key={i} className="text-[#0095F6] font-semibold">{part}</span>
+        );
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
 
   const handleNext = (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -598,8 +625,13 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onReact, onCom
         
         {/* Caption */}
         <div className="text-[13px] leading-snug">
-          <span className="font-semibold text-black dark:text-white mr-1.5">{post.authorName}</span>
-          <span className="text-gray-800 dark:text-gray-200">{post.content}</span>
+          <button
+            onClick={() => onAuthorClick?.(post.authorId)}
+            className="font-semibold text-black dark:text-white mr-1.5 cursor-pointer bg-transparent border-none p-0 hover:underline"
+          >
+            {post.authorName}
+          </button>
+          <span className="text-gray-800 dark:text-gray-200">{renderRichContent(post.content)}</span>
         </div>
 
         {!post.turnOffComments && post.commentCount > 0 && (

@@ -10,4 +10,5 @@ export {
   getAccessToken,
   setAccessToken,
   clearAccessToken,
+  isTabAuthenticated,
 } from './services/authToken';

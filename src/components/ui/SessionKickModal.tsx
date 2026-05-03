@@ -1,6 +1,9 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
+
+const FRUVIA_LOGO = 'https://fruvia-chat-storage.s3.ap-southeast-1.amazonaws.com/public/system/fruvia_logo.png';
 
 interface SessionKickModalProps {
   isOpen: boolean;
@@ -21,8 +24,20 @@ export const SessionKickModal: React.FC<SessionKickModalProps> = ({
   return (
     <div className="fixed inset-0 z-9999 flex items-center justify-center bg-[#8B8B8B]/80">
       <div className="bg-white w-full max-w-120 rounded-lg shadow-xl overflow-hidden">
+        {/* Header với logo */}
+        <div className="flex items-center gap-3 px-6 pt-5 pb-3 border-b border-[#F0F0F0]">
+          <Image
+            src={FRUVIA_LOGO}
+            alt="Fruvia Chat"
+            width={36}
+            height={36}
+            className="rounded-lg shrink-0"
+          />
+          <span className="text-[15px] font-bold text-[#333]">Fruvia Chat</span>
+        </div>
+
         {/* Content */}
-        <div className="px-6 pt-6 pb-4">
+        <div className="px-6 pt-4 pb-4">
           <p className="text-[15px] font-semibold text-[#333] leading-relaxed">
             Bạn đang mở Fruvia trên một Tab khác hoặc không sử dụng Fruvia quá
             lâu

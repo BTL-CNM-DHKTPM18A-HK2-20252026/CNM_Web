@@ -15,6 +15,14 @@ export interface UserResponse {
 
 export const userService = {
   /**
+   * Get any user by ID (for viewing other profiles)
+   */
+  async getUserById(userId: string): Promise<UserResponse> {
+    const result = await apiClient.get(`/users/${encodeURIComponent(userId)}`);
+    return result;
+  },
+
+  /**
    * Find user by email
    */
   async getUserByEmail(email: string): Promise<UserResponse> {
