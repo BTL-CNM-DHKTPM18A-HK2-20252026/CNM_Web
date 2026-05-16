@@ -1039,7 +1039,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   ) : (
                     <div className="space-y-3">
                       {devices.map((device, index) => (
-                        <div key={device.id} className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-4 px-5 shadow-sm transition-colors duration-200">
+                        <div key={`${device.id}-${index}`} className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-4 px-5 shadow-sm transition-colors duration-200">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-full bg-[#0068FF]/10 flex items-center justify-center flex-shrink-0">

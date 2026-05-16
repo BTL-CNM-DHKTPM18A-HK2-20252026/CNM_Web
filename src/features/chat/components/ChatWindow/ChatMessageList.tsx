@@ -39,17 +39,15 @@ function formatCallDuration(seconds: number, t: (key: string, opts?: Record<stri
 function CallHistoryMessage({
   msg,
   currentUserId,
-  selectedChat,
   t,
+  onVideoCall,
 }: {
   msg: ChatMessage;
   currentUserId?: string;
-  selectedChat: ChatMessageListProps['vm']['selectedChat'];
   t: (key: string, opts?: Record<string, string | number>) => string;
+  onVideoCall?: () => void;
 }) {
-  const isCaller = msg.senderId === currentUserId;
-  const isMe = msg.sender === 'Me';
-
+  const isCaller = String(msg.senderId ?? '') === String(currentUserId ?? '') || msg.sender === 'Me';
   const isEnded = msg.type === 'CALL_ENDED';
   const cardTitle = isEnded
     ? (isCaller ? t('chat.call.outgoing_video_call') : t('chat.call.incoming_video_call'))
@@ -60,50 +58,36 @@ function CallHistoryMessage({
     : t('chat.call.video_call');
 
   const statusColor = isEnded ? 'text-emerald-500' : 'text-red-400';
-  const avatarFallbackChar = (msg.sender && msg.sender !== 'Me' ? msg.sender : selectedChat.name)?.charAt(0) || '?';
 
   return (
-    <div className={`flex items-end gap-2 my-1.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
-      {!isMe && (
-        <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-[#DBDFE6] dark:border-white/10 shadow-sm flex items-center justify-center bg-blue-50">
-          {msg.avatar ? (
-            <img src={msg.avatar} alt="Avatar" className="w-full h-full object-cover" />
-          ) : selectedChat.avatar ? (
-            <img src={selectedChat.avatar} alt="Avatar" className="w-full h-full object-cover" />
-          ) : (
-            <span className="text-blue-600 font-bold text-sm">{avatarFallbackChar}</span>
-          )}
-        </div>
-      )}
-      <div className="w-[190px] rounded-lg border border-[#dde3ea] bg-white px-4 py-3 shadow-sm dark:bg-[#1e2a38] dark:border-white/10">
-        <h4 className="text-[15px] font-bold leading-tight text-[#1f2f46] dark:text-white">{cardTitle}</h4>
+    <div className="flex flex-col gap-0.5 min-w-[140px] max-w-[170px]">
+      <h4 className="text-[13px] font-bold leading-tight text-[#1f2f46] dark:text-white">{cardTitle}</h4>
 
-        <div className="mt-1.5 flex items-center gap-2 text-[13px] text-[#586b82] dark:text-[#8ea3b8]">
-          <span className="relative flex h-5 w-5 items-center justify-center">
-            <svg width="18" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" className="text-[#6b7d90] dark:text-[#8ea3b8]">
-              <rect x="2.5" y="7" width="12" height="10" rx="2" />
-              <path d="M15 10.5 21 7v10l-6-3.5" />
-            </svg>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`absolute -top-1 -right-1 ${statusColor}`}>
-              {isCaller
-                ? <><path d="M7 17L17 7" /><path d="M9 7h8v8" /></>
-                : <><path d="M17 7L7 17" /><path d="M15 17H7V9" /></>
-              }
-            </svg>
-          </span>
-          <span className="font-medium">{detailText}</span>
-        </div>
-
-        <div className="my-2 border-t border-[#e8ecf0] dark:border-white/10" />
-
-        <button
-          type="button"
-          onClick={() => toast.info(t('chat.call.redial_hint'))}
-          className="w-full cursor-pointer text-center text-[15px] font-semibold text-[#0068FF] transition-colors hover:text-[#0052cc]"
-        >
-          {t('chat.call.redial')}
-        </button>
+      <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-[#586b82] dark:text-[#8ea3b8]">
+        <span className="relative flex h-[18px] w-[18px] items-center justify-center">
+          <svg width="18" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" className="text-[#6b7d90] dark:text-[#8ea3b8]">
+            <rect x="2.5" y="7" width="12" height="10" rx="2" />
+            <path d="M15 10.5 21 7v10l-6-3.5" />
+          </svg>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`absolute -top-1 -right-1 ${statusColor}`}>
+            {isCaller
+              ? <><path d="M7 17L17 7" /><path d="M9 7h8v8" /></>
+              : <><path d="M17 7L7 17" /><path d="M15 17H7V9" /></>
+            }
+          </svg>
+        </span>
+        <span className="font-medium">{detailText}</span>
       </div>
+
+      <div className="mx-auto my-1.5 h-px w-[78%] border-t-2 border-dashed border-[#c2cfdf] dark:border-white/20" />
+
+      <button
+        type="button"
+        onClick={onVideoCall}
+        className="w-full cursor-pointer text-center text-[13px] font-semibold text-[#0068FF] transition-colors hover:text-[#0052cc]"
+      >
+        {t('chat.call.redial')}
+      </button>
     </div>
   );
 }
@@ -681,6 +665,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
     setOpenedImageSrc,
     setReactionModalMessageId,
     setForwardingMsg,
+    onOpenProfile,
     handlePinMessage,
     handleUnpinMessage,
     readReceipts,
@@ -688,6 +673,12 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
     handleAcceptFriendRequest,
     handleSendFriendRequest,
   } = vm;
+  const isAiConversation = Boolean(selectedChat.isAi);
+  const openSenderProfile = (msg: ChatMessage) => {
+    const userId = msg.senderId;
+    if (!userId || userId === currentUser?.id || userId === 'SYSTEM' || userId === AI_TYPING_USER_ID) return;
+    onOpenProfile?.(userId);
+  };
 
   const { refreshUserStatus } = usePresence();
 
@@ -953,15 +944,19 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                         </div>
                       </div>
                     ) : msg.type === 'CALL_MISSED' || msg.type === 'CALL_REJECTED' || msg.type === 'CALL_ENDED' ? (
-                      <CallHistoryMessage msg={msg} currentUserId={currentUser?.id} selectedChat={selectedChat} t={t} />
-                    ) : msg.type === 'CALL_GROUP_START' ? (
-                      <GroupCallCard msg={msg} currentUserId={currentUser?.id} selectedChat={selectedChat} t={t} />
-                    ) : (
-                      <div id={`msg-${msg.id}`} className={`flex ${msg.sender === 'Me' ? 'justify-end pr-1' : 'justify-start'} -mx-4 px-4 rounded-none transition-colors duration-300 [&.highlight-msg]:bg-[#C6D4E4]`}>
-                        <div className={`flex gap-1.5 max-w-[72%] group relative ${msg.sender === 'Me' ? 'flex-row-reverse' : ''} items-end`}>
+                      <div
+                        id={`msg-${msg.id}`}
+                        className={`flex ${String(msg.senderId ?? '') === String(currentUser?.id ?? '') || msg.sender === 'Me' ? 'justify-end pr-1' : 'justify-start'} -mx-4 px-4 rounded-none transition-colors duration-300 [&.highlight-msg]:bg-[#C6D4E4]`}
+                      >
+                        <div className={`flex gap-1.5 max-w-[64%] group relative ${String(msg.senderId ?? '') === String(currentUser?.id ?? '') || msg.sender === 'Me' ? 'flex-row-reverse' : ''} items-end`}>
                           {msg.sender !== 'Me' && (
                             showAvatarAndName ? (
-                              <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 mt-1 border-[1px] border-[#DBDFE6] dark:border-white/10 shadow-sm flex items-center justify-center bg-blue-50">
+                              <button
+                                type="button"
+                                onClick={() => openSenderProfile(msg)}
+                                className="w-10 h-10 rounded-full overflow-hidden shrink-0 mt-1 border-[1px] border-[#DBDFE6] dark:border-white/10 shadow-sm flex items-center justify-center bg-blue-50 cursor-pointer"
+                                aria-label={`Xem hồ sơ ${msg.sender || selectedChat.name}`}
+                              >
                                 {(msg as any).avatar ? (
                                   <img src={(msg as any).avatar} alt="Avatar" className="w-full h-full object-cover" />
                                 ) : selectedChat.isAi || (msg as any).senderId === AI_TYPING_USER_ID ? (
@@ -971,7 +966,52 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                 ) : (
                                   <span className="text-blue-600 font-bold text-sm">{(msg.sender && msg.sender !== 'Me' ? msg.sender : selectedChat.name)?.charAt(0) || '?'}</span>
                                 )}
-                              </div>
+                              </button>
+                            ) : (
+                              <div className="w-10 shrink-0" />
+                            )
+                          )}
+
+                          <div className={`flex flex-col ${String(msg.senderId ?? '') === String(currentUser?.id ?? '') || msg.sender === 'Me' ? 'items-end' : 'items-start'} relative group/msg-container`}>
+                            {msg.sender !== 'Me' && selectedChat.isGroup && showAvatarAndName && (
+                              <span className="text-[12px] font-semibold text-[var(--sub-text)] mb-0.5 ml-1">{msg.sender}</span>
+                            )}
+
+                            <div
+                              className={`relative group w-fit min-w-[92px] px-2.5 pt-1.5 pb-1.5 rounded-md shadow-sm text-[14px] border ${String(msg.senderId ?? '') === String(currentUser?.id ?? '') || msg.sender === 'Me'
+                                ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)] border-[var(--message-me-border)]'
+                                : 'bg-[var(--message-other-bg)] text-[var(--message-other-text)] border-[var(--message-other-border)]'
+                              }`}
+                              onContextMenu={(e) => openContextMenu(e, msg)}
+                            >
+                              <CallHistoryMessage msg={msg} currentUserId={currentUser?.id} t={t} onVideoCall={vm.handleVideoCall} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : msg.type === 'CALL_GROUP_START' ? (
+                      <GroupCallCard msg={msg} currentUserId={currentUser?.id} selectedChat={selectedChat} t={t} />
+                    ) : (
+                      <div id={`msg-${msg.id}`} className={`flex ${msg.sender === 'Me' ? 'justify-end pr-1' : 'justify-start'} -mx-4 px-4 rounded-none transition-colors duration-300 [&.highlight-msg]:bg-[#C6D4E4]`}>
+                        <div className={`flex gap-1.5 max-w-[72%] group relative ${msg.sender === 'Me' ? 'flex-row-reverse' : ''} items-end`}>
+                          {msg.sender !== 'Me' && (
+                            showAvatarAndName ? (
+                              <button
+                                type="button"
+                                onClick={() => openSenderProfile(msg)}
+                                className="w-10 h-10 rounded-full overflow-hidden shrink-0 mt-1 border-[1px] border-[#DBDFE6] dark:border-white/10 shadow-sm flex items-center justify-center bg-blue-50 cursor-pointer"
+                                aria-label={`Xem hồ sơ ${msg.sender || selectedChat.name}`}
+                              >
+                                {(msg as any).avatar ? (
+                                  <img src={(msg as any).avatar} alt="Avatar" className="w-full h-full object-cover" />
+                                ) : selectedChat.isAi || (msg as any).senderId === AI_TYPING_USER_ID ? (
+                                  <img src={`${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/system/fruvia_chatbot.png`} alt="Fruvia Chatbot" className="w-full h-full object-cover" />
+                                ) : selectedChat.avatar ? (
+                                  <img src={selectedChat.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                  <span className="text-blue-600 font-bold text-sm">{(msg.sender && msg.sender !== 'Me' ? msg.sender : selectedChat.name)?.charAt(0) || '?'}</span>
+                                )}
+                              </button>
                             ) : (
                               <div className="w-10 shrink-0" />
                             )
@@ -1264,44 +1304,57 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                   }
 
                                   return (
-                                    <div className="w-[320px] rounded-md overflow-hidden border border-[var(--border)] shadow-sm">
-                                      <div className="relative bg-[#0068FF] px-5 pt-4 pb-5 min-h-[110px] overflow-hidden">
-                                        <div className="absolute right-16 top-1/2 -translate-y-1/2 w-36 h-36 rounded-full border-[28px] border-white/10 pointer-events-none" />
-                                        <div className="flex items-center gap-3 pr-28">
-                                          <div className="w-14 h-14 rounded-full overflow-hidden shrink-0 border-2 border-white/30 bg-white/20 flex items-center justify-center">
+                                    <div className="w-[286px] rounded-md overflow-hidden border border-[var(--border)] shadow-sm">
+                                      <div className="relative bg-[#0068FF] px-4 pt-3.5 pb-4.5 min-h-[96px] overflow-hidden">
+                                        <div className="absolute right-14 top-1/2 -translate-y-1/2 w-28 h-28 rounded-full border-[22px] border-white/10 pointer-events-none" />
+                                        <div className="flex items-center gap-2.5 pr-24">
+                                          <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border-2 border-white/30 bg-white/20 flex items-center justify-center">
                                             {contact.avatar ? (
                                               <img src={contact.avatar} alt="" className="w-full h-full object-cover" />
                                             ) : (
-                                              <span className="text-white font-bold text-2xl">{(contact.fullName || '?').charAt(0)}</span>
+                                              <span className="text-white font-bold text-xl">{(contact.fullName || '?').charAt(0)}</span>
                                             )}
                                           </div>
                                           <div className="min-w-0">
-                                            <div className="font-bold text-[16px] text-white break-words leading-tight">{contact.fullName || t('common.unknown_user')}</div>
+                                            <div className="font-bold text-[14px] text-white break-words leading-tight">{contact.fullName || t('common.unknown_user')}</div>
                                             {contact.phoneNumber && (
-                                              <div className="text-[13px] text-white/80 mt-1">{contact.phoneNumber}</div>
+                                              <div className="text-[12px] text-white/80 mt-0.5">{contact.phoneNumber}</div>
                                             )}
                                           </div>
                                         </div>
                                         {contact.userId && (
-                                          <div className="absolute bottom-3 right-4 bg-white rounded-md p-1 w-20 h-20 flex items-center justify-center">
+                                          <div className="absolute bottom-2.5 right-3.5 bg-white rounded-md p-0.5 w-16 h-16 flex items-center justify-center">
                                             <img
                                               src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(contact.phoneNumber || contact.userId)}`}
                                               alt="QR"
-                                              className="w-[72px] h-[72px] object-contain"
+                                              className="w-[58px] h-[58px] object-contain"
                                             />
                                           </div>
                                         )}
                                       </div>
-                                      <button
-                                        className="w-full py-3 text-[15px] font-semibold text-[#0068FF] hover:bg-[var(--hover-bg)] transition-colors border-t border-[var(--border)] bg-[var(--card-bg)] cursor-pointer"
-                                        onClick={() => {
-                                          if (contact.userId) {
-                                            toast.info(`${contact.fullName}${contact.phoneNumber ? ': ' + contact.phoneNumber : ''}`);
-                                          }
-                                        }}
-                                      >
-                                        {t('share_contact.message_btn')}
-                                      </button>
+                                      <div className="grid grid-cols-2 border-t border-[var(--border)] bg-[var(--card-bg)]">
+                                        <button
+                                          className="py-2.5 text-[14px] font-semibold text-[#0068FF] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer border-r border-[var(--border)]"
+                                          onClick={() => {
+                                            if (contact.userId) {
+                                              toast.info(`${contact.fullName}${contact.phoneNumber ? ': ' + contact.phoneNumber : ''}`);
+                                            }
+                                          }}
+                                        >
+                                          {t('share_contact.message_btn')}
+                                        </button>
+                                        <button
+                                          className="py-2.5 text-[14px] font-semibold text-[var(--text)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (contact.userId) {
+                                              onOpenProfile?.(contact.userId);
+                                            }
+                                          }}
+                                        >
+                                          Xem hồ sơ
+                                        </button>
+                                      </div>
                                     </div>
                                   );
                                 })() : msg.type === 'MEDIA' ? (() => {
@@ -1380,7 +1433,9 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                       ) : (
                                         <>
                                           {(() => {
-                                            const urlMatch = displayText.match(/(https?:\/\/[^\s]+|fruvia\.chat\/g\/[^\s]+)/);
+                                            // Only extract URLs from plain text, not HTML content (avoids matching src/href attributes from emoji <img> tags)
+                                            const isHtmlContent = /<[a-z][\s\S]*>/i.test(displayText);
+                                            const urlMatch = !isHtmlContent ? displayText.match(/(https?:\/\/[^\s]+|fruvia\.chat\/g\/[^\s]+)/) : null;
                                             const url = msg.type === 'LINK' ? displayText : (urlMatch ? urlMatch[0] : null);
 
                                             if (url && url.includes('/g/')) {
@@ -1400,7 +1455,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
 
                                             return (
                                               <>
-                                                {(/<[a-z][\s\S]*>/i.test(displayText)) ? (
+                                                {isHtmlContent ? (
                                                   <div className="tiptap-content" dangerouslySetInnerHTML={{ __html: replaceEmojiWithHtml(displayText) }} />
                                                 ) : (
                                                   renderText(displayText, msg.mentions)
@@ -1431,19 +1486,19 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
 
                               <div className={`absolute flex items-center gap-1 z-20 ${msg.sender === 'Me' ? (msg.type === 'IMAGE' || msg.type === 'IMAGE_GROUP' || msg.type === 'VIDEO' ? 'bottom-0 left-2 translate-y-[50%]' : 'bottom-0 left-0 translate-y-[50%]') : (msg.type === 'IMAGE' || msg.type === 'IMAGE_GROUP' || msg.type === 'VIDEO' ? 'bottom-0 right-2 translate-y-[50%]' : 'bottom-0 right-0 translate-y-[50%]')}`}>
                                 {msg.reactions && msg.reactions.length > 0 && (
-                                  <div onClick={(e) => { e.stopPropagation(); setReactionModalMessageId(msg.id); }} className="flex items-center cursor-pointer shadow-md rounded-full bg-[var(--card-bg)] border border-[var(--border)] px-2 py-1 h-[26px] hover:scale-105 transition-transform">
-                                    <div className="flex -space-x-0.5 mr-1.5">
+                                  <div onClick={(e) => { e.stopPropagation(); setReactionModalMessageId(msg.id); }} className="flex items-center cursor-pointer shadow-md rounded-full bg-[var(--card-bg)] border border-[var(--border)] px-1.5 py-0.5 h-[22px] hover:scale-105 transition-transform">
+                                    <div className="flex -space-x-0.5 mr-1">
                                       {(() => {
                                         const counts: Record<string, number> = {};
                                         msg.reactions.forEach((reaction: any) => {
                                           counts[reaction.emoji] = (counts[reaction.emoji] || 0) + 1;
                                         });
                                         return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([emoji], idx) => (
-                                          <div key={`emoji-${idx}`} className="w-5 h-5 rounded-full flex items-center justify-center text-[14px] bg-[var(--card-bg)]">{emoji}</div>
+                                          <div key={`emoji-${idx}`} className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-[12px] bg-[var(--card-bg)]">{emoji}</div>
                                         ));
                                       })()}
                                     </div>
-                                    <span className="text-[13px] font-bold text-[var(--text)]">{msg.reactions.length}</span>
+                                    <span className="text-[12px] font-bold text-[var(--text)] leading-none">{msg.reactions.length}</span>
                                   </div>
                                 )}
                               </div>
@@ -1542,7 +1597,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
 
                           {!msg.isRecalled && (
                             <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity h-fit ${msg.sender === 'Me' ? 'mr-0.5 flex-row-reverse self-center' : 'ml-0.5 self-center'}`}>
-                              {!isSticker && (
+                              {!isSticker && !isAiConversation && (
                               <div className="relative group/react">
                                 <div className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer text-[13px] select-none leading-none">😊</div>
                                 <div className={`absolute ${msg.sender === 'Me' ? 'right-0' : 'left-0'} bottom-full opacity-0 invisible group-hover/react:opacity-100 group-hover/react:visible transition-all duration-150 flex items-center gap-0.5 bg-[var(--card-bg)] rounded-full px-2 py-1 shadow-xl border border-[var(--border)] z-50 whitespace-nowrap`}>
@@ -1553,7 +1608,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                               </div>
                               )}
 
-                              {!isSticker && (
+                              {!isSticker && !isAiConversation && (
                               <button title={t('chat.actions.forward')} onClick={() => setForwardingMsg({ id: msg.id, text: msg.text, type: msg.type, sender: msg.sender, caption: msg.caption || (msg.type !== 'TEXT' ? msg.text : undefined) })} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 10l5-5 5 5M8 6v8a4 4 0 004 4h9" /></svg></button>
                               )}
                               <button title={t('chat.actions.more')} onClick={(e) => openContextMenu(e, msg)} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg></button>

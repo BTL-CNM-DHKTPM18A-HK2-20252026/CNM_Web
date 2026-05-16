@@ -189,7 +189,7 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
         groupName={selectedChat.name}
         currentUser={vm.currentUser}
         members={selectedChat.members}
-        onForward={(item) => setForwardingMsg({
+        onForward={selectedChat.isAi ? undefined : (item) => setForwardingMsg({
           id: item.messageId,
           text: item.content,
           type: item.messageType,
@@ -359,7 +359,7 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
 
       {reactionModalMessageId && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-[1px]">
-          <div className="bg-[var(--card-bg)] w-[500px] h-auto max-h-[420px] max-w-[95vw] rounded-lg shadow-2xl flex flex-col overflow-hidden border border-[var(--border)]">
+          <div className="bg-[var(--card-bg)] w-[460px] h-auto max-h-[420px] max-w-[92vw] rounded-md shadow-2xl flex flex-col overflow-hidden border border-[var(--border)]">
             <div className="h-[50px] border-b border-[var(--border)] flex items-center justify-between pl-4 pr-1.5 shrink-0">
               <h3 className="text-[16px] font-bold text-[var(--text)]">{t('chat.reactions.title')}</h3>
               <button onClick={() => setReactionModalMessageId(null)} className="w-8 h-8 flex items-center justify-center text-[var(--sub-text)] hover:bg-[var(--hover-bg)] rounded-full transition-colors cursor-pointer"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg></button>

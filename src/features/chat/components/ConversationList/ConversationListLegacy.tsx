@@ -12,6 +12,25 @@ import { ChatSearchHeader } from '../shared/ChatSearchHeader';
 
 const stripHtml = (html: string) => (html || '').replace(/<[^>]*>?/gm, '');
 
+// Converts lastMsg HTML to renderable HTML: keeps <img> with small size, strips other tags
+const getLastMsgPreviewHtml = (html: string): string => {
+  if (!html) return '';
+  const imgs: string[] = [];
+  // Extract and replace <img> tags with placeholders
+  let result = html.replace(/<img([^>]*?)(?:\s*\/)?>/gi, (_, attrs) => {
+    const src = (attrs.match(/src="([^"]*)"/) || [])[1] || '';
+    const alt = (attrs.match(/alt="([^"]*)"/) || [])[1] || '';
+    if (!src) return '';
+    imgs.push(`<img src="${src}" alt="${alt}" style="width:20px;height:20px;display:inline-block;vertical-align:middle;" />`);
+    return `\x00IMG${imgs.length - 1}\x00`;
+  });
+  // Strip all remaining HTML tags
+  result = result.replace(/<[^>]+>/g, '');
+  // Restore img placeholders
+  result = result.replace(/\x00IMG(\d+)\x00/g, (_, i) => imgs[parseInt(i)]);
+  return result.trim();
+};
+
 interface Conversation {
   id: string | number;
   name: string;
@@ -1419,10 +1438,10 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                 ) : getTimeAgo(conv.otherUserId) ? (
                   <span className="truncate">{getTimeAgo(conv.otherUserId)}</span>
                 ) : (
-                  <span className="truncate">{stripHtml(conv.lastMsg)}</span>
+                  <span className="truncate" dangerouslySetInnerHTML={{ __html: getLastMsgPreviewHtml(conv.lastMsg) }} />
                 )
               ) : (
-                <span className="truncate">{stripHtml(conv.lastMsg)}</span>
+                <span className="truncate" dangerouslySetInnerHTML={{ __html: getLastMsgPreviewHtml(conv.lastMsg) }} />
               );
 
               return (

@@ -105,8 +105,13 @@ export const SearchPanel: React.FC<SearchPanelProps> = ({ isOpen, onClose, onSel
   }, [query, handleSearch]);
 
   const handleSelectUser = (user: any) => {
-    // Save to recent searches
-    const newRecent = [user, ...recentSearches.filter(u => (u.id || u.user_id) !== (user.id || user.user_id))].slice(0, 8);
+    // Normalize: chỉ lưu các field cần thiết — tránh lưu raw API object vào localStorage
+    const entry = {
+      id: user.id || user.user_id,
+      displayName: user.display_name || user.full_name || user.displayName || 'User',
+      avatarUrl: user.avatar_url || user.avatarUrl || '',
+    };
+    const newRecent = [entry, ...recentSearches.filter(u => u.id !== entry.id)].slice(0, 8);
     setRecentSearches(newRecent);
     try {
       localStorage.setItem('social_recent_searches', JSON.stringify(newRecent));
@@ -329,7 +334,7 @@ export const SearchPanel: React.FC<SearchPanelProps> = ({ isOpen, onClose, onSel
                 {recentSearches.length > 0 ? (
                   recentSearches.map((user) => (
                     <div
-                      key={user.id || user.user_id}
+                      key={user.id}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                         isDark ? 'hover:bg-[#1A1A1A]' : 'hover:bg-[#FAFAFA]'
                       }`}
@@ -340,24 +345,21 @@ export const SearchPanel: React.FC<SearchPanelProps> = ({ isOpen, onClose, onSel
                       >
                         <div className="w-11 h-11 rounded-full overflow-hidden relative shrink-0 border border-gray-200 dark:border-gray-700">
                           <Image 
-                            src={user.avatar_url || user.avatarUrl || '/avatar.jpg'} 
+                            src={user.avatarUrl || '/avatar.jpg'} 
                             fill 
-                            alt={user.display_name || 'User'}
+                            alt={user.displayName || 'User'}
                             className="object-cover"
                           />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm font-semibold truncate ${isDark ? 'text-white' : 'text-black'}`}>
-                            {user.display_name || user.full_name || 'User'}
-                          </p>
-                          <p className="text-xs text-gray-500 truncate">
-                            {user.email || user.phone_number || ''}
+                            {user.displayName || 'User'}
                           </p>
                         </div>
                       </button>
                       <button
                         onClick={() => {
-                          const newR = recentSearches.filter(u => (u.id || u.user_id) !== (user.id || user.user_id));
+                          const newR = recentSearches.filter(u => u.id !== user.id);
                           setRecentSearches(newR);
                           try { localStorage.setItem('social_recent_searches', JSON.stringify(newR)); } catch {}
                         }}

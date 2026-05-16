@@ -3,7 +3,6 @@ import Image from 'next/image';
 import { toast } from 'sonner';
 import { SearchIcon, SparklesIcon, GroupVideoCallIcon } from '@/components/ui/Icons';
 import { StatusIndicator } from '@/features/user';
-import { webrtcService } from '@/lib/realtime/webrtcService';
 import { apiClient } from '@/lib/http/apiClient';
 import { GroupMediaViewer } from './GroupMediaViewer';
 import type { ChatHeaderProps } from '@/features/chat/components/ChatWindow/types';
@@ -28,6 +27,7 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
     setIsSummaryOpen,
     fetchSummary,
     onOpenProfile,
+    handleVideoCall,
   } = vm;
   const [isGroupInfoModalOpen, setIsGroupInfoModalOpen] = useState(false);
   const [groupModalView, setGroupModalView] = useState<'info' | 'avatar' | 'rename' | 'members'>('info');
@@ -54,25 +54,6 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
 
   const displayGroupName = selectedChat.isGroup ? (groupNameOverride || selectedChat.name) : selectedChat.name;
   const displayGroupAvatar = selectedChat.isGroup ? (groupAvatarOverride || selectedChat.avatar) : selectedChat.avatar;
-
-  const handleVideoCall = useCallback(() => {
-    const peerId = selectedChat.otherUserId;
-    if (!peerId || !currentUser?.id) {
-      console.error('[VideoCall] Cannot start call — missing data:',
-        { peerId, currentUserId: currentUser?.id, selectedChatId: selectedChat.id });
-      return;
-    }
-
-    console.log('[VideoCall] Starting call to:', peerId, 'from:', currentUser.id);
-    webrtcService.startCall(
-      currentUser.id,
-      peerId,
-      selectedChat.name,
-      selectedChat.avatar,
-      selectedChat.id.toString(),
-      currentUser.full_name || currentUser.display_name || 'User',
-    );
-  }, [selectedChat, currentUser]);
 
   const handleGroupVideoCall = useCallback(() => {
     if (!selectedChat.id || !currentUser?.id) return;

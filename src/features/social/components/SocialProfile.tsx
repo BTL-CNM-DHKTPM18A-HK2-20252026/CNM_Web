@@ -1,10 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { SocialProfileHeader, SocialProfileTabs } from './layout/SocialProfileLayout';
-import Image from 'next/image';
 import { useTranslation } from 'react-i18next';
 import { socialApi } from '../api';
 
-const S3_BASE = process.env.NEXT_PUBLIC_S3_BASE_URL ?? '';
 import { PostResponse } from '../types';
 import { Heart, MessageCircle, Play, Grid3x3, Camera } from 'lucide-react';
 
@@ -101,26 +99,6 @@ export const SocialProfile: React.FC<SocialProfileProps> = ({
           onArchiveClick={onArchiveClick} 
         />
         
-        {/* Story Highlights */}
-        <div className="flex gap-8 mb-12 px-4 overflow-x-auto scrollbar-hide">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex flex-col items-center gap-2 shrink-0 cursor-pointer group">
-              <div className="w-16 h-16 md:w-20 md:h-20 rounded-full p-1 border border-gray-200 dark:border-gray-800 bg-white dark:bg-black transition-transform group-hover:scale-105">
-                <div className="w-full h-full rounded-full bg-gray-100 dark:bg-gray-900 overflow-hidden relative">
-                  <Image src={`${S3_BASE}/avatar/image${i}.jpg`} fill alt="Highlight" className="object-cover" />
-                </div>
-              </div>
-              <span className="text-xs font-semibold text-black dark:text-white">Kỷ niệm {i}</span>
-            </div>
-          ))}
-          <div className="flex flex-col items-center gap-2 shrink-0 cursor-pointer group">
-            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border border-gray-200 dark:border-gray-800 flex items-center justify-center bg-white dark:bg-black transition-transform group-hover:scale-105">
-              <span className="text-2xl text-gray-400 font-light">+</span>
-            </div>
-            <span className="text-xs font-semibold text-black dark:text-white">{t('social.profile.new_highlight', 'Mới')}</span>
-          </div>
-        </div>
-
         <SocialProfileTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
         {/* Posts Grid */}

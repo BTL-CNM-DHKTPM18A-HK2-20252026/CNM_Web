@@ -94,7 +94,7 @@ export const SocialSidebarLeft: React.FC<SocialSidebarLeftProps> = ({
               height={36}
               className="rounded-xl shrink-0"
             />
-            <h1 className="text-[22px] font-bold tracking-tight text-black dark:text-white italic font-serif">
+            <h1 className="text-[22px] font-bold tracking-tight text-[#0068FF] dark:text-[#0068FF] italic font-serif">
               Fruvia
             </h1>
           </div>

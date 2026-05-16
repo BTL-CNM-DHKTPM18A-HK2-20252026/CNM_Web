@@ -17,6 +17,7 @@ emojiPack.categories.forEach((cat: any) => {
 });
 import { useInView } from 'react-intersection-observer';
 import { websocketService } from '@/lib/realtime/websocketService';
+import { webrtcService } from '@/lib/realtime/webrtcService';
 import { friendService } from '@/features/friends';
 import { getLocalMessages, getLocalMessagesBefore, upsertLocalMessages } from '@/lib/db/chatDB';
 import type {
@@ -558,7 +559,9 @@ export function useChatWindow({
   useEffect(() => {
     if (linkPreviewDebounceRef.current) clearTimeout(linkPreviewDebounceRef.current);
 
-    const urlMatch = message.match(/(https?:\/\/[^\s]{6,})/);
+    // Skip URL detection if message is HTML content (e.g. emoji inserted via TipTap <img> tag)
+    const isHtmlMessage = /<[a-z][\s\S]*>/i.test(message);
+    const urlMatch = !isHtmlMessage ? message.match(/(https?:\/\/[^\s]{6,})/) : null;
     if (!urlMatch) {
       setPendingLinkPreview(null);
       setLinkPreviewDismissed(false);
@@ -2697,6 +2700,7 @@ export function useChatWindow({
 
   const handleReactMessage = useCallback(async (messageId: string, emoji: string) => {
     try {
+      if (selectedChat.isAi) return;
       let reactionType = 'LIKE';
       switch (emoji) {
         case '❤️':
@@ -2734,7 +2738,7 @@ export function useChatWindow({
       );
       console.error('React failed', error);
     }
-  }, [t]);
+  }, [selectedChat.isAi, t]);
 
   const handleEditMessage = useCallback(async (messageId: string) => {
     if (!editContent.trim()) return;
@@ -3001,6 +3005,19 @@ export function useChatWindow({
     };
   }, [closeImageQueue]);
 
+  const handleVideoCall = useCallback(() => {
+    const peerId = selectedChat.otherUserId;
+    if (!peerId || !currentUser?.id) return;
+    webrtcService.startCall(
+      currentUser.id,
+      peerId,
+      selectedChat.name,
+      selectedChat.avatar,
+      selectedChat.id.toString(),
+      currentUser.full_name || currentUser.display_name || 'User',
+    );
+  }, [selectedChat, currentUser]);
+
   return {
     t,
     onToggleSidebar,
@@ -3116,6 +3133,7 @@ export function useChatWindow({
     handleNicknameConfirm,
     handleDownloadFile,
     closeImageQueue,
+    handleVideoCall,
 
     onUpdateConversation,
     onUpdateConversationMeta,

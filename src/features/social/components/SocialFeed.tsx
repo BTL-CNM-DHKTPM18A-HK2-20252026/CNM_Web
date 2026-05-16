@@ -87,6 +87,7 @@ interface SocialConversation {
   lastMessageTime: string;
 }
 
+const FRUVIA_CHATBOT_AVATAR = `${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/system/fruvia_chatbot.png`;
 
 export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
   const [posts, setPosts] = useState<PostResponse[]>([]);
@@ -153,6 +154,10 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
           displayName = otherUser.displayName || otherUser.display_name || displayName;
           displayAvatar = otherUser.avatarUrl || otherUser.avatar_url || displayAvatar;
         }
+      }
+
+      if (isActuallyCloud && (displayName === 'Fruvia Chatbot' || rawName === 'Fruvia Chatbot')) {
+        displayAvatar = FRUVIA_CHATBOT_AVATAR;
       }
 
       return {

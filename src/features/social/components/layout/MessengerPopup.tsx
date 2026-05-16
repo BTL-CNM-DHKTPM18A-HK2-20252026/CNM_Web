@@ -4,11 +4,9 @@ import Image from 'next/image';
 import { toast } from 'sonner';
 import {
   PlusIcon,
-  VideoIcon,
   SendIcon,
   FilePickerIcon,
   ImagePickerIcon,
-  VideoPickerIcon,
   LikeIcon,
   ChevronDownIcon,
   MinusIcon,
@@ -18,7 +16,6 @@ import {
   VoiceIcon,
   TextColorIcon,
   MoreHorizontalIcon,
-  SparklesIcon,
 } from '@/components/ui/Icons';
 import { apiClient } from '@/lib/http/apiClient';
 import { useTranslation } from 'react-i18next';
@@ -97,6 +94,7 @@ const extractSendMessage = (payload: unknown): PopupMessage | null => {
 };
 
 const getMessageSenderId = (msg: PopupMessage): string => String(msg.senderId || msg.sender_id || '');
+const FRUVIA_CHATBOT_AVATAR = `${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/system/fruvia_chatbot.png`;
 
 const getMessageCreatedAt = (msg: PopupMessage): number => {
   const createdAt = msg.createdAt || msg.created_at || '';
@@ -144,7 +142,6 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const displayName = activeConversation?.name || t('common.unknown_user');
@@ -155,9 +152,13 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
   const renderAvatar = (url: string, isAiConv: boolean, isSelfConv: boolean, size: number = 32) => {
     if (isAiConv) {
       return (
-        <div className="w-full h-full bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 flex items-center justify-center text-white">
-          <SparklesIcon size={Math.round(size * 0.6)} />
-        </div>
+        <Image
+          src={FRUVIA_CHATBOT_AVATAR}
+          fill
+          alt="Fruvia Chatbot"
+          className="object-cover"
+          unoptimized
+        />
       );
     }
     if (isSelfConv) {
@@ -612,15 +613,7 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
             })}
             <div ref={messagesEndRef} />
           </>
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-4 text-center opacity-50">
-            <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-[#262626] mb-3 flex items-center justify-center border border-gray-100 dark:border-gray-800 cursor-pointer">
-              <Image src={avatarUrl} width={64} height={64} alt="Avatar" className="rounded-full" />
-            </div>
-            <h4 className="font-bold text-[16px] mb-1 text-black dark:text-white cursor-pointer">{displayName}</h4>
-            <p className="text-[12px] text-gray-500 dark:text-gray-400">{t('social.messenger.say_hi')}</p>
-          </div>
-        )}
+        ) : null}
       </div>
 
       {/* Messenger Style Input Area */}
@@ -646,13 +639,6 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
                     >
                       <ImagePickerIcon size={20} className="text-gray-500" />
                       {t('chat.choose_image')}
-                    </button>
-                    <button 
-                      onClick={() => { videoInputRef.current?.click(); setIsFilePopoverOpen(false); }}
-                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-100 dark:hover:bg-[#262626] w-full text-left text-black dark:text-white text-[14px] font-medium transition-colors cursor-pointer"
-                    >
-                      <VideoPickerIcon size={20} className="text-gray-500" />
-                      {t('chat.choose_video')}
                     </button>
                     <button 
                       onClick={() => { fileInputRef.current?.click(); setIsFilePopoverOpen(false); }}
@@ -725,7 +711,6 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
           />
           {/* Hidden File Inputs */}
           <input type="file" ref={imageInputRef} onChange={(e) => handleFileUpload(e, 'IMAGE')} accept="image/*" className="hidden" />
-          <input type="file" ref={videoInputRef} onChange={(e) => handleFileUpload(e, 'VIDEO')} accept="video/*" className="hidden" />
           <input type="file" ref={fileInputRef} onChange={(e) => handleFileUpload(e, 'FILE')} className="hidden" />
         </div>
       </div>
