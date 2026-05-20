@@ -17,6 +17,7 @@ import { CreatePostModal } from './layout/CreatePostModal';
 import { CreateStoryModal } from './layout/CreateStoryModal';
 import { EditPostModal } from './layout/EditPostModal';
 import { StoryViewer } from './layout/StoryViewer';
+import { SearchPanel } from './layout/SearchPanel';
 import { NotificationsPanel } from '@/features/notification/components/NotificationsPanel';
 import { useNotificationSocket } from '@/features/notification/hooks/useNotificationSocket';
 import { useNotifications } from '@/features/notification/store/NotificationContext';
@@ -107,6 +108,7 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
   const [sharingPost, setSharingPost] = useState<PostResponse | null>(null);
   const [currentMusic, setCurrentMusic] = useState<any>(null);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { t } = useTranslation();
   const { currentTheme } = useTheme();
 
@@ -117,6 +119,17 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
   // Realtime notifications
   useNotificationSocket(currentUserId);
   const { unreadCount: notifUnread } = useNotifications();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const enrichPost = useCallback((post: PostResponse): PostResponse => ({
     ...post,
@@ -373,6 +386,21 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
     }
   };
 
+  const handleStoryViewed = useCallback((storyId: string) => {
+    setStories((prev) =>
+      prev.map((story) =>
+        story.storyId === storyId
+          ? { ...story, isViewedByMe: true }
+          : story
+      )
+    );
+  }, []);
+
+  const handleStoryDeleted = useCallback((storyId: string) => {
+    setStories((prev) => prev.filter((story) => story.storyId !== storyId));
+    void fetchData();
+  }, [fetchData]);
+
   const handleLike = async (postId: string) => {
     const post = posts.find(p => p.postId === postId);
     if (!post) return;
@@ -445,19 +473,18 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
             userId={viewingUserId}
             currentUserId={currentUserId}
             onBack={() => setViewingUserId(null)}
-            onOpenPost={() => {}}
+            onOpenPost={() => { }}
           />
         </div>
       )}
       {/* Top Right Notifications */}
       <div className="absolute top-6 right-8 z-[60] hidden lg:block">
-        <button 
+        <button
           onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-          className={`w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer relative group border shadow-sm active:scale-95 ${
-            isNotificationsOpen 
-              ? 'bg-[#0095F6] text-white border-[#0095F6]' 
+          className={`w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer relative group border shadow-sm active:scale-95 ${isNotificationsOpen
+              ? 'bg-[#0095F6] text-white border-[#0095F6]'
               : 'bg-gray-50/50 dark:bg-[#1A1A1A]/50 backdrop-blur-md text-black dark:text-white border-gray-100 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-[#262626]'
-          }`}
+            }`}
         >
           <Bell size={20} fill={isNotificationsOpen ? "currentColor" : "none"} />
           {!isNotificationsOpen && notifUnread > 0 && (
@@ -495,7 +522,7 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
 
       {/* Main Content Area (Scrollable) */}
       <div className={`flex-1 h-full overflow-y-auto scrollbar-hide flex ${view === 'explore' ? 'justify-start' : 'justify-center'} lg:pl-[64px]`}>
-        <div className={`w-full ${['profile', 'edit-profile', 'archive'].includes(view) ? 'max-w-[1280px]' : (view === 'explore' || view === 'music') ? '' : 'max-w-[1150px]'} flex flex-col lg:flex-row px-4 md:px-8 lg:px-0 justify-between`}>
+        <div className={`w-full ${['profile', 'edit-profile', 'archive'].includes(view) ? 'max-w-[1280px]' : (view === 'explore' || view === 'music') ? '' : 'max-w-[1220px]'} flex flex-col lg:flex-row px-4 md:px-8 lg:px-0 justify-between`}>
 
           {/* Middle Column (Feed or Profile) */}
           <div className={`${view === 'profile' ? 'flex-1 max-w-[935px] pt-4' : (view === 'explore' || view === 'music') ? 'flex-1 w-full pt-0' : ['edit-profile', 'archive'].includes(view) ? 'flex-1 w-full max-w-[1280px] mx-auto lg:px-8 pt-4' : 'w-full lg:max-w-[630px] pt-4'}`}>
@@ -520,6 +547,7 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
                   isRanked={true}
                   onAuthorClick={handleAuthorClick}
                   onHashtagClick={handleHashtagClick}
+                  onSearchClick={() => setIsSearchOpen(true)}
                 />
               </div>
             ) : view === 'profile' ? (
@@ -592,7 +620,7 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
 
           {/* Right Column (Widgets) */}
           {view === 'feed' && (
-            <div className="hidden lg:block w-[320px] pt-10 pl-10 shrink-0">
+            <div className="hidden lg:block w-[380px] pt-10 pl-5 shrink-0 border-l border-gray-100 dark:border-gray-900">
               <SocialSidebarRight
                 user={user}
                 conversations={conversations}
@@ -635,6 +663,14 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
         />
       )}
 
+      {/* Search Panel */}
+      <SearchPanel
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onSelectUser={handleAuthorClick}
+        onSelectHashtag={handleHashtagClick}
+      />
+
       {/* Story Viewer */}
       {viewingStoryAuthorId && (
         <StoryViewer
@@ -642,6 +678,8 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
           initialAuthorId={viewingStoryAuthorId}
           onClose={() => setViewingStoryAuthorId(null)}
           currentUserId={currentUserId}
+          onStoryViewed={handleStoryViewed}
+          onStoryDeleted={handleStoryDeleted}
         />
       )}
 

@@ -115,7 +115,7 @@ export const SocialSidebarRight: React.FC<SocialSidebarRightProps> = ({ user }) 
       </div>
 
       {/* ── Suggestions Header ────────────────────────── */}
-      <div className="flex items-center justify-between mb-4 px-1">
+      <div className="flex items-center justify-between mb-4 pl-1 pr-7">
         <h3 className="font-semibold text-[14px] text-gray-500">
           {t('social.suggestions.title', 'Gợi ý cho bạn')}
         </h3>
@@ -161,9 +161,9 @@ export const SocialSidebarRight: React.FC<SocialSidebarRightProps> = ({ user }) 
             return (
               <div
                 key={item.userId}
-                className="flex items-center justify-between group"
+                className="flex items-center justify-between group relative pr-6"
               >
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   {/* Avatar */}
                   <div className="w-8 h-8 rounded-full overflow-hidden relative border border-gray-100 dark:border-gray-900 shrink-0 cursor-pointer">
                     <Image
@@ -178,8 +178,8 @@ export const SocialSidebarRight: React.FC<SocialSidebarRightProps> = ({ user }) 
                   </div>
 
                   {/* Info */}
-                  <div className="flex flex-col min-w-0">
-                    <p className="font-semibold text-[14px] text-black dark:text-white leading-tight hover:underline cursor-pointer">
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <p className="font-semibold text-[14px] text-black dark:text-white leading-tight hover:underline cursor-pointer truncate max-w-[130px]" title={item.fullName || item.username}>
                       {item.fullName || item.username}
                     </p>
                     <p className="text-[12px] text-gray-500 truncate max-w-[130px]">
@@ -189,11 +189,14 @@ export const SocialSidebarRight: React.FC<SocialSidebarRightProps> = ({ user }) 
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex items-center shrink-0">
                   {isFollowed ? (
-                    <span className="text-[12px] font-semibold text-gray-400">
+                    <button
+                      disabled
+                      className="text-[12px] font-semibold text-[#0068FF] dark:text-blue-400 pointer-events-none transition-all duration-200"
+                    >
                       Đang theo dõi
-                    </span>
+                    </button>
                   ) : (
                     <button
                       onClick={() => handleFollow(item)}
@@ -203,14 +206,16 @@ export const SocialSidebarRight: React.FC<SocialSidebarRightProps> = ({ user }) 
                       {t('social.suggestions.follow', 'Theo dõi')}
                     </button>
                   )}
-                  <button
-                    onClick={() => handleDismiss(item)}
-                    className="p-0.5 rounded text-gray-300 hover:text-gray-500 dark:hover:text-gray-400 transition-colors opacity-0 group-hover:opacity-100"
-                    title="Bỏ qua gợi ý"
-                  >
-                    <X size={12} />
-                  </button>
                 </div>
+
+                {/* Dismiss Button */}
+                <button
+                  onClick={() => handleDismiss(item)}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 p-0.5 rounded text-gray-300 hover:text-gray-500 dark:hover:text-gray-400 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+                  title="Bỏ qua gợi ý"
+                >
+                  <X size={12} />
+                </button>
               </div>
             );
           })
@@ -221,14 +226,14 @@ export const SocialSidebarRight: React.FC<SocialSidebarRightProps> = ({ user }) 
       <div className="text-[12px] text-[#C7C7C7] px-1 space-y-4 pb-4 mt-auto">
         <nav className="flex flex-wrap gap-x-2 gap-y-1">
           {[
-            { key: 'about',    label: t('social.footer.about',    'Giới thiệu') },
-            { key: 'help',     label: t('social.footer.help',     'Trợ giúp') },
-            { key: 'press',    label: t('social.footer.press',    'Báo chí') },
-            { key: 'api',      label: t('social.footer.api',      'API') },
-            { key: 'jobs',     label: t('social.footer.jobs',     'Việc làm') },
-            { key: 'privacy',  label: t('social.footer.privacy',  'Quyền riêng tư') },
-            { key: 'terms',    label: t('social.footer.terms',    'Điều khoản') },
-            { key: 'locations',label: t('social.footer.locations','Vị trí') },
+            { key: 'about', label: t('social.footer.about', 'Giới thiệu') },
+            { key: 'help', label: t('social.footer.help', 'Trợ giúp') },
+            { key: 'press', label: t('social.footer.press', 'Báo chí') },
+            { key: 'api', label: t('social.footer.api', 'API') },
+            { key: 'jobs', label: t('social.footer.jobs', 'Việc làm') },
+            { key: 'privacy', label: t('social.footer.privacy', 'Quyền riêng tư') },
+            { key: 'terms', label: t('social.footer.terms', 'Điều khoản') },
+            { key: 'locations', label: t('social.footer.locations', 'Vị trí') },
             { key: 'language', label: t('social.footer.language', 'Ngôn ngữ') },
             { key: 'verified', label: t('social.footer.verified', 'Fruvia Verified') },
           ].map(link => (

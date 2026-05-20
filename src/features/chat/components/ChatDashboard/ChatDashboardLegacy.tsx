@@ -16,6 +16,8 @@ import { friendService } from '@/features/friends';
 import { PresenceProvider } from '@/features/user';
 import { messageService } from '@/features/chat';
 import { SocialFeed } from '@/features/social';
+import { useTheme } from '@/themes';
+import { SunIcon, MoonIcon } from '@/components/ui/Icons';
 
 export interface ChatDashboardProps {
   onLogout: () => void;
@@ -25,6 +27,7 @@ export interface ChatDashboardProps {
 
 export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatDashboardProps) {
   const { t } = useTranslation();
+  const { currentTheme, setCurrentTheme } = useTheme();
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem('fruvia_active_tab') || 'chat';
   });
@@ -1429,33 +1432,135 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
                 )}
               </>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center bg-[var(--background)] px-10 text-center select-none">
-                <div className="max-w-[500px] flex flex-col items-center gap-6">
-                  <div className="w-[380px] h-[160px] relative mb-4 opacity-80">
-                    <div className="absolute inset-0 bg-blue-50 rounded-full blur-3xl opacity-20 dark:bg-blue-900/10"></div>
-                    <img src="/welcome_chat.png" alt="Welcome" className="w-full h-full object-contain relative z-10" />
+              <div className="relative flex-1 overflow-hidden bg-[var(--chat-bg)] px-6 text-center select-none transition-colors duration-300">
+                {/* Theme Switcher Capsule */}
+                <div className="absolute top-6 right-6 z-20 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="flex items-center gap-1 bg-[var(--card-bg)] border border-[var(--border)] rounded-full p-1 shadow-sm transition-all duration-200">
+                    <button
+                      onClick={() => setCurrentTheme('light')}
+                      className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${currentTheme === 'light' ? 'bg-[#0068FF] text-white shadow-md scale-105' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[var(--text)]'}`}
+                      title="Giao diện sáng"
+                    >
+                      <SunIcon size={18} />
+                    </button>
+                    <button
+                      onClick={() => setCurrentTheme('dark')}
+                      className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${currentTheme === 'dark' ? 'bg-[#0068FF] text-white shadow-md scale-105' : 'text-[var(--sub-text)] hover:bg-[var(--hover-bg)] hover:text-[var(--text)]'}`}
+                      title="Giao diện tối"
+                    >
+                      <MoonIcon size={18} />
+                    </button>
                   </div>
-                  <h2 className="text-[22px] font-bold text-[var(--text)]">
-                    Chào mừng đến với <span className="text-[#0068FF]">Fruvia Chat</span>!
+                </div>
+
+                <div className="absolute inset-0 pointer-events-none">
+                  <div className="absolute -top-28 -right-24 h-[320px] w-[320px] rounded-full bg-[#BFD3FF]/30 dark:bg-[#1E6CF5]/10 blur-3xl" />
+                  <div className="absolute -bottom-32 -left-28 h-[420px] w-[420px] rounded-full bg-[#C7DBFF]/30 dark:bg-[#1E6CF5]/10 blur-3xl" />
+                  <div className="absolute left-[6%] top-[15%] grid grid-cols-4 gap-3 opacity-50 dark:opacity-20">
+                    {Array.from({ length: 12 }).map((_, i) => (
+                      <span key={`ld-${i}`} className="h-2 w-2 rounded-full bg-[#B8CCF7]" />
+                    ))}
+                  </div>
+                  <div className="absolute right-[6%] bottom-[18%] grid grid-cols-4 gap-3 opacity-40 dark:opacity-15">
+                    {Array.from({ length: 12 }).map((_, i) => (
+                      <span key={`rd-${i}`} className="h-2 w-2 rounded-full bg-[#D2DDF4]" />
+                    ))}
+                  </div>
+                  <span className="absolute left-[18%] top-[10%] h-2 w-2 rounded-full bg-[#7EA6FF]/60 dark:bg-[#7EA6FF]/30" />
+                  <span className="absolute left-[34%] top-[16%] text-[#F9B44C] dark:text-[#F9B44C]/50 text-[16px] leading-none">✦</span>
+                  <span className="absolute left-[48%] top-[9%] h-2.5 w-2.5 rounded-full bg-[#8FD9E3]/60 dark:bg-[#8FD9E3]/30" />
+                  <span className="absolute right-[32%] top-[14%] text-[#6C93FF] dark:text-[#6C93FF]/50 text-[13px] leading-none">✦</span>
+                  <span className="absolute right-[18%] top-[22%] h-2 w-2 rounded-full bg-[#1E6CF5]/60 dark:bg-[#1E6CF5]/30" />
+                  <span className="absolute left-[10%] top-[36%] h-2.5 w-2.5 rounded-full bg-[#5FA7FF]/60 dark:bg-[#5FA7FF]/30" />
+                  <span className="absolute left-[26%] top-[28%] text-[#FFB74A] dark:text-[#FFB74A]/50 text-[14px] leading-none">✦</span>
+                  <span className="absolute right-[10%] top-[42%] text-[#8AC7FF] dark:text-[#8AC7FF]/50 text-[15px] leading-none">✦</span>
+                  <span className="absolute left-[14%] bottom-[26%] h-2 w-2 rounded-full bg-[#8DB2FA]/60 dark:bg-[#8DB2FA]/30" />
+                  <span className="absolute left-[28%] bottom-[14%] text-[#F5A623] dark:text-[#F5A623]/50 text-[13px] leading-none">✦</span>
+                  <span className="absolute right-[26%] bottom-[20%] h-2.5 w-2.5 rounded-full bg-[#7EA6FF]/50 dark:bg-[#7EA6FF]/25" />
+                  <span className="absolute right-[12%] bottom-[10%] text-[#F9B44C] dark:text-[#F9B44C]/50 text-[15px] leading-none">✦</span>
+                  <span className="absolute left-[52%] top-[36%] text-[#8FD9E3] dark:text-[#8FD9E3]/50 text-[12px] leading-none">✦</span>
+                  <span className="absolute left-[58%] bottom-[24%] text-[#6C93FF] dark:text-[#6C93FF]/50 text-[12px] leading-none">✦</span>
+                </div>
+
+                <div className="relative z-10 mx-auto flex min-h-full max-w-[920px] flex-col items-center justify-center py-6">
+                  <h2 className="text-[26px] font-semibold tracking-tight text-[var(--text)] transition-colors duration-300">
+                    Chào mừng đến với <span className="text-[#2A6DF6]">Fruvia Chat!</span>
                   </h2>
-                  <p className="text-[16px] text-[var(--sub-text)] leading-relaxed">
-                    Khám phá những tiện ích hỗ trợ làm việc và trò chuyện cùng người thân, bạn bè được tối ưu hóa cho trải nghiệm của bạn.
+                  <div className="mt-5 h-0.5 w-14 rounded-full bg-[#2A6DF6]" />
+                  <p className="mx-auto mt-6 max-w-[560px] text-[17px] leading-8 text-[var(--sub-text)] transition-colors duration-300">
+                    Khám phá những tiện ích hỗ trợ làm việc và trò chuyện
+                    <br className="hidden sm:block" />
+                    cùng người thân, bạn bè được tối ưu hóa cho trải nghiệm của bạn.
                   </p>
 
-                  <div className="grid grid-cols-2 gap-4 mt-4 w-full">
-                    <div className="p-4 bg-[var(--card-bg)] border border-[var(--border)] rounded-xl flex flex-col items-center gap-2 group hover:shadow-md transition-all cursor-pointer">
-                      <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-[#0068FF]">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                      </div>
-                      <span className="text-[14px] font-bold">Kết nối bạn bè</span>
-                    </div>
-                    <div className="p-4 bg-[var(--card-bg)] border border-[var(--border)] rounded-xl flex flex-col items-center gap-2 group hover:shadow-md transition-all cursor-pointer">
-                      <div className="w-10 h-10 rounded-full bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center text-orange-500">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                      </div>
-                      <span className="text-[14px] font-bold">Trò chuyện nhóm</span>
+                  <div className="mt-14 flex items-center justify-center">
+                    <div className="relative h-[126px] w-[292px] opacity-18 dark:opacity-10">
+                      <svg viewBox="0 0 300 170" className="absolute inset-0 h-full w-full" fill="none" aria-hidden="true">
+                        <circle cx="150" cy="86" r="24" fill="#EAF1FF" className="dark:fill-[#1e2329]" />
+                        <circle cx="150" cy="86" r="13" fill="#F7FAFF" className="dark:fill-[#252e39]" />
+                        <circle cx="150" cy="86" r="8" fill="#EAF1FF" className="dark:fill-[#1e2329]" />
+
+                        <path d="M62 84c28-8 42-26 54-30" stroke="#C7D6F8" className="dark:stroke-slate-700" strokeWidth="1.4" strokeDasharray="5 6" />
+                        <path d="M238 84c-28-8-42-26-54-30" stroke="#C7D6F8" className="dark:stroke-slate-700" strokeWidth="1.4" strokeDasharray="5 6" />
+                        <path d="M68 120c26-6 46-14 60-28" stroke="#C7D6F8" className="dark:stroke-slate-700" strokeWidth="1.4" strokeDasharray="5 6" />
+                        <path d="M232 120c-26-6-46-14-60-28" stroke="#C7D6F8" className="dark:stroke-slate-700" strokeWidth="1.4" strokeDasharray="5 6" />
+
+                        <circle cx="64" cy="80" r="12" stroke="#D2DCF7" className="dark:stroke-slate-700" strokeWidth="2" />
+                        <circle cx="236" cy="80" r="12" stroke="#D2DCF7" className="dark:stroke-slate-700" strokeWidth="2" />
+                        <circle cx="50" cy="118" r="12" stroke="#D2DCF7" className="dark:stroke-slate-700" strokeWidth="2" />
+                        <circle cx="250" cy="118" r="12" stroke="#D2DCF7" className="dark:stroke-slate-700" strokeWidth="2" />
+
+                        <circle cx="64" cy="80" r="4.5" fill="#B8CCF7" className="dark:fill-slate-600" />
+                        <circle cx="236" cy="80" r="4.5" fill="#B8CCF7" className="dark:fill-slate-600" />
+                        <circle cx="50" cy="118" r="4.5" fill="#B8CCF7" className="dark:fill-slate-600" />
+                        <circle cx="250" cy="118" r="4.5" fill="#B8CCF7" className="dark:fill-slate-600" />
+                      </svg>
                     </div>
                   </div>
+
+                  <div className="pointer-events-none relative mt-[-6px] mb-4 h-[160px] w-[330px] opacity-78 dark:opacity-40">
+                    <svg viewBox="0 0 330 170" className="absolute inset-0 h-full w-full" fill="none" aria-hidden="true">
+                      <path d="M72 82c22-22 46-35 66-38" stroke="#B8CBF7" className="dark:stroke-slate-700" strokeWidth="1.8" strokeDasharray="5 5" />
+                      <path d="M258 82c-22-22-46-35-66-38" stroke="#B8CBF7" className="dark:stroke-slate-700" strokeWidth="1.8" strokeDasharray="5 5" />
+                      <path d="M76 122c22-4 44-12 60-27" stroke="#B8CBF7" className="dark:stroke-slate-700" strokeWidth="1.8" strokeDasharray="5 5" />
+                      <path d="M254 122c-22-4-44-12-60-27" stroke="#B8CBF7" className="dark:stroke-slate-700" strokeWidth="1.8" strokeDasharray="5 5" />
+
+                      <g stroke="#C8D7FA" className="dark:stroke-slate-600" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="74" cy="76" r="13" />
+                        <circle cx="256" cy="76" r="13" />
+                        <circle cx="58" cy="118" r="13" />
+                        <circle cx="272" cy="118" r="13" />
+
+                        <circle cx="74" cy="72" r="4.4" fill="#F7FAFF" className="dark:fill-[#1e2329]" />
+                        <path d="M68 84c2.1-4.2 6-6.7 11-6.7s8.9 2.5 11 6.7" />
+
+                        <circle cx="256" cy="72" r="4.4" fill="#F7FAFF" className="dark:fill-[#1e2329]" />
+                        <path d="M250 84c2.1-4.2 6-6.7 11-6.7s8.9 2.5 11 6.7" />
+
+                        <circle cx="58" cy="114" r="4.4" fill="#F7FAFF" className="dark:fill-[#1e2329]" />
+                        <path d="M52 126c2.1-4.2 6-6.7 11-6.7s8.9 2.5 11 6.7" />
+
+                        <circle cx="272" cy="114" r="4.4" fill="#F7FAFF" className="dark:fill-[#1e2329]" />
+                        <path d="M266 126c2.1-4.2 6-6.7 11-6.7s8.9 2.5 11 6.7" />
+                      </g>
+
+                      <g>
+                        <path
+                          d="M165 58c-13.8 0-25 9.6-25 21.5 0 11 8.6 20 20.5 21.3v10.6l10.3-9.3c1.2.1 2.5.1 3.7.1 13.8 0 25-9.6 25-21.5S178.8 58 165 58z"
+                          fill="#D8E3FB"
+                          className="dark:fill-[#2a437e]"
+                        />
+                        <circle cx="157" cy="79" r="4.6" fill="#FFFFFF" className="dark:fill-slate-200" />
+                        <circle cx="173" cy="79" r="4.6" fill="#FFFFFF" className="dark:fill-slate-200" />
+                        <path d="M155 88c3.4 3.8 7.2 5.8 10 5.8s6.6-2 10-5.8" stroke="#FFFFFF" className="dark:stroke-slate-200" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+                      </g>
+                    </svg>
+                  </div>
+
+                  <p className="mt-3 text-[15px] font-medium text-[var(--text)] transition-colors duration-300">
+                    Kết nối dễ dàng  •  Trò chuyện hiệu quả  •  Gắn kết mọi lúc
+                  </p>
+
                 </div>
               </div>
             )

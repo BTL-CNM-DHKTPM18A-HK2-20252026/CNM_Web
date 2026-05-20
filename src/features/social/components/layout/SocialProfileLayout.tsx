@@ -54,13 +54,13 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={onEditClick}
-              className="px-4 py-1.5 bg-[#efefef] dark:bg-[#363636] hover:bg-[#dbdbdb] dark:hover:bg-[#262626] rounded-lg text-sm font-semibold text-black dark:text-white transition-colors"
+              className="px-4 py-1.5 bg-[#efefef] dark:bg-[#363636] hover:bg-[#dbdbdb] dark:hover:bg-[#262626] rounded-lg text-sm font-semibold text-black dark:text-white transition-colors cursor-pointer"
             >
               {t('social.profile.edit')}
             </button>
             <button
               onClick={onArchiveClick}
-              className="px-4 py-1.5 bg-[#efefef] dark:bg-[#363636] hover:bg-[#dbdbdb] dark:hover:bg-[#262626] rounded-lg text-sm font-semibold text-black dark:text-white transition-colors"
+              className="px-4 py-1.5 bg-[#efefef] dark:bg-[#363636] hover:bg-[#dbdbdb] dark:hover:bg-[#262626] rounded-lg text-sm font-semibold text-black dark:text-white transition-colors cursor-pointer"
             >
               {t('social.profile.view_archive')}
             </button>

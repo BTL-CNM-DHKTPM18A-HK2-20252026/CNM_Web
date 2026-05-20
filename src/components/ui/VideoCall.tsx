@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { webrtcService, type CallState, type CallInfo } from '@/lib/realtime/webrtcService';
+import { userService } from '@/features/user';
 
 // â”€â”€â”€ Icons (inline SVG) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -52,7 +53,7 @@ interface IncomingCallModalProps {
 export function IncomingCallModal({ callInfo, onAccept, onReject }: IncomingCallModalProps) {
   return (
     <div className="fixed inset-0 z-9998 flex items-center justify-center bg-black/70 backdrop-blur-md">
-      <div className="relative bg-linear-to-b from-[#1c1f3a] to-[#111327] rounded-3xl px-10 py-10 w-full max-w-xs text-center shadow-2xl border border-white/10 overflow-hidden">
+      <div className="relative bg-white dark:bg-[#2A2E45] rounded-2xl px-10 py-10 w-full max-w-xs text-center shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden">
         {/* Background glow */}
         <div className="absolute -top-20 -left-20 w-64 h-64 bg-green-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -74,30 +75,30 @@ export function IncomingCallModal({ callInfo, onAccept, onReject }: IncomingCall
           )}
         </div>
 
-        <p className="text-green-400 text-xs font-semibold uppercase tracking-widest mb-1">Cuộc gọi video đến</p>
-        <h2 className="text-xl font-bold text-white mb-8">{callInfo.peerName}</h2>
+        <p className="text-green-600 dark:text-green-400 text-xs font-semibold uppercase tracking-widest mb-1">Cuộc gọi video đến</p>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-8">{callInfo.peerName}</h2>
 
         {/* Actions */}
         <div className="flex justify-center gap-14">
           <div className="flex flex-col items-center gap-2">
             <button
               onClick={onReject}
-              className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 active:scale-95 flex items-center justify-center text-white shadow-lg shadow-red-500/40 transition-all cursor-pointer"
+              className="w-12 h-12 rounded-full bg-red-500 hover:bg-red-600 active:scale-95 flex items-center justify-center text-white shadow-lg shadow-red-500/40 transition-all cursor-pointer"
               title="Từ chối"
             >
               <PhoneOffIcon />
             </button>
-            <span className="text-xs text-gray-400">Từ chối</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">Từ chối</span>
           </div>
           <div className="flex flex-col items-center gap-2">
             <button
               onClick={onAccept}
-              className="w-14 h-14 rounded-full bg-green-500 hover:bg-green-400 active:scale-95 flex items-center justify-center text-white shadow-lg shadow-green-500/40 transition-all cursor-pointer"
+              className="w-12 h-12 rounded-full bg-green-500 hover:bg-green-400 active:scale-95 flex items-center justify-center text-white shadow-lg shadow-green-500/40 transition-all cursor-pointer"
               title="Chấp nhận"
             >
               <PhoneIcon />
             </button>
-            <span className="text-xs text-gray-400">Chấp nhận</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">Chấp nhận</span>
           </div>
         </div>
       </div>
@@ -195,7 +196,7 @@ export function VideoCallScreen({ currentUserId, callInfo, callState, onEnd }: V
   const isCalling = callState === 'requesting' || callState === 'connecting';
 
   return (
-    <div className="fixed inset-0 z-9999 bg-[#0a0c1a] flex flex-col select-none">
+    <div className="fixed inset-0 z-9999 bg-[#F8FAFC] dark:bg-[#090714] flex flex-col select-none overflow-hidden font-sans">
       {/* Remote video (fullscreen) */}
       <div className="flex-1 relative overflow-hidden">
         <video
@@ -208,75 +209,105 @@ export function VideoCallScreen({ currentUserId, callInfo, callState, onEnd }: V
         {/* Gradient overlay (top + bottom) */}
         {callState === 'connected' && (
           <>
-            <div className="absolute inset-x-0 top-0 h-28 bg-linear-to-b from-black/60 to-transparent pointer-events-none" />
-            <div className="absolute inset-x-0 bottom-0 h-40 bg-linear-to-t from-black/80 to-transparent pointer-events-none" />
+            <div className="absolute inset-x-0 top-0 h-32 bg-linear-to-b from-black/60 to-transparent pointer-events-none z-10" />
+            <div className="absolute inset-x-0 bottom-0 h-44 bg-linear-to-t from-black/80 to-transparent pointer-events-none z-10" />
           </>
         )}
 
         {/* Waiting / calling overlay */}
         {callState !== 'connected' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-linear-to-b from-[#0d1030] via-[#0f1228] to-[#0a0c1a]">
-            {/* Animated background blobs */}
-            <div className="absolute w-96 h-96 bg-blue-600/10 rounded-full blur-3xl -top-24 -left-24 pointer-events-none" />
-            <div className="absolute w-96 h-96 bg-purple-600/10 rounded-full blur-3xl -bottom-24 -right-24 pointer-events-none" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-tr from-[#EBF1FF] via-[#F6F5FC] to-[#F1EEFE] dark:from-[#0d0f26] dark:via-[#110e20] dark:to-[#090714]">
+            {/* Background elements */}
+            <div className="absolute top-10 left-10 w-24 h-24 grid grid-cols-5 gap-2 opacity-25 dark:opacity-10 pointer-events-none">
+              {Array.from({ length: 25 }).map((_, i) => (
+                <div key={i} className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />
+              ))}
+            </div>
+            <div className="absolute bottom-10 right-10 w-24 h-24 grid grid-cols-5 gap-2 opacity-25 dark:opacity-10 pointer-events-none">
+              {Array.from({ length: 25 }).map((_, i) => (
+                <div key={i} className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />
+              ))}
+            </div>
+            <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full border border-indigo-200/40 dark:border-indigo-500/10 pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-[#93c5fd]/20 dark:bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute top-1/4 left-1/4 text-indigo-400 opacity-40 dark:opacity-20 pointer-events-none text-xl">✦</div>
+            <div className="absolute bottom-1/4 right-1/4 text-indigo-400 opacity-40 dark:opacity-20 pointer-events-none text-xl">✦</div>
 
-            {/* Pulsing avatar */}
-            <div className="relative flex items-center justify-center mb-6">
+            <div className="relative z-10 flex flex-col items-center text-center px-6">
+              <div className="relative flex items-center justify-center mb-8">
+                {isCalling && (
+                  <>
+                    <span
+                      className="absolute w-44 h-44 rounded-full bg-indigo-500/10 dark:bg-indigo-400/5 animate-ping"
+                      style={{ animationDuration: '2.5s' }}
+                    />
+                    <span
+                      className="absolute w-36 h-36 rounded-full bg-indigo-500/15 dark:bg-indigo-400/10 animate-ping"
+                      style={{ animationDuration: '2.5s', animationDelay: '0.5s' }}
+                    />
+                  </>
+                )}
+                {callInfo.peerAvatar ? (
+                  <img
+                    src={callInfo.peerAvatar}
+                    alt={callInfo.peerName}
+                    className="relative w-28 h-28 rounded-full object-cover border-4 border-white dark:border-white/10 shadow-xl shadow-indigo-100 dark:shadow-none z-10"
+                  />
+                ) : (
+                  <div className="relative w-28 h-28 rounded-full bg-linear-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-5xl font-bold border-4 border-white dark:border-white/10 shadow-xl z-10">
+                    {callInfo.peerName?.charAt(0) || '?'}
+                  </div>
+                )}
+              </div>
+
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight mb-2">{callInfo.peerName}</h2>
+              <p className="text-slate-400 dark:text-gray-400 text-sm font-medium mb-6">
+                {callState === 'requesting' ? 'Đang gọi...' : 'Đang kết nối...'}
+              </p>
               {isCalling && (
-                <>
-                  <span className="absolute w-44 h-44 rounded-full bg-blue-500/10 animate-ping" style={{ animationDuration: '2s' }} />
-                  <span className="absolute w-36 h-36 rounded-full bg-blue-500/15 animate-ping" style={{ animationDuration: '2s', animationDelay: '0.4s' }} />
-                </>
-              )}
-              {callInfo.peerAvatar ? (
-                <img
-                  src={callInfo.peerAvatar}
-                  alt={callInfo.peerName}
-                  className="relative w-28 h-28 rounded-full object-cover border-4 border-white/20 shadow-2xl shadow-blue-900/50 z-10"
-                />
-              ) : (
-                <div className="relative w-28 h-28 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-5xl font-bold border-4 border-white/20 shadow-2xl z-10">
-                  {callInfo.peerName?.charAt(0) || '?'}
+                <div className="flex gap-2 justify-center mb-12">
+                  {[0, 150, 300].map((delay) => (
+                    <div
+                      key={delay}
+                      className="w-2.5 h-2.5 bg-indigo-500/60 dark:bg-indigo-400/60 rounded-full animate-bounce"
+                      style={{ animationDelay: `${delay}ms` }}
+                    />
+                  ))}
                 </div>
               )}
-            </div>
 
-            <h2 className="text-2xl font-bold text-white tracking-tight mb-1">{callInfo.peerName}</h2>
-            <p className="text-gray-400 text-sm mb-4">
-              {callState === 'requesting' ? 'Đang gọi...' : 'Đang kết nối...'}
-            </p>
-            {isCalling && (
-              <div className="flex gap-1.5">
-                {[0, 150, 300].map((delay) => (
-                  <div
-                    key={delay}
-                    className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"
-                    style={{ animationDelay: `${delay}ms` }}
-                  />
-                ))}
+              <div className="flex items-center gap-3 bg-white/70 dark:bg-[#1E2337]/50 backdrop-blur-md px-5 py-3 rounded-2xl border border-[#E0E7FF]/60 dark:border-white/5 shadow-xs max-w-sm">
+                <svg className="w-5 h-5 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                <div className="text-left">
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">Cuộc gọi được mã hóa đầu cuối</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-400 font-medium">Thông tin của bạn luôn được bảo mật.</p>
+                </div>
               </div>
-            )}
+            </div>
           </div>
         )}
 
+
         {/* Top bar (name + timer) when connected */}
         {callState === 'connected' && (
-          <div className={`absolute top-0 inset-x-0 flex flex-col items-center pt-5 transition-opacity duration-500 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
-            <p className="text-white font-semibold text-base drop-shadow">{callInfo.peerName}</p>
+          <div className={`absolute top-0 inset-x-0 flex flex-col items-center pt-6 transition-opacity duration-500 z-20 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+            <p className="text-white font-semibold text-lg drop-shadow">{callInfo.peerName}</p>
             <p className="text-green-400 text-sm font-mono mt-0.5 drop-shadow">{formatTime(elapsed)}</p>
           </div>
         )}
 
         {/* Media error */}
         {mediaError && (
-          <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-amber-500/90 px-4 py-2 rounded-xl shadow-lg">
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-amber-500/90 backdrop-blur-md px-4 py-2 rounded-xl shadow-lg z-30">
             <p className="text-white text-xs font-medium">⚠️ {mediaError}</p>
           </div>
         )}
 
         {/* Local video PiP */}
         <div
-          className={`absolute bottom-28 right-5 w-36 h-48 rounded-2xl overflow-hidden shadow-2xl border border-white/15 bg-[#1a1a2e] transition-opacity duration-500 ${callState === 'connected' && !showControls ? 'opacity-40' : 'opacity-100'}`}
+          className={`absolute bottom-8 right-8 w-44 h-28 rounded-2xl overflow-hidden shadow-2xl border-2 border-white dark:border-white/10 bg-slate-100 dark:bg-[#1a1a2e] transition-all duration-500 z-20 ${callState === 'connected' && !showControls ? 'opacity-40' : 'opacity-100 hover:scale-105'}`}
         >
           <video
             ref={localVideoRef}
@@ -286,60 +317,67 @@ export function VideoCallScreen({ currentUserId, callInfo, callState, onEnd }: V
             className={`w-full h-full object-cover transition-opacity ${cameraOff ? 'opacity-0' : 'opacity-100'}`}
           />
           {cameraOff && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500 gap-1">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 bg-slate-50 dark:bg-[#1a1a2e] gap-1">
               <VideoOffIcon />
-              <span className="text-[10px]">Đã tắt</span>
+              <span className="text-[10px] font-medium">Camera tắt</span>
             </div>
           )}
+          {/* Tag "You" inside PiP */}
+          <div className="absolute bottom-2 left-2 bg-black/40 backdrop-blur-xs text-white text-[9px] font-medium px-2 py-0.5 rounded-md flex items-center gap-1">
+            <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+            </svg>
+            Bạn
+          </div>
         </div>
       </div>
 
       {/* Controls Bar */}
       <div
-        className={`absolute bottom-0 inset-x-0 flex items-center justify-center gap-5 pb-8 pt-4 bg-linear-to-t from-black/90 to-transparent transition-opacity duration-500 ${callState === 'connected' && !showControls ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+        className={`absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center justify-center gap-8 bg-white/75 dark:bg-[#1C1F37]/85 backdrop-blur-xl border border-white/50 dark:border-white/10 px-10 py-5 rounded-[32px] shadow-xl shadow-indigo-100/40 dark:shadow-none transition-all duration-500 z-20 ${callState === 'connected' && !showControls ? 'opacity-0 pointer-events-none translate-y-5' : 'opacity-100 translate-y-0'}`}
       >
         {/* Mic */}
         <div className="flex flex-col items-center gap-1.5">
           <button
             onClick={handleToggleMute}
-            className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-lg ${
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-md ${
               muted
-                ? 'bg-red-500/90 text-white shadow-red-500/30'
-                : 'bg-white/15 text-white hover:bg-white/25 backdrop-blur-sm'
+                ? 'bg-red-500 text-white shadow-red-500/30'
+                : 'bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-white/20'
             }`}
             title={muted ? 'Bật mic' : 'Tắt mic'}
           >
             {muted ? <MicOffIcon /> : <MicIcon />}
           </button>
-          <span className="text-xs text-white/70">{muted ? 'Bật mic' : 'Tắt mic'}</span>
+          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">{muted ? 'Bật mic' : 'Tắt mic'}</span>
         </div>
 
         {/* End call */}
         <div className="flex flex-col items-center gap-1.5">
           <button
             onClick={onEnd}
-            className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 active:scale-95 flex items-center justify-center text-white shadow-xl shadow-red-500/50 transition-all cursor-pointer"
+            className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 active:scale-95 flex items-center justify-center text-white shadow-lg shadow-red-500/40 transition-all cursor-pointer"
             title="Kết thúc"
           >
             <PhoneOffIcon />
           </button>
-          <span className="text-xs text-white/70">Kết thúc</span>
+          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">Kết thúc</span>
         </div>
 
         {/* Camera */}
         <div className="flex flex-col items-center gap-1.5">
           <button
             onClick={handleToggleCamera}
-            className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-lg ${
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-md ${
               cameraOff
-                ? 'bg-red-500/90 text-white shadow-red-500/30'
-                : 'bg-white/15 text-white hover:bg-white/25 backdrop-blur-sm'
+                ? 'bg-red-500 text-white shadow-red-500/30'
+                : 'bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-white/20'
             }`}
             title={cameraOff ? 'Bật camera' : 'Tắt camera'}
           >
             {cameraOff ? <VideoOffIcon /> : <VideoIcon />}
           </button>
-          <span className="text-xs text-white/70">{cameraOff ? 'Bật cam' : 'Tắt cam'}</span>
+          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">{cameraOff ? 'Bật cam' : 'Tắt cam'}</span>
         </div>
       </div>
     </div>
@@ -353,38 +391,110 @@ interface VideoCallOverlayProps {
 }
 
 export function VideoCallOverlay({ currentUserId }: VideoCallOverlayProps) {
-  const [callState, setCallState] = useState<CallState>('idle');
-  const [callInfo, setCallInfo] = useState<CallInfo | null>(null);
+  const [callState, setCallState] = useState<CallState>(webrtcService.getCallState());
+  const [callInfo, setCallInfo] = useState<CallInfo | null>(webrtcService.getCallInfo());
+  const [resolvedPeerName, setResolvedPeerName] = useState<string>('');
+  const [resolvedPeerAvatar, setResolvedPeerAvatar] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    const unsub = webrtcService.onStateChange((state, info) => {
-      setCallState(state);
-      setCallInfo(info);
+    let cancelled = false;
+
+    if (!callInfo) {
+      setResolvedPeerName('');
+      setResolvedPeerAvatar(undefined);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const initialName = callInfo.peerName?.trim() || '';
+    const initialAvatar = callInfo.peerAvatar?.trim() || undefined;
+
+    setResolvedPeerName(initialName);
+    setResolvedPeerAvatar(initialAvatar);
+
+    const fallbackPeerId = callInfo.peerId?.trim();
+    if (!fallbackPeerId || (initialName && initialAvatar)) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    userService.getUserById(fallbackPeerId)
+      .then((user: any) => {
+        if (cancelled || !user) return;
+
+        const fetchedName = (user.display_name || user.displayName || '').trim();
+        const fetchedAvatar = user.avatar_url || user.avatarUrl || undefined;
+
+        setResolvedPeerName((prev) => prev || fetchedName || fallbackPeerId);
+        setResolvedPeerAvatar((prev) => prev || fetchedAvatar);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setResolvedPeerName((prev) => prev || fallbackPeerId);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [callInfo?.peerId, callInfo?.peerName, callInfo?.peerAvatar]);
+
+  useEffect(() => {
+    console.log('[VideoCallOverlay] Mounted / resync state', {
+      currentUserId,
+      callState: webrtcService.getCallState(),
+      callInfo: webrtcService.getCallInfo(),
     });
+    const unsub = webrtcService.onStateChange((state) => {
+      console.log('[VideoCallOverlay] onStateChange', {
+        state,
+        callInfo: webrtcService.getCallInfo()
+      });
+      setCallState(state);
+      setCallInfo(webrtcService.getCallInfo());
+    });
+    setCallState(webrtcService.getCallState());
+    setCallInfo(webrtcService.getCallInfo());
     return unsub;
   }, []);
 
   const handleAccept = useCallback(() => {
-    webrtcService.acceptCall(currentUserId);
-  }, [currentUserId]);
+    webrtcService.acceptCall();
+  }, []);
 
   const handleReject = useCallback(() => {
-    webrtcService.rejectCall(currentUserId);
-  }, [currentUserId]);
+    webrtcService.rejectCall();
+  }, []);
 
   const handleEnd = useCallback(() => {
-    webrtcService.endCall(currentUserId);
-  }, [currentUserId]);
+    webrtcService.endCall();
+  }, []);
 
   if (callState === 'incoming' && callInfo) {
-    return <IncomingCallModal callInfo={callInfo} onAccept={handleAccept} onReject={handleReject} />;
+    return (
+      <IncomingCallModal
+        callInfo={{
+          ...callInfo,
+          peerName: resolvedPeerName || callInfo.peerName,
+          peerAvatar: resolvedPeerAvatar || callInfo.peerAvatar,
+        }}
+        onAccept={handleAccept}
+        onReject={handleReject}
+      />
+    );
   }
 
   if ((callState === 'requesting' || callState === 'connecting' || callState === 'connected') && callInfo) {
     return (
       <VideoCallScreen
         currentUserId={currentUserId}
-        callInfo={callInfo}
+        callInfo={{
+          ...callInfo,
+          peerName: resolvedPeerName || callInfo.peerName,
+          peerAvatar: resolvedPeerAvatar || callInfo.peerAvatar,
+        }}
         callState={callState}
         onEnd={handleEnd}
       />

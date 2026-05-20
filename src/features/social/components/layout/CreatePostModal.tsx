@@ -29,7 +29,7 @@ interface CreatePostModalProps {
 
 type Step = 'select' | 'details';
 
-export const CreatePostModal: React.FC<CreatePostModalProps> = ({ user, onClose, onShare }) => {
+export const CreatePostModal: React.FC<CreatePostModalProps> = ({ user, onClose, onShare, sharedPost }) => {
   const { t } = useTranslation();
   const [step, setStep] = useState<Step>('select');
   const [files, setFiles] = useState<File[]>([]);

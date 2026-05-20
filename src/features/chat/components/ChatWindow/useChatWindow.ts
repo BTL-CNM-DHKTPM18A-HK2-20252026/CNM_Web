@@ -3006,15 +3006,20 @@ export function useChatWindow({
   }, [closeImageQueue]);
 
   const handleVideoCall = useCallback(() => {
-    const peerId = selectedChat.otherUserId;
+    const peerId = selectedChat.otherUserId || selectedChat.recipientId;
     if (!peerId || !currentUser?.id) return;
+    const currentCallState = webrtcService.getCallState();
+    if (currentCallState !== 'idle') {
+      console.log('[ChatWindow] Ignoring video call click because call is already active:', currentCallState);
+      return;
+    }
     webrtcService.startCall(
-      currentUser.id,
       peerId,
-      selectedChat.name,
+      selectedChat.nickname || selectedChat.name,
       selectedChat.avatar,
       selectedChat.id.toString(),
       currentUser.full_name || currentUser.display_name || 'User',
+      currentUser.avatar_url || currentUser.avatarUrl || currentUser.avatar,
     );
   }, [selectedChat, currentUser]);
 

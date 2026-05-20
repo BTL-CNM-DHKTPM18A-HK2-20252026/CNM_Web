@@ -95,14 +95,14 @@ export const friendService = {
    * Follow a user (one-way)
    */
   async followUser(userId: string) {
-    return apiClient.post('/friends/follow', { userId });
+    return this.sendRequest(userId);
   },
 
   /**
    * Unfollow a user
    */
   async unfollowUser(userId: string) {
-    return apiClient.post('/friends/unfollow', { userId });
+    return this.unfriend(userId);
   },
 
   /**

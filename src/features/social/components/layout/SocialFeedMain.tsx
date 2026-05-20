@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useMemo } from 'react';
 import Image from 'next/image';
-import { PlusIcon } from '@/components/ui/Icons';
+import { PlusIcon, SearchIcon } from '@/components/ui/Icons';
 import { PostCard } from '../PostCard';
 import { PostResponse, SocialUser, StoryResponse } from '../../types';
 import { useTranslation } from 'react-i18next';
@@ -22,12 +22,9 @@ interface SocialFeedMainProps {
   isRanked?: boolean;
   onAuthorClick?: (userId: string) => void;
   onHashtagClick?: (tag: string) => void;
+  onSearchClick?: () => void;
 }
 
-// ── Tracked Post Card ─────────────────────────────────────────────────────
-// Wraps each PostCard in an IntersectionObserver. When 60% is visible the
-// first time, fires trackPostView (non-blocking). This data feeds the
-// affinity scorer in the backend's ranked feed algorithm.
 const TrackedPostCard: React.FC<{
   post: PostResponse;
   onLike?: (postId: string) => void;
@@ -45,6 +42,7 @@ const TrackedPostCard: React.FC<{
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting && !hasTracked.current) {
@@ -54,6 +52,7 @@ const TrackedPostCard: React.FC<{
       },
       { threshold: 0.6 }
     );
+
     observer.observe(el);
     return () => observer.disconnect();
   }, [post.postId]);
@@ -75,29 +74,103 @@ const TrackedPostCard: React.FC<{
   );
 };
 
+const StoryAvatarRing: React.FC<{
+  imageSrc: string;
+  alt: string;
+  storyCount: number;
+  hasUnseenStories: boolean;
+  isOwnStory?: boolean;
+}> = ({ imageSrc, alt, storyCount, hasUnseenStories, isOwnStory = false }) => {
+  const hasStoryRing = hasUnseenStories || isOwnStory;
+  const ringStyle = hasStoryRing
+    ? { background: 'conic-gradient(from 225deg, #FFD600, #FF7A00, #FF0069, #FFD600)' }
+    : { background: '#D1D5DB' };
+
+  return (
+    <div className="relative h-[72px] w-[72px]">
+      <div
+        className={`absolute inset-0 rounded-full p-[3px] ${hasStoryRing ? 'shadow-[0_0_0_1px_rgba(255,255,255,0.6),0_0_12px_rgba(255,122,0,0.25)]' : ''}`}
+        style={ringStyle}
+      >
+        <div className="h-full w-full rounded-full bg-white p-[2px] dark:bg-black">
+          <div className="relative h-full w-full overflow-hidden rounded-full">
+            <Image src={imageSrc} fill alt={alt} className="object-cover transition-transform duration-300 group-hover:scale-110" />
+          </div>
+        </div>
+      </div>
+      {hasStoryRing && (
+        <div className="absolute inset-1 rounded-full ring-1 ring-white/70 dark:ring-black/60 pointer-events-none" />
+      )}
+      {storyCount > 1 && (
+        <div className="absolute -bottom-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-black px-1 text-[10px] font-semibold text-white shadow-lg ring-2 ring-white dark:ring-black">
+          {storyCount}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const SocialFeedMain: React.FC<SocialFeedMainProps> = ({
-  user, posts, stories = [], isLoading, onLike, onReact, onDelete, onEdit, onShare,
-  onCreateStory, onViewStory, isRanked = false, onAuthorClick, onHashtagClick,
+  user,
+  posts,
+  stories = [],
+  isLoading,
+  onLike,
+  onReact,
+  onDelete,
+  onEdit,
+  onShare,
+  onCreateStory,
+  onViewStory,
+  isRanked = false,
+  onAuthorClick,
+  onHashtagClick,
+  onSearchClick,
 }) => {
   const { t } = useTranslation();
-
   const currentUserId = String(user?.id || user?.user_id || '');
-  const userStories = stories.filter(s => String(s.authorId) === currentUserId);
-  const otherStories = stories.filter(s => String(s.authorId) !== currentUserId);
 
-  const displayAuthors = Array.from(new Set(otherStories.map(s => String(s.authorId))))
-    .map(id => otherStories.find(s => String(s.authorId) === id)!);
+  const storyGroups = useMemo(() => {
+    const map = new Map<string, StoryResponse[]>();
 
-  const scrollRef = React.useRef<HTMLDivElement>(null);
+    stories.forEach((story) => {
+      const authorId = String(story.authorId);
+      if (!map.has(authorId)) map.set(authorId, []);
+      map.get(authorId)!.push(story);
+    });
+
+    return Array.from(map.entries())
+      .map(([authorId, authorStories]) => {
+        const sortedStories = [...authorStories].sort(
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+
+        return {
+          authorId,
+          authorStories: sortedStories,
+          latestStory: sortedStories[sortedStories.length - 1],
+          hasUnseenStories: sortedStories.some((story) => !story.isViewedByMe),
+        };
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.latestStory?.createdAt || 0).getTime() -
+          new Date(a.latestStory?.createdAt || 0).getTime()
+      );
+  }, [stories]);
+
+  const myStoryGroup = storyGroups.find((group) => group.authorId === currentUserId);
+  const otherStoryGroups = storyGroups.filter((group) => group.authorId !== currentUserId);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [showLeftBtn, setShowLeftBtn] = React.useState(false);
   const [showRightBtn, setShowRightBtn] = React.useState(false);
 
   const checkScroll = useCallback(() => {
-    if (scrollRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
-      setShowLeftBtn(scrollLeft > 20);
-      setShowRightBtn(scrollLeft < scrollWidth - clientWidth - 20);
-    }
+    if (!scrollRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+    setShowLeftBtn(scrollLeft > 20);
+    setShowRightBtn(scrollLeft < scrollWidth - clientWidth - 20);
   }, []);
 
   useEffect(() => {
@@ -110,103 +183,165 @@ export const SocialFeedMain: React.FC<SocialFeedMainProps> = ({
   }, [stories, checkScroll]);
 
   const scroll = (direction: 'left' | 'right') => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: direction === 'left' ? -400 : 400, behavior: 'smooth' });
-    }
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollBy({ left: direction === 'left' ? -400 : 400, behavior: 'smooth' });
   };
 
   return (
-    <div className="w-full flex flex-col items-center pt-4 px-4 pb-10">
-      {/* ── Stories Carousel ─────────────────────────── */}
-      <div className="w-full max-w-[630px] mb-8 relative group/carousel">
+    <div className="flex w-full flex-col items-center px-4 pb-10 pt-4">
+      <div className="mb-6 w-full max-w-[630px]">
+        <div
+          onClick={onSearchClick}
+          className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-full border border-transparent bg-[#F0F2F5] px-4 py-2.5 shadow-sm transition-all duration-200 hover:bg-gray-200/70 dark:border-[#262626] dark:bg-[#1A1A1A] dark:hover:bg-[#262626]/80"
+        >
+          <div className="flex items-center gap-3">
+            <SearchIcon size={18} className="text-gray-400 dark:text-gray-500" />
+            <span className="text-[14px] font-normal text-gray-500 dark:text-gray-400">
+              Tìm kiếm bạn bè, bài viết, hashtag...
+            </span>
+          </div>
+          <div className="flex items-center gap-1 rounded bg-gray-200/50 px-2 py-0.5 text-[10px] font-medium text-gray-500 shadow-sm select-none dark:border-white/5 dark:bg-[#262626] dark:text-gray-400">
+            <span>⌘</span>
+            <span>K</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="group/carousel relative mb-8 w-full max-w-[630px] border-b border-gray-100 pb-4 dark:border-gray-900">
         <div
           ref={scrollRef}
           onScroll={checkScroll}
-          className="w-full overflow-x-auto scrollbar-hide py-4 flex gap-4 snap-x snap-mandatory scroll-smooth"
+          className="flex w-full snap-x snap-mandatory gap-4 overflow-x-auto py-4 scrollbar-hide scroll-smooth"
         >
-          {/* Add Story */}
-          <div onClick={() => onCreateStory?.()} className="flex flex-col items-center gap-1.5 shrink-0 group cursor-pointer snap-start">
-            <div className="relative">
-              <div className="w-[72px] h-[72px] rounded-full border border-gray-200 dark:border-gray-800 p-[3px]">
-                <div className="w-full h-full rounded-full overflow-hidden relative">
-                  <Image src={user?.avatar_url || user?.avatarUrl || '/avatar.jpg'} fill alt="Add story" className="object-cover group-hover:scale-110 transition-transform duration-300" />
+          <div
+            onClick={() => onCreateStory?.()}
+            className="group flex shrink-0 cursor-pointer flex-col items-center gap-1.5 snap-start"
+          >
+            <div className="relative h-[72px] w-[72px]">
+              <div className="h-full w-full rounded-full border border-gray-200 p-[3px] dark:border-gray-800">
+                <div className="relative h-full w-full overflow-hidden rounded-full">
+                  <Image
+                    src={user?.avatar_url || user?.avatarUrl || '/avatar.jpg'}
+                    fill
+                    alt="Add story"
+                    className="object-cover transition-transform duration-300 group-hover:scale-110"
+                  />
                 </div>
               </div>
-              <div className="absolute bottom-0 right-0 w-6 h-6 bg-[#0095F6] rounded-full border-2 border-white dark:border-black flex items-center justify-center z-20">
+              <div className="absolute bottom-0 right-0 z-20 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-[#0095F6] dark:border-black">
                 <PlusIcon size={14} className="text-white" />
               </div>
             </div>
-            <span className="text-[12px] text-gray-500 dark:text-gray-400 font-medium">Thêm tin</span>
+            <span className="text-[12px] font-medium text-gray-500 dark:text-gray-400">Thêm tin</span>
           </div>
 
-          {/* My Active Story */}
-          {userStories.length > 0 && (
-            <div onClick={() => onViewStory?.(currentUserId)} className="flex flex-col items-center gap-1.5 shrink-0 group cursor-pointer snap-start">
-              <div className="w-[72px] h-[72px] rounded-full p-[2px] bg-gradient-to-tr from-[#FFD600] via-[#FF7A00] to-[#FF0069]">
-                <div className="w-full h-full rounded-full bg-white dark:bg-black p-[2px]">
-                  <div className="w-full h-full rounded-full overflow-hidden relative">
-                    <Image src={user?.avatar_url || user?.avatarUrl || '/avatar.jpg'} fill alt="Your story" className="object-cover group-hover:scale-110 transition-transform duration-300" />
-                  </div>
-                </div>
-              </div>
-              <span className="text-[12px] text-black dark:text-white font-semibold truncate w-[72px] text-center">
+          {myStoryGroup && (
+            <div
+              onClick={() => onViewStory?.(currentUserId)}
+              className="group flex shrink-0 cursor-pointer flex-col items-center gap-1.5 snap-start"
+            >
+              <StoryAvatarRing
+                imageSrc={user?.avatar_url || user?.avatarUrl || '/avatar.jpg'}
+                alt="Your story"
+                storyCount={myStoryGroup.authorStories.length}
+                hasUnseenStories={myStoryGroup.hasUnseenStories}
+                isOwnStory
+              />
+              <span className="w-[72px] truncate text-center text-[12px] font-semibold text-black dark:text-white">
                 {user?.display_name || t('social.posts.your_story')}
               </span>
             </div>
           )}
 
-          {/* Friend Stories */}
-          {displayAuthors.map((story) => (
-            <div key={story.storyId} onClick={() => onViewStory?.(story.authorId)} className="flex flex-col items-center gap-1.5 shrink-0 group cursor-pointer snap-start">
-              <div className={`w-[72px] h-[72px] rounded-full p-[2px] ${story.isViewedByMe ? 'border border-gray-300 dark:border-gray-700' : 'bg-gradient-to-tr from-[#FFD600] via-[#FF7A00] to-[#FF0069]'}`}>
-                <div className="w-full h-full rounded-full bg-white dark:bg-black p-[2px]">
-                  <div className="w-full h-full rounded-full overflow-hidden relative">
-                    <Image src={story.authorAvatarUrl || '/avatar.jpg'} fill alt="Story" className="object-cover group-hover:scale-110 transition-transform duration-300" />
-                  </div>
-                </div>
+          {otherStoryGroups.map((group) => {
+            const latestStory = group.latestStory;
+            if (!latestStory) return null;
+
+            return (
+              <div
+                key={group.authorId}
+                onClick={() => onViewStory?.(group.authorId)}
+                className="group flex shrink-0 cursor-pointer flex-col items-center gap-1.5 snap-start"
+              >
+                <StoryAvatarRing
+                  imageSrc={latestStory.authorAvatarUrl || '/avatar.jpg'}
+                  alt="Story"
+                  storyCount={group.authorStories.length}
+                  hasUnseenStories={group.hasUnseenStories}
+                />
+                <span className="w-[72px] truncate text-center text-[12px] text-black dark:text-white">
+                  {latestStory.authorName}
+                </span>
               </div>
-              <span className="text-[12px] text-black dark:text-white truncate w-[72px] text-center">{story.authorName}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {showLeftBtn && (
-          <button onClick={() => scroll('left')} className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 bg-white dark:bg-[#1A1A1A] rounded-full shadow-md flex items-center justify-center z-30 border border-gray-200 dark:border-gray-800 hover:scale-110 transition-all opacity-0 group-hover/carousel:opacity-100 cursor-pointer">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-800 dark:text-gray-200"><polyline points="15 18 9 12 15 6" /></svg>
+          <button
+            onClick={() => scroll('left')}
+            className="absolute left-0 top-1/2 z-30 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white opacity-0 shadow-md transition-all hover:scale-110 cursor-pointer dark:border-gray-800 dark:bg-[#1A1A1A] group-hover/carousel:opacity-100"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-gray-800 dark:text-gray-200"
+            >
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
           </button>
         )}
         {showRightBtn && (
-          <button onClick={() => scroll('right')} className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-7 h-7 bg-white dark:bg-[#1A1A1A] rounded-full shadow-md flex items-center justify-center z-30 border border-gray-200 dark:border-gray-800 hover:scale-110 transition-all opacity-0 group-hover/carousel:opacity-100 cursor-pointer">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-800 dark:text-gray-200"><polyline points="9 18 15 12 9 6" /></svg>
+          <button
+            onClick={() => scroll('right')}
+            className="absolute right-0 top-1/2 z-30 flex h-7 w-7 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white opacity-0 shadow-md transition-all hover:scale-110 cursor-pointer dark:border-gray-800 dark:bg-[#1A1A1A] group-hover/carousel:opacity-100"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-gray-800 dark:text-gray-200"
+            >
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
           </button>
         )}
       </div>
 
-      {/* ── Ranked Feed Label ─────────────────────────── */}
       {isRanked && (
-        <div className="w-full max-w-[600px] flex items-center gap-2 mb-4 px-1">
-          <span className="text-[11px] text-gray-400 font-medium tracking-wide uppercase">✦ Dành riêng cho bạn</span>
-          <div className="flex-1 h-px bg-gray-100 dark:bg-gray-900" />
+        <div className="mb-4 flex w-full max-w-[600px] items-center gap-2 px-1">
+          <span className="text-[11px] font-medium tracking-wide text-gray-400 uppercase">✦ Dành riêng cho bạn</span>
+          <div className="h-px flex-1 bg-gray-100 dark:bg-gray-900" />
         </div>
       )}
 
-      {/* ── Post List ─────────────────────────────────── */}
-      <div className="w-full max-w-[600px] flex flex-col">
+      <div className="flex w-full max-w-[600px] flex-col">
         {isLoading ? (
           [1, 2].map((i) => (
-            <div key={i} className="w-full animate-pulse mb-8">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-full" />
-                <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded w-24" />
+            <div key={i} className="mb-8 w-full animate-pulse">
+              <div className="mb-3 flex items-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-gray-100 dark:bg-gray-800" />
+                <div className="h-3 w-24 rounded bg-gray-100 dark:bg-gray-800" />
               </div>
-              <div className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-sm mb-4" />
-              <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded w-3/4 mb-2" />
-              <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded w-1/2" />
+              <div className="mb-4 aspect-square rounded-sm bg-gray-100 dark:bg-gray-800" />
+              <div className="mb-2 h-3 w-3/4 rounded bg-gray-100 dark:bg-gray-800" />
+              <div className="h-3 w-1/2 rounded bg-gray-100 dark:bg-gray-800" />
             </div>
           ))
         ) : posts.length === 0 ? (
           <div className="py-20 text-center">
-            <p className="text-gray-500 font-medium text-[14px]">{t('social.posts.no_posts')}</p>
+            <p className="text-[14px] font-medium text-gray-500">{t('social.posts.no_posts')}</p>
           </div>
         ) : (
           posts.map((post) => (

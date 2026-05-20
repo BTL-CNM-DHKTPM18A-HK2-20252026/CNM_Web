@@ -233,6 +233,12 @@ export const socialApi = {
     });
   },
 
+  deleteStory: async (storyId: string, userId: string) => {
+    return apiClient.delete(`/stories/${storyId}`, {
+      headers: { 'X-User-Id': userId }
+    });
+  },
+
   getExplorePosts: async (page = 0, size = 20) => {
     // Fetch a variety of posts for the explore page
     const response = await apiClient.get<{ content: RawPostResponse[] }>(`/posts/explore?page=${page}&size=${size}`);

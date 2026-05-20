@@ -25,6 +25,14 @@ class WebSocketService {
   private healthCheckTimer: ReturnType<typeof setInterval> | null = null;
   private currentToken: string | null = null;
   private currentUserId: string | null = null;
+  // onReconnect — notify listeners khi WS re-establish (dùng cho WebRTC signal resend)
+  private onReconnectCallbacks: Set<() => void> = new Set();
+  private wasConnected: boolean = false;
+
+  onReconnect(cb: () => void): () => void {
+    this.onReconnectCallbacks.add(cb);
+    return () => { this.onReconnectCallbacks.delete(cb); };
+  }
 
   /** Đăng ký callback khi bị kick phiên (Zalo-style) */
   onSessionKick(callback: () => void) {
@@ -37,27 +45,58 @@ class WebSocketService {
   }
 
   connect(token: string) {
-    // Luôn cập nhật token mới nhất (dù đang active) — forceReconnect sẽ dùng token này
+    // Luôn cập nhật token mới nhất
     this.currentToken = token;
 
     // Extract userId từ JWT payload (sub claim)
+    let newUserId: string | null = null;
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
-      this.currentUserId = payload.sub || null;
+      newUserId = payload.sub || null;
     } catch {
-      this.currentUserId = null;
+      newUserId = null;
     }
 
-    if (this.client?.active) {
+    // Nếu client đang active VÀ userId KHÔNG thay đổi → skip
+    // Nhưng nếu userId đổi (user khác login) → bắt buộc tạo client mới
+    if (this.client?.active && newUserId === this.currentUserId && this.currentUserId !== null) {
       console.log('[WS-DEBUG] Connection already active/starting. Token updated, skipping reconnect.');
       return;
     }
+
+    // userId thay đổi hoặc chưa có client → destroy client cũ trước
+    if (this.client && newUserId !== this.currentUserId) {
+      console.log('[WS-DEBUG] UserId changed — recreating STOMP client.', {
+        old: this.currentUserId,
+        new: newUserId,
+      });
+      try { this.client.deactivate(); } catch { /* best-effort */ }
+      this.client = null;
+      this.connected = false;
+      this.stompSubscriptions.clear();
+      this.wasConnected = false;
+    }
+
+    this.currentUserId = newUserId;
+
     console.log('[WS-DEBUG] Starting connection for URL:', WS_BASE + '/ws-native');
     console.log('[WS-DEBUG] Tab ID:', TAB_ID);
-    
+
     this.client = new Client({
-      // Connect to ws://localhost:8080/api/v1/ws-native
-      brokerURL: WS_BASE + '/ws-native', 
+      brokerURL: WS_BASE + '/ws-native',
+
+      // ── beforeConnect: inject LATEST token mỗi lần connect/reconnect ──
+      // Điều này đảm bảo khi STOMP auto-reconnect sau lỗi,
+      // nó dùng token hiện tại thay vì token cũ bake vào lúc khởi tạo.
+      beforeConnect: async () => {
+        const latestToken = this.currentToken;
+        if (latestToken && this.client) {
+          this.client.connectHeaders = {
+            Authorization: `Bearer ${latestToken}`,
+            'X-Tab-Id': TAB_ID,
+          };
+        }
+      },
 
       connectHeaders: {
         Authorization: `Bearer ${token}`,
@@ -68,8 +107,8 @@ class WebSocketService {
       heartbeatIncoming: HEARTBEAT_MS,
       heartbeatOutgoing: HEARTBEAT_MS,
 
-      // ── Auto-reconnect after 3 seconds on disconnect ──
-      reconnectDelay: 3_000,
+      // ── Auto-reconnect after 5 seconds on disconnect ──
+      reconnectDelay: 5_000,
 
       debug: (msg) => {
         if (msg.includes('ERROR') || msg.includes('RECEIVE')) {
@@ -119,6 +158,14 @@ class WebSocketService {
             this.stompSubscriptions.set(topic, sub);
           }
         });
+
+        // Notify reconnect listeners (sau khi subscriptions đã active)
+        const isReconnect = this.wasConnected;
+        this.wasConnected = true;
+        if (isReconnect) {
+          console.log('[WS-DEBUG] Reconnected — notifying reconnect listeners');
+          this.onReconnectCallbacks.forEach(cb => { try { cb(); } catch {} });
+        }
       },
       onStompError: (frame) => {
         console.error('[WS-DEBUG] STOMP Error:', frame.headers['message']);

@@ -77,53 +77,55 @@ export function SidebarItem({
       {active && (
         <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-[#0068FF] z-10" />
       )}
-      <div
-        className={`h-12 w-12 rounded-full border-[1px] border-black/[0.06] dark:border-white/10 overflow-hidden shrink-0 flex items-center justify-center relative ${isAi
-            ? 'bg-transparent'
-            : isCloud
-              ? 'bg-[#0068FF]'
-              : 'bg-gray-100 dark:bg-gray-800'
-          }`}
-      >
-        {isAi ? (
-          <Image src={`${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/system/fruvia_chatbot.png`} alt="Fruvia Chatbot" width={48} height={48} className="object-cover w-full h-full" unoptimized />
-        ) : isCloud ? (
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-            <path d="M17.5 19c3.037 0 5.5-2.463 5.5-5.5 0-2.97-2.354-5.391-5.291-5.492a7 7 0 0 0-13.709 0C1.109 8.109 1 10.53 1 13.5c0 3.037 2.463 5.5 5.5 5.5h11z" />
-          </svg>
-        ) : avatar ? (
-          <Image src={avatar} alt={name} width={48} height={48} className="object-cover" unoptimized />
-        ) : shouldRenderGroupFallback ? (
-          <div className="grid grid-cols-2 grid-rows-2 w-full h-full">
-            <div className="relative bg-gray-200 dark:bg-gray-700">
-              {fallbackAvatars[0] ? (
-                <Image src={fallbackAvatars[0]} alt={name} fill className="object-cover" unoptimized />
-              ) : null}
+      <div className="relative shrink-0 overflow-visible">
+        <div
+          className={`h-12 w-12 rounded-full border-[1px] border-black/[0.06] dark:border-white/10 overflow-hidden flex items-center justify-center relative ${isAi
+              ? 'bg-transparent'
+              : isCloud
+                ? 'bg-[#0068FF]'
+                : 'bg-gray-100 dark:bg-gray-800'
+            }`}
+        >
+          {isAi ? (
+            <Image src={`${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/system/fruvia_chatbot.png`} alt="Fruvia Chatbot" width={48} height={48} className="object-cover w-full h-full" unoptimized />
+          ) : isCloud ? (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+              <path d="M17.5 19c3.037 0 5.5-2.463 5.5-5.5 0-2.97-2.354-5.391-5.291-5.492a7 7 0 0 0-13.709 0C1.109 8.109 1 10.53 1 13.5c0 3.037 2.463 5.5 5.5 5.5h11z" />
+            </svg>
+          ) : avatar ? (
+            <Image src={avatar} alt={name} width={48} height={48} className="object-cover" unoptimized />
+          ) : shouldRenderGroupFallback ? (
+            <div className="grid grid-cols-2 grid-rows-2 w-full h-full">
+              <div className="relative bg-gray-200 dark:bg-gray-700">
+                {fallbackAvatars[0] ? (
+                  <Image src={fallbackAvatars[0]} alt={name} fill className="object-cover" unoptimized />
+                ) : null}
+              </div>
+              <div className="relative bg-gray-200 dark:bg-gray-700">
+                {fallbackAvatars[1] ? (
+                  <Image src={fallbackAvatars[1]} alt={name} fill className="object-cover" unoptimized />
+                ) : null}
+              </div>
+              <div className="relative bg-gray-200 dark:bg-gray-700">
+                {fallbackAvatars[2] ? (
+                  <Image src={fallbackAvatars[2]} alt={name} fill className="object-cover" unoptimized />
+                ) : null}
+              </div>
+              <div className="flex items-center justify-center bg-[#E9EEF7] text-[#5B6576] text-[11px] font-bold">
+                {memberCount || 0}
+              </div>
             </div>
-            <div className="relative bg-gray-200 dark:bg-gray-700">
-              {fallbackAvatars[1] ? (
-                <Image src={fallbackAvatars[1]} alt={name} fill className="object-cover" unoptimized />
-              ) : null}
-            </div>
-            <div className="relative bg-gray-200 dark:bg-gray-700">
-              {fallbackAvatars[2] ? (
-                <Image src={fallbackAvatars[2]} alt={name} fill className="object-cover" unoptimized />
-              ) : null}
-            </div>
-            <div className="flex items-center justify-center bg-[#E9EEF7] text-[#5B6576] text-[11px] font-bold">
-              {memberCount || 0}
-            </div>
-          </div>
-        ) : (
-          <div className="text-[var(--primary)] font-bold text-lg">{name.charAt(0)}</div>
-        )}
+          ) : (
+            <div className="text-[var(--primary)] font-bold text-lg">{name.charAt(0)}</div>
+          )}
+        </div>
 
         {otherUserId && (
           <StatusIndicator
             userId={otherUserId}
             dotOnly
             dotSize={12}
-            className="absolute bottom-0 right-0"
+            className="absolute right-0 bottom-0 translate-x-1/4 translate-y-1/4"
           />
         )}
       </div>

@@ -12,6 +12,7 @@ import {
   ChevronRightIcon,
   XIcon
 } from '@/components/ui/Icons';
+import { ImageOff } from 'lucide-react';
 import { PostResponse } from '../types';
 import { useTranslation } from 'react-i18next';
 import { enUS, vi as viLocale } from 'date-fns/locale';
@@ -47,6 +48,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onReact, onCom
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(post.isSaved || false);
+  const [brokenMediaUrls, setBrokenMediaUrls] = useState<Record<string, boolean>>({});
 
   // Reaction Picker states
   const [showReactions, setShowReactions] = useState(false);
@@ -160,6 +162,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onReact, onCom
 
   const renderMediaItem = (item: any, className: string, index: number, showMoreCount?: number) => {
     const isVid = item.type?.toUpperCase() === 'VIDEO';
+    const isBroken = !!brokenMediaUrls[item.url];
     
     // Find index within its own category
     const categoryIndex = isVid 
@@ -168,8 +171,9 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onReact, onCom
 
     return (
       <div 
-        className={`relative overflow-hidden group/item cursor-pointer bg-black/5 ${className}`}
+        className={`relative overflow-hidden group/item bg-black/5 ${className} ${isBroken ? 'cursor-not-allowed' : 'cursor-pointer'}`}
         onClick={() => {
+          if (isBroken) return;
           if (isVid) {
             setCurrentVideoIndex(categoryIndex);
             setVideoPreviewVisible(true);
@@ -192,6 +196,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onReact, onCom
                 autoPlay
                 playsInline
                 crossOrigin="anonymous"
+                onError={() => setBrokenMediaUrls((prev) => ({ ...prev, [item.url]: true }))}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-zinc-800">
@@ -206,12 +211,19 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onReact, onCom
           </div>
         ) : (
           <div className="w-full h-full relative">
-            <img
-              src={item.url}
-              alt={item.altText || "Media"}
-              className="w-full h-full object-cover group-hover/item:scale-105 transition-transform duration-500"
-              crossOrigin="anonymous"
-            />
+            {!isBroken ? (
+              <img
+                src={item.url}
+                alt={item.altText || "Media"}
+                className="w-full h-full object-cover group-hover/item:scale-105 transition-transform duration-500"
+                crossOrigin="anonymous"
+                onError={() => setBrokenMediaUrls((prev) => ({ ...prev, [item.url]: true }))}
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-gray-100 text-gray-400 dark:bg-zinc-800 dark:text-gray-500">
+                <ImageOff size={28} strokeWidth={1.8} className="opacity-80" />
+              </div>
+            )}
           </div>
         )}
         
@@ -389,7 +401,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onReact, onCom
   };
 
   return (
-    <div className="w-full bg-white dark:bg-black mb-3 border-b border-gray-100 dark:border-[#262626] sm:border-none" suppressHydrationWarning>
+    <div className="w-full bg-white dark:bg-black mb-6 pb-6 border-b border-gray-100 dark:border-[#262626]" suppressHydrationWarning>
       {/* Author Header */}
       <div className="py-2 px-2 flex items-center justify-between">
         <div className="flex items-center gap-2">

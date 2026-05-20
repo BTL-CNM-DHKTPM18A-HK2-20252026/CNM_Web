@@ -948,7 +948,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                         id={`msg-${msg.id}`}
                         className={`flex ${String(msg.senderId ?? '') === String(currentUser?.id ?? '') || msg.sender === 'Me' ? 'justify-end pr-1' : 'justify-start'} -mx-4 px-4 rounded-none transition-colors duration-300 [&.highlight-msg]:bg-[#C6D4E4]`}
                       >
-                        <div className={`flex gap-1.5 max-w-[64%] group relative ${String(msg.senderId ?? '') === String(currentUser?.id ?? '') || msg.sender === 'Me' ? 'flex-row-reverse' : ''} items-end`}>
+                        <div className={`flex gap-1.5 max-w-[64%] group relative ${String(msg.senderId ?? '') === String(currentUser?.id ?? '') || msg.sender === 'Me' ? 'flex-row-reverse' : ''} items-start`}>
                           {msg.sender !== 'Me' && (
                             showAvatarAndName ? (
                               <button
@@ -993,7 +993,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                       <GroupCallCard msg={msg} currentUserId={currentUser?.id} selectedChat={selectedChat} t={t} />
                     ) : (
                       <div id={`msg-${msg.id}`} className={`flex ${msg.sender === 'Me' ? 'justify-end pr-1' : 'justify-start'} -mx-4 px-4 rounded-none transition-colors duration-300 [&.highlight-msg]:bg-[#C6D4E4]`}>
-                        <div className={`flex gap-1.5 max-w-[72%] group relative ${msg.sender === 'Me' ? 'flex-row-reverse' : ''} items-end`}>
+                        <div className={`flex gap-1.5 max-w-[72%] group relative ${msg.sender === 'Me' ? 'flex-row-reverse' : ''} items-start`}>
                           {msg.sender !== 'Me' && (
                             showAvatarAndName ? (
                               <button

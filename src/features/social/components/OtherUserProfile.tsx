@@ -159,7 +159,7 @@ export const OtherUserProfile: React.FC<OtherUserProfileProps> = ({
           <div className="relative">
             <button
               onClick={() => setShowOptions(v => !v)}
-              className="flex items-center gap-2 px-4 py-2 bg-[#efefef] dark:bg-[#363636] hover:bg-[#dbdbdb] dark:hover:bg-[#262626] rounded-lg text-sm font-semibold text-black dark:text-white transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-[#efefef] dark:bg-[#363636] hover:bg-[#dbdbdb] dark:hover:bg-[#262626] rounded-lg text-sm font-semibold text-black dark:text-white transition-colors cursor-pointer"
             >
               <UserCheck size={16} />
               Bạn bè
@@ -169,7 +169,7 @@ export const OtherUserProfile: React.FC<OtherUserProfileProps> = ({
               <div className="absolute top-full left-0 mt-1 bg-white dark:bg-[#262626] border border-gray-100 dark:border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden min-w-[160px]">
                 <button
                   onClick={handleUnfriend}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-[#363636] text-red-500 transition-colors"
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-[#363636] text-red-500 transition-colors cursor-pointer"
                 >
                   <UserX size={14} />
                   Hủy kết bạn
@@ -182,7 +182,7 @@ export const OtherUserProfile: React.FC<OtherUserProfileProps> = ({
         return (
           <button
             onClick={handleUnfriend}
-            className="flex items-center gap-2 px-4 py-2 bg-[#efefef] dark:bg-[#363636] hover:bg-[#dbdbdb] dark:hover:bg-[#262626] rounded-lg text-sm font-semibold text-black dark:text-white transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-[#efefef] dark:bg-[#363636] hover:bg-[#dbdbdb] dark:hover:bg-[#262626] rounded-lg text-sm font-semibold text-black dark:text-white transition-colors cursor-pointer"
           >
             <UserX size={16} />
             Hủy lời mời
@@ -192,7 +192,7 @@ export const OtherUserProfile: React.FC<OtherUserProfileProps> = ({
         return (
           <button
             onClick={handleUnfollow}
-            className="flex items-center gap-2 px-4 py-2 bg-[#efefef] dark:bg-[#363636] hover:bg-[#dbdbdb] dark:hover:bg-[#262626] rounded-lg text-sm font-semibold text-black dark:text-white transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-[#efefef] dark:bg-[#363636] hover:bg-[#dbdbdb] dark:hover:bg-[#262626] rounded-lg text-sm font-semibold text-black dark:text-white transition-colors cursor-pointer"
           >
             <UserCheck size={16} />
             Đang theo dõi
@@ -202,7 +202,7 @@ export const OtherUserProfile: React.FC<OtherUserProfileProps> = ({
         return (
           <button
             onClick={handleSendRequest}
-            className="flex items-center gap-2 px-4 py-2 bg-[#0095F6] hover:bg-[#1877F2] rounded-lg text-sm font-semibold text-white transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-[#0095F6] hover:bg-[#1877F2] rounded-lg text-sm font-semibold text-white transition-colors cursor-pointer"
           >
             <UserPlus size={16} />
             Thêm bạn
@@ -235,7 +235,7 @@ export const OtherUserProfile: React.FC<OtherUserProfileProps> = ({
       {/* Back button */}
       <button
         onClick={onBack}
-        className="flex items-center gap-2 text-sm font-semibold text-black dark:text-white mb-6 hover:opacity-70 transition-opacity"
+        className="flex items-center gap-2 text-sm font-semibold text-black dark:text-white mb-6 hover:opacity-70 transition-opacity cursor-pointer"
       >
         <ArrowLeft size={20} />
         Quay lại
@@ -267,7 +267,7 @@ export const OtherUserProfile: React.FC<OtherUserProfileProps> = ({
               {renderFriendButton()}
               <button
                 onClick={handleFollow}
-                className="px-4 py-2 bg-[#efefef] dark:bg-[#363636] hover:bg-[#dbdbdb] dark:hover:bg-[#262626] rounded-lg text-sm font-semibold text-black dark:text-white transition-colors"
+                className="px-4 py-2 bg-[#efefef] dark:bg-[#363636] hover:bg-[#dbdbdb] dark:hover:bg-[#262626] rounded-lg text-sm font-semibold text-black dark:text-white transition-colors cursor-pointer"
               >
                 Theo dõi
               </button>
@@ -306,7 +306,7 @@ export const OtherUserProfile: React.FC<OtherUserProfileProps> = ({
       <div className="flex border-t border-gray-200 dark:border-gray-800 mb-4">
         <button
           onClick={() => setActiveTab('posts')}
-          className={`flex items-center gap-1.5 px-6 py-3 text-xs font-bold tracking-widest uppercase transition-all border-t-2 -mt-px ${
+          className={`flex items-center gap-1.5 px-6 py-3 text-xs font-bold tracking-widest uppercase transition-all border-t-2 -mt-px cursor-pointer ${
             activeTab === 'posts'
               ? 'border-black dark:border-white text-black dark:text-white'
               : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
@@ -317,7 +317,7 @@ export const OtherUserProfile: React.FC<OtherUserProfileProps> = ({
         </button>
         <button
           onClick={() => setActiveTab('reels')}
-          className={`flex items-center gap-1.5 px-6 py-3 text-xs font-bold tracking-widest uppercase transition-all border-t-2 -mt-px ${
+          className={`flex items-center gap-1.5 px-6 py-3 text-xs font-bold tracking-widest uppercase transition-all border-t-2 -mt-px cursor-pointer ${
             activeTab === 'reels'
               ? 'border-black dark:border-white text-black dark:text-white'
               : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
