@@ -1024,8 +1024,8 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
                       sender: item.senderName || 'Người dùng',
                       caption: item.caption,
                     })}
-                    onUpdateMeta={handleUpdateConversationMeta}
-                    onTogglePin={handleTogglePin}
+
+
                   />
                 )}
                 {activeSidebar === 'search' && (
