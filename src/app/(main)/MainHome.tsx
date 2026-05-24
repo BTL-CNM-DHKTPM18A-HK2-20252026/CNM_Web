@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n/config';
 import { authService, isTabAuthenticated } from '@/features/auth';
+import { apiClient } from '@/lib/http/apiClient';
 import { toast } from 'sonner';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
