@@ -538,12 +538,12 @@ export function ChatComposer({ vm }: ChatComposerProps) {
           <ChatInput
             onEditorReady={setEditor}
             value={message}
-            placeholder={isFormattingActive
-              ? t('chat.format_keyboard_hint')
-              : selectedChat.isAi
-                ? t('chat.input_placeholder_ai')
-                : t('chat.input_placeholder', { name: selectedChat.name })
-            }
+            placeholder={isFormattingActive ? t('chat.format_keyboard_hint') : (selectedChat.isAi && isSendingAi) ? (t('chat.ai_thinking') || 'AI đang suy nghĩ...') : selectedChat.isAi ? (t('chat.input_placeholder_ai') || t('chat.ai_input_placeholder')) : t('chat.input_placeholder', { name: selectedChat.name })}
+
+
+
+                
+            
             onChange={(value) => {
               handleMentionInput(value);
               sendTypingIndicator();
@@ -564,9 +564,9 @@ export function ChatComposer({ vm }: ChatComposerProps) {
               }
             }}
             onPaste={handlePaste}
-            placeholder={selectedChat.isAi && isSendingAi
-              ? (t('chat.ai_thinking') || 'AI đang suy nghĩ...')
-              : (selectedChat.isAi ? t('chat.ai_input_placeholder') : t('chat.input_placeholder'))}
+
+
+
             disabled={selectedChat.isAi && isSendingAi}
             isEmojiOpen={isPickerOpen && pickerTab === 'emoji'}
             showSendButton={Boolean(message.trim() || imageQueue.length > 0 || pendingAttachment)}
