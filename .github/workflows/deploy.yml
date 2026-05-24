@@ -1,4 +1,4 @@
-name: Deploy to AWS S3 + CloudFront
+name: Deploy Frontend to AWS S3
 
 on:
   push:
@@ -39,42 +39,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-southeast-1
 
-      # 6. Configure CloudFront SPA error pages (404 -> /index.html with 200)
-      - name: Configure CloudFront SPA error pages
-        run: |
-          CONFIG_JSON=$(aws cloudfront get-distribution-config \
-            --id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }})
-          ETAG=$(echo "$CONFIG_JSON" | jq -r '.ETag')
-          DIST_CONFIG=$(echo "$CONFIG_JSON" | jq '.DistributionConfig |
-            .CustomErrorResponses = {
-              "Quantity": 2,
-              "Items": [
-                {
-                  "ErrorCode": 404,
-                  "ResponsePagePath": "/index.html",
-                  "ResponseCode": "200",
-                  "ErrorCachingMinTTL": 300
-                },
-                {
-                  "ErrorCode": 403,
-                  "ResponsePagePath": "/index.html",
-                  "ResponseCode": "200",
-                  "ErrorCachingMinTTL": 300
-                }
-              ]
-            }')
-          aws cloudfront update-distribution \
-            --id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
-            --distribution-config "$DIST_CONFIG" \
-            --if-match "$ETAG"
-
-      # 7. Sync build output to S3
+      # 6. Sync build output to S3
       - name: Deploy to S3
         run: aws s3 sync out/ s3://${{ secrets.S3_BUCKET_NAME }} --delete
-
-      # 7. Invalidate CloudFront cache
-      - name: Invalidate CloudFront cache
-        run: |
-          aws cloudfront create-invalidation \
-            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
-            --paths "/*"
