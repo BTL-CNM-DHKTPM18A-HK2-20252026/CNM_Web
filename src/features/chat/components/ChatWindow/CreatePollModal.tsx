@@ -102,7 +102,9 @@ export function CreatePollModal({ isOpen, onClose, onSubmit }: CreatePollModalPr
                 {options.map((opt, idx) => (
                   <div key={idx} className="relative group">
                     <input
-                      ref={el => inputRefs.current[idx] = el}
+                      ref={(el) => {
+                        inputRefs.current[idx] = el;
+                      }}
                       type="text"
                       value={opt}
                       onChange={(e) => handleOptionChange(idx, e.target.value)}

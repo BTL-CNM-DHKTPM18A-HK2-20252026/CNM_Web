@@ -1808,7 +1808,7 @@ export function useChatWindow({
         ...m,
         isUploading: false,
         uploadProgress: undefined,
-        attachments: s3Urls.length ? s3Urls.map((url: string) => ({ url })) : m.attachments,
+        attachments: m.attachments,
       } : m));
       previewUrls.forEach(url => {
         try { URL.revokeObjectURL(url); } catch { }

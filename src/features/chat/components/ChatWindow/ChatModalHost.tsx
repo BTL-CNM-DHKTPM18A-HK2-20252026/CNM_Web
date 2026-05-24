@@ -105,7 +105,7 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
           senderName: msg.sender === 'Me' ? currentUser?.displayName : msg.sender,
           senderAvatarUrl: msg.avatar,
           createdAt: msg.rawDate?.toISOString(),
-          caption: msg.caption || (msg.type !== 'TEXT' && msg.type !== 'IMAGE_GROUP' ? msg.text : undefined),
+          caption: msg.caption || msg.text || undefined,
         });
       } else if (msg.type === 'IMAGE_GROUP' && msg.attachments) {
         for (const att of msg.attachments) {

@@ -35,7 +35,7 @@ export interface ChatWindowProps {
   refreshTrigger?: number;
   targetMessageId?: string | null;
   onClearTargetMessage?: () => void;
-  onOpenProfile?: (userId: string) => void;
+  onOpenProfile?: (userId: string, onClose?: () => void) => void;
   externalForwardingMsg?: ForwardingMessage | null;
   onClearForwardingMsg?: () => void;
 }

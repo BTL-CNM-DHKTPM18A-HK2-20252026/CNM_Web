@@ -1,116 +1,138 @@
 import React from 'react';
+import { toast } from 'sonner';
 import {
+  BoldIcon,
+  EraserIcon,
   FilePickerIcon,
+  FontSizeIcon,
+  FullscreenIcon,
   ImagePickerIcon,
+  ImportantIcon,
+  IndentIcon,
+  ItalicIcon,
+  ListIcon,
+  MoreHorizontalIcon,
+  NoteIcon,
+  NumberListIcon,
+  OutdentIcon,
+  PollIcon,
+  RedoIcon,
+  ReminderIcon,
   StickerIcon,
+  StrikeIcon,
+  TextColorIcon,
+  UnderlineIcon,
+  UndoIcon,
+  UrgentIcon,
   VideoPickerIcon,
   VoiceIcon,
-  MoreHorizontalIcon,
-  PollIcon,
-  ReminderIcon,
-  NoteIcon,
-  ImportantIcon,
-  UrgentIcon,
-  BoldIcon,
-  ItalicIcon,
-  UnderlineIcon,
-  StrikeIcon,
-  FontSizeIcon,
-  TextColorIcon,
-  EraserIcon,
-  ListIcon,
-  setReplyingTo,
-  isRecording,
-  recordingTime,
-  isInitializingMic,
-  stopRecording,
-  startRecording,
-  isPickerOpen,
-  pickerTab,
-  togglePicker,
-  handleImageClick,
-  isChatImageUploadOpen,
-  setIsShareContactOpen,
-  isMoreActionsOpen,
-  setIsMoreActionsOpen,
-  isPollModalOpen,
-  setIsPollModalOpen,
-  isReminderModalOpen,
-  setIsReminderModalOpen,
-  isNoteModalOpen,
-  setIsNoteModalOpen,
-  priority,
-  setPriority,
-  isFormattingActive,
-  setIsFormattingActive,
-  imageInputRef,
-  handleImageChange,
-  videoInputRef,
-  handleVideoChange,
-  isFilePopoverOpen,
-  handleFileIconClick,
-  handleVideoClick,
-  handleFileClick,
-  fileInputRef,
-  handleFileChange,
-  pendingAttachment,
-  clearPendingAttachment,
-  handleSendWithAttachment,
-  onSelectSticker,
-  imageQueue,
-  closeImageQueue,
-  setCaptionDraft,
-  setCaptionModalIdx,
-  messageInputRef,
-  message,
-  sendTypingIndicator,
-  handlePaste,
-  handleSendImageQueue,
-  handleSendMessage,
-  setIsChatImageUploadOpen,
-  // Link Preview
-  pendingLinkPreview,
-  linkPreviewDismissed,
-  setLinkPreviewDismissed,
-  // @Mention
-  mentionQuery,
-  mentionDropdownOpen,
-  setMentionDropdownOpen,
-  conversationMembers,
-  handleMentionInput,
-  handleSelectMention,
-  // Smart Reply
-  smartReplies,
-  smartRepliesLoading,
-  dismissSmartReplies,
-  editor,
-  setEditor,
-} = vm;
+} from '@/components/ui/Icons';
+import { ChatImageUpload } from '@/features/chat/components/ChatImageUpload';
+import { ChatInput } from '@/features/chat/components/ChatInput';
+import { MentionDropdown } from '@/features/chat/components/MentionDropdown';
+import { StickerPicker } from '@/features/chat/components/StickerPicker';
+import { CreateNoteModal } from '@/features/chat/components/ChatWindow/CreateNoteModal';
+import { CreatePollModal } from '@/features/chat/components/ChatWindow/CreatePollModal';
+import { CreateReminderModal } from '@/features/chat/components/ChatWindow/CreateReminderModal';
+import type { ChatComposerProps } from '@/features/chat/components/ChatWindow/types';
 
-const [isSmartReplyEnabled, setIsSmartReplyEnabled] = React.useState(false);
+const SMART_REPLY_TOGGLE_STORAGE_KEY = 'chat.smart_reply.enabled';
 
-React.useEffect(() => {
-  try {
-    const storedValue = window.localStorage.getItem(SMART_REPLY_TOGGLE_STORAGE_KEY);
-    if (storedValue === '0') {
-      setIsSmartReplyEnabled(false);
-    }
-  } catch {
-    // Ignore storage errors and keep default enabled state.
-  }
-}, []);
+export function ChatComposer({ vm }: ChatComposerProps) {
+  const {
+    t,
+    selectedChat,
+    isSendingAi,
+    replyingTo,
+    setReplyingTo,
+    isRecording,
+    recordingTime,
+    isInitializingMic,
+    stopRecording,
+    startRecording,
+    isPickerOpen,
+    pickerTab,
+    togglePicker,
+    handleImageClick,
+    isChatImageUploadOpen,
+    setIsShareContactOpen,
+    isMoreActionsOpen,
+    setIsMoreActionsOpen,
+    isPollModalOpen,
+    setIsPollModalOpen,
+    isReminderModalOpen,
+    setIsReminderModalOpen,
+    isNoteModalOpen,
+    setIsNoteModalOpen,
+    priority,
+    setPriority,
+    isFormattingActive,
+    setIsFormattingActive,
+    imageInputRef,
+    handleImageChange,
+    videoInputRef,
+    handleVideoChange,
+    isFilePopoverOpen,
+    handleFileIconClick,
+    handleVideoClick,
+    handleFileClick,
+    fileInputRef,
+    handleFileChange,
+    pendingAttachment,
+    clearPendingAttachment,
+    handleSendWithAttachment,
+    onSelectSticker,
+    imageQueue,
+    closeImageQueue,
+    setCaptionDraft,
+    setCaptionModalIdx,
+    messageInputRef,
+    message,
+    sendTypingIndicator,
+    handlePaste,
+    handleSendImageQueue,
+    handleSendMessage,
+    setIsChatImageUploadOpen,
+    pendingLinkPreview,
+    linkPreviewDismissed,
+    setLinkPreviewDismissed,
+    mentionQuery,
+    mentionDropdownOpen,
+    setMentionDropdownOpen,
+    conversationMembers,
+    handleMentionInput,
+    handleSelectMention,
+    smartReplies,
+    smartRepliesLoading,
+    dismissSmartReplies,
+    editor,
+    setEditor,
+  } = vm;
 
-const handleToggleSmartReply = React.useCallback(() => {
-  setIsSmartReplyEnabled((prev) => {
-    const next = !prev;
+  const [isSmartReplyEnabled, setIsSmartReplyEnabled] = React.useState(true);
+
+  React.useEffect(() => {
     try {
-      window.localStorage.setItem(SMART_REPLY_TOGGLE_STORAGE_KEY, next ? '1' : '0');
+      const storedValue = window.localStorage.getItem(SMART_REPLY_TOGGLE_STORAGE_KEY);
+      if (storedValue === '0') {
+        setIsSmartReplyEnabled(false);
+      }
     } catch {
-      // Ignore storage errors.
+      // Ignore storage errors and keep default enabled state.
     }
-    return next;
-  });
-}, []);
+  }, []);
+
+  const handleToggleSmartReply = React.useCallback(() => {
+    setIsSmartReplyEnabled((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(SMART_REPLY_TOGGLE_STORAGE_KEY, next ? '1' : '0');
+      } catch {
+        // Ignore storage errors.
+      }
+      return next;
+    });
+  }, []);
 
 return (
   <>
