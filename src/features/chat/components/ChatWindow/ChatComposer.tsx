@@ -19,30 +19,6 @@ import {
   TextColorIcon,
   EraserIcon,
   ListIcon,
-  NumberListIcon,
-  IndentIcon,
-  OutdentIcon,
-  UndoIcon,
-  RedoIcon,
-  FullscreenIcon,
-} from '@/components/ui/Icons';
-import { StickerPicker } from '@/features/chat/components/StickerPicker';
-import { ChatImageUpload } from '@/features/chat/components/ChatImageUpload';
-import { ChatInput } from '@/features/chat';
-import { MentionDropdown } from '@/features/chat/components/MentionDropdown';
-import { CreatePollModal } from './CreatePollModal';
-import { CreateReminderModal } from './CreateReminderModal';
-import { CreateNoteModal } from './CreateNoteModal';
-import type { ChatComposerProps } from '@/features/chat/components/ChatWindow/types';
-
-const SMART_REPLY_TOGGLE_STORAGE_KEY = 'cnm_web_smart_reply_enabled';
-
-export function ChatComposer({ vm }: ChatComposerProps) {
-  const {
-    t,
-    selectedChat,
-    isSendingAi,
-    replyingTo,
     setReplyingTo,
     isRecording,
     recordingTime,
