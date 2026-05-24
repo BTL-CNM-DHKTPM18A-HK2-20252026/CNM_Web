@@ -68,6 +68,7 @@ interface ChatInputProps {
   onPaste?: (e: ClipboardEvent) => void;
   pendingAttachment?: PendingAttachment | null;
   onClearAttachment?: () => void;
+  onKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>) => void;
 }
 
 export function ChatInput({
@@ -85,6 +86,7 @@ export function ChatInput({
   onPaste,
   pendingAttachment,
   onClearAttachment,
+  onKeyDown,
 }: ChatInputProps) {
   const [mounted, setMounted] = useState(false);
 
@@ -151,7 +153,12 @@ export function ChatInput({
     }
   }, [value, editor]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (onKeyDown) {
+      onKeyDown(e);
+    }
+    if (e.defaultPrevented) return;
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       onSend();
