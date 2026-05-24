@@ -8,7 +8,7 @@ import { Strike } from '@tiptap/extension-strike';
 import { Highlight } from '@tiptap/extension-highlight';
 import { Placeholder } from '@tiptap/extension-placeholder';
 import { Image as TiptapImage } from '@tiptap/extension-image';
-import { InputRule } from '@tiptap/core';
+import { InputRule, Extension } from '@tiptap/core';
 import emojiPack from '@/data/emoji-pack.json';
 
 // Mapping for input rules
@@ -17,6 +17,34 @@ emojiPack.categories.forEach(cat => {
   cat.icons.forEach(icon => {
     shortcodeToSrc[icon.shortcode] = icon.src;
   });
+});
+
+const ZaloStickerInputRule = Extension.create({
+  name: 'zaloStickerInputRule',
+  addInputRules() {
+    return [
+      new InputRule({
+        find: /(:zalo_\d+_\d+:)\s$/, // Triggers when you type shortcode followed by a space
+        handler: ({ state, range, match }) => {
+          const shortcode = match[1];
+          const src = shortcodeToSrc[shortcode];
+          if (!src) return null;
+
+          const { tr } = state;
+          const start = range.from;
+          const end = range.to;
+
+          tr.replaceWith(start, end, state.schema.nodes.image.create({
+            src: src,
+            alt: shortcode,
+            title: shortcode,
+          }));
+
+          return tr;
+        },
+      }),
+    ];
+  },
 });
 
 import { EmojiIcon, LikeIcon, SendIcon } from '@/components/ui/Icons';
@@ -89,27 +117,7 @@ export function ChatInput({
           class: 'inline-block w-6 h-6 mx-0.5 align-text-bottom',
         },
       }),
-      // Custom input rule to convert :zalo_r_c: to images as you type
-      new InputRule({
-        find: /(:zalo_\d+_\d+:)\s$/, // Triggers when you type shortcode followed by a space
-        handler: ({ state, range, match }) => {
-          const shortcode = match[1];
-          const src = shortcodeToSrc[shortcode];
-          if (!src) return null;
-
-          const { tr } = state;
-          const start = range.from;
-          const end = range.to;
-
-          tr.replaceWith(start, end, state.schema.nodes.image.create({
-            src: src,
-            alt: shortcode,
-            title: shortcode,
-          }));
-
-          return tr;
-        },
-      }),
+      ZaloStickerInputRule,
     ],
     content: value,
     editorProps: {
