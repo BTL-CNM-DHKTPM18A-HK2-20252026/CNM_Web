@@ -25,22 +25,21 @@ const ZaloStickerInputRule = Extension.create({
     return [
       new InputRule({
         find: /(:zalo_\d+_\d+:)\s$/, // Triggers when you type shortcode followed by a space
-        handler: ({ state, range, match }) => {
+        handler: ({ range, match, chain }) => {
           const shortcode = match[1];
           const src = shortcodeToSrc[shortcode];
           if (!src) return null;
 
-          const { tr } = state;
-          const start = range.from;
-          const end = range.to;
-
-          tr.replaceWith(start, end, state.schema.nodes.image.create({
-            src: src,
-            alt: shortcode,
-            title: shortcode,
-          }));
-
-          return tr;
+          chain()
+            .insertContentAt(range, {
+              type: 'image',
+              attrs: {
+                src: src,
+                alt: shortcode,
+                title: shortcode,
+              },
+            })
+            .run();
         },
       }),
     ];
