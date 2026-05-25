@@ -5,7 +5,7 @@ import { Providers } from "@/components/providers/Providers";
 
 export const metadata: Metadata = {
   title: "Fruvia Chat",
-  description: "Đăng nhập tài khoản Fruvia Chat để kết nối với ứng dụng Fruvia Chat 123",
+  description: "Đăng nhập tài khoản Fruvia Chat để kết nối với ứng dụng Fruvia Chat",
   icons: {
     icon: "/fruvia_logo.png",
   },
