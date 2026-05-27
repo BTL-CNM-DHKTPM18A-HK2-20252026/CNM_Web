@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import Image from 'next/image';
+import { FruviaChatbotAvatar } from '@/components/ui/FruviaChatbotAvatar';
 import { toast } from 'sonner';
 import {
   PlusIcon,
@@ -94,8 +95,6 @@ const extractSendMessage = (payload: unknown): PopupMessage | null => {
 };
 
 const getMessageSenderId = (msg: PopupMessage): string => String(msg.senderId || msg.sender_id || '');
-const FRUVIA_CHATBOT_AVATAR = `${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/system/fruvia_chatbot.png`;
-
 const getMessageCreatedAt = (msg: PopupMessage): number => {
   const createdAt = msg.createdAt || msg.created_at || '';
   const time = new Date(createdAt).getTime();
@@ -152,13 +151,7 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
   const renderAvatar = (url: string, isAiConv: boolean, isSelfConv: boolean, size: number = 32) => {
     if (isAiConv) {
       return (
-        <Image
-          src={FRUVIA_CHATBOT_AVATAR}
-          fill
-          alt="Fruvia Chatbot"
-          className="object-cover"
-          unoptimized
-        />
+        <FruviaChatbotAvatar className="w-full h-full" imageClassName="w-full h-full object-cover" />
       );
     }
     if (isSelfConv) {

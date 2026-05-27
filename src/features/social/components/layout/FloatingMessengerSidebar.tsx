@@ -1,5 +1,6 @@
 import React from 'react';
 import Image from 'next/image';
+import { FruviaChatbotAvatar } from '@/components/ui/FruviaChatbotAvatar';
 import { SendIcon } from '@/components/ui/Icons';
 import { useTranslation } from 'react-i18next';
 
@@ -7,8 +8,6 @@ interface FloatingMessengerSidebarProps {
   conversations: any[];
   onSelectContact: (conversation: any) => void;
 }
-
-const FRUVIA_CHATBOT_AVATAR = `${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/system/fruvia_chatbot.png`;
 
 export const FloatingMessengerSidebar: React.FC<FloatingMessengerSidebarProps> = ({ conversations, onSelectContact }) => {
   const { t } = useTranslation();
@@ -35,13 +34,7 @@ export const FloatingMessengerSidebar: React.FC<FloatingMessengerSidebarProps> =
               style={{ zIndex: 10 - idx }}
             >
               {conv.isAi ? (
-                <Image
-                  src={FRUVIA_CHATBOT_AVATAR}
-                  fill
-                  alt="Fruvia Chatbot"
-                  className="object-cover"
-                  unoptimized
-                />
+                <FruviaChatbotAvatar className="w-full h-full" imageClassName="w-full h-full object-cover" />
               ) : conv.isSelf ? (
                 <div className="w-full h-full bg-[#0068FF] flex items-center justify-center text-white">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">

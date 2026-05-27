@@ -5,6 +5,7 @@ import {
   ClockIcon,
 } from '@/components/ui/Icons';
 import Image from 'next/image';
+import { FruviaChatbotAvatar } from '@/components/ui/FruviaChatbotAvatar';
 import { GroupMediaViewer } from '@/features/chat/components/ChatWindow/GroupMediaViewer';
 import { apiClient } from '@/lib/http/apiClient';
 import { friendService } from '@/features/friends';
@@ -631,7 +632,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
           {isAi ? (
             <>
               <div className="w-16 h-16 rounded-full overflow-hidden shadow-lg mb-4">
-                <img src={`${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/system/fruvia_chatbot.png`} alt="Fruvia Chatbot" className="w-full h-full object-cover" />
+                <FruviaChatbotAvatar className="w-full h-full" imageClassName="w-full h-full object-cover" />
               </div>
               <h3 className="text-[18px] font-bold text-[var(--text)] mb-2 text-center">
                 {t('chat.ai_name')}

@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDownIcon, MoreHorizontalIcon, SparklesIcon } from '@/components/ui/Icons';
+import { ChevronDownIcon, MoreHorizontalIcon } from '@/components/ui/Icons';
 import Image from 'next/image';
+import { FruviaChatbotAvatar } from '@/components/ui/FruviaChatbotAvatar';
 import { apiClient } from '@/lib/http/apiClient';
 import { toast } from 'sonner';
 import { usePresence } from '@/features/user';
@@ -1290,7 +1291,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                                 {conv?.avatar ? (
                                   <Image src={conv.avatar} alt={conv.name} width={40} height={40} className="object-cover w-full h-full" />
                                 ) : isAiSender ? (
-                                  <img src={`${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/system/fruvia_chatbot.png`} alt="Fruvia Chatbot" className="w-full h-full object-cover" />
+                                  <FruviaChatbotAvatar className="w-full h-full" imageClassName="w-full h-full object-cover" />
                                 ) : (
                                   <span className="text-[14px] font-bold text-white bg-[#0068FF] w-full h-full flex items-center justify-center">
                                     {displayConvName?.charAt(0)?.toUpperCase() || '?'}
@@ -1698,7 +1699,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                       <div key={convId} className="flex items-center gap-3 p-3 rounded-lg hover:bg-[var(--hover-bg)] transition-colors">
                         <div className={`w-10 h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center ${isAiConv ? '' : isCloudConv ? 'bg-[#0068FF]' : 'bg-gray-200'}`}>
                           {isAiConv ? (
-                            <img src={`${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/system/fruvia_chatbot.png`} alt="Fruvia Chatbot" className="w-full h-full object-cover" />
+                            <FruviaChatbotAvatar className="w-full h-full" imageClassName="w-full h-full object-cover" />
                           ) : isCloudConv ? (
                             <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
                               <path d="M17.5 19c3.037 0 5.5-2.463 5.5-5.5 0-2.97-2.354-5.391-5.291-5.492a7 7 0 0 0-13.709 0C1.109 8.109 1 10.53 1 13.5c0 3.037 2.463 5.5 5.5 5.5h11z" />

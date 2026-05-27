@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { FruviaChatbotAvatar } from '@/components/ui/FruviaChatbotAvatar';
 import { ChevronDownIcon, ChevronRightIcon, MessageBubbleIcon, MoreHorizontalIcon, SparklesIcon } from '@/components/ui/Icons';
 import { AI_TYPING_USER_ID } from '@/features/chat/components/ChatWindow/useChatWindow';
 import type { ChatMessage, ChatMessageListProps } from '@/features/chat/components/ChatWindow/types';
@@ -960,7 +961,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                 {(msg as any).avatar ? (
                                   <img src={(msg as any).avatar} alt="Avatar" className="w-full h-full object-cover" />
                                 ) : selectedChat.isAi || (msg as any).senderId === AI_TYPING_USER_ID ? (
-                                  <img src={`${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/system/fruvia_chatbot.png`} alt="Fruvia Chatbot" className="w-full h-full object-cover" />
+                                  <FruviaChatbotAvatar className="w-full h-full" imageClassName="w-full h-full object-cover" />
                                 ) : selectedChat.avatar ? (
                                   <img src={selectedChat.avatar} alt="Avatar" className="w-full h-full object-cover" />
                                 ) : (
@@ -1005,7 +1006,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                 {(msg as any).avatar ? (
                                   <img src={(msg as any).avatar} alt="Avatar" className="w-full h-full object-cover" />
                                 ) : selectedChat.isAi || (msg as any).senderId === AI_TYPING_USER_ID ? (
-                                  <img src={`${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/system/fruvia_chatbot.png`} alt="Fruvia Chatbot" className="w-full h-full object-cover" />
+                                  <FruviaChatbotAvatar className="w-full h-full" imageClassName="w-full h-full object-cover" />
                                 ) : selectedChat.avatar ? (
                                   <img src={selectedChat.avatar} alt="Avatar" className="w-full h-full object-cover" />
                                 ) : (
@@ -1632,7 +1633,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
             <div key={user.userId} className="flex items-center gap-2 animate-in fade-in slide-in-from-bottom-1 duration-200">
               <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 border border-[var(--border)] flex items-center justify-center bg-blue-50">
                 {user.userId === AI_TYPING_USER_ID ? (
-                  <img src={`${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/system/fruvia_chatbot.png`} alt="Fruvia Chatbot" className="w-full h-full object-cover" />
+                  <FruviaChatbotAvatar className="w-full h-full" imageClassName="w-full h-full object-cover" />
                 ) : user.avatarUrl ? (
                   <img src={user.avatarUrl} alt={user.displayName} className="w-full h-full object-cover" />
                 ) : (

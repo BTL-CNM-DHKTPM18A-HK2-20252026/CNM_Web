@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import Image from 'next/image';
 import { toast } from 'sonner';
-import { SearchIcon, SparklesIcon, GroupVideoCallIcon } from '@/components/ui/Icons';
+import { FruviaChatbotAvatar } from '@/components/ui/FruviaChatbotAvatar';
+import { SearchIcon, GroupVideoCallIcon } from '@/components/ui/Icons';
 import { StatusIndicator } from '@/features/user';
 import { apiClient } from '@/lib/http/apiClient';
 import { GroupMediaViewer } from './GroupMediaViewer';
@@ -236,7 +236,7 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
       <div className="flex items-center gap-4">
         {selectedChat.isAi ? (
           <div className="h-12 w-12 rounded-full overflow-hidden shrink-0 shadow-sm">
-            <Image src={`${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/system/fruvia_chatbot.png`} alt="Fruvia Chatbot" width={48} height={48} className="object-cover w-full h-full" unoptimized />
+            <FruviaChatbotAvatar className="w-full h-full" imageClassName="w-full h-full object-cover" />
           </div>
         ) : selectedChat.isCloud ? (
           <div className="h-12 w-12 rounded-full bg-[#0068FF] flex items-center justify-center text-white font-bold shrink-0 shadow-sm">
