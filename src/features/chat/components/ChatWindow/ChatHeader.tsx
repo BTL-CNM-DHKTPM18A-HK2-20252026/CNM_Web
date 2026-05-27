@@ -1,17 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { toast } from 'sonner';
-import { SearchIcon, SparklesIcon, GroupVideoCallIcon, SunIcon, MoonIcon } from '@/components/ui/Icons';
+import { SearchIcon, SparklesIcon, GroupVideoCallIcon } from '@/components/ui/Icons';
 import { StatusIndicator } from '@/features/user';
 import { apiClient } from '@/lib/http/apiClient';
 import { GroupMediaViewer } from './GroupMediaViewer';
 import type { ChatHeaderProps } from '@/features/chat/components/ChatWindow/types';
-import { useTheme } from '@/themes';
 
 const DEFAULT_GROUP_AVATARS = Array.from({ length: 12 }, (_, idx) => `${process.env.NEXT_PUBLIC_S3_BASE_URL ?? ''}/avatar_group/avtgr${idx + 1}.jpg`);
 
 export function ChatHeader({ vm }: ChatHeaderProps) {
-  const { currentTheme, setCurrentTheme } = useTheme();
   const {
     t,
     selectedChat,
@@ -343,24 +341,6 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
       </div>
 
       <div className="flex items-center gap-2 text-[var(--sub-text)] pr-1 shrink-0">
-        {/* Theme Switcher Capsule */}
-        <div className="flex items-center bg-[var(--hover-bg)] border border-[var(--border)] rounded-full p-0.5 mr-2 transition-all duration-200">
-          <button
-            onClick={() => setCurrentTheme('light')}
-            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${currentTheme === 'light' ? 'bg-[#0068FF] text-white shadow-sm scale-105' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
-            title="Giao diện sáng"
-          >
-            <SunIcon size={14} />
-          </button>
-          <button
-            onClick={() => setCurrentTheme('dark')}
-            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${currentTheme === 'dark' ? 'bg-[#0068FF] text-white shadow-sm scale-105' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
-            title="Giao diện tối"
-          >
-            <MoonIcon size={14} />
-          </button>
-        </div>
-
         {!selectedChat.isCloud && !selectedChat.isAi && !selectedChat.isGroup && (
           <button onClick={handleVideoCall} className="cursor-pointer transition-all p-1 rounded-md hover:text-[#0068FF] hover:bg-[var(--hover-bg)] opacity-80" title={t('chat.header.video_call')}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></svg>

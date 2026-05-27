@@ -9,8 +9,11 @@ import {
   ZaloChatIcon,
   ZaloContactIcon,
   ZaloSettingsIcon,
-  ZaloSocialIcon
+  ZaloSocialIcon,
+  SunIcon,
+  MoonIcon
 } from '@/components/ui/Icons';
+import { useTheme } from '@/themes';
 
 const S3_BASE = process.env.NEXT_PUBLIC_S3_BASE_URL ?? '';
 
@@ -38,6 +41,7 @@ export function Sidebar({
   invitationCount = 0,
 }: SidebarProps) {
   const { t, i18n } = useTranslation();
+  const { currentTheme, setCurrentTheme } = useTheme();
   const [showLangSubMenu, setShowLangSubMenu] = React.useState(false);
   const [showUserMenu, setShowUserMenu] = React.useState(false);
 
@@ -251,6 +255,15 @@ export function Sidebar({
             </button>
           </div>
         )}
+
+        {/* Theme Switch Button */}
+        <button
+          onClick={() => setCurrentTheme(currentTheme === 'dark' ? 'light' : 'dark')}
+          className="w-[52px] h-[52px] flex items-center justify-center rounded-lg transition-all cursor-pointer text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover-bg)] active:scale-95"
+          title={currentTheme === 'dark' ? t('login.theme_switch.light') : t('login.theme_switch.dark')}
+        >
+          {currentTheme === 'dark' ? <SunIcon size={26} /> : <MoonIcon size={26} />}
+        </button>
 
         <button
           onClick={() => {
