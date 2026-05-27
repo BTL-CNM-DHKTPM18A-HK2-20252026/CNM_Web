@@ -27,7 +27,7 @@ export const SocialHeader: React.FC<SocialHeaderProps> = ({ user, onBack }) => {
           className="w-10 h-10 relative cursor-pointer hover:opacity-80 transition-opacity rounded-full overflow-hidden border border-gray-200/80 shadow-sm bg-white"
         >
           <Image
-            src="https://fruvia-chat-storage.s3.ap-southeast-1.amazonaws.com/public/system/fruvia_logo.png"
+            src="https://fruvia-asset.s3.ap-southeast-2.amazonaws.com/public/system/fruvia_logo.png"
             fill
             alt="Fruvia Logo"
             className="object-cover rounded-full"

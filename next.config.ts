@@ -48,7 +48,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'fruvia-chat-storage.s3.ap-southeast-1.amazonaws.com',
+        hostname: 'fruvia-asset.s3.ap-southeast-2.amazonaws.com',
         pathname: '/**',
       },
     ],

@@ -3,7 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 
-const FRUVIA_LOGO = 'https://fruvia-chat-storage.s3.ap-southeast-1.amazonaws.com/public/system/fruvia_logo.png';
+const FRUVIA_LOGO = 'https://fruvia-asset.s3.ap-southeast-2.amazonaws.com/public/system/fruvia_logo.png';
 
 interface SessionKickModalProps {
   isOpen: boolean;

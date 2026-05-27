@@ -77,7 +77,7 @@ export const SocialSidebarLeft: React.FC<SocialSidebarLeftProps> = ({
           {/* Collapsed Logo: Fruvia icon */}
           <div className="w-10 h-10 shrink-0 lg:group-hover:hidden transition-all duration-300">
             <Image
-              src="https://fruvia-chat-storage.s3.ap-southeast-1.amazonaws.com/public/system/fruvia_logo.png"
+              src="https://fruvia-asset.s3.ap-southeast-2.amazonaws.com/public/system/fruvia_logo.png"
               alt="Fruvia"
               width={40}
               height={40}
@@ -88,7 +88,7 @@ export const SocialSidebarLeft: React.FC<SocialSidebarLeftProps> = ({
           {/* Expanded Logo: icon + wordmark */}
           <div className="hidden lg:group-hover:flex items-center gap-2.5 whitespace-nowrap animate-in fade-in zoom-in duration-500">
             <Image
-              src="https://fruvia-chat-storage.s3.ap-southeast-1.amazonaws.com/public/system/fruvia_logo.png"
+              src="https://fruvia-asset.s3.ap-southeast-2.amazonaws.com/public/system/fruvia_logo.png"
               alt="Fruvia"
               width={36}
               height={36}
