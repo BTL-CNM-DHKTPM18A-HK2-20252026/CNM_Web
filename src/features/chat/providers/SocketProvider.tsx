@@ -14,9 +14,19 @@ interface SocketProviderProps {
 /** Decode JWT payload to get userId (sub claim). */
 function getUserIdFromToken(token: string): string | null {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    let base64Url = parts[1];
+    let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) {
+      base64 += '=';
+    }
+    const raw = atob(base64);
+    const escapeRaw = raw.split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('');
+    const payload = JSON.parse(decodeURIComponent(escapeRaw));
     return payload.sub || null;
-  } catch {
+  } catch (error) {
+    console.error('[SocketProvider] Failed to parse JWT token payload:', error);
     return null;
   }
 }

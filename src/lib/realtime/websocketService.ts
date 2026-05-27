@@ -51,9 +51,20 @@ class WebSocketService {
     // Extract userId từ JWT payload (sub claim)
     let newUserId: string | null = null;
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      newUserId = payload.sub || null;
-    } catch {
+      const parts = token.split('.');
+      if (parts.length >= 2) {
+        let base64Url = parts[1];
+        let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        while (base64.length % 4) {
+          base64 += '=';
+        }
+        const raw = atob(base64);
+        const escapeRaw = raw.split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('');
+        const payload = JSON.parse(decodeURIComponent(escapeRaw));
+        newUserId = payload.sub || null;
+      }
+    } catch (e) {
+      console.error('[websocketService] Failed to extract userId from token payload:', e);
       newUserId = null;
     }
 
