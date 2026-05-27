@@ -677,6 +677,7 @@
       "just_now": "Just now"
     },
     "cloud": {
+      "title": "My Documents Info",
       "desc": "Store and access your most important content on Fruvia Chat",
       "storage": {
         "title": "Storage",

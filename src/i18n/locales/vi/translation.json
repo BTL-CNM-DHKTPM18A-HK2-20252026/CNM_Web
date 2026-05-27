@@ -676,6 +676,7 @@
       "no_pin": "Bạn chưa thiết lập mã PIN"
     },
     "cloud": {
+      "title": "Thông tin Cloud của tôi",
       "desc": "Lưu trữ và truy cập những nội dung quan trọng nhất trên Fruvia Chat",
       "storage": {
         "title": "Dung lượng",
