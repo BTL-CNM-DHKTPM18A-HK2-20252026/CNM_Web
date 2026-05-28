@@ -9,8 +9,6 @@ import { SocialProfile } from './SocialProfile';
 import { SocialEditProfile } from './SocialEditProfile';
 import { SocialExplore } from './SocialExplore';
 import { SocialArchive } from './SocialArchive';
-import { SocialMusicLibrary } from './SocialMusicLibrary';
-import { SocialMusicMiniPlayer } from './SocialMusicMiniPlayer';
 import { MessengerPopup } from './layout/MessengerPopup';
 import { FloatingMessengerSidebar } from './layout/FloatingMessengerSidebar';
 import { CreatePostModal } from './layout/CreatePostModal';
@@ -28,7 +26,6 @@ import { websocketService } from '@/lib/realtime/websocketService';
 import { PostResponse, SocialUser, StoryResponse } from '../types';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-import { useTheme } from '@/themes';
 import { authService } from '@/features/auth/services/authService';
 import { userService } from '@/features/user/services/userService';
 
@@ -95,7 +92,7 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
   const [stories, setStories] = useState<StoryResponse[]>([]);
   const [conversations, setConversations] = useState<SocialConversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [view, setView] = useState<'feed' | 'profile' | 'explore' | 'edit-profile' | 'archive' | 'music'>('feed');
+  const [view, setView] = useState<'feed' | 'profile' | 'explore' | 'edit-profile' | 'archive'>('feed');
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
   const [hashtagFilter, setHashtagFilter] = useState<string | null>(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -106,11 +103,8 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
   const [viewingStoryAuthorId, setViewingStoryAuthorId] = useState<string | null>(null);
   const [editingPost, setEditingPost] = useState<PostResponse | null>(null);
   const [sharingPost, setSharingPost] = useState<PostResponse | null>(null);
-  const [currentMusic, setCurrentMusic] = useState<any>(null);
-  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { t } = useTranslation();
-  const { currentTheme } = useTheme();
 
   const currentUserId = user?.id || user?.user_id || '';
   const currentUserName = user?.full_name || user?.display_name || 'Fruvia user';
@@ -515,17 +509,16 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
           onExploreClick={() => setView('explore')}
           onCreatePostClick={() => setIsCreateModalOpen(true)}
           onArchiveClick={() => setView('archive')}
-          onMyMusicClick={() => setView('music')}
           onLogout={handleLogout}
         />
       </div>
 
       {/* Main Content Area (Scrollable) */}
       <div className={`flex-1 h-full overflow-y-auto scrollbar-hide flex ${view === 'explore' ? 'justify-start' : 'justify-center'} lg:pl-[64px]`}>
-        <div className={`w-full ${['profile', 'edit-profile', 'archive'].includes(view) ? 'max-w-[1280px]' : (view === 'explore' || view === 'music') ? '' : 'max-w-[1220px]'} flex flex-col lg:flex-row px-4 md:px-8 lg:px-0 justify-between`}>
+        <div className={`w-full ${['profile', 'edit-profile', 'archive'].includes(view) ? 'max-w-[1280px]' : view === 'explore' ? '' : 'max-w-[1220px]'} flex flex-col lg:flex-row px-4 md:px-8 lg:px-0 justify-between`}>
 
           {/* Middle Column (Feed or Profile) */}
-          <div className={`${view === 'profile' ? 'flex-1 max-w-[935px] pt-4' : (view === 'explore' || view === 'music') ? 'flex-1 w-full pt-0' : ['edit-profile', 'archive'].includes(view) ? 'flex-1 w-full max-w-[1280px] mx-auto lg:px-8 pt-4' : 'w-full lg:max-w-[630px] pt-4'}`}>
+          <div className={`${view === 'profile' ? 'flex-1 max-w-[935px] pt-4' : view === 'explore' ? 'flex-1 w-full pt-0' : ['edit-profile', 'archive'].includes(view) ? 'flex-1 w-full max-w-[1280px] mx-auto lg:px-8 pt-4' : 'w-full lg:max-w-[630px] pt-4'}`}>
             {view === 'feed' ? (
               <div className="max-w-[680px]">
                 <SocialFeedMain
@@ -605,14 +598,6 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
               />
             ) : view === 'archive' ? (
               <SocialArchive user={user} onBack={() => setView('profile')} />
-            ) : view === 'music' ? (
-              <SocialMusicLibrary
-                isDark={currentTheme === 'dark'}
-                onSongSelect={(song) => {
-                  setCurrentMusic(song);
-                  setIsMusicPlaying(true);
-                }}
-              />
             ) : (
               <SocialExplore />
             )}
@@ -699,16 +684,6 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ user, onBack }) => {
         onSelectContact={handleOpenPopup}
       />
 
-      {/* Mini Player */}
-      {view !== 'music' && currentMusic && (
-        <SocialMusicMiniPlayer
-          song={currentMusic}
-          isPlaying={isMusicPlaying}
-          onTogglePlay={() => setIsMusicPlaying(!isMusicPlaying)}
-          onExpand={() => setView('music')}
-          isDark={currentTheme === 'dark'}
-        />
-      )}
     </div>
   );
 };
