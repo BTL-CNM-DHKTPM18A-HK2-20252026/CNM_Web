@@ -374,10 +374,28 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
 
           // Parse JSON (TipTap format) để lấy plain text trước khi thêm tiền tố người gửi
           const parseLastMsgPreview = (text: string): string => {
-            if (!text || !text.trim().startsWith('{')) return text;
+            if (!text) return text;
+            const trimmed = text.trim();
+            if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return text;
             try {
-              const json = JSON.parse(text);
+              const json = JSON.parse(trimmed);
+              // JSON array (IMAGE_GROUP, etc.) → join item fileNames or URLs
+              if (Array.isArray(json)) {
+                const names = json.map((item: any) => {
+                  if (typeof item === 'string') {
+                    const seg = item.split('/');
+                    return seg[seg.length - 1] || item;
+                  }
+                  if (item && typeof item === 'object') {
+                    return item.fileName || item.text || (item.url ? item.url.split('/').pop() : '');
+                  }
+                  return '';
+                }).filter(Boolean);
+                if (names.length > 0) return `📷 ${names.join(', ')}`;
+                return text;
+              }
               if (json && typeof json === 'object') {
+                // JSON object: try TipTap extraction, fallback to fileName/url
                 const extract = (node: any): string => {
                   if (!node) return '';
                   if (node.type === 'text') return node.text ?? '';
@@ -388,6 +406,12 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
                 };
                 const extracted = extract(json).trim();
                 if (extracted) return extracted;
+                // Fallback for non-TipTap objects (MEDIA single image, etc.)
+                if (json.fileName) return `📷 ${json.fileName}`;
+                if (json.url) {
+                  const seg = json.url.split('/');
+                  return `📷 ${seg[seg.length - 1] || 'file'}`;
+                }
               }
             } catch { /* ignore */ }
             return text;

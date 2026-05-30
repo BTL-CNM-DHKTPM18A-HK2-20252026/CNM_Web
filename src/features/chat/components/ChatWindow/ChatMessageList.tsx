@@ -163,6 +163,16 @@ function PollCard({
   const [isAdding, setIsAdding] = useState(false);
   const [isSubmittingVote, setIsSubmittingVote] = useState(false);
 
+  // ⚠️ ALL hooks must be before any early return (React rule of hooks)
+  const userVotes = poll?.options
+    ?.filter((opt: any) => opt.voterIds?.includes(currentUserId))
+    .map((opt: any) => opt.optionId) || [];
+  const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>(userVotes);
+
+  useEffect(() => {
+    if (poll) setSelectedOptionIds(userVotes);
+  }, [msg.poll, currentUserId]);
+
   if (!poll) {
     return (
       <div className="p-4 bg-white dark:bg-[#1E1E1E] rounded-xl border border-[var(--border)] shadow-sm flex items-center justify-center min-w-[280px]">
@@ -180,17 +190,6 @@ function PollCard({
   const totalUniqueVoters = uniqueVoters.size;
   const hasVoted = uniqueVoters.has(currentUserId || '');
   const showResults = !poll.hideResultsBeforeVote || hasVoted;
-
-  // Local selection for multiple choices
-  const userVotes = poll.options
-    ?.filter((opt: any) => opt.voterIds?.includes(currentUserId))
-    .map((opt: any) => opt.optionId) || [];
-
-  const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>(userVotes);
-
-  useEffect(() => {
-    setSelectedOptionIds(userVotes);
-  }, [poll, currentUserId]);
 
   const handleOptionClick = (optionId: string) => {
     if (poll.deadline && new Date(poll.deadline).getTime() < Date.now()) {
@@ -249,9 +248,9 @@ function PollCard({
     !selectedOptionIds.every(id => userVotes.includes(id));
 
   return (
-    <div className="w-[300px] sm:w-[340px] rounded-xl border border-[var(--border)] bg-white dark:bg-[#1E1E1E] overflow-hidden shadow-md transition-all duration-300">
+    <div className="w-[300px] sm:w-[340px] overflow-hidden">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#0068FF] to-[#0095FF] px-4 py-3 text-white">
+      <div className="bg-gradient-to-r from-[#0068FF] to-[#0095FF] px-4 py-3 text-white rounded-t-xl">
         <div className="flex items-center gap-2">
           <span className="text-[20px]">📊</span>
           <div>
@@ -293,7 +292,7 @@ function PollCard({
                 )}
 
                 {/* Option Text and Check/Radio */}
-                <div className="flex items-center gap-2.5 z-10 min-w-0 pr-4">
+                <div className="flex items-center gap-2.5 z-10 min-w-0 flex-1">
                   <div className="shrink-0 flex items-center justify-center">
                     {poll.multipleChoices ? (
                       <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
@@ -318,6 +317,28 @@ function PollCard({
                     )}
                   </div>
                   <span className="text-[14px] text-[var(--text)] font-medium break-words leading-tight">{opt.content}</span>
+                  {/* Voter Avatars - inline bên trong dòng */}
+                  {!poll.hideVoters && showResults && opt.voterIds && opt.voterIds.length > 0 && (
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <div className="flex -space-x-1.5 overflow-hidden">
+                        {opt.voterIds.slice(0, 5).map((vId: string) => {
+                          const vInfo = getVoterInfo(vId);
+                          return (
+                            <div key={vId} className="w-5 h-5 rounded-full overflow-hidden border border-white dark:border-[#1E1E1E] bg-blue-50 flex items-center justify-center shrink-0" title={vInfo.displayName}>
+                              {vInfo.avatarUrl ? (
+                                <img src={vInfo.avatarUrl} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-[7px] font-extrabold text-blue-600">{vInfo.displayName.charAt(0).toUpperCase()}</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {opt.voterIds.length > 5 && (
+                        <span className="text-[10px] text-[var(--sub-text)] ml-0.5">+{opt.voterIds.length - 5}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Percent / Vote Count */}
@@ -328,29 +349,6 @@ function PollCard({
                   </div>
                 )}
               </div>
-
-              {/* Voter Avatars */}
-              {!poll.hideVoters && showResults && opt.voterIds && opt.voterIds.length > 0 && (
-                <div className="flex items-center gap-1.5 pl-8 mt-1">
-                  <div className="flex -space-x-1.5 overflow-hidden">
-                    {opt.voterIds.slice(0, 5).map((vId: string) => {
-                      const vInfo = getVoterInfo(vId);
-                      return (
-                        <div key={vId} className="w-5.5 h-5.5 rounded-full overflow-hidden border border-white dark:border-[#1E1E1E] bg-blue-50 flex items-center justify-center shrink-0" title={vInfo.displayName}>
-                          {vInfo.avatarUrl ? (
-                            <img src={vInfo.avatarUrl} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text-[8px] font-extrabold text-blue-600">{vInfo.displayName.charAt(0).toUpperCase()}</span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {opt.voterIds.length > 5 && (
-                    <span className="text-[11px] text-[var(--sub-text)]">+{opt.voterIds.length - 5}</span>
-                  )}
-                </div>
-              )}
             </div>
           );
         })}
@@ -1300,7 +1298,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                             )
                           )}
 
-                          <div className={`flex flex-col ${String(msg.senderId ?? '') === String(currentUser?.id ?? '') || msg.sender === 'Me' ? 'items-end' : 'items-start'} relative group/msg-container`}>
+                          <div className={`flex flex-col ${msg.type === 'POLL' ? 'items-center' : String(msg.senderId ?? '') === String(currentUser?.id ?? '') || msg.sender === 'Me' ? 'items-end' : 'items-start'} relative group/msg-container`}>
                             {msg.sender !== 'Me' && selectedChat.isGroup && showAvatarAndName && (
                               <span className="text-[12px] font-semibold text-[var(--sub-text)] mb-0.5 ml-1">{msg.sender}</span>
                             )}
@@ -1345,7 +1343,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                             )
                           )}
 
-                          <div className={`flex flex-col ${msg.sender === 'Me' ? 'items-end' : 'items-start'} relative group/msg-container min-w-0 max-w-full`}>
+                          <div className={`flex flex-col ${msg.type === 'POLL' ? 'items-center' : msg.sender === 'Me' ? 'items-end' : 'items-start'} relative group/msg-container min-w-0 max-w-full`}>
                             {msg.sender !== 'Me' && selectedChat.isGroup && showAvatarAndName && (
                               <span className="text-[12px] font-semibold text-[var(--sub-text)] mb-0.5 ml-1">{msg.sender}</span>
                             )}
@@ -1354,23 +1352,24 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                               const repliedMsg = messages.find(m => m.id === msg.replyToMessageId);
                               if (!repliedMsg) return null;
 
+                              const plainText = getPlainTextFromMessage(repliedMsg.text || '');
                               const replySnippet = repliedMsg.isRecalled
                                 ? t('chat.message.recalled')
                                 : repliedMsg.type === 'IMAGE'
                                   ? `📷 ${t('chat.snippet.image')}`
                                 : repliedMsg.type === 'IMAGE_GROUP'
                                   ? `📷 ${t('chat.snippet.image_group')}`
-                                  : repliedMsg.type === 'VIDEO'
-                                    ? `🎬 ${t('chat.snippet.video')}`
-                                    : repliedMsg.type === 'VOICE'
-                                      ? `🎤 ${t('chat.snippet.voice')}`
-                                      : repliedMsg.type === 'MEDIA'
-                                        ? `📎 ${t('chat.snippet.file')}`
-                                        : repliedMsg.type === 'SHARE_CONTACT'
-                                          ? (() => { try { const c = JSON.parse(repliedMsg.text || '{}'); return `📇 ${c.fullName || t('share_contact.snippet')}`; } catch { return `📇 ${t('share_contact.snippet')}`; } })()
-                                          : repliedMsg.text?.length > 80
-                                            ? `${repliedMsg.text.slice(0, 80)}...`
-                                            : repliedMsg.text;
+                                : repliedMsg.type === 'VIDEO'
+                                  ? `🎬 ${t('chat.snippet.video')}`
+                                  : repliedMsg.type === 'VOICE'
+                                    ? `🎤 ${t('chat.snippet.voice')}`
+                                    : repliedMsg.type === 'MEDIA'
+                                      ? `📎 ${t('chat.snippet.file')}`
+                                      : repliedMsg.type === 'SHARE_CONTACT'
+                                        ? (() => { try { const c = JSON.parse(repliedMsg.text || '{}'); return `📇 ${c.fullName || t('share_contact.snippet')}`; } catch { return `📇 ${t('share_contact.snippet')}`; } })()
+                                        : plainText.length > 80
+                                          ? `${plainText.slice(0, 80)}...`
+                                          : plainText;
 
                               return (
                                 <div
@@ -1396,7 +1395,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                             <div
                               className={`relative group w-fit min-w-[100px] max-w-full ${msg.isRecalled
                                 ? `px-3 pt-2 pb-2 rounded-md shadow-sm text-[15px] border border-dashed ${msg.sender === 'Me' ? 'border-gray-300 dark:border-gray-600' : 'border-gray-300 dark:border-gray-600'}`
-                                : msg.type === 'MEDIA' || msg.type === 'IMAGE' || msg.type === 'IMAGE_GROUP' || msg.type === 'VIDEO' || msg.type === 'SHARE_CONTACT'
+                                : msg.type === 'MEDIA' || msg.type === 'IMAGE' || msg.type === 'IMAGE_GROUP' || msg.type === 'VIDEO' || msg.type === 'SHARE_CONTACT' || msg.type === 'POLL'
                                   ? ''
                                   : `px-3 pt-2 pb-2 rounded-md shadow-sm text-[15px] border ${msg.sender === 'Me'
                                     ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)] border-[var(--message-me-border)]'

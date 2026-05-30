@@ -378,6 +378,54 @@ const splitMessage = (text: string, chunkSize: number = 800): string[] => {
   return chunks;
 };
 
+/**
+ * Splits plain text at sentence/word boundaries (for JSON TipTap messages).
+ */
+const splitPlainText = (text: string, chunkSize: number = 800): string[] => {
+  const chunks: string[] = [];
+  let remaining = text;
+
+  while (remaining.length > 0) {
+    if (remaining.length <= chunkSize) {
+      chunks.push(remaining.trim());
+      break;
+    }
+
+    let splitPos = chunkSize;
+    const prefix = remaining.substring(0, splitPos);
+
+    // Try sentence boundary (.!? followed by space)
+    let lastSentence = -1;
+    for (let i = splitPos - 1; i >= 0; i--) {
+      const c = prefix.charAt(i);
+      if (c === '.' || c === '!' || c === '?') {
+        if (i + 1 < prefix.length && prefix.charAt(i + 1) === ' ') {
+          lastSentence = i + 2;
+        } else if (i + 1 < remaining.length && remaining.charAt(i + 1) === ' ') {
+          lastSentence = i + 2;
+        }
+        if (lastSentence !== -1) break;
+      }
+    }
+
+    const lastNewline = prefix.lastIndexOf('\n');
+    const lastSpace = prefix.lastIndexOf(' ');
+
+    if (lastSentence !== -1 && lastSentence > chunkSize / 2) {
+      splitPos = lastSentence;
+    } else if (lastNewline !== -1 && lastNewline > chunkSize / 2) {
+      splitPos = lastNewline + 1;
+    } else if (lastSpace !== -1 && lastSpace > chunkSize / 2) {
+      splitPos = lastSpace + 1;
+    }
+
+    chunks.push(remaining.substring(0, splitPos).trim());
+    remaining = remaining.substring(splitPos).trim();
+  }
+
+  return chunks;
+};
+
 const mapIncomingMessage = (m: any, currentUserId?: string): ChatMessage => ({
   id: String(m.messageId || m.id),
   text: normalizeIncomingContent(m.content, m.senderId, m.messageType, m.senderName),
@@ -416,7 +464,19 @@ const mapIncomingMessage = (m: any, currentUserId?: string): ChatMessage => ({
   forwardedFromSenderName: m.forwardedFromSenderName || null,
   caption: m.caption || undefined,
   mentions: m.mentions || [],
-  attachments: m.attachments || extractAttachmentsFromContent(m.content),
+  attachments: (() => {
+    const atts = m.attachments || extractAttachmentsFromContent(m.content);
+    // Fallback: if IMAGE_GROUP has no attachments, try parsing content as plain S3 URL(s)
+    if ((!atts || atts.length === 0) && String(m.messageType || '').toUpperCase() === 'IMAGE_GROUP') {
+      const raw = String(m.content || '');
+      // Multiple URLs separated by whitespace or JSON array
+      const urls = raw.match(/https?:\/\/[^\s,]+/g);
+      if (urls && urls.length > 0) {
+        return urls.map((url: string) => ({ url }));
+      }
+    }
+    return atts;
+  })(),
   poll: m.poll || null,
 });
 
@@ -1411,8 +1471,12 @@ export function useChatWindow({
 
       // Optimistic update: show the message locally before the server responds
       if (!optimisticId && msgType === 'TEXT') {
-        if (contentToUse.length > 800 && !selectedChat.isAi && !isJsonContent(contentToUse)) {
-          const chunks = splitMessage(contentToUse, 800);
+        // For JSON (TipTap), extract plain text first, then split
+        const textToSplit = isJsonContent(contentToUse) ? getPlainTextFromMsgContent(contentToUse) : contentToUse;
+        if (textToSplit.length > 800 && !selectedChat.isAi) {
+          const chunks = isJsonContent(contentToUse)
+            ? splitPlainText(textToSplit, 800)
+            : splitMessage(contentToUse, 800);
           const newOptimisticMessages: ChatMessage[] = chunks.map((chunkText, idx) => {
             const chunkTempId = idx === chunks.length - 1 ? tempOptimisticId : `${tempOptimisticId}-chunk-${idx}`;
             return {

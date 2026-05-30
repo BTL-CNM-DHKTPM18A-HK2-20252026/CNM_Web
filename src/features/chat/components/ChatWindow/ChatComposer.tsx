@@ -35,6 +35,7 @@ import { CreateNoteModal } from '@/features/chat/components/ChatWindow/CreateNot
 import { CreatePollModal } from '@/features/chat/components/ChatWindow/CreatePollModal';
 import { CreateReminderModal } from '@/features/chat/components/ChatWindow/CreateReminderModal';
 import type { ChatComposerProps } from '@/features/chat/components/ChatWindow/types';
+import { getPlainTextFromMessage } from '@/utils/tiptapRenderer';
 
 const SMART_REPLY_TOGGLE_STORAGE_KEY = 'chat.smart_reply.enabled';
 
@@ -134,55 +135,56 @@ export function ChatComposer({ vm }: ChatComposerProps) {
     });
   }, []);
 
-return (
-  <>
-    {replyingTo && (
-      <div className="bg-[var(--card-bg)] border-t border-[var(--border)] px-4 py-2 flex items-center gap-3 animate-in slide-in-from-bottom-2 duration-200">
-        <div className="w-1 h-10 rounded-full bg-[#0068FF] shrink-0" />
-        <div className="flex-1 min-w-0">
-          <div className="text-[12px] font-bold text-[#0068FF]">{t('chat.reply.replying_to')} {replyingTo.sender === 'Me' ? t('common.you') : replyingTo.sender}</div>
-          <div className="text-[13px] text-[var(--sub-text)] truncate">
-            {replyingTo.type === 'IMAGE' ? `📷 ${t('chat.snippet.image')}` : replyingTo.type === 'IMAGE_GROUP' ? `📷 ${t('chat.snippet.image_group')}` : replyingTo.type === 'VIDEO' ? `🎬 ${t('chat.snippet.video')}` : replyingTo.type === 'VOICE' ? `🎤 ${t('chat.snippet.voice')}` : replyingTo.type === 'MEDIA' ? `📎 ${t('chat.snippet.file')}` : replyingTo.type === 'SHARE_CONTACT' ? (() => { try { const c = JSON.parse(replyingTo.text || '{}'); return `📇 ${c.fullName || t('share_contact.snippet')}`; } catch { return `📇 ${t('share_contact.snippet')}`; } })() : replyingTo.text?.length > 60 ? `${replyingTo.text.slice(0, 60)}...` : replyingTo.text}
+  return (
+    <>
+      {replyingTo && (
+        <div className="bg-[var(--card-bg)] border-t border-[var(--border)] px-4 py-2 flex items-center gap-3 animate-in slide-in-from-bottom-2 duration-200">
+          <div className="w-1 h-10 rounded-full bg-[#0068FF] shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-[12px] font-bold text-[#0068FF]">{t('chat.reply.replying_to')} {replyingTo.sender === 'Me' ? t('common.you') : replyingTo.sender}</div>
+            <div className="text-[13px] text-[var(--sub-text)] truncate">
+              {replyingTo.type === 'IMAGE' ? `📷 ${t('chat.snippet.image')}` : replyingTo.type === 'IMAGE_GROUP' ? `📷 ${t('chat.snippet.image_group')}` : replyingTo.type === 'VIDEO' ? `🎬 ${t('chat.snippet.video')}` : replyingTo.type === 'VOICE' ? `🎤 ${t('chat.snippet.voice')}` : replyingTo.type === 'MEDIA' ? `📎 ${t('chat.snippet.file')}` : replyingTo.type === 'SHARE_CONTACT' ? (() => { try { const c = JSON.parse(replyingTo.text || '{}'); return `📇 ${c.fullName || t('share_contact.snippet')}`; } catch { return `📇 ${t('share_contact.snippet')}`; } })() : (() => { const plain = getPlainTextFromMessage(replyingTo.text || ''); return plain.length > 60 ? `${plain.slice(0, 60)}...` : plain; })()}
+            </div>
           </div>
+          <button onClick={() => setReplyingTo(null)} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full hover:bg-[var(--hover-bg)] text-[var(--sub-text)] transition-colors cursor-pointer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+          </button>
         </div>
-        <button onClick={() => setReplyingTo(null)} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full hover:bg-[var(--hover-bg)] text-[var(--sub-text)] transition-colors cursor-pointer">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-        </button>
-      </div>
-    )}
-
-    {pendingLinkPreview && !linkPreviewDismissed && (<div className="bg-[var(--card-bg)] border-t border-[var(--border)] px-4 py-2.5 flex items-start gap-3">
-      {pendingLinkPreview.thumbnail && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={pendingLinkPreview.thumbnail}
-          alt=""
-          className="w-14 h-14 object-cover rounded-lg shrink-0"
-        />
       )}
-      <div className="flex-1 min-w-0">
-        {pendingLinkPreview.title && (
-          <div className="text-[13px] font-semibold text-[var(--text)] truncate">{pendingLinkPreview.title}</div>
-        )}
-        {pendingLinkPreview.description && (
-          <div className="text-[11px] text-[var(--sub-text)] line-clamp-2 mt-0.5">{pendingLinkPreview.description}</div>
-        )}
-        <div className="text-[11px] text-[#0068FF] truncate mt-0.5">{pendingLinkPreview.url}</div>
-      </div>
-      <button
-        onClick={() => setLinkPreviewDismissed(true)}
-        className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full hover:bg-[var(--hover-bg)] text-[var(--sub-text)] hover:text-red-500 transition-colors cursor-pointer"
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-      </button>
-    </div>
-    )}
 
-    {/* Smart Reply Suggestions */}
-    {isSmartReplyEnabled && smartReplies.length > 0 && !message.trim() && (
-      <div className="bg-[var(--card-bg)] border-t border-[var(--border)] px-4 py-2 flex items-center gap-2 animate-in slide-in-from-bottom-2 duration-200">
-        <div className="flex items-center gap-2 flex-1 overflow-x-auto scrollbar-hide">
-          {smartReplies.map((reply, idx) => (
+      {pendingLinkPreview && !linkPreviewDismissed && (
+        <div className="bg-[var(--card-bg)] border-t border-[var(--border)] px-4 py-2.5 flex items-start gap-3">
+          {pendingLinkPreview.thumbnail && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={pendingLinkPreview.thumbnail}
+              alt=""
+              className="w-14 h-14 object-cover rounded-lg shrink-0"
+            />
+          )}
+          <div className="flex-1 min-w-0">
+            {pendingLinkPreview.title && (
+              <div className="text-[13px] font-semibold text-[var(--text)] truncate">{pendingLinkPreview.title}</div>
+            )}
+            {pendingLinkPreview.description && (
+              <div className="text-[11px] text-[var(--sub-text)] line-clamp-2 mt-0.5">{pendingLinkPreview.description}</div>
+            )}
+            <div className="text-[11px] text-[#0068FF] truncate mt-0.5">{pendingLinkPreview.url}</div>
+          </div>
+          <button
+            onClick={() => setLinkPreviewDismissed(true)}
+            className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full hover:bg-[var(--hover-bg)] text-[var(--sub-text)] hover:text-red-500 transition-colors cursor-pointer"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+          </button>
+        </div>
+      )}
+
+      {/* Smart Reply Suggestions */}
+      {isSmartReplyEnabled && smartReplies.length > 0 && !message.trim() && (
+        <div className="bg-[var(--card-bg)] border-t border-[var(--border)] px-4 py-2 flex items-center gap-2 animate-in slide-in-from-bottom-2 duration-200">
+          <div className="flex items-center gap-2 flex-1 overflow-x-auto scrollbar-hide">
+            {smartReplies.map((reply, idx) => (
             <button
               key={idx}
               onClick={() => { handleSendMessage(reply); dismissSmartReplies(); }}

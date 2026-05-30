@@ -98,7 +98,7 @@ export function CreatePollModal({ isOpen, onClose, onSubmit }: CreatePollModalPr
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" onClick={onClose} />
       
-      <div className={`relative bg-white dark:bg-[#1E1E1E] w-full transition-all duration-300 rounded-md shadow-2xl overflow-hidden animate-in zoom-in-95 ${showSettings ? 'max-w-[800px]' : 'max-w-[480px]'}`}>
+      <div className={`relative bg-white dark:bg-[#1E1E1E] transition-all duration-300 rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 mx-auto ${showSettings ? 'w-[800px] max-w-[95vw]' : 'w-[480px] max-w-[95vw]'}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-14 border-b border-[var(--border)]">
           <h3 className="text-[17px] font-bold text-[var(--text)]">Tạo bình chọn</h3>

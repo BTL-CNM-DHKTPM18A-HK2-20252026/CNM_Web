@@ -19,11 +19,24 @@ const getLastMsgPreviewHtml = (html: string): string => {
   if (!html) return '';
   let source = html;
 
-  // Nếu content là JSON (TipTap format), extract plain text trước
-  if (source.trim().startsWith('{')) {
+  // Nếu content là JSON (TipTap format hoặc JSON array), extract plain text trước
+  const trimmed = source.trim();
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
     try {
-      const json = JSON.parse(source);
-      if (json && typeof json === 'object') {
+      const json = JSON.parse(trimmed);
+      if (Array.isArray(json)) {
+        const names = json.map((item: any) => {
+          if (typeof item === 'string') {
+            const seg = item.split('/');
+            return seg[seg.length - 1] || item;
+          }
+          if (item && typeof item === 'object') {
+            return item.fileName || item.text || (item.url ? item.url.split('/').pop() : '');
+          }
+          return '';
+        }).filter(Boolean);
+        if (names.length > 0) source = `📷 ${names.join(', ')}`;
+      } else if (json && typeof json === 'object') {
         const extract = (node: any): string => {
           if (!node) return '';
           if (node.type === 'text') return node.text ?? '';
@@ -1751,12 +1764,25 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                     }
                     if (!name) name = t('common.unknown_user');
                     const rawLastMsg = conv.lastMessageContent || conv.last_message_content || '';
-                    // Parse JSON (TipTap) → plain text, then strip remaining HTML
+                    // Parse JSON (TipTap hoặc array) → plain text, then strip remaining HTML
                     const lastMsg = (() => {
-                      if (!rawLastMsg || !rawLastMsg.trim().startsWith('{')) return stripHtml(rawLastMsg);
+                      const trimmed = rawLastMsg.trim();
+                      if (!trimmed || (!trimmed.startsWith('{') && !trimmed.startsWith('['))) return stripHtml(rawLastMsg);
                       try {
-                        const json = JSON.parse(rawLastMsg);
-                        if (json && typeof json === 'object') {
+                        const json = JSON.parse(trimmed);
+                        if (Array.isArray(json)) {
+                          const names = json.map((item: any) => {
+                            if (typeof item === 'string') {
+                              const seg = item.split('/');
+                              return seg[seg.length - 1] || item;
+                            }
+                            if (item && typeof item === 'object') {
+                              return item.fileName || item.text || (item.url ? item.url.split('/').pop() : '');
+                            }
+                            return '';
+                          }).filter(Boolean);
+                          if (names.length > 0) return `📷 ${names.join(', ')}`;
+                        } else if (json && typeof json === 'object') {
                           const extract = (node: any): string => {
                             if (!node) return '';
                             if (node.type === 'text') return node.text ?? '';
