@@ -198,6 +198,28 @@ const hasVisibleCaption = (caption?: string | null): boolean => {
   return caption.replace(/<[^>]*>/g, '').trim().length > 0;
 };
 
+/**
+ * Render caption nội dung: xử lý JSON TipTap, HTML, và text thuần.
+ * Backend có thể gửi caption dạng JSON {"type":"doc",...} (TipTap format).
+ */
+const renderCaptionContent = (caption: string) => {
+  const isHtml = /<[a-z][\s\S]*>/i.test(caption);
+  const isJson = caption.trim().startsWith('{');
+  if (isHtml) {
+    return (
+      <div className="tiptap-content" dangerouslySetInnerHTML={{ __html: replaceEmojiWithHtml(caption) }} />
+    );
+  }
+  if (isJson) {
+    // Parse TipTap JSON → HTML, rồi render
+    const html = getMessageHtml(caption);
+    return (
+      <div className="tiptap-content" dangerouslySetInnerHTML={{ __html: replaceEmojiWithHtml(html) }} />
+    );
+  }
+  return <>{caption}</>;
+};
+
 const isDifferentDay = (d1?: Date, d2?: Date) => {
   if (!d1 || !d2) return true;
   return d1.toDateString() !== d2.toDateString();
@@ -1180,11 +1202,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                           ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)]'
                                           : 'bg-[var(--message-other-bg)] text-[var(--message-other-text)]'
                                         }`}>
-                                        {/<[a-z][\s\S]*>/i.test(msg.caption!) ? (
-                                          <div className="tiptap-content" dangerouslySetInnerHTML={{ __html: replaceEmojiWithHtml(msg.caption!) }} />
-                                        ) : (
-                                          msg.caption
-                                        )}
+                                        {renderCaptionContent(msg.caption!)}
                                       </div>
                                     )}
 
@@ -1290,11 +1308,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                           ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)]'
                                           : 'bg-[var(--message-other-bg)] text-[var(--message-other-text)]'
                                         }`}>
-                                        {/<[a-z][\s\S]*>/i.test(msg.caption!) ? (
-                                          <div className="tiptap-content" dangerouslySetInnerHTML={{ __html: replaceEmojiWithHtml(msg.caption!) }} />
-                                        ) : (
-                                          msg.caption
-                                        )}
+                                        {renderCaptionContent(msg.caption!)}
                                       </div>
                                     )}
                                     {!msg.isUploading && (
@@ -1439,11 +1453,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                           ? 'bg-[#dceeff] border-[#D0E7FF] text-[#1a3a5c]'
                                           : 'bg-[#e8f3ff] border-[#E0EFFF] text-[#1a3a5c]'
                                       }`}>
-                                        {/<[a-z][\s\S]*>/i.test(msg.caption!) ? (
-                                          <div className="tiptap-content" dangerouslySetInnerHTML={{ __html: replaceEmojiWithHtml(msg.caption!) }} />
-                                        ) : (
-                                          msg.caption
-                                        )}
+                                        {renderCaptionContent(msg.caption!)}
                                       </div>
                                     )}
                                     </>
