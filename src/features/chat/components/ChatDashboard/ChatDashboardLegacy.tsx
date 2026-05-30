@@ -55,6 +55,11 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
   const [isUserDataModalOpen, setIsUserDataModalOpen] = useState(false);
   const [activeSidebar, setActiveSidebar] = useState<'info' | 'search' | null>('info');
+  const [infoSidebarView, setInfoSidebarView] = useState<'main' | 'group-management'>('main');
+
+  useEffect(() => {
+    setInfoSidebarView('main');
+  }, [selectedChatId]);
 
   // Sidebar search state (search within current conversation)
   const [sidebarSearchQuery, setSidebarSearchQuery] = useState('');
@@ -943,7 +948,17 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
             selectedChat ? (
               <>
                 <ChatWindow
-                  onToggleSidebar={(type) => setActiveSidebar(activeSidebar === type ? null : type)}
+                  onToggleSidebar={(type, subView) => {
+                    if (subView) {
+                      setInfoSidebarView(subView as 'main' | 'group-management');
+                      setActiveSidebar(type);
+                    } else {
+                      setActiveSidebar(activeSidebar === type ? null : type);
+                      if (type === 'info') {
+                        setInfoSidebarView('main');
+                      }
+                    }
+                  }}
                   activeSidebar={activeSidebar}
                   selectedChat={selectedChat}
                   currentUser={currentUser}
@@ -1003,6 +1018,8 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
                 {activeSidebar === 'info' && (
                   <ChatInfoSidebar
                     onClose={() => setActiveSidebar(null)}
+                    initialActiveView={infoSidebarView}
+                    onViewChange={setInfoSidebarView}
                     onOpenDataModal={() => setIsUserDataModalOpen(true)}
                     conversationId={selectedChat.id}
                     isGroup={!!(selectedChat as any).isGroup}

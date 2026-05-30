@@ -21,7 +21,7 @@ export interface SelectedChat {
 }
 
 export interface ChatWindowProps {
-  onToggleSidebar: (type: 'info' | 'search') => void;
+  onToggleSidebar: (type: 'info' | 'search', view?: 'main' | 'group-management') => void;
   activeSidebar: 'info' | 'search' | null;
   selectedChat: SelectedChat;
   currentUser?: any;

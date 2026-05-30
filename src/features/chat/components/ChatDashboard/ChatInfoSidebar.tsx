@@ -30,6 +30,8 @@ interface ChatInfoSidebarProps {
   onUpdateMeta?: (id: string | number, updates: { name?: string; avatar?: string }) => void;
   onTogglePin?: (id: string | number) => void;
   permissions?: any;
+  initialActiveView?: 'main' | 'group-management';
+  onViewChange?: (view: 'main' | 'group-management') => void;
 }
 
 const LINK_PLACEHOLDER_REGEX = /^\s*\[?LINK\]?\s*$/i;
@@ -60,7 +62,7 @@ const getPinnedPreviewText = (pin: any, linkItems: any[] = []) => {
   return '[Link]';
 };
 
-export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGroup, isCloud, isAi, conversationName, conversationAvatar, currentUser, onClearChat, refreshTrigger = 0, onForward, initialIsPinned: isPinned = false, groupAvatarUrls = [], onUpdateMeta, onTogglePin, permissions }: ChatInfoSidebarProps) {
+export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGroup, isCloud, isAi, conversationName, conversationAvatar, currentUser, onClearChat, refreshTrigger = 0, onForward, initialIsPinned: isPinned = false, groupAvatarUrls = [], onUpdateMeta, onTogglePin, permissions, initialActiveView, onViewChange }: ChatInfoSidebarProps) {
   const { t } = useTranslation();
   const aiQuickCommands = [
     { code: t('info.ai.quick_commands_prompt.me_name'), desc: t('info.ai.quick_commands.me_name') },
@@ -147,7 +149,17 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [isUpdatingName, setIsUpdatingName] = useState(false);
-  const [activeView, setActiveView] = useState<'main' | 'group-management'>('main');
+  const [activeView, setActiveView] = useState<'main' | 'group-management'>(initialActiveView || 'main');
+
+  useEffect(() => {
+    if (initialActiveView) {
+      setActiveView(initialActiveView);
+    }
+  }, [initialActiveView]);
+
+  useEffect(() => {
+    onViewChange?.(activeView);
+  }, [activeView, onViewChange]);
 
   // Group Management Settings State
   const [groupSettings, setGroupSettings] = useState({
