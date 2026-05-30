@@ -200,25 +200,25 @@ export function ChatInput({
           const chipCls = isPdf
             ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20'
             : isExcel
-            ? 'bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/20'
-            : 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20';
+              ? 'bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/20'
+              : 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20';
           const textCls = isPdf
             ? 'text-red-700 dark:text-red-400'
             : isExcel
-            ? 'text-green-700 dark:text-green-400'
-            : 'text-blue-700 dark:text-blue-400';
+              ? 'text-green-700 dark:text-green-400'
+              : 'text-blue-700 dark:text-blue-400';
           const xCls = isPdf
             ? 'text-red-400'
             : isExcel
-            ? 'text-green-400'
-            : 'text-blue-400';
+              ? 'text-green-400'
+              : 'text-blue-400';
           const iconColor = isPdf ? '#DC2626' : isExcel ? '#16A34A' : '#2563EB';
           return (
             <div className={`flex items-center gap-2.5 mb-2 w-fit max-w-[420px] ${chipCls} border rounded-xl px-4 py-2.5 group`}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={iconColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                 {isVideo
-                  ? <><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></>
-                  : <><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></>}
+                  ? <><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></>
+                  : <><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></>}
               </svg>
               <span className={`text-[15px] font-medium ${textCls} truncate leading-none`}>
                 {pendingAttachment.file.name}
@@ -228,7 +228,7 @@ export function ChatInput({
                 onClick={onClearAttachment}
                 className={`shrink-0 w-6 h-6 flex items-center justify-center rounded-full ${xCls} hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer ml-1`}
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
               </button>
             </div>
           );
@@ -241,9 +241,8 @@ export function ChatInput({
         <button
           type="button"
           onClick={onToggleEmoji}
-          className={`transition-colors cursor-pointer ${
-            isEmojiOpen ? 'text-[#0068FF]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'
-          }`}
+          className={`transition-colors cursor-pointer ${isEmojiOpen ? 'text-[#0068FF]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'
+            }`}
         >
           <EmojiIcon size={22} />
         </button>
@@ -252,9 +251,8 @@ export function ChatInput({
             type="button"
             onClick={handleSend}
             disabled={disabled}
-            className={`flex items-center justify-center transform translate-y-[-1px] ${
-              disabled ? 'text-gray-400 cursor-not-allowed' : 'text-[#0068FF] cursor-pointer'
-            }`}
+            className={`flex items-center justify-center transform translate-y-[-1px] ${disabled ? 'text-gray-400 cursor-not-allowed' : 'text-[#0068FF] cursor-pointer'
+              }`}
           >
             <SendIcon size={22} />
           </button>

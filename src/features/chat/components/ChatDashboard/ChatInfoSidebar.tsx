@@ -261,7 +261,15 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
     try {
       const res: any = await apiClient.get(`/conversations/${conversationId}/members`);
       const list = Array.isArray(res) ? res : (res?.data || []);
-      setMembers(list);
+      const normalized = list.map((member: any) => ({
+        ...member,
+        userId: member.userId || member.user_id || member.id,
+        displayName: member.displayName || member.display_name || member.name || member.userName,
+        userName: member.userName || member.username || member.name,
+        avatarUrl: member.avatarUrl || member.avatar_url || member.avatar,
+        role: member.role || member.groupRole || member.memberRole,
+      })).filter((member: any) => member.userId);
+      setMembers(normalized);
     } catch (e) {
       console.error('Failed to fetch members:', e);
     }

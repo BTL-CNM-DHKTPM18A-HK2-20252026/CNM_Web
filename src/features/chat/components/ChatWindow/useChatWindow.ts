@@ -147,6 +147,96 @@ const stripAiMarkdownMarkers = (content: string | null | undefined): string => {
     .replace(/\*\*/g, '');
 };
 
+const MEDIA_CONTENT_TYPES = new Set(['IMAGE', 'IMAGE_GROUP', 'VIDEO', 'MEDIA']);
+
+/**
+ * Trích xuất URL từ content JSON của tin nhắn media (IMAGE, MEDIA, VIDEO...).
+ * Backend có thể gửi content dạng JSON object { url, fileName, fileSize, ... }
+ * thay vì URL thuần. Hàm này parse và trả về URL thật để render ảnh/file.
+ */
+const extractMediaUrlFromContent = (content: string): string => {
+  if (!content) return '';
+  // Nếu là URL thuần (bắt đầu bằng http), trả về nguyên bản
+  if (/^https?:\/\//i.test(content.trim())) return content.trim();
+  // Thử parse JSON để lấy trường "url"
+  try {
+    const json = JSON.parse(content);
+    if (json && typeof json === 'object') {
+      // JSON array (IMAGE_GROUP) → trả về URL đầu tiên
+      if (Array.isArray(json)) {
+        const first = json[0];
+        if (first && typeof first === 'object') {
+          const url = first.url || first.mediaUrl || first.fileUrl || first.src || '';
+          if (url && /^https?:\/\//i.test(url)) return url;
+        }
+        if (typeof first === 'string' && /^https?:\/\//i.test(first)) return first;
+        return content; // fallback
+      }
+      const url = json.url || json.mediaUrl || json.fileUrl || json.src || '';
+      if (url && /^https?:\/\//i.test(url)) return url;
+      // Nếu có content array (TipTap image) → lấy src từ attrs
+      if (json.type === 'image' && json.attrs?.src) return json.attrs.src;
+      if (Array.isArray(json.content)) {
+        for (const node of json.content) {
+          if (node.type === 'image' && node.attrs?.src) return node.attrs.src;
+        }
+      }
+    }
+  } catch {
+    // Không phải JSON → giữ nguyên
+  }
+  return content;
+};
+
+/**
+ * Trích xuất fileName từ content JSON nếu có.
+ */
+const extractFileNameFromContent = (content: string): string | undefined => {
+  if (!content) return undefined;
+  try {
+    const json = JSON.parse(content);
+    if (json && typeof json === 'object') {
+      return json.fileName || json.originalName || json.name || undefined;
+    }
+  } catch { /* ignore */ }
+  return undefined;
+};
+
+/**
+ * Trích xuất fileSize từ content JSON nếu có.
+ */
+const extractFileSizeFromContent = (content: string): number | undefined => {
+  if (!content) return undefined;
+  try {
+    const json = JSON.parse(content);
+    if (json && typeof json === 'object' && !Array.isArray(json)) {
+      const size = json.fileSize || json.size;
+      if (typeof size === 'number') return size;
+    }
+  } catch { /* ignore */ }
+  return undefined;
+};
+
+/**
+ * Trích xuất attachments (IMAGE_GROUP) từ content JSON nếu backend gửi trong content.
+ */
+const extractAttachmentsFromContent = (content: string): any[] | undefined => {
+  if (!content) return undefined;
+  try {
+    const json = JSON.parse(content);
+    if (Array.isArray(json)) {
+      // Mảng các object { url, thumbnailUrl, ... }
+      return json.filter((item: any) => item && typeof item === 'object' && item.url);
+    }
+    if (json && typeof json === 'object' && !Array.isArray(json)) {
+      // Object đơn → wrap thành mảng
+      if (json.images && Array.isArray(json.images)) return json.images;
+      if (json.url) return [json];
+    }
+  } catch { /* ignore */ }
+  return undefined;
+};
+
 const normalizeIncomingContent = (
   content: string | null | undefined,
   senderId?: string,
@@ -157,6 +247,10 @@ const normalizeIncomingContent = (
   const normalizedType = (messageType || 'TEXT').toUpperCase();
   if (isAiSender(senderId, senderName) && AI_TEXT_TYPES.has(normalizedType)) {
     return stripAiMarkdownMarkers(normalizedContent);
+  }
+  // Với media types, trích xuất URL từ JSON content nếu có
+  if (MEDIA_CONTENT_TYPES.has(normalizedType)) {
+    return extractMediaUrlFromContent(normalizedContent);
   }
   return normalizedContent;
 };
@@ -295,8 +389,8 @@ const mapIncomingMessage = (m: any, currentUserId?: string): ChatMessage => ({
   linkDescription: m.linkDescription,
   voiceDuration: m.voiceDuration,
   videoDuration: m.videoDuration,
-  fileName: m.fileName,
-  fileSize: m.fileSize,
+  fileName: m.fileName || extractFileNameFromContent(m.content),
+  fileSize: m.fileSize || extractFileSizeFromContent(m.content),
   replyToMessageId: m.replyToMessageId || null,
   sender:
     m.senderId === 'SYSTEM'
@@ -322,7 +416,7 @@ const mapIncomingMessage = (m: any, currentUserId?: string): ChatMessage => ({
   forwardedFromSenderName: m.forwardedFromSenderName || null,
   caption: m.caption || undefined,
   mentions: m.mentions || [],
-  attachments: m.attachments || undefined,
+  attachments: m.attachments || extractAttachmentsFromContent(m.content),
 });
 
 export function useChatWindow({

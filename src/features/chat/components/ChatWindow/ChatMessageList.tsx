@@ -596,7 +596,27 @@ const getPinnedPreviewText = (pin: { messageType?: string; content?: string; lin
   const messageType = String(pin.messageType || '').toUpperCase();
   if (messageType !== 'LINK') {
     if (messageType !== 'TEXT') return `[${pin.messageType}]`;
-    return pin.content || '';
+    // Với TEXT, thử parse JSON (TipTap format) để lấy plain text
+    const content = String(pin.content || '');
+    if (content.trim().startsWith('{')) {
+      try {
+        const json = JSON.parse(content);
+        if (json && typeof json === 'object') {
+          // TipTap doc → extract text
+          const extract = (node: any): string => {
+            if (!node) return '';
+            if (node.type === 'text') return node.text ?? '';
+            if (Array.isArray(node.content)) {
+              return node.content.map(extract).join(' ');
+            }
+            return '';
+          };
+          const extracted = extract(json).trim();
+          if (extracted) return extracted;
+        }
+      } catch { /* ignore */ }
+    }
+    return content;
   }
 
   const content = String(pin.content || '').trim();
