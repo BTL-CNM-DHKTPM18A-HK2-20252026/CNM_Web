@@ -14,7 +14,7 @@ import { apiClient } from '@/lib/http/apiClient';
 import { websocketService } from '@/lib/realtime/websocketService';
 import { friendService } from '@/features/friends';
 import { PresenceProvider } from '@/features/user';
-import { messageService } from '@/features/chat';
+import { messageService } from '@/features/chat/services/messageService';
 import { SocialFeed } from '@/features/social';
 import { useTheme } from '@/themes';
 import { SunIcon, MoonIcon } from '@/components/ui/Icons';
@@ -56,10 +56,6 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
   const [isUserDataModalOpen, setIsUserDataModalOpen] = useState(false);
   const [activeSidebar, setActiveSidebar] = useState<'info' | 'search' | null>('info');
   const [infoSidebarView, setInfoSidebarView] = useState<'main' | 'group-management' | 'members'>('main');
-
-  useEffect(() => {
-    setInfoSidebarView('main');
-  }, [selectedChatId]);
 
   // Sidebar search state (search within current conversation)
   const [sidebarSearchQuery, setSidebarSearchQuery] = useState('');
@@ -130,6 +126,10 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
   const [isConversationsLoaded, setIsConversationsLoaded] = useState(false);
   const selectedChat = conversations.find(c => String(c.id) === String(selectedChatId));
   const [invitationCount, setInvitationCount] = useState(0);
+
+  useEffect(() => {
+    setInfoSidebarView('main');
+  }, [selectedChatId]);
 
   useEffect(() => {
     if (!initialChatId) return;
