@@ -123,12 +123,16 @@ export function ForwardModal({ message, currentConversationId, currentUserId, on
   };
 
   const getSnippet = () => {
+    const stripHtml = (html: string) => (html || '').replace(/<[^>]*>?/gm, '');
     switch (message.type) {
       case 'IMAGE': return 'Chia sẻ hình ảnh';
       case 'VIDEO': return 'Chia sẻ video';
       case 'MEDIA': return 'Chia sẻ tệp tin';
       case 'VOICE': return 'Chia sẻ tin nhắn thoại';
-      default: return message.text?.length > 60 ? message.text.slice(0, 60) + '...' : message.text;
+      default: {
+        const plain = stripHtml(message.text || '');
+        return plain.length > 60 ? plain.slice(0, 60) + '...' : plain;
+      }
     }
   };
 
