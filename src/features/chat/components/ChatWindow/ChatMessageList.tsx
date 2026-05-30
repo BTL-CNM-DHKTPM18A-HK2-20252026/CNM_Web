@@ -146,6 +146,285 @@ function GroupCallCard({
     </div>
   );
 }
+
+function PollCard({
+  msg,
+  currentUserId,
+  selectedChat,
+  t,
+}: {
+  msg: ChatMessage;
+  currentUserId?: string;
+  selectedChat: any;
+  t: any;
+}) {
+  const poll = msg.poll;
+  const [newOptionText, setNewOptionText] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
+  const [isSubmittingVote, setIsSubmittingVote] = useState(false);
+
+  if (!poll) {
+    return (
+      <div className="p-4 bg-white dark:bg-[#1E1E1E] rounded-xl border border-[var(--border)] shadow-sm flex items-center justify-center min-w-[280px]">
+        <div className="w-5 h-5 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin mr-2" />
+        <span className="text-[13px] text-[var(--sub-text)]">Đang tải bình chọn...</span>
+      </div>
+    );
+  }
+
+  // Calculate unique voters
+  const uniqueVoters = new Set<string>();
+  poll.options?.forEach((opt: any) => {
+    opt.voterIds?.forEach((v: string) => uniqueVoters.add(v));
+  });
+  const totalUniqueVoters = uniqueVoters.size;
+  const hasVoted = uniqueVoters.has(currentUserId || '');
+  const showResults = !poll.hideResultsBeforeVote || hasVoted;
+
+  // Local selection for multiple choices
+  const userVotes = poll.options
+    ?.filter((opt: any) => opt.voterIds?.includes(currentUserId))
+    .map((opt: any) => opt.optionId) || [];
+
+  const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>(userVotes);
+
+  useEffect(() => {
+    setSelectedOptionIds(userVotes);
+  }, [poll, currentUserId]);
+
+  const handleOptionClick = (optionId: string) => {
+    if (poll.deadline && new Date(poll.deadline).getTime() < Date.now()) {
+      toast.error('Bình chọn này đã kết thúc!');
+      return;
+    }
+
+    if (poll.multipleChoices) {
+      setSelectedOptionIds(prev =>
+        prev.includes(optionId) ? prev.filter(id => id !== optionId) : [...prev, optionId]
+      );
+    } else {
+      submitVote([optionId]);
+    }
+  };
+
+  const submitVote = async (optionIds: string[]) => {
+    setIsSubmittingVote(true);
+    try {
+      await apiClient.post(`/polls/${poll.pollId}/vote`, { optionIds });
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Không thể thực hiện bình chọn');
+    } finally {
+      setIsSubmittingVote(false);
+    }
+  };
+
+  const handleAddOptionSubmit = async () => {
+    if (!newOptionText.trim()) return;
+    try {
+      await apiClient.post(`/polls/${poll.pollId}/options`, { content: newOptionText.trim() });
+      setNewOptionText('');
+      setIsAdding(false);
+      toast.success('Thêm phương án thành công!');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Không thể thêm phương án');
+    }
+  };
+
+  const getVoterInfo = (voterId: string) => {
+    const member = selectedChat?.members?.find((m: any) => (m.userId || m.user_id) === voterId);
+    if (member) {
+      return {
+        displayName: member.displayName || member.display_name || member.name || voterId,
+        avatarUrl: member.avatarUrl || member.avatar_url || member.avatar || null
+      };
+    }
+    return {
+      displayName: voterId === currentUserId ? 'Bạn' : 'Thành viên',
+      avatarUrl: null
+    };
+  };
+
+  const hasChanges =
+    selectedOptionIds.length !== userVotes.length ||
+    !selectedOptionIds.every(id => userVotes.includes(id));
+
+  return (
+    <div className="w-[300px] sm:w-[340px] rounded-xl border border-[var(--border)] bg-white dark:bg-[#1E1E1E] overflow-hidden shadow-md transition-all duration-300">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-[#0068FF] to-[#0095FF] px-4 py-3 text-white">
+        <div className="flex items-center gap-2">
+          <span className="text-[20px]">📊</span>
+          <div>
+            <div className="text-[12px] font-extrabold tracking-wider opacity-90 uppercase">Bình chọn nhóm</div>
+            <div className="text-[14px] font-bold mt-0.5 line-clamp-2">{poll.question}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Settings status bar */}
+      <div className="px-4 py-1.5 bg-gray-50 dark:bg-black/10 border-b border-[var(--border)] text-[11px] text-[var(--sub-text)] flex justify-between items-center flex-wrap gap-1">
+        <span>{poll.multipleChoices ? 'Chọn nhiều phương án' : 'Chọn một phương án'}</span>
+        {poll.hideVoters && <span className="bg-gray-200 dark:bg-white/10 px-1.5 py-0.5 rounded">Ẩn danh</span>}
+      </div>
+
+      {/* Body: Options */}
+      <div className="p-4 space-y-3.5">
+        {poll.options?.map((opt: any) => {
+          const optVotes = opt.voterIds?.length || 0;
+          const percent = totalUniqueVoters > 0 ? Math.round((optVotes / totalUniqueVoters) * 100) : 0;
+          const isSelected = selectedOptionIds.includes(opt.optionId);
+
+          return (
+            <div key={opt.optionId} className="space-y-1">
+              <div 
+                onClick={() => handleOptionClick(opt.optionId)}
+                className={`relative flex items-center justify-between p-2.5 rounded-lg border transition-all cursor-pointer ${
+                  isSelected 
+                    ? 'border-[#0068FF]/50 bg-blue-50/20 dark:bg-blue-500/10' 
+                    : 'border-[var(--border)] hover:border-gray-300 dark:hover:border-white/20'
+                }`}
+              >
+                {/* Background Progress Bar */}
+                {showResults && (
+                  <div 
+                    className="absolute left-0 top-0 bottom-0 bg-[#E1EDFF] dark:bg-[#0068FF]/15 transition-all duration-500 rounded-l-lg" 
+                    style={{ width: `${percent}%`, zIndex: 0 }}
+                  />
+                )}
+
+                {/* Option Text and Check/Radio */}
+                <div className="flex items-center gap-2.5 z-10 min-w-0 pr-4">
+                  <div className="shrink-0 flex items-center justify-center">
+                    {poll.multipleChoices ? (
+                      <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                        isSelected 
+                          ? 'border-[#0068FF] bg-[#0068FF] text-white' 
+                          : 'border-gray-300 dark:border-white/20 bg-white dark:bg-[#1E1E1E]'
+                      }`}>
+                        {isSelected && (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                        )}
+                      </div>
+                    ) : (
+                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${
+                        isSelected 
+                          ? 'border-[#0068FF] bg-white dark:bg-[#1E1E1E]' 
+                          : 'border-gray-300 dark:border-white/20 bg-white dark:bg-[#1E1E1E]'
+                      }`}>
+                        {isSelected && (
+                          <div className="w-2.5 h-2.5 rounded-full bg-[#0068FF]" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-[14px] text-[var(--text)] font-medium break-words leading-tight">{opt.content}</span>
+                </div>
+
+                {/* Percent / Vote Count */}
+                {showResults && (
+                  <div className="z-10 shrink-0 text-right">
+                    <span className="text-[13px] font-bold text-[#0068FF]">{percent}%</span>
+                    <span className="text-[11px] text-[var(--sub-text)] block">{optVotes} phiếu</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Voter Avatars */}
+              {!poll.hideVoters && showResults && opt.voterIds && opt.voterIds.length > 0 && (
+                <div className="flex items-center gap-1.5 pl-8 mt-1">
+                  <div className="flex -space-x-1.5 overflow-hidden">
+                    {opt.voterIds.slice(0, 5).map((vId: string) => {
+                      const vInfo = getVoterInfo(vId);
+                      return (
+                        <div key={vId} className="w-5.5 h-5.5 rounded-full overflow-hidden border border-white dark:border-[#1E1E1E] bg-blue-50 flex items-center justify-center shrink-0" title={vInfo.displayName}>
+                          {vInfo.avatarUrl ? (
+                            <img src={vInfo.avatarUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-[8px] font-extrabold text-blue-600">{vInfo.displayName.charAt(0).toUpperCase()}</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {opt.voterIds.length > 5 && (
+                    <span className="text-[11px] text-[var(--sub-text)]">+{opt.voterIds.length - 5}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Multiple Choices Action Bar */}
+      {poll.multipleChoices && hasChanges && (
+        <div className="px-4 pb-4">
+          <button
+            onClick={() => submitVote(selectedOptionIds)}
+            disabled={isSubmittingVote}
+            className="w-full h-9 rounded-lg bg-[#0068FF] hover:bg-[#0052CC] text-white text-[13px] font-bold shadow transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
+          >
+            {isSubmittingVote ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              'Xác nhận bình chọn'
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Footer Actions: Add Option */}
+      {poll.allowAddOptions && (
+        <div className="border-t border-[var(--border)] p-3.5 bg-gray-50/50 dark:bg-black/5">
+          {isAdding ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Nhập phương án mới..."
+                value={newOptionText}
+                onChange={e => setNewOptionText(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleAddOptionSubmit();
+                  if (e.key === 'Escape') {
+                    setIsAdding(false);
+                    setNewOptionText('');
+                  }
+                }}
+                className="flex-1 h-9 px-3 bg-white dark:bg-black/20 border border-[var(--border)] rounded outline-none focus:border-[#0068FF] text-[13px] text-[var(--text)]"
+                autoFocus
+              />
+              <button
+                onClick={handleAddOptionSubmit}
+                disabled={!newOptionText.trim()}
+                className="h-9 px-3 rounded bg-[#0068FF] hover:bg-[#0052CC] text-white text-[13px] font-semibold transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Thêm
+              </button>
+              <button
+                onClick={() => {
+                  setIsAdding(false);
+                  setNewOptionText('');
+                }}
+                className="h-9 w-9 rounded flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/10 text-gray-400 cursor-pointer"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsAdding(true)}
+              className="flex items-center justify-center gap-1.5 text-[#0068FF] hover:text-[#005AE0] text-[13px] font-bold w-full py-1 rounded transition-colors cursor-pointer"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+              Thêm phương án
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 
 const getFileNameFromUrl = (url: string) => {
@@ -1464,7 +1743,9 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                     )}
                                     </>
                                   );
-                                })() : (
+                                })() : msg.type === 'POLL' ? (
+                                  <PollCard msg={msg} currentUserId={currentUser?.id} selectedChat={selectedChat} t={t} />
+                                ) : (
                                   <div className={`${showTimestamp || msg.isEdited ? 'pb-5' : 'pb-1'} relative min-h-[48px] flex flex-col justify-between`}>
                                     <div className="block break-words whitespace-pre-wrap leading-normal text-[15px]">
                                       {msg.type === 'VOICE' ? (

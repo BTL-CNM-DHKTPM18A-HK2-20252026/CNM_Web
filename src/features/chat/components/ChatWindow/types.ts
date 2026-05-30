@@ -147,6 +147,7 @@ export interface ChatMessage {
   uploadProgress?: number;
   mentions?: string[];
   attachments?: AttachmentItem[];
+  poll?: any;
 }
 
 export interface ReadReceipt {

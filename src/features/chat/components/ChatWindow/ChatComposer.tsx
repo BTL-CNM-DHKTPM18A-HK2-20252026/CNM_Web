@@ -679,10 +679,9 @@ return (
       isOpen={isPollModalOpen}
       onClose={() => setIsPollModalOpen(false)}
       onSubmit={(data) => {
-        console.log('Poll created:', data);
         setIsPollModalOpen(false);
+        handleSendMessage(JSON.stringify(data), 'POLL');
         toast.success('Đã tạo bình chọn!');
-        // Future: Implement actual message sending with POLL type
       }}
     />
     <CreateReminderModal

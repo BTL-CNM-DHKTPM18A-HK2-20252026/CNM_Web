@@ -417,6 +417,7 @@ const mapIncomingMessage = (m: any, currentUserId?: string): ChatMessage => ({
   caption: m.caption || undefined,
   mentions: m.mentions || [],
   attachments: m.attachments || extractAttachmentsFromContent(m.content),
+  poll: m.poll || null,
 });
 
 export function useChatWindow({
@@ -1505,6 +1506,7 @@ export function useChatWindow({
             fileName: newMsg.fileName || fileName,
             fileSize: newMsg.fileSize || fileSize,
             isUploading: false,
+            poll: newMsg.poll || null,
           };
 
           if (effectiveOptimisticId) {
@@ -2554,6 +2556,20 @@ export function useChatWindow({
               }
               return messageItem;
             }));
+            return;
+          }
+
+          if (raw.type === 'POLL_VOTE_UPDATE' || raw.type === 'POLL_UPDATE' || newMsg.type === 'POLL_VOTE_UPDATE' || newMsg.type === 'POLL_UPDATE') {
+            const eventPollId = raw.pollId || newMsg.pollId;
+            const updatedPoll = raw.poll || newMsg.poll;
+            if (eventPollId && updatedPoll) {
+              setMessages(prev => prev.map(messageItem => {
+                if (messageItem.type === 'POLL' && messageItem.poll?.pollId === eventPollId) {
+                  return { ...messageItem, poll: updatedPoll };
+                }
+                return messageItem;
+              }));
+            }
             return;
           }
 

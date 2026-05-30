@@ -4,7 +4,16 @@ import { SettingsIcon, HelpIcon, ClockIcon } from '@/components/ui/Icons';
 interface CreatePollModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: { question: string; options: string[] }) => void;
+  onSubmit: (data: {
+    question: string;
+    options: string[];
+    deadline?: string;
+    isPinned?: boolean;
+    multipleChoices?: boolean;
+    allowAddOptions?: boolean;
+    hideResultsBeforeVote?: boolean;
+    hideVoters?: boolean;
+  }) => void;
 }
 
 export function CreatePollModal({ isOpen, onClose, onSubmit }: CreatePollModalProps) {
@@ -52,10 +61,36 @@ export function CreatePollModal({ isOpen, onClose, onSubmit }: CreatePollModalPr
   const handleSubmit = useCallback(() => {
     const validOptions = options.map(o => o.trim()).filter(Boolean);
     if (!question.trim() || validOptions.length < 2) return;
-    onSubmit({ question: question.trim(), options: validOptions });
+    onSubmit({
+      question: question.trim(),
+      options: validOptions,
+      deadline: deadline || undefined,
+      isPinned,
+      multipleChoices,
+      allowAddOptions,
+      hideResultsBeforeVote,
+      hideVoters,
+    });
     setQuestion('');
     setOptions(['', '']);
-  }, [question, options, onSubmit]);
+    setDeadline('');
+    setIsPinned(false);
+    setMultipleChoices(true);
+    setAllowAddOptions(true);
+    setHideResultsBeforeVote(false);
+    setHideVoters(false);
+    setShowSettings(false);
+  }, [
+    question,
+    options,
+    onSubmit,
+    deadline,
+    isPinned,
+    multipleChoices,
+    allowAddOptions,
+    hideResultsBeforeVote,
+    hideVoters,
+  ]);
 
   if (!isOpen) return null;
 
@@ -250,7 +285,11 @@ export function CreatePollModal({ isOpen, onClose, onSubmit }: CreatePollModalPr
             <button 
               onClick={handleSubmit}
               disabled={!question.trim() || options.filter(o => o.trim()).length < 2}
-              className="h-10 px-6 rounded bg-[#B9D5FF] text-white font-semibold transition-colors cursor-pointer disabled:cursor-not-allowed"
+              className={`h-10 px-6 rounded font-semibold transition-colors cursor-pointer disabled:cursor-not-allowed ${
+                (!question.trim() || options.filter(o => o.trim()).length < 2)
+                  ? 'bg-[#B9D5FF] text-white'
+                  : 'bg-[#0068FF] hover:bg-[#005AE0] text-white'
+              }`}
             >
               Tạo bình chọn
             </button>
