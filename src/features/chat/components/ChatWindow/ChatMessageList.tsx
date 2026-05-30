@@ -938,7 +938,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                       <div className="flex justify-center my-1">
                         <div className="flex items-center gap-1.5 px-2 py-0.5 max-w-[85%]">
                           {msg.type === 'MESSAGE_PIN' ? (
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                               <path d="M12 17v5" /><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z" />
                             </svg>
                           ) : (
@@ -947,14 +947,14 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                               <line x1="3" y1="3" x2="21" y2="21" stroke="#f97316" strokeWidth="2" />
                             </svg>
                           )}
-                          <span className="text-[12px] text-[var(--sub-text)] leading-snug">
-                            <span>{msg.sender === 'Me' ? 'Bạn' : msg.sender}</span>
+                          <span className="text-[12px] leading-snug" style={{ color: msg.type === 'MESSAGE_PIN' ? '#0068FF' : '#f97316' }}>
+                            <span className="font-medium">{msg.sender === 'Me' ? 'Bạn' : msg.sender}</span>
                             {msg.type === 'MESSAGE_PIN' ? ' đã ghim tin nhắn' : ' đã bỏ ghim tin nhắn'}
                             {msg.text ? (
                               <>
                                 <span>: </span>
-                                <span className="font-medium text-[var(--text)]">
-                                  "{msg.text.length > 45 ? `${msg.text.slice(0, 45)}...` : msg.text}"
+                                <span className="font-medium">
+                                  "{(getPlainTextFromMessage(msg.text).length > 45 ? `${getPlainTextFromMessage(msg.text).slice(0, 45)}...` : getPlainTextFromMessage(msg.text))}"
                                 </span>
                               </>
                             ) : (
@@ -976,17 +976,23 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                           </span>
                         </div>
                       </div>
-                    ) : msg.type === 'SYSTEM' ? (
+                    ) : msg.type === 'SYSTEM' ? (() => {
+                      const sysText = msg.text || '';
+                      const isAdd = sysText.includes('đã thêm') || sysText.includes('đã tham gia');
+                      const isRemove = sysText.includes('đã rời') || sysText.includes('đã xóa');
+                      const sysColor = isAdd ? '#22c55e' : isRemove ? '#ef4444' : '#6b7280';
+                      return (
                       <div className="flex justify-center my-1.5">
                         <div className="flex items-center gap-1.5 bg-white border border-gray-200 px-3.5 py-1.5 rounded-2xl max-w-[85%] shadow-sm">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="shrink-0 text-[#f97316]" aria-hidden="true">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="shrink-0" style={{ color: sysColor }} aria-hidden="true">
                             <path d="M12 2.75a6.25 6.25 0 0 0-6.25 6.25v3.41c0 .58-.23 1.13-.64 1.54l-1.3 1.3A1 1 0 0 0 4.52 17h14.96a1 1 0 0 0 .71-1.71l-1.3-1.3a2.18 2.18 0 0 1-.64-1.54V9A6.25 6.25 0 0 0 12 2.75Z" />
                             <circle cx="12" cy="18.25" r="1.75" />
                           </svg>
-                          <span className="text-[12px] text-gray-500 leading-snug break-words">{msg.text}</span>
+                          <span className="text-[12px] leading-snug break-words" style={{ color: sysColor }}>{msg.text}</span>
                         </div>
                       </div>
-                    ) : msg.type === 'CALL_MISSED' || msg.type === 'CALL_REJECTED' || msg.type === 'CALL_ENDED' ? (
+                      );
+                    })() : msg.type === 'CALL_MISSED' || msg.type === 'CALL_REJECTED' || msg.type === 'CALL_ENDED' ? (
                       <div
                         id={`msg-${msg.id}`}
                         className={`flex ${String(msg.senderId ?? '') === String(currentUser?.id ?? '') || msg.sender === 'Me' ? 'justify-end pr-1' : 'justify-start'} -mx-4 px-4 rounded-none transition-colors duration-300 [&.highlight-msg]:bg-[#C6D4E4]`}

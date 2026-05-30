@@ -811,7 +811,7 @@ export function ChatHeader({ vm }: ChatHeaderProps) {
 
                   <button type="button" onClick={() => { setIsGroupInfoModalOpen(false); onToggleSidebar('info'); }} className="w-full flex items-center gap-3 text-left cursor-pointer text-[#D22929] rounded-md px-2 py-1.5 -mx-1.5 transition-colors hover:bg-[#FBEAEC]">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
-                    <span className="text-[13px] leading-none font-medium">Rời nhóm</span>
+                    <span className="text-[13px] leading-none font-medium">{t('group.leave.title') || 'Rời nhóm'}</span>
                   </button>
                 </div>
               </>

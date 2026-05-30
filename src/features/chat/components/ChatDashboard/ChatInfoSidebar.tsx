@@ -274,7 +274,9 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
   const currentUserRole = meInGroup?.role;
   const isAdmin = currentUserRole === 'ADMIN';
   const isDeputy = currentUserRole === 'DEPUTY';
-  const canAddMembers = isAdmin || isDeputy;
+  // Khi isMemberApprovalRequired = false (mặc định): ai cũng có thể thêm thành viên
+  // Khi isMemberApprovalRequired = true: chỉ ADMIN/DEPUTY mới được thêm
+  const canAddMembers = !groupSettings.memberApproval || isAdmin || isDeputy;
 
   const fetchMembers = useCallback(async () => {
     try {
@@ -698,7 +700,8 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
           </h2>
         </div>
         <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col min-h-0">
-          {/* Add Member Button */}
+          {/* Add Member Button — hiển thị dựa trên quyền memberApproval */}
+          {canAddMembers && (
           <button
             onClick={openAddMemberPanel}
             className="w-full py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-[var(--text)] font-semibold text-[13px] rounded-md flex items-center justify-center gap-2 transition-colors cursor-pointer mb-4 shrink-0"
@@ -706,6 +709,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" /></svg>
             Thêm thành viên
           </button>
+          )}
 
           {/* List Header */}
           <div className="text-[13px] font-semibold text-[var(--text)] mb-3 shrink-0">
@@ -939,12 +943,14 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                     </span>
                   </div>
 
+                  {canAddMembers && (
                   <div className="flex flex-col items-center gap-1.5 group cursor-pointer w-1/4" onClick={openAddMemberPanel}>
                     <div className="w-11 h-11 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 flex items-center justify-center group-hover:bg-gray-200 transition-all">
                       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" /></svg>
                     </div>
                     <span className="text-[12px] font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">Thêm thành viên</span>
                   </div>
+                  )}
 
                   <div className="flex flex-col items-center gap-1.5 group cursor-pointer w-1/4" onClick={() => setActiveView('group-management')}>
                     <div className="w-11 h-11 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 flex items-center justify-center group-hover:bg-gray-200 transition-all">
@@ -1290,7 +1296,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                 className="w-full py-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-md text-[13px] font-bold transition-all cursor-pointer flex items-center justify-center gap-2 border border-red-200 dark:border-red-900/50"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
-                Rời nhóm
+                {t('group.leave.title') || 'Rời nhóm'}
               </button>
               {isAdmin && (
                 <button
@@ -1298,7 +1304,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                   className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-md text-[13px] font-bold transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
-                  Giải tán nhóm
+                  {t('group.disband.title') || 'Giải tán nhóm'}
                 </button>
               )}
             </div>

@@ -1444,7 +1444,14 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
                                 const initials = msg.senderName?.split(' ').slice(-2).map((w: string) => w[0]).join('').toUpperCase() || '?';
 
                                 return (
-                                  <div key={msg.messageId}>
+                                  <div
+                                    key={msg.messageId}
+                                    onClick={() => {
+                                      if (msg.messageId) {
+                                        setTargetMessageId(msg.messageId);
+                                      }
+                                    }}
+                                  >
                                     {idx > 0 && <div className="border-t border-[var(--border)]" />}
                                     <div className="py-3 flex items-start gap-3 cursor-pointer hover:bg-[var(--hover-bg)] rounded-lg px-1 transition-colors">
                                       {/* Avatar */}
