@@ -135,7 +135,6 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
   };
 
   // Group member management state
-  const [showMembers, setShowMembers] = React.useState(true);
   const [members, setMembers] = useState<any[]>([]);
   const [showAddMember, setShowAddMember] = useState(false);
   const [friendsList, setFriendsList] = useState<any[]>([]);
@@ -1018,109 +1017,22 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
           </div>
         )}
 
-        {/* Group Members Section */}
+        {/* Group Members Entry */}
         {isGroup && (
           <div className="border-b border-[var(--border)] transition-colors duration-200">
-            <div
-              onClick={() => setShowMembers(!showMembers)}
-              className="p-4 flex items-center justify-between hover:bg-[var(--hover-bg)] cursor-pointer transition-colors"
+            <button
+              type="button"
+              onClick={() => setActiveView('members')}
+              className="w-full px-4 py-3 flex items-center gap-2 text-left text-[13px] text-[var(--sub-text)] font-normal bg-transparent border-none outline-none hover:text-[#0068FF] transition-colors cursor-pointer"
             >
-              <div className="flex items-center gap-2">
-                <span className="text-[14px] font-bold text-[var(--text)]">Thành viên nhóm</span>
-              </div>
-              <span className={`text-[var(--sub-text)] transition-transform duration-200 ${!showMembers ? '-rotate-90' : ''}`}>
-                <ChevronDownIcon size={16} />
-              </span>
-            </div>
-
-            {showMembers && (
-              <div className="px-2 pb-4 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200 max-h-[300px] overflow-y-auto custom-scrollbar">
-                {members.map((member) => {
-                  const isMemberAdmin = member.role === 'ADMIN';
-                  const isMemberDeputy = member.role === 'DEPUTY';
-                  const isMe = String(member.userId) === String(currentUser?.id || currentUser?.user_id);
-
-                  return (
-                    <div
-                      key={member.userId}
-                      className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/member relative"
-                    >
-                      <div className="relative w-9 h-9 shrink-0">
-                        {member.avatarUrl || member.avatar ? (
-                          <img src={member.avatarUrl || member.avatar} alt="" className="w-full h-full rounded-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-[#0068FF] font-bold text-sm">
-                            {(member.displayName || member.userName || 'U')[0]}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0 pr-16">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span className="text-[13px] font-semibold text-[var(--text)] truncate">
-                            {member.displayName || member.userName}
-                            {isMe && <span className="ml-1 text-gray-400 font-normal text-[11px]">(Bạn)</span>}
-                          </span>
-                        </div>
-                        <div className="flex gap-1 mt-0.5">
-                          {isMemberAdmin && (
-                            <span className="px-1 py-0.5 rounded bg-orange-50 text-orange-600 dark:bg-orange-950/20 dark:text-orange-400 text-[9px] font-bold uppercase shrink-0">Trưởng nhóm</span>
-                          )}
-                          {isMemberDeputy && (
-                            <span className="px-1 py-0.5 rounded bg-blue-50 text-blue-600 dark:bg-blue-950/20 dark:text-blue-400 text-[9px] font-bold uppercase shrink-0">Phó nhóm</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Hover Actions in Sidebar */}
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 bg-gradient-to-l from-[var(--card-bg)] via-[var(--card-bg)] to-transparent pl-3 py-1 opacity-0 group-hover/member:opacity-100 transition-opacity">
-                        {!isMe && isAdmin && (
-                          <>
-                            {/* Chuyển Trưởng nhóm */}
-                            <button
-                              onClick={() => handleTransferOwnership(member.userId, member.displayName || member.userName)}
-                              className="w-7 h-7 flex items-center justify-center text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 rounded-full transition-colors cursor-pointer"
-                              title="Chuyển trưởng nhóm"
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z" /><path d="M3 20h18" /></svg>
-                            </button>
-
-                            {/* Phong/Gỡ Phó nhóm */}
-                            {isMemberDeputy ? (
-                              <button
-                                onClick={() => handleChangeRole(member.userId, member.displayName || member.userName, 'MEMBER')}
-                                className="w-7 h-7 flex items-center justify-center text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-500/10 rounded-full transition-colors cursor-pointer"
-                                title="Gỡ phó nhóm"
-                              >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><line x1="9" y1="12" x2="15" y2="12" /></svg>
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleChangeRole(member.userId, member.displayName || member.userName, 'DEPUTY')}
-                                className="w-7 h-7 flex items-center justify-center text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-full transition-colors cursor-pointer"
-                                title="Phong phó nhóm"
-                              >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><polyline points="9 11 12 14 15 8" /></svg>
-                              </button>
-                            )}
-                          </>
-                        )}
-
-                        {/* Mời ra khỏi nhóm */}
-                        {!isMe && !isMemberAdmin && (isAdmin || (isDeputy && !isMemberDeputy)) && (
-                          <button
-                            onClick={() => handleRemoveMember(member.userId, member.displayName || member.userName)}
-                            className="w-7 h-7 flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-full transition-colors cursor-pointer"
-                            title="Mời ra khỏi nhóm"
-                          >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="18" y1="8" x2="23" y2="13" /><line x1="23" y1="8" x2="18" y2="13" /></svg>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              <span>{members.length} thành viên nhóm</span>
+            </button>
           </div>
         )}
 
