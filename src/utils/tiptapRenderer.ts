@@ -1,30 +1,3 @@
-import { generateHTML } from '@tiptap/html';
-import { StarterKit } from '@tiptap/starter-kit';
-import { Underline } from '@tiptap/extension-underline';
-import { TextStyle } from '@tiptap/extension-text-style';
-import { Color } from '@tiptap/extension-color';
-import { Strike } from '@tiptap/extension-strike';
-import { Highlight } from '@tiptap/extension-highlight';
-import { Image as TiptapImage } from '@tiptap/extension-image';
-
-// Lazy load extensions to guarantee they are initialized after all bundler imports are resolved
-let cachedExtensions: any[] | null = null;
-
-function getExtensions() {
-  if (!cachedExtensions) {
-    cachedExtensions = [
-      StarterKit,
-      Underline,
-      TextStyle,
-      Color,
-      Strike,
-      Highlight,
-      TiptapImage,
-    ];
-  }
-  return cachedExtensions;
-}
-
 /**
  * Converts a Tiptap JSON string to HTML.
  * If the input is not valid Tiptap JSON, returns the original string (backward compatible).
@@ -34,7 +7,7 @@ export function getMessageHtml(text: string): string {
   try {
     const json = JSON.parse(text);
     if (json && typeof json === 'object' && json.type === 'doc') {
-      return generateHTML(json, getExtensions());
+      return renderTiptapNode(json);
     }
     return text;
   } catch {
@@ -57,6 +30,84 @@ export function getPlainTextFromMessage(text: string): string {
     // Fallback: strip HTML tags if any, then return
   }
   return text.replace(/<[^>]*>/g, '').trim();
+}
+
+function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function renderTiptapNode(node: any): string {
+  if (!node) return '';
+
+  if (node.type === 'text') {
+    let html = escapeHtml(node.text || '');
+    if (Array.isArray(node.marks)) {
+      for (const mark of node.marks) {
+        if (mark.type === 'bold') {
+          html = `<strong>${html}</strong>`;
+        } else if (mark.type === 'italic') {
+          html = `<em>${html}</em>`;
+        } else if (mark.type === 'underline') {
+          html = `<u>${html}</u>`;
+        } else if (mark.type === 'strike') {
+          html = `<s>${html}</s>`;
+        } else if (mark.type === 'textStyle') {
+          const color = mark.attrs?.color;
+          if (color) {
+            html = `<span style="color: ${color}">${html}</span>`;
+          }
+        } else if (mark.type === 'highlight') {
+          const color = mark.attrs?.color;
+          if (color) {
+            html = `<span style="background-color: ${color}">${html}</span>`;
+          } else {
+            html = `<mark>${html}</mark>`;
+          }
+        }
+      }
+    }
+    return html;
+  }
+
+  if (node.type === 'image') {
+    const src = node.attrs?.src || '';
+    const alt = node.attrs?.alt || '';
+    const title = node.attrs?.title || '';
+    return `<img src="${src}" alt="${alt}" title="${title}" class="inline-block w-6 h-6 mx-0.5 align-text-bottom" />`;
+  }
+
+  // Process children recursively
+  let childrenHtml = '';
+  if (Array.isArray(node.content)) {
+    childrenHtml = node.content.map(renderTiptapNode).join('');
+  }
+
+  // Wrap in block tag
+  if (node.type === 'paragraph') {
+    return `<p>${childrenHtml}</p>`;
+  } else if (node.type === 'heading') {
+    const level = node.attrs?.level || 1;
+    return `<h${level}>${childrenHtml}</h${level}>`;
+  } else if (node.type === 'bulletList') {
+    return `<ul>${childrenHtml}</ul>`;
+  } else if (node.type === 'orderedList') {
+    return `<ol>${childrenHtml}</ol>`;
+  } else if (node.type === 'listItem') {
+    return `<li>${childrenHtml}</li>`;
+  } else if (node.type === 'blockquote') {
+    return `<blockquote>${childrenHtml}</blockquote>`;
+  } else if (node.type === 'hardBreak') {
+    return `<br />`;
+  } else if (node.type === 'doc') {
+    return childrenHtml;
+  }
+
+  return childrenHtml;
 }
 
 function extractPlainText(node: any): string {
