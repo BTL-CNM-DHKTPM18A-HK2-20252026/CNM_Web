@@ -30,8 +30,8 @@ interface ChatInfoSidebarProps {
   onUpdateMeta?: (id: string | number, updates: { name?: string; avatar?: string }) => void;
   onTogglePin?: (id: string | number) => void;
   permissions?: any;
-  initialActiveView?: 'main' | 'group-management';
-  onViewChange?: (view: 'main' | 'group-management') => void;
+  initialActiveView?: 'main' | 'group-management' | 'members';
+  onViewChange?: (view: 'main' | 'group-management' | 'members') => void;
 }
 
 const LINK_PLACEHOLDER_REGEX = /^\s*\[?LINK\]?\s*$/i;
@@ -149,7 +149,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [isUpdatingName, setIsUpdatingName] = useState(false);
-  const [activeView, setActiveView] = useState<'main' | 'group-management'>(initialActiveView || 'main');
+  const [activeView, setActiveView] = useState<'main' | 'group-management' | 'members'>(initialActiveView || 'main');
 
   useEffect(() => {
     if (initialActiveView) {
@@ -657,6 +657,145 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
     );
   }
 
+  if (activeView === 'members') {
+    return (
+      <div className="w-[340px] flex flex-col h-full bg-[var(--card-bg)] border-l border-[var(--border)] transition-colors duration-200">
+        <div className="h-[76px] flex items-center border-b border-[var(--border)] shrink-0 px-4">
+          <button
+            onClick={() => setActiveView('main')}
+            className="w-8 h-8 rounded-full hover:bg-[var(--hover-bg)] flex items-center justify-center text-[var(--sub-text)] cursor-pointer mr-2 transition-colors"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6" /></svg>
+          </button>
+          <h2 className="text-[17px] font-bold text-[var(--text)] flex-1 text-center pr-8">
+            Thành viên
+          </h2>
+        </div>
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col min-h-0">
+          {/* Add Member Button */}
+          <button
+            onClick={openAddMemberPanel}
+            className="w-full py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-[var(--text)] font-semibold text-[13px] rounded-md flex items-center justify-center gap-2 transition-colors cursor-pointer mb-4 shrink-0"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" /></svg>
+            Thêm thành viên
+          </button>
+
+          {/* List Header */}
+          <div className="text-[13px] font-semibold text-[var(--text)] mb-3 shrink-0">
+            Danh sách thành viên ({members.length})
+          </div>
+
+          {/* Members List */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1 pr-1 min-h-0">
+            {members.map((member) => {
+              const isMemberAdmin = member.role === 'ADMIN';
+              const isMemberDeputy = member.role === 'DEPUTY';
+              const isMe = String(member.userId) === String(currentUser?.id || currentUser?.user_id);
+
+              return (
+                <div
+                  key={member.userId}
+                  className="flex items-center gap-3 py-2 rounded-lg relative hover:bg-[var(--hover-bg)]/40 px-1.5 group/member"
+                >
+                  <div className="relative w-10 h-10 shrink-0">
+                    {member.avatarUrl || member.avatar ? (
+                      <img src={member.avatarUrl || member.avatar} alt="" className="w-full h-full rounded-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-[#0068FF] font-bold">
+                        {(member.displayName || member.userName || 'U')[0]}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 pr-8">
+                    <div className="text-[13px] font-semibold text-[var(--text)] truncate">
+                      {member.displayName || member.userName}
+                      {isMe && <span className="ml-1 text-gray-400 font-normal text-[11px]">(Bạn)</span>}
+                    </div>
+                    <div className="text-[11px] text-gray-500 mt-0.5">
+                      {isMemberAdmin ? 'Trưởng nhóm' : isMemberDeputy ? 'Phó nhóm' : 'Thành viên'}
+                    </div>
+                  </div>
+
+                  {/* Member action trigger */}
+                  {!isMe && (
+                    <div className="relative">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenuId(openMenuId === member.userId ? null : member.userId);
+                        }}
+                        className="w-8 h-8 rounded-full hover:bg-[var(--hover-bg)] flex items-center justify-center text-[var(--sub-text)] cursor-pointer"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="19" r="1.5" /></svg>
+                      </button>
+
+                      {/* Floating Action Menu dropdown */}
+                      {openMenuId === member.userId && (
+                        <>
+                          <div className="fixed inset-0 z-30" onClick={() => setOpenMenuId(null)} />
+                          <div className="absolute right-0 mt-1 w-44 bg-[var(--card-bg)] border border-[var(--border)] rounded-md shadow-lg z-40 py-1 animate-in fade-in duration-100">
+                            {isAdmin && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setOpenMenuId(null);
+                                    handleTransferOwnership(member.userId, member.displayName || member.userName);
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-[13px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-colors flex items-center gap-2 cursor-pointer"
+                                >
+                                  Chuyển trưởng nhóm
+                                </button>
+
+                                {isMemberDeputy ? (
+                                  <button
+                                    onClick={() => {
+                                      setOpenMenuId(null);
+                                      handleChangeRole(member.userId, member.displayName || member.userName, 'MEMBER');
+                                    }}
+                                    className="w-full px-4 py-2 text-left text-[13px] text-orange-500 hover:bg-[var(--hover-bg)] transition-colors flex items-center gap-2 cursor-pointer"
+                                  >
+                                    Gỡ quyền phó nhóm
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setOpenMenuId(null);
+                                      handleChangeRole(member.userId, member.displayName || member.userName, 'DEPUTY');
+                                    }}
+                                    className="w-full px-4 py-2 text-left text-[13px] text-[#0068FF] hover:bg-[var(--hover-bg)] transition-colors flex items-center gap-2 cursor-pointer"
+                                  >
+                                    Phong phó nhóm
+                                  </button>
+                                )}
+                              </>
+                            )}
+
+                            {!isMemberAdmin && (isAdmin || (isDeputy && !isMemberDeputy)) && (
+                              <button
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  handleRemoveMember(member.userId, member.displayName || member.userName);
+                                }}
+                                className="w-full px-4 py-2 text-left text-[13px] text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex items-center gap-2 cursor-pointer border-t border-[var(--border)]"
+                              >
+                                Xóa khỏi nhóm
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-[340px] flex flex-col h-full bg-[var(--card-bg)] border-l border-[var(--border)] transition-colors duration-200">
       <div className="h-[76px] flex items-center justify-center border-b border-[var(--border)] shrink-0 px-4">
@@ -895,21 +1034,91 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
             </div>
 
             {showMembers && (
-              <div className="px-4 pb-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                <div
-                  onClick={() => setShowMembersModal(true)}
-                  className="flex items-center gap-3 p-2 hover:bg-[var(--hover-bg)] rounded-md cursor-pointer transition-colors"
-                >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--text)] opacity-80">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                  </svg>
-                  <span className="text-[14px] text-[var(--text)] font-medium">
-                    {members.length} {t('info.members') || 'thành viên'}
-                  </span>
-                </div>
+              <div className="px-2 pb-4 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200 max-h-[300px] overflow-y-auto custom-scrollbar">
+                {members.map((member) => {
+                  const isMemberAdmin = member.role === 'ADMIN';
+                  const isMemberDeputy = member.role === 'DEPUTY';
+                  const isMe = String(member.userId) === String(currentUser?.id || currentUser?.user_id);
+
+                  return (
+                    <div
+                      key={member.userId}
+                      className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group/member relative"
+                    >
+                      <div className="relative w-9 h-9 shrink-0">
+                        {member.avatarUrl || member.avatar ? (
+                          <img src={member.avatarUrl || member.avatar} alt="" className="w-full h-full rounded-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-[#0068FF] font-bold text-sm">
+                            {(member.displayName || member.userName || 'U')[0]}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0 pr-16">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-[13px] font-semibold text-[var(--text)] truncate">
+                            {member.displayName || member.userName}
+                            {isMe && <span className="ml-1 text-gray-400 font-normal text-[11px]">(Bạn)</span>}
+                          </span>
+                        </div>
+                        <div className="flex gap-1 mt-0.5">
+                          {isMemberAdmin && (
+                            <span className="px-1 py-0.5 rounded bg-orange-50 text-orange-600 dark:bg-orange-950/20 dark:text-orange-400 text-[9px] font-bold uppercase shrink-0">Trưởng nhóm</span>
+                          )}
+                          {isMemberDeputy && (
+                            <span className="px-1 py-0.5 rounded bg-blue-50 text-blue-600 dark:bg-blue-950/20 dark:text-blue-400 text-[9px] font-bold uppercase shrink-0">Phó nhóm</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Hover Actions in Sidebar */}
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 bg-gradient-to-l from-[var(--card-bg)] via-[var(--card-bg)] to-transparent pl-3 py-1 opacity-0 group-hover/member:opacity-100 transition-opacity">
+                        {!isMe && isAdmin && (
+                          <>
+                            {/* Chuyển Trưởng nhóm */}
+                            <button
+                              onClick={() => handleTransferOwnership(member.userId, member.displayName || member.userName)}
+                              className="w-7 h-7 flex items-center justify-center text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 rounded-full transition-colors cursor-pointer"
+                              title="Chuyển trưởng nhóm"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z" /><path d="M3 20h18" /></svg>
+                            </button>
+
+                            {/* Phong/Gỡ Phó nhóm */}
+                            {isMemberDeputy ? (
+                              <button
+                                onClick={() => handleChangeRole(member.userId, member.displayName || member.userName, 'MEMBER')}
+                                className="w-7 h-7 flex items-center justify-center text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-500/10 rounded-full transition-colors cursor-pointer"
+                                title="Gỡ phó nhóm"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><line x1="9" y1="12" x2="15" y2="12" /></svg>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleChangeRole(member.userId, member.displayName || member.userName, 'DEPUTY')}
+                                className="w-7 h-7 flex items-center justify-center text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-full transition-colors cursor-pointer"
+                                title="Phong phó nhóm"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><polyline points="9 11 12 14 15 8" /></svg>
+                              </button>
+                            )}
+                          </>
+                        )}
+
+                        {/* Mời ra khỏi nhóm */}
+                        {!isMe && !isMemberAdmin && (isAdmin || (isDeputy && !isMemberDeputy)) && (
+                          <button
+                            onClick={() => handleRemoveMember(member.userId, member.displayName || member.userName)}
+                            className="w-7 h-7 flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-full transition-colors cursor-pointer"
+                            title="Mời ra khỏi nhóm"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="18" y1="8" x2="23" y2="13" /><line x1="23" y1="8" x2="18" y2="13" /></svg>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1312,124 +1521,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
         </div>
       )}
 
-      {/* Members Modal */}
-      {showMembersModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/45 animate-in fade-in duration-200" onClick={() => setShowMembersModal(false)} />
-          <div className="w-full max-w-[500px] bg-[var(--card-bg)] rounded-lg shadow-2xl relative z-[201] animate-in zoom-in-95 duration-200 flex flex-col overflow-hidden max-h-[85vh]">
-            <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
-              <h3 className="text-[16px] font-bold text-[var(--text)]">Thành viên ({members.length})</h3>
-              <button onClick={() => setShowMembersModal(false)} className="w-8 h-8 rounded-full hover:bg-[var(--hover-bg)] flex items-center justify-center text-[var(--sub-text)] cursor-pointer">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-              </button>
-            </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-2 min-h-[300px]">
-              <div className="space-y-1">
-                {members.map((member) => {
-                  const isMemberAdmin = member.role === 'ADMIN';
-                  const isMemberDeputy = member.role === 'DEPUTY';
-                  const isMe = String(member.userId) === String(currentUser?.id || currentUser?.user_id);
-
-                  return (
-                    <div
-                      key={member.userId}
-                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-[var(--hover-bg)] transition-colors group"
-                    >
-                      <div className="relative w-11 h-11 shrink-0">
-                        {member.avatarUrl || member.avatar ? (
-                          <img src={member.avatarUrl || member.avatar} alt="" className="w-full h-full rounded-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-[#0068FF] font-bold text-lg">
-                            {(member.displayName || member.userName || 'U')[0]}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[15px] font-semibold text-[var(--text)] truncate">
-                            {member.displayName || member.userName}
-                            {isMe && <span className="ml-1 text-gray-400 font-normal">(Bạn)</span>}
-                          </span>
-                          {isMemberAdmin && (
-                            <span className="px-1.5 py-0.5 rounded bg-orange-100 text-orange-600 text-[10px] font-bold uppercase shrink-0">Trưởng nhóm</span>
-                          )}
-                          {isMemberDeputy && (
-                            <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-600 text-[10px] font-bold uppercase shrink-0">Phó nhóm</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center gap-1">
-                        {!isMe && isAdmin && (
-                          <>
-                            {/* Chuyển Trưởng nhóm */}
-                            <button
-                              onClick={() => handleTransferOwnership(member.userId, member.displayName || member.userName)}
-                              className="p-2 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 rounded-full transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
-                              title="Chuyển trưởng nhóm"
-                            >
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z" />
-                                <path d="M3 20h18" />
-                              </svg>
-                            </button>
-
-                            {/* Phong Phó nhóm */}
-                            {!isMemberDeputy && (
-                              <button
-                                onClick={() => handleChangeRole(member.userId, member.displayName || member.userName, 'DEPUTY')}
-                                className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-full transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
-                                title="Phong phó nhóm"
-                              >
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                                  <polyline points="9 11 12 14 15 8" />
-                                </svg>
-                              </button>
-                            )}
-
-                            {/* Gỡ Phó nhóm */}
-                            {isMemberDeputy && (
-                              <button
-                                onClick={() => handleChangeRole(member.userId, member.displayName || member.userName, 'MEMBER')}
-                                className="p-2 text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-500/10 rounded-full transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
-                                title="Gỡ phó nhóm"
-                              >
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                                  <line x1="9" y1="12" x2="15" y2="12" />
-                                </svg>
-                              </button>
-                            )}
-                          </>
-                        )}
-
-                        {/* Mời ra khỏi nhóm */}
-                        {!isMe && !isMemberAdmin && (isAdmin || (isDeputy && !isMemberDeputy)) && (
-                          <button
-                            onClick={() => handleRemoveMember(member.userId, member.displayName || member.userName)}
-                            className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-full transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
-                            title="Mời ra khỏi nhóm"
-                          >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                              <circle cx="8.5" cy="7" r="4" />
-                              <line x1="18" y1="8" x2="23" y2="13" />
-                              <line x1="23" y1="8" x2="18" y2="13" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Transfer Ownership Modal */}
       {showTransferModal && (

@@ -55,7 +55,7 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
   const [isUserDataModalOpen, setIsUserDataModalOpen] = useState(false);
   const [activeSidebar, setActiveSidebar] = useState<'info' | 'search' | null>('info');
-  const [infoSidebarView, setInfoSidebarView] = useState<'main' | 'group-management'>('main');
+  const [infoSidebarView, setInfoSidebarView] = useState<'main' | 'group-management' | 'members'>('main');
 
   useEffect(() => {
     setInfoSidebarView('main');
@@ -950,7 +950,7 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
                 <ChatWindow
                   onToggleSidebar={(type, subView) => {
                     if (subView) {
-                      setInfoSidebarView(subView as 'main' | 'group-management');
+                      setInfoSidebarView(subView as 'main' | 'group-management' | 'members');
                       setActiveSidebar(type);
                     } else {
                       setActiveSidebar(activeSidebar === type ? null : type);
