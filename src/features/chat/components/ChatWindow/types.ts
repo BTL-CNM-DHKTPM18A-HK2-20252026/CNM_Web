@@ -184,6 +184,6 @@ export interface ChatModalHostProps {
   vm: ChatWindowViewModel;
 }
 
-export type ChatWindowViewModel = ReturnType<typeof import('@/features/chat/components/ChatWindow/useChatWindow').useChatWindow>;
+export type ChatWindowViewModel = any;
 
 export type InputChangeEvent = React.ChangeEvent<HTMLInputElement>;
