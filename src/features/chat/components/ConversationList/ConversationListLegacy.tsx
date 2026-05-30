@@ -13,12 +13,34 @@ import { ChatSearchHeader } from '../shared/ChatSearchHeader';
 
 const stripHtml = (html: string) => (html || '').replace(/<[^>]*>?/gm, '');
 
-// Converts lastMsg HTML to renderable HTML: keeps <img> with small size, strips other tags
+// Converts lastMsg HTML/JSON to renderable HTML: keeps <img> with small size, strips other tags,
+// and parses TipTap JSON format to plain text.
 const getLastMsgPreviewHtml = (html: string): string => {
   if (!html) return '';
+  let source = html;
+
+  // Nếu content là JSON (TipTap format), extract plain text trước
+  if (source.trim().startsWith('{')) {
+    try {
+      const json = JSON.parse(source);
+      if (json && typeof json === 'object') {
+        const extract = (node: any): string => {
+          if (!node) return '';
+          if (node.type === 'text') return node.text ?? '';
+          if (Array.isArray(node.content)) {
+            return node.content.map(extract).join(' ');
+          }
+          return '';
+        };
+        const extracted = extract(json).trim();
+        if (extracted) source = extracted;
+      }
+    } catch { /* not valid JSON, continue with original */ }
+  }
+
   const imgs: string[] = [];
   // Extract and replace <img> tags with placeholders
-  let result = html.replace(/<img([^>]*?)(?:\s*\/)?>/gi, (_, attrs) => {
+  let result = source.replace(/<img([^>]*?)(?:\s*\/)?>/gi, (_, attrs) => {
     const src = (attrs.match(/src="([^"]*)"/) || [])[1] || '';
     const alt = (attrs.match(/alt="([^"]*)"/) || [])[1] || '';
     if (!src) return '';
@@ -1254,14 +1276,40 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                           const isAiSender = msg.senderId === 'FRUVIA_AI_ASSISTANT';
                           // Khi user bị kick khỏi nhóm, senderName có thể là "Unknown" hoặc undefined
                           const isUnknownSender = !msg.senderName || msg.senderName === 'Unknown';
+                          // Tên hiển thị ở dòng đầu (tên hội thoại)
                           const displayConvName = conv?.name
-                            || (isAiSender ? 'Fruvia Chatbot' : (!isUnknownSender ? msg.senderName : null))
-                            || (isUnknownSender ? t('common.unknown_user') : msg.senderName);
+                            || (isAiSender ? 'Fruvia Chatbot' : null)
+                            || t('common.unknown_user');
+                          // Tên người gửi ở dòng thứ hai. Khi user bị kick → hiển thị "Người dùng không xác định"
                           const displaySenderName = isAiSender
                             ? 'Fruvia Chatbot'
                             : (!isUnknownSender
                               ? msg.senderName
-                              : (conv?.name || t('common.unknown_user')));
+                              : t('common.unknown_user'));
+
+                          // Parse content để lấy plain text (xử lý TipTap JSON), rồi mới highlight
+                          const plainContent = (() => {
+                            const raw = msg.content || '';
+                            if (raw.trim().startsWith('{')) {
+                              try {
+                                const json = JSON.parse(raw);
+                                if (json && typeof json === 'object') {
+                                  const extract = (node: any): string => {
+                                    if (!node) return '';
+                                    if (node.type === 'text') return node.text ?? '';
+                                    if (Array.isArray(node.content)) {
+                                      return node.content.map(extract).join(' ');
+                                    }
+                                    return '';
+                                  };
+                                  const extracted = extract(json).trim();
+                                  if (extracted) return extracted;
+                                }
+                              } catch { /* not valid JSON */ }
+                            }
+                            // Strip HTML tags nếu có
+                            return raw.replace(/<[^>]*>/g, '').trim();
+                          })();
 
                           // Highlight keywords in message content
                           const highlightContent = (text: string, query: string) => {
@@ -1279,7 +1327,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                             }
                           };
 
-                          const highlighted = highlightContent(msg.content, searchQuery.trim());
+                          const highlighted = highlightContent(plainContent, searchQuery.trim());
                           const targetConvId = conv?.id || msg.conversationId;
 
                           return (
@@ -1702,7 +1750,27 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                       }
                     }
                     if (!name) name = t('common.unknown_user');
-                    const lastMsg = stripHtml(conv.lastMessageContent || conv.last_message_content || '');
+                    const rawLastMsg = conv.lastMessageContent || conv.last_message_content || '';
+                    // Parse JSON (TipTap) → plain text, then strip remaining HTML
+                    const lastMsg = (() => {
+                      if (!rawLastMsg || !rawLastMsg.trim().startsWith('{')) return stripHtml(rawLastMsg);
+                      try {
+                        const json = JSON.parse(rawLastMsg);
+                        if (json && typeof json === 'object') {
+                          const extract = (node: any): string => {
+                            if (!node) return '';
+                            if (node.type === 'text') return node.text ?? '';
+                            if (Array.isArray(node.content)) {
+                              return node.content.map(extract).join(' ');
+                            }
+                            return '';
+                          };
+                          const extracted = extract(json).trim();
+                          if (extracted) return extracted;
+                        }
+                      } catch { /* ignore */ }
+                      return stripHtml(rawLastMsg);
+                    })();
                     return (
                       <div key={convId} className="flex items-center gap-3 p-3 rounded-lg hover:bg-[var(--hover-bg)] transition-colors">
                         <div className={`w-10 h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center ${isAiConv ? '' : isCloudConv ? 'bg-[#0068FF]' : 'bg-gray-200'}`}>

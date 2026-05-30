@@ -368,9 +368,32 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
 
           const isFromMe = (lastSenderId === currentUser?.id || lastSenderId === currentUser?.user_id) && lastSenderId !== '';
 
-          let displayLastMsg = c.lastMessageContent
+          let rawLastMsg = c.lastMessageContent
             || c.last_message_content
             || (isAi ? t('chat.ai_subheading') : t('chat.start_conversation'));
+
+          // Parse JSON (TipTap format) để lấy plain text trước khi thêm tiền tố người gửi
+          const parseLastMsgPreview = (text: string): string => {
+            if (!text || !text.trim().startsWith('{')) return text;
+            try {
+              const json = JSON.parse(text);
+              if (json && typeof json === 'object') {
+                const extract = (node: any): string => {
+                  if (!node) return '';
+                  if (node.type === 'text') return node.text ?? '';
+                  if (Array.isArray(node.content)) {
+                    return node.content.map(extract).join(' ');
+                  }
+                  return '';
+                };
+                const extracted = extract(json).trim();
+                if (extracted) return extracted;
+              }
+            } catch { /* ignore */ }
+            return text;
+          };
+
+          let displayLastMsg = parseLastMsgPreview(rawLastMsg);
 
           if (displayLastMsg && displayLastMsg !== t('chat.start_conversation') && displayLastMsg !== t('chat.ai_subheading')) {
             if (isFromMe) {
