@@ -1398,12 +1398,30 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
                             </p>
                             <div>
                               {sidebarSearchResults.map((msg, idx) => {
-                                const stripHtml = (html: string) => {
+                                const parseMessageContent = (raw: string) => {
+                                  if (!raw) return '';
+                                  if (raw.trim().startsWith('{')) {
+                                    try {
+                                      const json = JSON.parse(raw);
+                                      if (json && typeof json === 'object') {
+                                        const extract = (node: any): string => {
+                                          if (!node) return '';
+                                          if (node.type === 'text') return node.text ?? '';
+                                          if (Array.isArray(node.content)) {
+                                            return node.content.map(extract).join(' ');
+                                          }
+                                          return '';
+                                        };
+                                        const extracted = extract(json).trim();
+                                        if (extracted) return extracted;
+                                      }
+                                    } catch { /* not valid JSON */ }
+                                  }
                                   const tmp = document.createElement('div');
-                                  tmp.innerHTML = html;
+                                  tmp.innerHTML = raw;
                                   return tmp.textContent || tmp.innerText || '';
                                 };
-                                let displayContent = msg.content ? stripHtml(msg.content) : '';
+                                let displayContent = msg.content ? parseMessageContent(msg.content) : '';
                                 if (msg.messageType === 'SHARE_CONTACT') {
                                   try { displayContent = `📇 ${JSON.parse(msg.content || '{}').fullName || 'Danh thiếp'}`; } catch { displayContent = '📇 Danh thiếp'; }
                                 } else if (msg.messageType === 'IMAGE') { displayContent = '📷 Hình ảnh'; }
