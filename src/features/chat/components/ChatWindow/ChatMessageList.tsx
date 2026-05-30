@@ -276,12 +276,13 @@ function PollCard({
       <div className="p-4 space-y-3.5">
         {(() => {
           // Largest remainder method: ensure percentages sum to exactly 100%
-          const rawPercents = (poll.options || []).map((opt: any) => {
+          const opts = poll.options || [];
+          const rawPercents = opts.map((opt: any) => {
             const votes = opt.voterIds?.length || 0;
             return totalVotesCast > 0 ? (votes / totalVotesCast) * 100 : 0;
           });
           const floored = rawPercents.map((p: number) => Math.floor(p));
-          const remainder = 100 - floored.reduce((a: number, b: number) => a + b, 0);
+          const remainder = Math.min(100 - floored.reduce((a: number, b: number) => a + b, 0), opts.length);
           const remainders = rawPercents.map((p: number, i: number) => ({
             idx: i,
             frac: p - floored[i],
@@ -291,7 +292,7 @@ function PollCard({
             floored[remainders[r].idx]++;
           }
 
-          return (poll.options || []).map((opt: any, i: number) => {
+          return opts.map((opt: any, i: number) => {
             const optVotes = opt.voterIds?.length || 0;
             const percent = totalVotesCast > 0 ? floored[i] : 0;
             const isSelected = selectedOptionIds.includes(opt.optionId);
