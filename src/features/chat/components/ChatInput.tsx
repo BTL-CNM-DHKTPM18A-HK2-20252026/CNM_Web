@@ -136,7 +136,7 @@ export function ChatInput({
       },
     },
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      onChange(JSON.stringify(editor.getJSON()));
     },
   });
 
@@ -146,10 +146,25 @@ export function ChatInput({
     }
   }, [editor, onEditorReady]);
 
-  // Sync value from outside (e.g. when cleared)
+  // Sync value from outside (e.g. when cleared after send)
   useEffect(() => {
-    if (editor && value !== editor.getHTML() && value === '') {
-      editor.commands.setContent('');
+    if (!editor) return;
+    if (value === '') {
+      // Only clear when truly empty to avoid losing cursor position
+      if (!editor.isEmpty) {
+        editor.commands.setContent('');
+      }
+      return;
+    }
+    // Avoid recursive loops: only update if the serialized content differs
+    try {
+      const incoming = JSON.parse(value);
+      const current = editor.getJSON();
+      if (JSON.stringify(incoming) !== JSON.stringify(current)) {
+        editor.commands.setContent(incoming, false);
+      }
+    } catch {
+      // Value is not JSON (legacy plain text) — ignore sync for non-empty values
     }
   }, [value, editor]);
 

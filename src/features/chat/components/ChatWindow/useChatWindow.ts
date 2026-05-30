@@ -175,6 +175,35 @@ const isLinkPlaceholderText = (value?: string | null): boolean => {
   return normalized === '[LINK]' || normalized === 'LINK';
 };
 
+const getPlainTextFromMsgContent = (content: string): string => {
+  if (!content) return '';
+  try {
+    const json = JSON.parse(content);
+    if (json && typeof json === 'object') {
+      const extract = (node: any): string => {
+        if (!node) return '';
+        if (node.type === 'text') return node.text ?? '';
+        if (Array.isArray(node.content)) {
+          const childText = node.content.map(extract).join('');
+          const blockTypes = ['paragraph', 'heading', 'blockquote', 'listItem'];
+          return blockTypes.includes(node.type) ? childText + ' ' : childText;
+        }
+        return '';
+      };
+      return extract(json).trim();
+    }
+  } catch {
+    // not JSON
+  }
+  return content.replace(/<[^>]*>/g, '').trim();
+};
+
+const isJsonContent = (content: string): boolean => {
+  if (!content || content.length < 2) return false;
+  const t = content.trim();
+  return t.startsWith('{') && t.endsWith('}');
+};
+
 const getSnippet = (content: string, messageType: string | undefined, t: (key: string) => string) => {
   switch (messageType) {
     case 'IMAGE':
@@ -201,7 +230,7 @@ const getSnippet = (content: string, messageType: string | undefined, t: (key: s
     case 'CALL_ENDED':
       return t('chat.snippet.call_ended');
     default:
-      return content;
+      return getPlainTextFromMsgContent(content);
   }
 };
 
@@ -1287,7 +1316,7 @@ export function useChatWindow({
 
       // Optimistic update: show the message locally before the server responds
       if (!optimisticId && msgType === 'TEXT') {
-        if (contentToUse.length > 800 && !selectedChat.isAi) {
+        if (contentToUse.length > 800 && !selectedChat.isAi && !isJsonContent(contentToUse)) {
           const chunks = splitMessage(contentToUse, 800);
           const newOptimisticMessages: ChatMessage[] = chunks.map((chunkText, idx) => {
             const chunkTempId = idx === chunks.length - 1 ? tempOptimisticId : `${tempOptimisticId}-chunk-${idx}`;
@@ -1983,11 +2012,11 @@ export function useChatWindow({
   const handleMentionInput = useCallback((newValue: string) => {
     setMessage(newValue);
 
-    // Find the @ position relative to cursor (detect @query at end of current word)
-    const atIdx = newValue.lastIndexOf('@');
+    // Extract plain text from JSON or HTML before searching for @
+    const plainText = getPlainTextFromMsgContent(newValue);
+    const atIdx = plainText.lastIndexOf('@');
     if (atIdx !== -1) {
-      const afterAt = newValue.slice(atIdx + 1);
-      // Only open dropdown if no spaces in the query (i.e., still typing the name)
+      const afterAt = plainText.slice(atIdx + 1);
       if (!afterAt.includes(' ')) {
         setMentionQuery(afterAt);
         setMentionDropdownOpen(true);
@@ -1998,20 +2027,37 @@ export function useChatWindow({
   }, []);
 
   const handleSelectMention = useCallback((member: MentionMember) => {
-    // Replace the @query in the message text with @DisplayName + space
-    const atIdx = message.lastIndexOf('@');
-    if (atIdx !== -1) {
-      const before = message.slice(0, atIdx);
-      const newMessage = `${before}@${member.displayName} `;
-      setMessage(newMessage);
-    }
     setMentionDropdownOpen(false);
     setPendingMentions(prev => {
       if (prev.some(m => m.userId === member.userId)) return prev;
       return [...prev, member];
     });
-    messageInputRef.current?.focus();
-  }, [message, messageInputRef]);
+
+    if (editor) {
+      // Use Tiptap commands to replace the trailing @query text with @DisplayName
+      const { state } = editor;
+      const { from } = state.selection;
+      const textBefore = state.doc.textBetween(Math.max(0, from - 50), from, ' ', ' ');
+      const atIdx = textBefore.lastIndexOf('@');
+      if (atIdx !== -1) {
+        const queryLen = textBefore.length - atIdx; // includes the '@'
+        editor.chain().focus()
+          .deleteRange({ from: from - queryLen, to: from })
+          .insertContent(`@${member.displayName} `)
+          .run();
+      } else {
+        editor.chain().focus().insertContent(`@${member.displayName} `).run();
+      }
+    } else {
+      // Fallback for non-editor scenarios
+      const atIdx = message.lastIndexOf('@');
+      if (atIdx !== -1) {
+        const before = message.slice(0, atIdx);
+        setMessage(`${before}@${member.displayName} `);
+      }
+      messageInputRef.current?.focus();
+    }
+  }, [editor, message, messageInputRef]);
 
   const sendReadReceipt = useCallback((messageId: string) => {
     if (!selectedChat?.id || selectedChat.isNew || selectedChat.isAi || !currentUser?.id) return;

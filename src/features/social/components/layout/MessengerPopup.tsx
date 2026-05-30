@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 import { StickerPicker } from '@/features/chat/components/StickerPicker';
 import { ChatImageUpload } from '@/features/chat/components/ChatImageUpload';
 import { websocketService } from '@/lib/realtime/websocketService';
+import { getMessageHtml } from '@/utils/tiptap';
 
 interface PopupMessage {
   id?: string;
@@ -45,6 +46,12 @@ interface SendMessageResponse {
 }
 
 const stripHtml = (html: string): string => (html || '').replace(/<[^>]*>?/gm, '');
+
+const isJsonContent = (content: string): boolean => {
+  if (!content || content.length < 2) return false;
+  const t = content.trim();
+  return t.startsWith('{') && t.endsWith('}');
+};
 
 const splitMessage = (text: string, chunkSize: number = 800): string[] => {
   const chunks: string[] = [];
@@ -376,7 +383,7 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
     const optimisticId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     
     let optimisticMessages: PopupMessage[] = [];
-    if (type === 'TEXT' && content.length > 800 && !isAi) {
+    if (type === 'TEXT' && content.length > 800 && !isAi && !isJsonContent(content)) {
       const chunks = splitMessage(content, 800);
       optimisticMessages = chunks.map((chunkText, idx) => ({
         id: idx === chunks.length - 1 ? optimisticId : `${optimisticId}-chunk-${idx}`,
@@ -543,18 +550,20 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
       );
     }
 
-    return (
-      <div className={`max-w-[85%] px-3 py-1.5 rounded-[18px] text-[14px] shadow-sm break-words whitespace-pre-wrap ${isMe
-        ? 'bg-[#0095F6] text-white'
-        : 'bg-[#EFEFEF] dark:bg-[#262626] text-black dark:text-white'
-        }`}>
-        {(/<[a-z][\s\S]*>/i.test(content)) ? (
-          <div className="tiptap-content prose dark:prose-invert max-w-none text-inherit" dangerouslySetInnerHTML={{ __html: content }} />
-        ) : (
-          renderText(content)
-        )}
-      </div>
-    );
+      const renderedHtml = getMessageHtml(content);
+      const isRichContent = /[a-z][\s\S]*>/i.test(renderedHtml) || content.trim().startsWith('{');
+      return (
+        <div className={`max-w-[85%] px-3 py-1.5 rounded-[18px] text-[14px] shadow-sm break-words whitespace-pre-wrap ${isMe
+          ? 'bg-[#0095F6] text-white'
+          : 'bg-[#EFEFEF] dark:bg-[#262626] text-black dark:text-white'
+          }`}>
+          {isRichContent ? (
+            <div className="tiptap-content prose dark:prose-invert max-w-none text-inherit" dangerouslySetInnerHTML={{ __html: renderedHtml }} />
+          ) : (
+            renderText(content)
+          )}
+        </div>
+      );
   };
 
   if (view === 'LIST') {

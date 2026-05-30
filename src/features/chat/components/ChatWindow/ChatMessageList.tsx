@@ -7,6 +7,7 @@ import type { ChatMessage, ChatMessageListProps } from '@/features/chat/componen
 import { usePresence } from '@/features/user';
 import { apiClient } from '@/lib/http/apiClient';
 import emojiPack from '@/data/emoji-pack.json';
+import { getMessageHtml, getPlainTextFromMessage } from '@/utils/tiptap';
 
 // Initialize emoji lookup map
 const emojiMap: Record<string, string> = {};
@@ -289,16 +290,14 @@ const renderText = (text: string, mentions?: string[]) => {
 
 const replaceEmojiWithHtml = (text: string) => {
   if (!text) return '';
-  
-  // Use a more sophisticated replacement to avoid double-replacing inside <img> tags (alt, title, etc.)
-  // We look for the shortcode and check if it's preceded by =" (typical of an attribute)
-  return text.replace(/:zalo_\d+_\d+:/g, (match, offset, fullText) => {
-    // Basic check: if preceded by 'alt="' or 'title="' or '>', it's likely already inside a tag
+  // First convert Tiptap JSON -> HTML (backwards compatible with plain text/HTML)
+  const html = getMessageHtml(text);
+  // Then replace zalo emoji shortcodes
+  return html.replace(/:zalo_\d+_\d+:/g, (match, offset, fullText) => {
     const prevChar = fullText.slice(Math.max(0, offset - 5), offset);
     if (prevChar.includes('="') || prevChar.includes('alt=') || prevChar.includes('title=')) {
       return match;
     }
-    
     const src = emojiMap[match];
     return src ? `<img src="${src}" alt="${match}" class="inline-block w-6 h-6 mx-0.5 align-text-bottom" style="width: 24px; height: 24px; display: inline-block; margin: 0 2px; vertical-align: text-bottom;" title="${match}" />` : match;
   });
@@ -1437,9 +1436,10 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                         <>
                                           {(() => {
                                             // Only extract URLs from plain text, not HTML content (avoids matching src/href attributes from emoji <img> tags)
-                                            const isHtmlContent = /<[a-z][\s\S]*>/i.test(displayText);
-                                            const urlMatch = !isHtmlContent ? displayText.match(/(https?:\/\/[^\s]+|fruvia\.chat\/g\/[^\s]+)/) : null;
-                                            const url = msg.type === 'LINK' ? displayText : (urlMatch ? urlMatch[0] : null);
+                                            const plainDisplayText = getPlainTextFromMessage(displayText);
+                                            const isJsonOrHtml = /[a-z][\s\S]*>/i.test(replaceEmojiWithHtml(getMessageHtml(displayText))) || displayText.trim().startsWith('{');
+                                            const urlMatch = !isJsonOrHtml ? plainDisplayText.match(/(https?:\/\/[^\s]+|fruvia\.chat\/g\/[^\s]+)/) : null;
+                                            const url = msg.type === 'LINK' ? plainDisplayText : (urlMatch ? urlMatch[0] : null);
 
                                             if (url && url.includes('/g/')) {
                                               // If it's a group join link, hide the raw link text if it's the only content
@@ -1458,7 +1458,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
 
                                             return (
                                               <>
-                                                {isHtmlContent ? (
+                                                {isJsonOrHtml ? (
                                                   <div className="tiptap-content" dangerouslySetInnerHTML={{ __html: replaceEmojiWithHtml(displayText) }} />
                                                 ) : (
                                                   renderText(displayText, msg.mentions)
