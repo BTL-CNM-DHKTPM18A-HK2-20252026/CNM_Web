@@ -328,7 +328,141 @@ const getSnippet = (content: string, messageType: string | undefined, t: (key: s
   }
 };
 
+const getPlainTextFromNode = (node: any): string => {
+  if (!node) return '';
+  if (node.type === 'text') return node.text || '';
+  if (Array.isArray(node.content)) {
+    return node.content.map(getPlainTextFromNode).join('');
+  }
+  return '';
+};
+
+const splitBlockNode = (node: any, chunkSize: number): any[] => {
+  const inlineItems: { text: string; marks?: any[] }[] = [];
+  
+  const collectInline = (n: any) => {
+    if (!n) return;
+    if (n.type === 'text') {
+      inlineItems.push({ text: n.text || '', marks: n.marks });
+    } else if (Array.isArray(n.content)) {
+      n.content.forEach(collectInline);
+    }
+  };
+  
+  collectInline(node);
+  
+  const splitBlocks: any[] = [];
+  let currentInline: any[] = [];
+  let currentLen = 0;
+  
+  const finalizeBlock = () => {
+    if (currentInline.length > 0) {
+      splitBlocks.push({
+        ...node,
+        content: currentInline,
+      });
+      currentInline = [];
+      currentLen = 0;
+    }
+  };
+
+  for (const item of inlineItems) {
+    let textRemaining = item.text;
+    while (textRemaining.length > 0) {
+      const spaceLeft = chunkSize - currentLen;
+      if (spaceLeft <= 0) {
+        finalizeBlock();
+        continue;
+      }
+      
+      if (textRemaining.length <= spaceLeft) {
+        currentInline.push({
+          type: 'text',
+          text: textRemaining,
+          marks: item.marks,
+        });
+        currentLen += textRemaining.length;
+        textRemaining = '';
+      } else {
+        let splitPos = spaceLeft;
+        const prefix = textRemaining.substring(0, splitPos);
+        const lastSpace = prefix.lastIndexOf(' ');
+        const lastNewline = prefix.lastIndexOf('\n');
+        const bestSplit = Math.max(lastSpace, lastNewline);
+        if (bestSplit > splitPos / 2) {
+          splitPos = bestSplit + 1;
+        }
+        
+        currentInline.push({
+          type: 'text',
+          text: textRemaining.substring(0, splitPos),
+          marks: item.marks,
+        });
+        finalizeBlock();
+        textRemaining = textRemaining.substring(splitPos);
+      }
+    }
+  }
+  
+  finalizeBlock();
+  return splitBlocks.length > 0 ? splitBlocks : [node];
+};
+
+const splitJsonMessage = (text: string, chunkSize: number = 800): string[] => {
+  try {
+    const doc = JSON.parse(text);
+    if (!doc || doc.type !== 'doc' || !Array.isArray(doc.content)) {
+      return splitPlainText(text, chunkSize);
+    }
+
+    const docChunks: any[] = [];
+    let currentBlockNodes: any[] = [];
+    let currentLen = 0;
+
+    const finalizeChunk = () => {
+      if (currentBlockNodes.length > 0) {
+        docChunks.push({
+          type: 'doc',
+          content: currentBlockNodes,
+        });
+        currentBlockNodes = [];
+        currentLen = 0;
+      }
+    };
+
+    for (const node of doc.content) {
+      const nodeText = getPlainTextFromNode(node);
+      
+      if (nodeText.length <= chunkSize) {
+        if (currentLen + nodeText.length > chunkSize && currentBlockNodes.length > 0) {
+          finalizeChunk();
+        }
+        currentBlockNodes.push(node);
+        currentLen += nodeText.length;
+      } else {
+        finalizeChunk();
+        const splitNodes = splitBlockNode(node, chunkSize);
+        for (const subNode of splitNodes) {
+          docChunks.push({
+            type: 'doc',
+            content: [subNode],
+          });
+        }
+      }
+    }
+    
+    finalizeChunk();
+    return docChunks.map(c => JSON.stringify(c));
+  } catch {
+    return splitPlainText(text, chunkSize);
+  }
+};
+
 const splitMessage = (text: string, chunkSize: number = 800): string[] => {
+  if (isJsonContent(text)) {
+    return splitJsonMessage(text, chunkSize);
+  }
+  
   const chunks: string[] = [];
   let remaining = text;
 
@@ -1474,9 +1608,7 @@ export function useChatWindow({
         // For JSON (TipTap), extract plain text first, then split
         const textToSplit = isJsonContent(contentToUse) ? getPlainTextFromMsgContent(contentToUse) : contentToUse;
         if (textToSplit.length > 800 && !selectedChat.isAi) {
-          const chunks = isJsonContent(contentToUse)
-            ? splitPlainText(textToSplit, 800)
-            : splitMessage(contentToUse, 800);
+          const chunks = splitMessage(contentToUse, 800);
           const newOptimisticMessages: ChatMessage[] = chunks.map((chunkText, idx) => {
             const chunkTempId = idx === chunks.length - 1 ? tempOptimisticId : `${tempOptimisticId}-chunk-${idx}`;
             return {

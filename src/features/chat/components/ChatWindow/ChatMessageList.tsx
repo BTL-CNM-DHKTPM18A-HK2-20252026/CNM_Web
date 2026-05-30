@@ -373,9 +373,9 @@ function PollCard({
 
       {/* Footer Actions: Add Option */}
       {poll.allowAddOptions && (
-        <div className="border-t border-[var(--border)] p-3.5 bg-gray-50/50 dark:bg-black/5">
+        <div className="border-t border-[var(--border)] p-3 bg-gray-50/50 dark:bg-black/5">
           {isAdding ? (
-            <div className="flex items-center gap-2">
+            <div className="relative flex items-center gap-2 p-1 bg-white dark:bg-[#1E1E1E] rounded-lg border border-[#0068FF] shadow-sm transition-all focus-within:ring-1 focus-within:ring-[#0068FF]/50">
               <input
                 type="text"
                 placeholder="Nhập phương án mới..."
@@ -388,13 +388,13 @@ function PollCard({
                     setNewOptionText('');
                   }
                 }}
-                className="flex-1 h-9 px-3 bg-white dark:bg-black/20 border border-[var(--border)] rounded outline-none focus:border-[#0068FF] text-[13px] text-[var(--text)]"
+                className="flex-1 h-8 px-2.5 bg-transparent border-none outline-none text-[13.5px] text-[var(--text)] placeholder-gray-400"
                 autoFocus
               />
               <button
                 onClick={handleAddOptionSubmit}
                 disabled={!newOptionText.trim()}
-                className="h-9 px-3 rounded bg-[#0068FF] hover:bg-[#0052CC] text-white text-[13px] font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                className="h-8 px-3 rounded-md bg-[#0068FF] hover:bg-[#0052CC] text-white text-[12.5px] font-bold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
               >
                 Thêm
               </button>
@@ -403,15 +403,15 @@ function PollCard({
                   setIsAdding(false);
                   setNewOptionText('');
                 }}
-                className="h-9 w-9 rounded flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/10 text-gray-400 cursor-pointer"
+                className="h-8 w-8 rounded-md flex items-center justify-center hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 cursor-pointer shrink-0"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
               </button>
             </div>
           ) : (
             <button
               onClick={() => setIsAdding(true)}
-              className="flex items-center justify-center gap-1.5 text-[#0068FF] hover:text-[#005AE0] text-[13px] font-bold w-full py-1 rounded transition-colors cursor-pointer"
+              className="flex items-center justify-center gap-1.5 text-[#0068FF] hover:text-[#005AE0] text-[13px] font-bold w-full py-1.5 rounded-lg border border-dashed border-[#0068FF]/30 hover:border-[#0068FF]/50 bg-blue-50/10 hover:bg-blue-50/20 dark:bg-blue-500/5 dark:hover:bg-blue-500/10 transition-all cursor-pointer"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
               Thêm phương án
@@ -1320,7 +1320,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                     ) : (
                       <div id={`msg-${msg.id}`} className={`flex ${msg.type === 'POLL' ? 'justify-center' : msg.sender === 'Me' ? 'justify-end pr-1' : 'justify-start'} -mx-4 px-4 rounded-none transition-colors duration-300 [&.highlight-msg]:bg-[#C6D4E4]`}>
                         <div className={`flex gap-1.5 ${msg.type === 'POLL' ? '' : 'max-w-[72%]'} group relative ${msg.type === 'POLL' ? '' : msg.sender === 'Me' ? 'flex-row-reverse' : ''} items-start`}>
-                          {msg.sender !== 'Me' && (
+                          {msg.sender !== 'Me' && msg.type !== 'POLL' && (
                             showAvatarAndName ? (
                               <button
                                 type="button"
@@ -1344,7 +1344,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                           )}
 
                           <div className={`flex flex-col ${msg.type === 'POLL' ? 'items-center' : msg.sender === 'Me' ? 'items-end' : 'items-start'} relative group/msg-container min-w-0 max-w-full`}>
-                            {msg.sender !== 'Me' && selectedChat.isGroup && showAvatarAndName && (
+                            {msg.sender !== 'Me' && selectedChat.isGroup && showAvatarAndName && msg.type !== 'POLL' && (
                               <span className="text-[12px] font-semibold text-[var(--sub-text)] mb-0.5 ml-1">{msg.sender}</span>
                             )}
 
