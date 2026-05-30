@@ -2090,9 +2090,20 @@ export function useChatWindow({
     websocketRef.current.send(`/app/chat/${selectedChat.id}/typing`, {
       userId: currentUser.id,
       displayName: currentUser.full_name || currentUser.display_name || 'User',
+      avatarUrl: currentUser.avatar_url || currentUser.avatarUrl || currentUser.avatar || '',
       typing: true,
     });
-  }, [selectedChat?.id, selectedChat?.isAi, selectedChat?.isNew, currentUser?.display_name, currentUser?.full_name, currentUser?.id]);
+  }, [
+    selectedChat?.id,
+    selectedChat?.isAi,
+    selectedChat?.isNew,
+    currentUser?.display_name,
+    currentUser?.full_name,
+    currentUser?.id,
+    currentUser?.avatar_url,
+    currentUser?.avatarUrl,
+    currentUser?.avatar,
+  ]);
 
   const sendStopTypingIndicator = useCallback(() => {
     if (!selectedChat?.id || selectedChat.isNew || selectedChat.isAi || !currentUser?.id) return;
@@ -2100,9 +2111,20 @@ export function useChatWindow({
     websocketRef.current.send(`/app/chat/${selectedChat.id}/typing`, {
       userId: currentUser.id,
       displayName: currentUser.full_name || currentUser.display_name || 'User',
+      avatarUrl: currentUser.avatar_url || currentUser.avatarUrl || currentUser.avatar || '',
       typing: false,
     });
-  }, [selectedChat?.id, selectedChat?.isAi, selectedChat?.isNew, currentUser?.display_name, currentUser?.full_name, currentUser?.id]);
+  }, [
+    selectedChat?.id,
+    selectedChat?.isAi,
+    selectedChat?.isNew,
+    currentUser?.display_name,
+    currentUser?.full_name,
+    currentUser?.id,
+    currentUser?.avatar_url,
+    currentUser?.avatarUrl,
+    currentUser?.avatar,
+  ]);
 
   // Handle @mention input change — detect @ trigger and update message
   const handleMentionInput = useCallback((newValue: string) => {
@@ -2179,10 +2201,25 @@ export function useChatWindow({
         const resolvedDisplayName = data.displayName
           || (data.userId === AI_TYPING_USER_ID ? (selectedChat.name || 'Fruvia Chatbot') : t('common.unknown_user'));
 
+        let resolvedAvatarUrl = data.avatarUrl || data.avatar;
+        if (!resolvedAvatarUrl && data.userId !== AI_TYPING_USER_ID) {
+          const peerId = selectedChat.otherUserId || selectedChat.recipientId;
+          if (!selectedChat.isGroup && peerId && String(peerId) === String(data.userId)) {
+            resolvedAvatarUrl = selectedChat.avatar;
+          } else {
+            const member = (selectedChat.members || []).find(
+              (m: any) => String(m.userId) === String(data.userId) || String(m.id) === String(data.userId)
+            );
+            if (member) {
+              resolvedAvatarUrl = member.avatarUrl || member.avatar;
+            }
+          }
+        }
+
         if (data.typing) {
           setTypingUsers(prev => {
             if (prev.some(user => user.userId === data.userId)) return prev;
-            return [...prev, { userId: data.userId, displayName: resolvedDisplayName, avatarUrl: data.avatarUrl }];
+            return [...prev, { userId: data.userId, displayName: resolvedDisplayName, avatarUrl: resolvedAvatarUrl }];
           });
 
           const existing = typingTimeoutRef.current.get(data.userId);
@@ -2216,7 +2253,18 @@ export function useChatWindow({
       typingTimeoutRef.current.forEach(timeout => clearTimeout(timeout));
       typingTimeoutRef.current.clear();
     };
-  }, [selectedChat?.id, selectedChat?.isNew, selectedChat?.name, currentUser?.id, t]);
+  }, [
+    selectedChat?.id,
+    selectedChat?.isNew,
+    selectedChat?.name,
+    selectedChat?.otherUserId,
+    selectedChat?.recipientId,
+    selectedChat?.isGroup,
+    selectedChat?.avatar,
+    selectedChat?.members,
+    currentUser?.id,
+    t,
+  ]);
 
   useEffect(() => {
     if (typingUsers.length > 0) {
