@@ -215,29 +215,41 @@ const splitMessage = (text: string, chunkSize: number = 800): string[] => {
       break;
     }
 
-    const prefix = remaining.substring(0, chunkSize);
+    let splitPos = chunkSize;
+    const prefix = remaining.substring(0, splitPos);
     
-    // Priority 1: Search backwards for newline
-    const lastNewline = prefix.lastIndexOf('\n');
-    if (lastNewline !== -1 && lastNewline > 0) {
-      const pos = lastNewline + 1;
-      chunks.push(remaining.substring(0, pos));
-      remaining = remaining.substring(pos);
-      continue;
+    const lastOpen = prefix.lastIndexOf('<');
+    const lastClose = prefix.lastIndexOf('>');
+
+    if (lastOpen > lastClose) {
+      splitPos = lastOpen;
+    } else {
+      const lastNewline = prefix.lastIndexOf('\n');
+      const lastSpace = prefix.lastIndexOf(' ');
+      const lastP = prefix.lastIndexOf('</p>');
+      const lastBr = prefix.lastIndexOf('<br>');
+      const lastBlock = Math.max(lastP, lastBr);
+
+      if (lastBlock !== -1 && lastBlock > splitPos - 200) {
+        splitPos = lastBlock + 4;
+      } else if (lastNewline !== -1 && lastNewline > 0) {
+        splitPos = lastNewline + 1;
+      } else if (lastSpace !== -1 && lastSpace > 0) {
+        splitPos = lastSpace + 1;
+      }
     }
 
-    // Priority 2: Search backwards for space
-    const lastSpace = prefix.lastIndexOf(' ');
-    if (lastSpace !== -1 && lastSpace > 0) {
-      const pos = lastSpace + 1;
-      chunks.push(remaining.substring(0, pos));
-      remaining = remaining.substring(pos);
-      continue;
+    if (splitPos === 0) {
+      const nextClose = remaining.indexOf('>', chunkSize);
+      if (nextClose !== -1) {
+        splitPos = nextClose + 1;
+      } else {
+        splitPos = chunkSize;
+      }
     }
 
-    // Special case: Substring exact chunkSize
-    chunks.push(remaining.substring(0, chunkSize));
-    remaining = remaining.substring(chunkSize);
+    chunks.push(remaining.substring(0, splitPos));
+    remaining = remaining.substring(splitPos);
   }
 
   return chunks;
