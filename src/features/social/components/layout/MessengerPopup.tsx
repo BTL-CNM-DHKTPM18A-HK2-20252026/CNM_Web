@@ -46,6 +46,44 @@ interface SendMessageResponse {
 
 const stripHtml = (html: string): string => (html || '').replace(/<[^>]*>?/gm, '');
 
+const splitMessage = (text: string, chunkSize: number = 800): string[] => {
+  const chunks: string[] = [];
+  let remaining = text;
+
+  while (remaining.length > 0) {
+    if (remaining.length <= chunkSize) {
+      chunks.push(remaining);
+      break;
+    }
+
+    const prefix = remaining.substring(0, chunkSize);
+    
+    // Priority 1: Search backwards for newline
+    const lastNewline = prefix.lastIndexOf('\n');
+    if (lastNewline !== -1 && lastNewline > 0) {
+      const pos = lastNewline + 1;
+      chunks.push(remaining.substring(0, pos));
+      remaining = remaining.substring(pos);
+      continue;
+    }
+
+    // Priority 2: Search backwards for space
+    const lastSpace = prefix.lastIndexOf(' ');
+    if (lastSpace !== -1 && lastSpace > 0) {
+      const pos = lastSpace + 1;
+      chunks.push(remaining.substring(0, pos));
+      remaining = remaining.substring(pos);
+      continue;
+    }
+
+    // Special case: Substring exact chunkSize
+    chunks.push(remaining.substring(0, chunkSize));
+    remaining = remaining.substring(chunkSize);
+  }
+
+  return chunks;
+};
+
 const formatFileSize = (bytes?: number) => {
   if (!bytes) return '';
   const k = 1024;
@@ -139,7 +177,7 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
   const [isFormattingActive, setIsFormattingActive] = useState(false);
   const [isMoreActionsOpen, setIsMoreActionsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
+
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -194,7 +232,7 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
           const incomingId = String(newMsg.id || newMsg.messageId);
           const exists = prev.some((m) => String(m.id || m.messageId) === incomingId);
           if (exists) return prev;
-          
+
           const mappedMsg: PopupMessage = {
             id: incomingId,
             senderId: String(newMsg.senderId),
@@ -205,9 +243,9 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
 
           // Optimistic replacement: If message is from me, try to find a matching temp message
           if (String(newMsg.senderId) === currentUserId) {
-            const optimisticIdx = prev.findIndex(m => 
-              String(m.id || m.messageId).startsWith('temp-') && 
-              m.content === mappedMsg.content && 
+            const optimisticIdx = prev.findIndex(m =>
+              String(m.id || m.messageId).startsWith('temp-') &&
+              m.content === mappedMsg.content &&
               m.messageType === mappedMsg.messageType
             );
 
@@ -217,7 +255,7 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
               return next;
             }
           }
-          
+
           return [...prev, mappedMsg];
         });
       } catch (err) {
@@ -231,8 +269,8 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
   const filteredConversations = useMemo(() => {
     if (!searchQuery.trim()) return conversations;
     const q = searchQuery.toLowerCase();
-    return conversations.filter(c => 
-      c.name.toLowerCase().includes(q) || 
+    return conversations.filter(c =>
+      c.name.toLowerCase().includes(q) ||
       c.lastMessage.toLowerCase().includes(q)
     );
   }, [conversations, searchQuery]);
@@ -276,30 +314,30 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'IMAGE' | 'VIDEO' | 'FILE') => {
     const files = event.target.files;
     if (!files || files.length === 0 || !conversationId) return;
-    
+
     const file = files[0];
     event.target.value = '';
-    
+
     try {
       setIsSending(true);
       // Use the same endpoint as the main chat
       const res = await apiClient.get<any>(`/messages/presigned-url?fileName=${encodeURIComponent(file.name)}&fileType=${encodeURIComponent(file.type)}`);
-      
+
       // Robustly extract the presigned URL
       const presignedUrl = typeof res === 'string' ? res : (res?.data || res?.url || res);
-      
+
       if (!presignedUrl || typeof presignedUrl !== 'string') {
         throw new Error('Could not get presigned URL');
       }
 
       // Upload to S3
-      await axios.put(presignedUrl, file, { 
-        headers: { "Content-Type": file.type } 
+      await axios.put(presignedUrl, file, {
+        headers: { "Content-Type": file.type }
       });
-      
+
       // Get the final S3 URL (without query params)
       const s3Url = presignedUrl.split('?')[0];
-      
+
       // Send message directly (the main chat doesn't call /images/save)
       await handleSendMessage(s3Url, type, file.name, file.size);
     } catch (error) {
@@ -324,16 +362,29 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
     if (!content || !conversationId || isSending) return;
 
     const optimisticId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const optimisticMessage: PopupMessage = {
-      id: optimisticId,
-      senderId: currentUserId,
-      content,
-      messageType: type,
-      createdAt: new Date().toISOString(),
-    };
+    
+    let optimisticMessages: PopupMessage[] = [];
+    if (type === 'TEXT' && content.length > 800 && !isAi) {
+      const chunks = splitMessage(content, 800);
+      optimisticMessages = chunks.map((chunkText, idx) => ({
+        id: idx === chunks.length - 1 ? optimisticId : `${optimisticId}-chunk-${idx}`,
+        senderId: currentUserId,
+        content: chunkText,
+        messageType: type,
+        createdAt: new Date().toISOString(),
+      }));
+    } else {
+      optimisticMessages = [{
+        id: optimisticId,
+        senderId: currentUserId,
+        content,
+        messageType: type,
+        createdAt: new Date().toISOString(),
+      }];
+    }
 
     setIsSending(true);
-    setMessages(prev => [...prev, optimisticMessage]);
+    setMessages(prev => [...prev, ...optimisticMessages]);
     if (!rawContent) setDraft('');
 
     try {
@@ -351,17 +402,17 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
           prev.map(msg => ((msg.id || msg.messageId) === optimisticId ? sentMessage : msg))
         );
       } else {
-        setMessages(prev => prev.filter(msg => (msg.id || msg.messageId) !== optimisticId));
+        setMessages(prev => prev.filter(msg => !String(msg.id || msg.messageId).startsWith(optimisticId)));
         await fetchMessages(true);
       }
     } catch (error) {
-      setMessages(prev => prev.filter(msg => (msg.id || msg.messageId) !== optimisticId));
+      setMessages(prev => prev.filter(msg => !String(msg.id || msg.messageId).startsWith(optimisticId)));
       if (!rawContent) setDraft(content);
       toast.error(t('common.action_failed'));
     } finally {
       setIsSending(false);
     }
-  }, [conversationId, currentUserId, draft, fetchMessages, isSending, t]);
+  }, [conversationId, currentUserId, draft, fetchMessages, isSending, t, isAi]);
 
   const handleInputKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -458,17 +509,15 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
       const isPowerPoint = ['PPT', 'PPTX'].includes(ext);
 
       return (
-        <div 
+        <div
           onClick={() => window.open(content, '_blank')}
-          className={`flex items-center gap-3 p-2.5 rounded-xl border max-w-[85%] cursor-pointer transition-all hover:shadow-md ${
-            isMe 
-              ? 'bg-[#EBF5FF] border-[#D0E7FF] ml-auto' 
+          className={`flex items-center gap-3 p-2.5 rounded-xl border max-w-[85%] cursor-pointer transition-all hover:shadow-md ${isMe
+              ? 'bg-[#EBF5FF] border-[#D0E7FF] ml-auto'
               : 'bg-[#F0F7FF] border-[#E0EFFF]'
-          }`}
+            }`}
         >
-          <div className={`h-10 w-8 rounded flex items-center justify-center text-white font-bold text-[10px] shrink-0 ${
-            isPDF ? 'bg-red-500' : isWord ? 'bg-blue-600' : isExcel ? 'bg-green-600' : isPowerPoint ? 'bg-orange-500' : 'bg-gray-400'
-          }`}>
+          <div className={`h-10 w-8 rounded flex items-center justify-center text-white font-bold text-[10px] shrink-0 ${isPDF ? 'bg-red-500' : isWord ? 'bg-blue-600' : isExcel ? 'bg-green-600' : isPowerPoint ? 'bg-orange-500' : 'bg-gray-400'
+            }`}>
             {ext.slice(0, 3)}
           </div>
           <div className="flex-1 min-w-0">
@@ -484,8 +533,8 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
 
     return (
       <div className={`max-w-[85%] px-3 py-1.5 rounded-[18px] text-[14px] shadow-sm break-words whitespace-pre-wrap ${isMe
-          ? 'bg-[#0095F6] text-white'
-          : 'bg-[#EFEFEF] dark:bg-[#262626] text-black dark:text-white'
+        ? 'bg-[#0095F6] text-white'
+        : 'bg-[#EFEFEF] dark:bg-[#262626] text-black dark:text-white'
         }`}>
         {(/<[a-z][\s\S]*>/i.test(content)) ? (
           <div className="tiptap-content prose dark:prose-invert max-w-none text-inherit" dangerouslySetInnerHTML={{ __html: content }} />
@@ -539,7 +588,7 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
                   <p className="font-semibold text-[13px] truncate cursor-pointer">{conv.name}</p>
                   <p className="text-[12px] text-gray-500 truncate leading-tight cursor-pointer">
                     {(conv.lastSenderId === currentUserId || !conv.lastSenderId) && `${t('social.messenger.you')}: `}
-                    {stripHtml(conv.lastMessage)} 
+                    {stripHtml(conv.lastMessage)}
                     {conv.lastMessageTime && (
                       <>
                         {' • '}
@@ -621,19 +670,19 @@ export const MessengerPopup: React.FC<MessengerPopupProps> = ({
               >
                 <FilePickerIcon size={20} />
               </button>
-              
+
               {isFilePopoverOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setIsFilePopoverOpen(false)} />
                   <div className="absolute bottom-[calc(100%+12px)] left-[-10px] bg-white dark:bg-[#121212] border border-gray-100 dark:border-[#262626] rounded-xl shadow-2xl z-50 py-1.5 min-w-[160px] animate-in slide-in-from-bottom-2 duration-200">
-                    <button 
+                    <button
                       onClick={() => { imageInputRef.current?.click(); setIsFilePopoverOpen(false); }}
                       className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-100 dark:hover:bg-[#262626] w-full text-left text-black dark:text-white text-[14px] font-medium transition-colors cursor-pointer"
                     >
                       <ImagePickerIcon size={20} className="text-gray-500" />
                       {t('chat.choose_image')}
                     </button>
-                    <button 
+                    <button
                       onClick={() => { fileInputRef.current?.click(); setIsFilePopoverOpen(false); }}
                       className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-100 dark:hover:bg-[#262626] w-full text-left text-black dark:text-white text-[14px] font-medium transition-colors cursor-pointer"
                     >

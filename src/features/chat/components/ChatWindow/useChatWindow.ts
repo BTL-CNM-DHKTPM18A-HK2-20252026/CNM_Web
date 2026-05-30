@@ -205,6 +205,44 @@ const getSnippet = (content: string, messageType: string | undefined, t: (key: s
   }
 };
 
+const splitMessage = (text: string, chunkSize: number = 800): string[] => {
+  const chunks: string[] = [];
+  let remaining = text;
+
+  while (remaining.length > 0) {
+    if (remaining.length <= chunkSize) {
+      chunks.push(remaining);
+      break;
+    }
+
+    const prefix = remaining.substring(0, chunkSize);
+    
+    // Priority 1: Search backwards for newline
+    const lastNewline = prefix.lastIndexOf('\n');
+    if (lastNewline !== -1 && lastNewline > 0) {
+      const pos = lastNewline + 1;
+      chunks.push(remaining.substring(0, pos));
+      remaining = remaining.substring(pos);
+      continue;
+    }
+
+    // Priority 2: Search backwards for space
+    const lastSpace = prefix.lastIndexOf(' ');
+    if (lastSpace !== -1 && lastSpace > 0) {
+      const pos = lastSpace + 1;
+      chunks.push(remaining.substring(0, pos));
+      remaining = remaining.substring(pos);
+      continue;
+    }
+
+    // Special case: Substring exact chunkSize
+    chunks.push(remaining.substring(0, chunkSize));
+    remaining = remaining.substring(chunkSize);
+  }
+
+  return chunks;
+};
+
 const mapIncomingMessage = (m: any, currentUserId?: string): ChatMessage => ({
   id: String(m.messageId || m.id),
   text: normalizeIncomingContent(m.content, m.senderId, m.messageType, m.senderName),
@@ -1237,25 +1275,53 @@ export function useChatWindow({
 
       // Optimistic update: show the message locally before the server responds
       if (!optimisticId && msgType === 'TEXT') {
-        setMessages(prev => [
-          ...prev,
-          {
-            id: tempOptimisticId,
-            text: contentToUse,
-            type: msgType,
-            replyToMessageId: replyingTo?.id || null,
-            sender: 'Me',
-            senderId: currentUser?.id,
-            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
-            reactions: [],
-            rawDate: new Date(),
-            isEdited: false,
-            isRecalled: false,
-            forwardedFromSenderName: null,
-            caption: caption || undefined,
-            isUploading: false,
-          },
-        ]);
+        if (contentToUse.length > 800 && !selectedChat.isAi) {
+          const chunks = splitMessage(contentToUse, 800);
+          const newOptimisticMessages: ChatMessage[] = chunks.map((chunkText, idx) => {
+            const chunkTempId = idx === chunks.length - 1 ? tempOptimisticId : `${tempOptimisticId}-chunk-${idx}`;
+            return {
+              id: chunkTempId,
+              text: chunkText,
+              type: msgType,
+              replyToMessageId: replyingTo?.id || null,
+              sender: 'Me',
+              senderId: currentUser?.id,
+              time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+              reactions: [],
+              rawDate: new Date(),
+              isEdited: false,
+              isRecalled: false,
+              forwardedFromSenderName: null,
+              caption: caption || undefined,
+              isUploading: false,
+            };
+          });
+
+          setMessages(prev => [
+            ...prev,
+            ...newOptimisticMessages,
+          ]);
+        } else {
+          setMessages(prev => [
+            ...prev,
+            {
+              id: tempOptimisticId,
+              text: contentToUse,
+              type: msgType,
+              replyToMessageId: replyingTo?.id || null,
+              sender: 'Me',
+              senderId: currentUser?.id,
+              time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+              reactions: [],
+              rawDate: new Date(),
+              isEdited: false,
+              isRecalled: false,
+              forwardedFromSenderName: null,
+              caption: caption || undefined,
+              isUploading: false,
+            },
+          ]);
+        }
         setShouldScrollToBottom(true);
         setReplyingTo(null);
       }
@@ -1352,7 +1418,7 @@ export function useChatWindow({
 
       // Remove optimistic text message and restore input on failure
       if (!optimisticId && msgType === 'TEXT') {
-        setMessages(prev => prev.filter(m => m.id !== tempOptimisticId));
+        setMessages(prev => prev.filter(m => !String(m.id).startsWith(tempOptimisticId)));
         setMessage(contentToUse);
       }
       // Remove stuck MEDIA/IMAGE/VIDEO optimistic message on failure
@@ -1581,7 +1647,7 @@ export function useChatWindow({
     }
 
     try {
-      const res = await apiClient.get<any>(`/messages/presigned-url?fileName=${encodeURIComponent(uploadFile.name)}&fileType=${encodeURIComponent(uploadFile.type)}`);  
+      const res = await apiClient.get<any>(`/messages/presigned-url?fileName=${encodeURIComponent(uploadFile.name)}&fileType=${encodeURIComponent(uploadFile.type)}`);
       const presignedUrl = typeof res === 'string' ? res : (res?.data || res?.url || res);
 
       if (!presignedUrl || typeof presignedUrl !== 'string') {
@@ -2681,14 +2747,14 @@ export function useChatWindow({
     }
 
     const src = emojiMap[shortcode];
-    
+
     if (editor) {
       if (src) {
         // Insert as an image node for visual feedback in the editor
-        editor.chain().focus().setImage({ 
-          src: src, 
-          alt: shortcode, 
-          title: shortcode 
+        editor.chain().focus().setImage({
+          src: src,
+          alt: shortcode,
+          title: shortcode
         }).run();
       } else {
         editor.chain().focus().insertContent(shortcode).run();
