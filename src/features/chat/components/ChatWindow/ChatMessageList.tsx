@@ -1018,7 +1018,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                             )
                           )}
 
-                          <div className={`flex flex-col ${msg.sender === 'Me' ? 'items-end' : 'items-start'} relative group/msg-container`}>
+                          <div className={`flex flex-col ${msg.sender === 'Me' ? 'items-end' : 'items-start'} relative group/msg-container min-w-0 max-w-full`}>
                             {msg.sender !== 'Me' && selectedChat.isGroup && showAvatarAndName && (
                               <span className="text-[12px] font-semibold text-[var(--sub-text)] mb-0.5 ml-1">{msg.sender}</span>
                             )}
@@ -1067,7 +1067,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                             })()}
 
                             <div
-                              className={`relative group w-fit min-w-[100px] ${msg.isRecalled
+                              className={`relative group w-fit min-w-[100px] max-w-full ${msg.isRecalled
                                 ? `px-3 pt-2 pb-2 rounded-md shadow-sm text-[15px] border border-dashed ${msg.sender === 'Me' ? 'border-gray-300 dark:border-gray-600' : 'border-gray-300 dark:border-gray-600'}`
                                 : msg.type === 'MEDIA' || msg.type === 'IMAGE' || msg.type === 'IMAGE_GROUP' || msg.type === 'VIDEO' || msg.type === 'SHARE_CONTACT'
                                   ? ''
