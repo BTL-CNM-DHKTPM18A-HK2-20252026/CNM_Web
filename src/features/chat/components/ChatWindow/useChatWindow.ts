@@ -2618,6 +2618,11 @@ export function useChatWindow({
             return;
           }
 
+          // Bỏ qua SYSTEM message về pin/unpin (MESSAGE_PIN/MESSAGE_UNPIN event đã xử lý UI)
+          if (newMsg.messageType === 'SYSTEM' && newMsg.content && (newMsg.content.includes('đã ghim') || newMsg.content.includes('đã bỏ ghim'))) {
+            return;
+          }
+
           onUpdateConversationRef.current?.(
             selectedChat.id,
             getSnippet(
