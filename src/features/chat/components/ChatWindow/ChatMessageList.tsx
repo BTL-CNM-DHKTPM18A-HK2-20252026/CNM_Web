@@ -162,6 +162,7 @@ function PollCard({
   const [newOptionText, setNewOptionText] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [isSubmittingVote, setIsSubmittingVote] = useState(false);
+  const [isAddingOption, setIsAddingOption] = useState(false);
 
   // ⚠️ ALL hooks must be before any early return (React rule of hooks)
   const userVotes = poll?.options
@@ -188,6 +189,7 @@ function PollCard({
     opt.voterIds?.forEach((v: string) => uniqueVoters.add(v));
   });
   const totalUniqueVoters = uniqueVoters.size;
+  const totalVotesCast = poll.options?.reduce((sum: number, opt: any) => sum + (opt.voterIds?.length || 0), 0) || 0;
   const hasVoted = uniqueVoters.has(currentUserId || '');
   const showResults = !poll.hideResultsBeforeVote || hasVoted;
 
@@ -219,13 +221,17 @@ function PollCard({
 
   const handleAddOptionSubmit = async () => {
     if (!newOptionText.trim()) return;
+    setIsAddingOption(true);
     try {
       await apiClient.post(`/polls/${poll.pollId}/options`, { content: newOptionText.trim() });
       setNewOptionText('');
       setIsAdding(false);
       toast.success('Thêm phương án thành công!');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Không thể thêm phương án');
+      const msg = err?.message || err?.response?.data?.message || 'Không thể thêm phương án';
+      toast.error(msg);
+    } finally {
+      setIsAddingOption(false);
     }
   };
 
@@ -270,7 +276,7 @@ function PollCard({
       <div className="p-4 space-y-3.5">
         {poll.options?.map((opt: any) => {
           const optVotes = opt.voterIds?.length || 0;
-          const percent = totalUniqueVoters > 0 ? Math.round((optVotes / totalUniqueVoters) * 100) : 0;
+          const percent = totalVotesCast > 0 ? Math.round((optVotes / totalVotesCast) * 100) : 0;
           const isSelected = selectedOptionIds.includes(opt.optionId);
 
           return (
@@ -393,10 +399,10 @@ function PollCard({
               />
               <button
                 onClick={handleAddOptionSubmit}
-                disabled={!newOptionText.trim()}
+                disabled={!newOptionText.trim() || isAddingOption}
                 className="h-8 px-3 rounded-md bg-[#0068FF] hover:bg-[#0052CC] text-white text-[12.5px] font-bold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
               >
-                Thêm
+                {isAddingOption ? '...' : 'Thêm'}
               </button>
               <button
                 onClick={() => {
