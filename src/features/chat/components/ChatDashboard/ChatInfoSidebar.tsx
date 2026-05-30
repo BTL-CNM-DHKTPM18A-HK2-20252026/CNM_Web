@@ -566,9 +566,9 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
           <div className={`p-4 flex items-center gap-3 border-b border-[var(--border)] ${
             (isAdmin || isDeputy) 
               ? 'bg-blue-50/50 dark:bg-blue-500/5 text-[#0068FF]' 
-              : 'bg-gray-100/60 dark:bg-gray-800/40 text-gray-500'
+              : 'bg-red-50/50 dark:bg-red-500/5 text-red-500 dark:text-red-400'
           }`}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <svg width={isAdmin || isDeputy ? "14" : "18"} height={isAdmin || isDeputy ? "14" : "18"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               {isAdmin || isDeputy ? (
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               ) : (
@@ -581,7 +581,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
             <span className="text-[13px] font-semibold">
               {isAdmin || isDeputy 
                 ? `Bạn đang xem thông tin nhóm với quyền ${isAdmin ? 'Trưởng nhóm' : 'Phó nhóm'}`
-                : 'Chỉ Trưởng/Phó nhóm mới có quyền thay đổi thiết lập (Only Administrators can access these settings)'}
+                : 'Chỉ Trưởng/Phó nhóm mới có quyền thay đổi thiết lập'}
             </span>
           </div>
 
@@ -709,7 +709,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                 <h3 className="text-[17px] font-bold text-[var(--text)] truncate max-w-[240px]">
                   {conversationName || t('info.title')}
                 </h3>
-                {isGroup && (isAdmin || isDeputy) && (
+                {isGroup && (
                   <button
                     onClick={() => {
                       setNewName(conversationName || '');
