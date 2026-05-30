@@ -123,7 +123,7 @@ export function ChatInput({
     content: value,
     editorProps: {
       attributes: {
-        class: 'outline-none text-[15px] py-0 text-[var(--text)] min-h-[20px] max-h-[120px] overflow-y-auto [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.is-editor-empty:first-child::before]:text-[var(--sub-text)] [&_.is-editor-empty:first-child::before]:opacity-50 [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:pointer-events-none [&_.is-editor-empty:first-child::before]:h-0 [&_img]:inline-block [&_img]:w-6 [&_img]:h-6 [&_img]:mx-0.5 [&_img]:align-text-bottom',
+        class: 'outline-none text-[15px] py-0 text-[var(--text)] min-h-[20px] max-h-[120px] overflow-y-auto break-words [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.is-editor-empty:first-child::before]:text-[var(--sub-text)] [&_.is-editor-empty:first-child::before]:opacity-50 [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:pointer-events-none [&_.is-editor-empty:first-child::before]:h-0 [&_img]:inline-block [&_img]:w-6 [&_img]:h-6 [&_img]:mx-0.5 [&_img]:align-text-bottom',
       },
       handlePaste(_view, event) {
         if (!onPaste) return false;
@@ -169,7 +169,7 @@ export function ChatInput({
 
   return (
     <div className="flex items-end px-4 py-3 gap-3 min-h-[52px]">
-      <div className="flex-1 pb-1 relative">
+      <div className="flex-1 pb-1 relative min-w-0">
         {pendingAttachment && (() => {
           const name = pendingAttachment.file.name.toLowerCase();
           const isVideo = pendingAttachment.file.type.startsWith('video/');
