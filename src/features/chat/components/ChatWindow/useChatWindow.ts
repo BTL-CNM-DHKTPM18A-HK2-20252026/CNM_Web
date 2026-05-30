@@ -181,7 +181,7 @@ const getSnippet = (content: string, messageType: string | undefined, t: (key: s
       if (content && content.includes('/stickers/')) return 'Đã gửi 1 nhãn dán';
       return t('chat.snippet.image');
     case 'IMAGE_GROUP':
-      return '[Album ảnh]';
+      return t('chat.snippet.image_group');
     case 'VIDEO':
       return t('chat.snippet.video');
     case 'MEDIA':

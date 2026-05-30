@@ -126,6 +126,7 @@ export function ForwardModal({ message, currentConversationId, currentUserId, on
     const stripHtml = (html: string) => (html || '').replace(/<[^>]*>?/gm, '');
     switch (message.type) {
       case 'IMAGE': return 'Chia sẻ hình ảnh';
+      case 'IMAGE_GROUP': return 'Chia sẻ album ảnh';
       case 'VIDEO': return 'Chia sẻ video';
       case 'MEDIA': return 'Chia sẻ tệp tin';
       case 'VOICE': return 'Chia sẻ tin nhắn thoại';
@@ -135,11 +136,11 @@ export function ForwardModal({ message, currentConversationId, currentUserId, on
       }
     }
   };
-
+ 
   const isSelected = (id: string) => selected.has(id);
-
+ 
   const renderMessageIcon = () => {
-    if (message.type === 'IMAGE' || message.type === 'VIDEO') {
+    if (message.type === 'IMAGE' || message.type === 'IMAGE_GROUP' || message.type === 'VIDEO') {
       return (
         <div className="w-10 h-10 rounded-lg border border-gray-200 overflow-hidden flex items-center justify-center shrink-0 bg-white">
           <img src={message.text} alt="" className="w-full h-full object-cover" />

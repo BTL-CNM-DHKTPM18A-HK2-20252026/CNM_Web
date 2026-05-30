@@ -289,6 +289,7 @@
     },
     "snippet": {
       "image": "[Hình ảnh]",
+      "image_group": "[Album ảnh]",
       "video": "[Video]",
       "file": "[File]",
       "voice": "[Tin nhắn thoại]",

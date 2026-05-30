@@ -208,6 +208,8 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
             if (onUpdateConversation) {
               const snippet = forwardingMsg.type === 'IMAGE'
                 ? t('chat.snippet.image')
+                : forwardingMsg.type === 'IMAGE_GROUP'
+                ? t('chat.snippet.image_group')
                 : forwardingMsg.type === 'VIDEO'
                 ? t('chat.snippet.video')
                 : forwardingMsg.type === 'MEDIA'

@@ -142,7 +142,7 @@ return (
         <div className="flex-1 min-w-0">
           <div className="text-[12px] font-bold text-[#0068FF]">{t('chat.reply.replying_to')} {replyingTo.sender === 'Me' ? t('common.you') : replyingTo.sender}</div>
           <div className="text-[13px] text-[var(--sub-text)] truncate">
-            {replyingTo.type === 'IMAGE' ? `📷 ${t('chat.snippet.image')}` : replyingTo.type === 'VIDEO' ? `🎬 ${t('chat.snippet.video')}` : replyingTo.type === 'VOICE' ? `🎤 ${t('chat.snippet.voice')}` : replyingTo.type === 'MEDIA' ? `📎 ${t('chat.snippet.file')}` : replyingTo.type === 'SHARE_CONTACT' ? (() => { try { const c = JSON.parse(replyingTo.text || '{}'); return `📇 ${c.fullName || t('share_contact.snippet')}`; } catch { return `📇 ${t('share_contact.snippet')}`; } })() : replyingTo.text?.length > 60 ? `${replyingTo.text.slice(0, 60)}...` : replyingTo.text}
+            {replyingTo.type === 'IMAGE' ? `📷 ${t('chat.snippet.image')}` : replyingTo.type === 'IMAGE_GROUP' ? `📷 ${t('chat.snippet.image_group')}` : replyingTo.type === 'VIDEO' ? `🎬 ${t('chat.snippet.video')}` : replyingTo.type === 'VOICE' ? `🎤 ${t('chat.snippet.voice')}` : replyingTo.type === 'MEDIA' ? `📎 ${t('chat.snippet.file')}` : replyingTo.type === 'SHARE_CONTACT' ? (() => { try { const c = JSON.parse(replyingTo.text || '{}'); return `📇 ${c.fullName || t('share_contact.snippet')}`; } catch { return `📇 ${t('share_contact.snippet')}`; } })() : replyingTo.text?.length > 60 ? `${replyingTo.text.slice(0, 60)}...` : replyingTo.text}
           </div>
         </div>
         <button onClick={() => setReplyingTo(null)} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full hover:bg-[var(--hover-bg)] text-[var(--sub-text)] transition-colors cursor-pointer">

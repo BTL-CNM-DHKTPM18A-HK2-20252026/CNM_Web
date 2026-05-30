@@ -581,6 +581,7 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
           const getSnippet = (content: string, type?: string) => {
             switch (type) {
               case 'IMAGE': return t('chat.snippet.image');
+              case 'IMAGE_GROUP': return t('chat.snippet.image_group');
               case 'VIDEO': return t('chat.snippet.video');
               case 'MEDIA': return t('chat.snippet.file');
               case 'VOICE': return t('chat.snippet.voice');

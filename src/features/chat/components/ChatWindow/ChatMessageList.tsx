@@ -1031,6 +1031,8 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                 ? t('chat.message.recalled')
                                 : repliedMsg.type === 'IMAGE'
                                   ? `📷 ${t('chat.snippet.image')}`
+                                : repliedMsg.type === 'IMAGE_GROUP'
+                                  ? `📷 ${t('chat.snippet.image_group')}`
                                   : repliedMsg.type === 'VIDEO'
                                     ? `🎬 ${t('chat.snippet.video')}`
                                     : repliedMsg.type === 'VOICE'
