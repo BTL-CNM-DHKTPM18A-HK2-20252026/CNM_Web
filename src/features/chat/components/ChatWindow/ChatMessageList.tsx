@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { FruviaChatbotAvatar } from '@/components/ui/FruviaChatbotAvatar';
 import { ChevronDownIcon, ChevronRightIcon, MessageBubbleIcon, MoreHorizontalIcon, SparklesIcon } from '@/components/ui/Icons';
-import { AI_TYPING_USER_ID } from '@/features/chat/components/ChatWindow/useChatWindow';
+import { AI_TYPING_USER_ID } from '@/features/chat/components/ChatWindow/types';
 import type { ChatMessage, ChatMessageListProps } from '@/features/chat/components/ChatWindow/types';
 import { usePresence } from '@/features/user';
 import { apiClient } from '@/lib/http/apiClient';

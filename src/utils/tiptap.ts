@@ -7,15 +7,22 @@ import { Strike } from '@tiptap/extension-strike';
 import { Highlight } from '@tiptap/extension-highlight';
 import { Image as TiptapImage } from '@tiptap/extension-image';
 
-const TIPTAP_EXTENSIONS = [
-  StarterKit,
-  Underline,
-  TextStyle,
-  Color,
-  Strike,
-  Highlight,
-  TiptapImage,
-];
+let cachedExtensions: any[] | null = null;
+
+function getExtensions() {
+  if (!cachedExtensions) {
+    cachedExtensions = [
+      StarterKit,
+      Underline,
+      TextStyle,
+      Color,
+      Strike,
+      Highlight,
+      TiptapImage,
+    ];
+  }
+  return cachedExtensions;
+}
 
 /**
  * Converts a Tiptap JSON string to HTML.
@@ -26,7 +33,7 @@ export function getMessageHtml(text: string): string {
   try {
     const json = JSON.parse(text);
     if (json && typeof json === 'object' && json.type === 'doc') {
-      return generateHTML(json, TIPTAP_EXTENSIONS);
+      return generateHTML(json, getExtensions());
     }
     // It's JSON but not a Tiptap doc — return raw string
     return text;

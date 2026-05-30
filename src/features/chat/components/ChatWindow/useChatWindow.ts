@@ -37,11 +37,11 @@ import type {
   ReplyingTo,
   TypingUser,
 } from '@/features/chat/components/ChatWindow/types';
+import { AI_TYPING_USER_ID } from '@/features/chat/components/ChatWindow/types';
 
 const AI_ACCESS_SETTINGS_STORAGE_KEY = 'fruvia.ai.access-settings.v1';
 const AI_THEME_STORAGE_KEY = 'fruvia.ai.theme.v1';
 const LOCAL_DELETED_MESSAGES_STORAGE_KEY = 'fruvia.chat.deleted-local.v1';
-export const AI_TYPING_USER_ID = 'FRUVIA_AI_ASSISTANT';
 
 const getDeletedMessagesStorageKey = (conversationId: string | number, userId?: string): string => (
   `${LOCAL_DELETED_MESSAGES_STORAGE_KEY}:${userId || 'anonymous'}:${String(conversationId)}`

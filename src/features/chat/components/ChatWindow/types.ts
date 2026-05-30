@@ -1,5 +1,7 @@
 import type React from 'react';
 
+export const AI_TYPING_USER_ID = 'FRUVIA_AI_ASSISTANT';
+
 export interface SelectedChat {
   id: string | number;
   name: string;
