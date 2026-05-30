@@ -288,8 +288,8 @@ function PollCard({
             frac: p - floored[i],
           }));
           remainders.sort((a: any, b: any) => b.frac - a.frac);
-          for (let r = 0; r < remainder; r++) {
-            floored[remainders[r].idx]++;
+          for (let r = 0; r < remainder && r < remainders.length; r++) {
+            if (remainders[r]) floored[remainders[r].idx]++;
           }
 
           return opts.map((opt: any, i: number) => {
