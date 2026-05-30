@@ -146,6 +146,14 @@ export function ChatInput({
     }
   }, [editor, onEditorReady]);
 
+  const handleSend = () => {
+    if (editor) {
+      const serialized = JSON.stringify(editor.getJSON());
+      onChange(serialized);
+    }
+    onSend();
+  };
+
   // Sync value from outside (e.g. when cleared after send)
   useEffect(() => {
     if (!editor) return;
@@ -176,7 +184,7 @@ export function ChatInput({
 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      onSend();
+      handleSend();
     }
   };
 
@@ -243,7 +251,7 @@ export function ChatInput({
         {showSendButton ? (
           <button
             type="button"
-            onClick={onSend}
+            onClick={handleSend}
             disabled={disabled}
             className={`flex items-center justify-center transform translate-y-[-1px] ${
               disabled ? 'text-gray-400 cursor-not-allowed' : 'text-[#0068FF] cursor-pointer'

@@ -547,10 +547,6 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
   const voicePercentage = stats?.voiceSize ? (stats.voiceSize / stats.totalSize) * usagePercentage : 0;
 
   if (activeView === 'group-management') {
-    if (!(isAdmin || isDeputy)) {
-      setActiveView('main');
-      return null;
-    }
     return (
       <div className="w-[340px] flex flex-col h-full bg-[var(--card-bg)] border-l border-[var(--border)] transition-colors duration-200">
         <div className="h-[76px] flex items-center border-b border-[var(--border)] shrink-0 px-4">
@@ -570,7 +566,7 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-[#0068FF]">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
             </svg>
-            <span className="text-[13px] text-[#0068FF] font-semibold">Bạn đang quản lý nhóm với quyền {isAdmin ? 'Trưởng nhóm' : 'Phó nhóm'}</span>
+            <span className="text-[13px] text-[#0068FF] font-semibold">Bạn đang xem thông tin nhóm với quyền {isAdmin ? 'Trưởng nhóm' : isDeputy ? 'Phó nhóm' : 'Thành viên'}</span>
           </div>
 
           {/* Permissions Section */}
@@ -736,23 +732,19 @@ export function ChatInfoSidebar({ onClose, onOpenDataModal, conversationId, isGr
                     </span>
                   </div>
 
-                  {(isAdmin || isDeputy) && (
-                    <div className="flex flex-col items-center gap-1.5 group cursor-pointer w-1/4" onClick={openAddMemberPanel}>
-                      <div className="w-11 h-11 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 flex items-center justify-center group-hover:bg-gray-200 transition-all">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" /></svg>
-                      </div>
-                      <span className="text-[12px] font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">Thêm thành viên</span>
+                  <div className="flex flex-col items-center gap-1.5 group cursor-pointer w-1/4" onClick={openAddMemberPanel}>
+                    <div className="w-11 h-11 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 flex items-center justify-center group-hover:bg-gray-200 transition-all">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" /></svg>
                     </div>
-                  )}
+                    <span className="text-[12px] font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">Thêm thành viên</span>
+                  </div>
 
-                  {(isAdmin || isDeputy) && (
-                    <div className="flex flex-col items-center gap-1.5 group cursor-pointer w-1/4" onClick={() => setActiveView('group-management')}>
-                      <div className="w-11 h-11 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 flex items-center justify-center group-hover:bg-gray-200 transition-all">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
-                      </div>
-                      <span className="text-[12px] font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">Quản lý nhóm</span>
+                  <div className="flex flex-col items-center gap-1.5 group cursor-pointer w-1/4" onClick={() => setActiveView('group-management')}>
+                    <div className="w-11 h-11 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 flex items-center justify-center group-hover:bg-gray-200 transition-all">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
                     </div>
-                  )}
+                    <span className="text-[12px] font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">Quản lý nhóm</span>
+                  </div>
                 </div>
               )}
             </>
