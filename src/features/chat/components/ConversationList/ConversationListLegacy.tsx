@@ -294,7 +294,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
           const friends = Array.isArray(globalData.friends) ? globalData.friends : [];
           setSearchFriends(friends.map((f: any) => ({
             userId: f.userId,
-            displayName: f.displayName || 'Unknown',
+            displayName: f.displayName || t('common.unknown_user'),
             phoneNumber: f.phoneNumber,
             avatarUrl: f.avatarUrl,
             friendshipStatus: f.friendshipStatus || 'ACCEPTED',
@@ -305,7 +305,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
           setSearchConversations(convs.map((c: any) => ({
             conversationId: c.conversationId,
             conversationType: c.conversationType,
-            conversationName: c.conversationName || 'Unknown',
+            conversationName: c.conversationName || t('common.unknown_user'),
             conversationAvatarUrl: c.conversationAvatarUrl,
             lastMessageContent: c.lastMessageContent,
             lastMessageTime: c.lastMessageTime,
@@ -342,7 +342,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
           const globalUsers = Array.isArray(globalData.globalUsers) ? globalData.globalUsers : [];
           setSearchGlobalUsers(globalUsers.map((u: any) => ({
             userId: u.userId,
-            displayName: u.displayName || 'Unknown',
+            displayName: u.displayName || t('common.unknown_user'),
             phoneNumber: u.phoneNumber,
             avatarUrl: u.avatarUrl,
             friendshipStatus: u.friendshipStatus || 'NONE',
@@ -359,7 +359,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
             if (byPhone && (byPhone.user_id || byPhone.userId)) {
               const phoneUser = {
                 userId: byPhone.user_id || byPhone.userId,
-                displayName: byPhone.display_name || byPhone.displayName || 'Unknown',
+                displayName: byPhone.display_name || byPhone.displayName || t('common.unknown_user'),
                 phoneNumber: byPhone.phone_number || byPhone.phoneNumber,
                 avatarUrl: byPhone.avatar_url || byPhone.avatarUrl,
                 friendshipStatus: byPhone.friendship_status || byPhone.friendshipStatus || 'NONE',
@@ -1252,8 +1252,16 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                         {searchMessages.map(msg => {
                           const conv = conversations.find(c => String(c.id) === msg.conversationId);
                           const isAiSender = msg.senderId === 'FRUVIA_AI_ASSISTANT';
-                          const displayConvName = conv?.name || (isAiSender ? 'Fruvia Chatbot' : (msg.senderName && msg.senderName !== 'Unknown' ? msg.senderName : null)) || msg.senderName;
-                          const displaySenderName = isAiSender ? 'Fruvia Chatbot' : (msg.senderName && msg.senderName !== 'Unknown' ? msg.senderName : (conv?.name || 'Unknown'));
+                          // Khi user bị kick khỏi nhóm, senderName có thể là "Unknown" hoặc undefined
+                          const isUnknownSender = !msg.senderName || msg.senderName === 'Unknown';
+                          const displayConvName = conv?.name
+                            || (isAiSender ? 'Fruvia Chatbot' : (!isUnknownSender ? msg.senderName : null))
+                            || (isUnknownSender ? t('common.unknown_user') : msg.senderName);
+                          const displaySenderName = isAiSender
+                            ? 'Fruvia Chatbot'
+                            : (!isUnknownSender
+                              ? msg.senderName
+                              : (conv?.name || t('common.unknown_user')));
 
                           // Highlight keywords in message content
                           const highlightContent = (text: string, query: string) => {
@@ -1370,7 +1378,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                       <div className="space-y-0.5">
                         {hiddenSearchResults.map((conv: any) => {
                           const convId = conv.conversationId || conv.id;
-                          const name = conv.conversationName || conv.name || 'Unknown';
+                          const name = conv.conversationName || conv.name || t('common.unknown_user');
                           const avatar = conv.conversationAvatarUrl || conv.avatarUrl || '';
                           return (
                             <div
@@ -1693,7 +1701,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                         avatar = other.avatarUrl || other.avatar_url || avatar;
                       }
                     }
-                    if (!name) name = 'Unknown';
+                    if (!name) name = t('common.unknown_user');
                     const lastMsg = stripHtml(conv.lastMessageContent || conv.last_message_content || '');
                     return (
                       <div key={convId} className="flex items-center gap-3 p-3 rounded-lg hover:bg-[var(--hover-bg)] transition-colors">
