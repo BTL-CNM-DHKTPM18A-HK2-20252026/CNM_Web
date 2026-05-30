@@ -637,6 +637,9 @@ function isFirstInBlock(msg: ChatMessage, prevMsg: ChatMessage | undefined): boo
 }
 
 function ChatMessageListImpl({ vm }: ChatMessageListProps) {
+  const { refreshUserStatus } = usePresence();
+  if (!vm || !vm.selectedChat) return null;
+
   const {
     t,
     selectedChat,
@@ -673,14 +676,12 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
     handleAcceptFriendRequest,
     handleSendFriendRequest,
   } = vm;
-  const isAiConversation = Boolean(selectedChat.isAi);
+  const isAiConversation = Boolean(selectedChat?.isAi);
   const openSenderProfile = (msg: ChatMessage) => {
     const userId = msg.senderId;
     if (!userId || userId === currentUser?.id || userId === 'SYSTEM' || userId === AI_TYPING_USER_ID) return;
     onOpenProfile?.(userId);
   };
-
-  const { refreshUserStatus } = usePresence();
 
   // Fetch trạng thái online của người nhận khi mở hội thoại mới
   useEffect(() => {
