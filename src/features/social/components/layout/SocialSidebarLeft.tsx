@@ -16,7 +16,7 @@ import {
   LogOutIcon,
 } from '@/components/ui/Icons';
 import { useTheme } from '@/themes';
-import { Archive as ArchiveIcon, Music as MusicIcon } from 'lucide-react';
+import { Archive as ArchiveIcon } from 'lucide-react';
 
 interface SocialSidebarLeftProps {
   user: any;
@@ -28,7 +28,6 @@ interface SocialSidebarLeftProps {
   onArchiveClick?: () => void;
   onSearchClick?: () => void;
   onNotificationsClick?: () => void;
-  onMyMusicClick?: () => void;
   onLogout?: () => void;
 }
 
@@ -42,7 +41,6 @@ export const SocialSidebarLeft: React.FC<SocialSidebarLeftProps> = ({
   onArchiveClick,
   onSearchClick,
   onNotificationsClick,
-  onMyMusicClick,
   onLogout
 }) => {
   const { t, i18n } = useTranslation();
@@ -60,7 +58,6 @@ export const SocialSidebarLeft: React.FC<SocialSidebarLeftProps> = ({
     { id: 'messages', icon: MessageBubbleIcon },
     { id: 'create', icon: PlusIcon },
     { id: 'archive', icon: ArchiveIcon },
-    { id: 'my-music', icon: MusicIcon },
     { id: 'profile', icon: null },
   ];
 
@@ -117,9 +114,6 @@ export const SocialSidebarLeft: React.FC<SocialSidebarLeftProps> = ({
                 if (item.id === 'create' && onCreatePostClick) onCreatePostClick();
                 if (item.id === 'archive' && onArchiveClick) onArchiveClick();
                 if (item.id === 'notifications' && onNotificationsClick) onNotificationsClick();
-                if (item.id === 'my-music') {
-                  if (onMyMusicClick) onMyMusicClick();
-                }
               }}
               className="flex items-center gap-3 px-[18px] py-3 hover:bg-[#FAFAFA] dark:hover:bg-[#1A1A1A] cursor-pointer transition-all group/item text-black dark:text-white shrink-0"
             >
