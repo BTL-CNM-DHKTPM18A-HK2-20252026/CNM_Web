@@ -7,7 +7,7 @@ import type { ChatMessage, ChatMessageListProps } from '@/features/chat/componen
 import { usePresence } from '@/features/user';
 import { apiClient } from '@/lib/http/apiClient';
 import emojiPack from '@/data/emoji-pack.json';
-import { getMessageHtml, getPlainTextFromMessage } from '@/utils/tiptap';
+import { getMessageHtml, getPlainTextFromMessage } from '@/utils/tiptapRenderer';
 
 // Initialize emoji lookup map
 const emojiMap: Record<string, string> = {};

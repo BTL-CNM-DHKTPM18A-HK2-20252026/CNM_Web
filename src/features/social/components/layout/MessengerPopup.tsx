@@ -23,7 +23,7 @@ import { useTranslation } from 'react-i18next';
 import { StickerPicker } from '@/features/chat/components/StickerPicker';
 import { ChatImageUpload } from '@/features/chat/components/ChatImageUpload';
 import { websocketService } from '@/lib/realtime/websocketService';
-import { getMessageHtml } from '@/utils/tiptap';
+import { getMessageHtml } from '@/utils/tiptapRenderer';
 
 interface PopupMessage {
   id?: string;
