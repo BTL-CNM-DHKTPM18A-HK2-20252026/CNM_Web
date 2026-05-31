@@ -506,7 +506,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate, targetUserId, onStartC
                       e.stopPropagation();
                       setOpenDropdown(openDropdown === 'day' ? null : 'day');
                     }}
-                    className={`h-[42px] border rounded-md px-3 flex items-center justify-between cursor-pointer transition-all ${openDropdown === 'day' ? 'border-[#0068FF]' : 'border-[var(--border)] hover:border-gray-400'}`}
+                    className={`h-[42px] border rounded-md px-3 flex items-center justify-between cursor-pointer transition-all ${openDropdown === 'day' ? 'border-[#0068FF]' : 'border-[var(--border)] hover:border-[var(--sub-text)]'}`}
                   >
                     <span className="text-[15px] text-[var(--text)]">{day}</span>
                     <ChevronDownIcon size={18} className="text-[var(--sub-text)]" />
@@ -530,7 +530,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate, targetUserId, onStartC
                       e.stopPropagation();
                       setOpenDropdown(openDropdown === 'month' ? null : 'month');
                     }}
-                    className={`h-[42px] border rounded-md px-3 flex items-center justify-between cursor-pointer transition-all ${openDropdown === 'month' ? 'border-[#0068FF]' : 'border-[var(--border)] hover:border-gray-400'}`}
+                    className={`h-[42px] border rounded-md px-3 flex items-center justify-between cursor-pointer transition-all ${openDropdown === 'month' ? 'border-[#0068FF]' : 'border-[var(--border)] hover:border-[var(--sub-text)]'}`}
                   >
                     <span className="text-[15px] text-[var(--text)]">{month}</span>
                     <ChevronDownIcon size={18} className="text-[var(--sub-text)]" />
@@ -554,7 +554,7 @@ export function ProfileModal({ isOpen, onClose, onUpdate, targetUserId, onStartC
                       e.stopPropagation();
                       setOpenDropdown(openDropdown === 'year' ? null : 'year');
                     }}
-                    className={`h-[42px] border rounded-md px-3 flex items-center justify-between cursor-pointer transition-all ${openDropdown === 'year' ? 'border-[#0068FF]' : 'border-[var(--border)] hover:border-gray-400'}`}
+                    className={`h-[42px] border rounded-md px-3 flex items-center justify-between cursor-pointer transition-all ${openDropdown === 'year' ? 'border-[#0068FF]' : 'border-[var(--border)] hover:border-[var(--sub-text)]'}`}
                   >
                     <span className="text-[15px] text-[var(--text)]">{year}</span>
                     <ChevronDownIcon size={18} className="text-[var(--sub-text)]" />
@@ -805,12 +805,12 @@ export function ProfileModal({ isOpen, onClose, onUpdate, targetUserId, onStartC
             {/* Action Buttons for non-me profile */}
             {!isMe && (
               <div className="flex gap-2 mt-4 px-4">
-                {friendshipStatus !== 'ACCEPTED' && friendshipStatus !== 'FRIEND' && (
+                {(friendshipStatus === 'NONE' || friendshipStatus === null) && (
                   <button 
                     onClick={() => onAddFriend?.({ user: { user_id: userId, display_name: userName, avatar_url: avatarUrl } })}
-                    className="flex-1 h-9 bg-[#E8F2FF] hover:bg-[#D6E6FF] text-[#0068FF] font-bold text-[14px] rounded-md transition-colors cursor-pointer"
+                    className="flex-1 h-9 bg-[var(--hover-bg)] hover:opacity-80 text-[var(--text)] font-bold text-[14px] rounded-md border border-[var(--border)] transition-colors cursor-pointer"
                   >
-                    Kết bạn
+                    {t('friends.add_friend') || 'Kết bạn'}
                   </button>
                 )}
                 <button 
@@ -818,9 +818,9 @@ export function ProfileModal({ isOpen, onClose, onUpdate, targetUserId, onStartC
                     onClose();
                     onStartChat?.(userId, { display_name: userName, avatar_url: avatarUrl });
                   }}
-                  className="flex-1 h-9 bg-[#E8F2FF] hover:bg-[#D6E6FF] text-[#0068FF] font-bold text-[14px] rounded-md transition-colors cursor-pointer"
+                  className="flex-1 h-9 bg-[#0068FF] hover:bg-[#0057D1] text-white font-bold text-[14px] rounded-md transition-colors cursor-pointer"
                 >
-                  Nhắn tin
+                  {t('friends.send_message') || 'Nhắn tin'}
                 </button>
               </div>
             )}
@@ -884,12 +884,12 @@ export function ProfileModal({ isOpen, onClose, onUpdate, targetUserId, onStartC
                 <button
                   key={i}
                   onClick={() => handleSystemAvatarSelect(`${S3_BASE}/avatar/image${i}.jpg`)}
-                  className="relative aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-[#0068FF] transition-all cursor-pointer group shadow-sm bg-white dark:bg-gray-800"
+                  className="relative aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-[#0068FF] transition-all cursor-pointer group shadow-sm bg-[var(--card-bg)]"
                 >
                   <Image src={`${S3_BASE}/avatar/image${i}.jpg`} fill alt={`Default ${i}`} className="object-cover group-hover:scale-110 transition-transform" />
                   {currentAvatar === `${S3_BASE}/avatar/image${i}.jpg` && (
                     <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
-                      <div className="bg-white rounded-full p-0.5">
+                      <div className="bg-[var(--card-bg)] rounded-full p-0.5">
                         <CheckIcon size={14} />
                       </div>
                     </div>

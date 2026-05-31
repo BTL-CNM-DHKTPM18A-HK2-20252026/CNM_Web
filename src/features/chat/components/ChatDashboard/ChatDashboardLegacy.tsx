@@ -86,6 +86,11 @@ const parseLastMsgPreview = (text: string, t?: any): string => {
         }).filter(Boolean);
         if (names.length > 0) result = `📷 ${names.join(', ')}`;
       } else if (json && typeof json === 'object') {
+        // POLL detection: has question field
+        if (json.question !== undefined || json.type === 'poll') {
+          const q = json.question || '';
+          result = q ? `📊 ${q}` : '📊 Bình chọn';
+        } else {
         // JSON object: try TipTap extraction, fallback to fileName/url
         const extract = (node: any): string => {
           if (!node) return '';
@@ -104,6 +109,7 @@ const parseLastMsgPreview = (text: string, t?: any): string => {
         } else if (json.url) {
           const seg = json.url.split('/');
           result = `📷 ${seg[seg.length - 1] || 'file'}`;
+        }
         }
       }
     } catch { /* ignore */ }
@@ -696,6 +702,14 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
               case 'CALL_MISSED': return t('chat.snippet.call_missed') || 'Cuộc gọi nhỡ';
               case 'CALL_REJECTED': return t('chat.snippet.call_rejected') || 'Cuộc gọi bị từ chối';
               case 'CALL_ENDED': return t('chat.snippet.call_ended') || 'Cuộc gọi đã kết thúc';
+              case 'POLL': {
+                try {
+                  const poll = JSON.parse(content || '{}');
+                  const q = poll.question || poll.content?.content?.[0]?.content?.[0]?.text || '';
+                  if (q) return `📊 ${q}`;
+                } catch {}
+                return '📊 Bình chọn';
+              }
               default: return parseLastMsgPreview(content, t);
             }
           };
@@ -1488,6 +1502,7 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
                                         const extract = (node: any): string => {
                                           if (!node) return '';
                                           if (node.type === 'text') return node.text ?? '';
+                                          if (node.type === 'zaloEmoji') return node.attrs?.shortcode ?? '';
                                           if (Array.isArray(node.content)) {
                                             return node.content.map(extract).join(' ');
                                           }
@@ -1510,6 +1525,12 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
                                 else if (msg.messageType === 'VOICE') { displayContent = '🎤 Tin nhắn thoại'; }
                                 else if (msg.messageType === 'MEDIA') { displayContent = '📎 Tệp đính kèm'; }
                                 else if (msg.messageType === 'STICKER') { displayContent = '😀 Sticker'; }
+                                else if (msg.messageType === 'POLL') {
+                                  try {
+                                    const poll = JSON.parse(msg.content || '{}');
+                                    displayContent = poll.question ? `📊 ${poll.question}` : '📊 Bình chọn';
+                                  } catch { displayContent = '📊 Bình chọn'; }
+                                }
 
                                 const highlightText = (text: string, query: string) => {
                                   const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

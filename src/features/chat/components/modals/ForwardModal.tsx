@@ -125,11 +125,13 @@ export function ForwardModal({ message, currentConversationId, currentUserId, on
   const getSnippet = () => {
     const stripHtml = (html: string) => (html || '').replace(/<[^>]*>?/gm, '');
     switch (message.type) {
-      case 'IMAGE': return 'Chia sẻ hình ảnh';
-      case 'IMAGE_GROUP': return 'Chia sẻ album ảnh';
-      case 'VIDEO': return 'Chia sẻ video';
-      case 'MEDIA': return 'Chia sẻ tệp tin';
-      case 'VOICE': return 'Chia sẻ tin nhắn thoại';
+      case 'IMAGE': return t('chat.forward.share_image');
+      case 'IMAGE_GROUP': return t('chat.forward.share_image_group');
+      case 'VIDEO': return t('chat.forward.share_video');
+      case 'MEDIA': return t('chat.forward.share_file');
+      case 'VOICE': return t('chat.forward.share_voice');
+      case 'STICKER': return t('chat.forward.share_sticker');
+      case 'SHARE_CONTACT': return t('chat.forward.share_contact');
       default: {
         let text = message.text || '';
         if (text.trim().startsWith('{')) {
@@ -162,7 +164,7 @@ export function ForwardModal({ message, currentConversationId, currentUserId, on
   const renderMessageIcon = () => {
     if (message.type === 'IMAGE' || message.type === 'IMAGE_GROUP' || message.type === 'VIDEO') {
       return (
-        <div className="w-10 h-10 rounded-lg border border-gray-200 overflow-hidden flex items-center justify-center shrink-0 bg-white">
+        <div className="w-10 h-10 rounded-lg border border-[var(--border)] overflow-hidden flex items-center justify-center shrink-0 bg-[var(--card-bg)]">
           <img src={message.text} alt="" className="w-full h-full object-cover" />
         </div>
       );
@@ -229,13 +231,13 @@ export function ForwardModal({ message, currentConversationId, currentUserId, on
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50" onClick={onClose}>
       <div
-        className="bg-white w-[480px] max-w-[95vw] max-h-[680px] rounded-lg shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 text-[#1A1A1A]"
+        className="bg-[var(--card-bg)] w-[480px] max-w-[95vw] max-h-[680px] rounded-lg shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 text-[var(--text)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 h-14 border-b border-gray-100">
-          <h3 className="text-[17px] font-semibold text-[#081C36]">Chia sẻ</h3>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer text-gray-500">
+        <div className="flex items-center justify-between px-4 h-14 border-b border-[var(--border)]">
+          <h3 className="text-[17px] font-semibold text-[var(--text)]">{t('chat.forward.title')}</h3>
+          <button onClick={onClose} className="p-2 hover:bg-[var(--hover-bg)] rounded-full transition-colors cursor-pointer text-[var(--sub-text)]">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
           </button>
         </div>
@@ -245,47 +247,47 @@ export function ForwardModal({ message, currentConversationId, currentUserId, on
           {/* Search */}
           <div className="px-4 py-3">
             <div className="relative">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--sub-text)]">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
               </div>
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Tìm kiếm..."
-                className="w-full bg-white border border-gray-300 rounded-[4px] py-[7px] pl-10 pr-4 text-[14px] focus:outline-none focus:border-[#0068FF] transition-all"
+                placeholder={t('chat.forward.search_placeholder')}
+                className="w-full bg-[var(--card-bg)] border border-[var(--border)] rounded-[4px] py-[7px] pl-10 pr-4 text-[14px] focus:outline-none focus:border-[#0068FF] transition-all text-[var(--text)] placeholder:text-[var(--sub-text)]"
                 autoFocus
               />
             </div>
           </div>
 
           {/* Tabs */}
-          <div className="px-4 flex items-center justify-between border-b border-gray-100 mb-1">
+          <div className="px-4 flex items-center justify-between border-b border-[var(--border)] mb-1">
             <div className="flex gap-4">
               <button 
                 onClick={() => setActiveTab('recent')}
-                className={`pb-2 text-[14px] font-medium transition-colors relative cursor-pointer ${activeTab === 'recent' ? 'text-[#0068FF]' : 'text-gray-600 hover:text-black'}`}
+                className={`pb-2 text-[14px] font-medium transition-colors relative cursor-pointer ${activeTab === 'recent' ? 'text-[#0068FF]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
               >
-                Gần đây
+                {t('chat.forward.tab_recent')}
                 {activeTab === 'recent' && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#0068FF]" />}
               </button>
               <button 
                 onClick={() => setActiveTab('group')}
-                className={`pb-2 text-[14px] font-medium transition-colors relative cursor-pointer ${activeTab === 'group' ? 'text-[#0068FF]' : 'text-gray-600 hover:text-black'}`}
+                className={`pb-2 text-[14px] font-medium transition-colors relative cursor-pointer ${activeTab === 'group' ? 'text-[#0068FF]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
               >
-                Nhóm trò chuyện
+                {t('chat.forward.tab_group')}
                 {activeTab === 'group' && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#0068FF]" />}
               </button>
               <button 
                 onClick={() => setActiveTab('friends')}
-                className={`pb-2 text-[14px] font-medium transition-colors relative cursor-pointer ${activeTab === 'friends' ? 'text-[#0068FF]' : 'text-gray-600 hover:text-black'}`}
+                className={`pb-2 text-[14px] font-medium transition-colors relative cursor-pointer ${activeTab === 'friends' ? 'text-[#0068FF]' : 'text-[var(--sub-text)] hover:text-[var(--text)]'}`}
               >
-                Bạn bè
+                {t('chat.forward.tab_friends')}
                 {activeTab === 'friends' && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#0068FF]" />}
               </button>
             </div>
-            <button className="flex items-center gap-1 text-[13px] text-gray-600 hover:text-black cursor-pointer">
-              Phân loại <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9" /></svg>
+            <button className="flex items-center gap-1 text-[13px] text-[var(--sub-text)] hover:text-[var(--text)] cursor-pointer">
+              {t('chat.forward.classify')} <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9" /></svg>
             </button>
           </div>
 
@@ -297,14 +299,14 @@ export function ForwardModal({ message, currentConversationId, currentUserId, on
               </div>
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center opacity-40">
-                <p className="text-[14px]">Không tìm thấy kết quả</p>
+                <p className="text-[14px] text-[var(--sub-text)]">{t('chat.forward.no_results')}</p>
               </div>
             ) : (
               <div className="py-1">
                 {filtered.map((conv) => (
                   <label
                     key={conv.id}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer group"
+                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--hover-bg)] transition-colors cursor-pointer group"
                   >
                     <div className="relative flex items-center justify-center">
                       <input 
@@ -313,13 +315,13 @@ export function ForwardModal({ message, currentConversationId, currentUserId, on
                         onChange={() => toggleSelect(conv.id)}
                         className="hidden"
                       />
-                      <div className={`w-[20px] h-[20px] rounded-[4px] border-2 flex items-center justify-center transition-all ${isSelected(conv.id) ? 'bg-[#0068FF] border-[#0068FF]' : 'border-gray-300 group-hover:border-gray-400'}`}>
+                      <div className={`w-[20px] h-[20px] rounded-[4px] border-2 flex items-center justify-center transition-all ${isSelected(conv.id) ? 'bg-[#0068FF] border-[#0068FF]' : 'border-[var(--border)] group-hover:border-[var(--sub-text)]'}`}>
                         {isSelected(conv.id) && (
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                         )}
                       </div>
                     </div>
-                    <div className="w-[42px] h-[42px] rounded-full overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center">
+                    <div className="w-[42px] h-[42px] rounded-full overflow-hidden shrink-0 bg-[var(--hover-bg)] flex items-center justify-center">
                       {conv.avatar ? (
                         <img src={conv.avatar} alt="" className="w-full h-full object-cover" />
                       ) : (
@@ -329,7 +331,7 @@ export function ForwardModal({ message, currentConversationId, currentUserId, on
                       )}
                     </div>
                     <div className="flex-1 min-w-0 text-left">
-                      <div className="text-[15px] font-medium text-[#081C36] truncate">
+                      <div className="text-[15px] font-medium text-[var(--text)] truncate">
                         {conv.name}
                       </div>
                     </div>
@@ -341,30 +343,30 @@ export function ForwardModal({ message, currentConversationId, currentUserId, on
         </div>
 
         {/* Note Area */}
-        <div className="p-4 border-t border-gray-100 bg-white">
-          <div className="bg-[#F1F2F4] rounded-lg p-3 mb-3">
+        <div className="p-4 border-t border-[var(--border)] bg-[var(--card-bg)]">
+          <div className="bg-[var(--hover-bg)] rounded-lg p-3 mb-3">
              <div className="flex items-center gap-3">
                 {renderMessageIcon()}
                 <div className="flex-1 min-w-0">
-                  <div className="text-[14px] font-medium text-[#081C36]">
+                  <div className="text-[14px] font-medium text-[var(--text)]">
                     {getSnippet()}
                   </div>
                   {attachDesc && message.caption && (
-                    <div className="text-[13px] text-gray-500 truncate mt-0.5">
+                    <div className="text-[13px] text-[var(--sub-text)] truncate mt-0.5">
                       {message.caption}
                     </div>
                   )}
                 </div>
              </div>
-             <div className="mt-3 pt-3 border-t border-gray-200 flex items-center justify-between">
+             <div className="mt-3 pt-3 border-t border-[var(--border)] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                    <button 
                     onClick={() => setAttachDesc(!attachDesc)}
-                    className={`w-9 h-5 rounded-full relative transition-colors duration-200 cursor-pointer ${attachDesc ? 'bg-[#0068FF]' : 'bg-gray-300'}`}
+                    className={`w-9 h-5 rounded-full relative transition-colors duration-200 cursor-pointer ${attachDesc ? 'bg-[#0068FF]' : 'bg-[var(--border)]'}`}
                    >
                       <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all duration-200 ${attachDesc ? 'left-5' : 'left-1'}`} />
                    </button>
-                   <span className="text-[13px] text-gray-700">Đính kèm mô tả</span>
+                   <span className="text-[13px] text-[var(--text)]">{t('chat.forward.attach_description')}</span>
                 </div>
              </div>
           </div>
@@ -373,26 +375,26 @@ export function ForwardModal({ message, currentConversationId, currentUserId, on
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Nhập tin nhắn..."
-              className="w-full h-10 bg-transparent outline-none text-[14px] resize-none placeholder:text-gray-400"
+              placeholder={t('chat.forward.message_preview')}
+              className="w-full h-10 bg-transparent outline-none text-[14px] resize-none placeholder:text-[var(--sub-text)] text-[var(--text)]"
             />
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-4 h-16 border-t border-gray-100 bg-white">
+        <div className="flex items-center justify-end gap-3 px-4 h-16 border-t border-[var(--border)] bg-[var(--card-bg)]">
           <button
             onClick={onClose}
-            className="px-6 py-2 text-[14px] font-semibold text-[#081C36] hover:bg-gray-100 rounded-[4px] transition-colors cursor-pointer bg-[#EAEDF0]"
+            className="px-6 py-2 text-[14px] font-semibold text-[var(--text)] hover:opacity-80 rounded-[4px] transition-colors cursor-pointer bg-[var(--hover-bg)]"
           >
-            Hủy
+            {t('chat.snippet.call_cancel') || 'Hủy'}
           </button>
           <button
             onClick={handleForward}
             disabled={selected.size === 0 || sending}
             className="px-6 py-2 text-[14px] font-semibold text-white bg-[#A7D5FF] disabled:opacity-100 disabled:bg-[#A7D5FF] enabled:bg-[#0068FF] enabled:hover:bg-[#0052CC] rounded-[4px] transition-colors cursor-pointer disabled:cursor-not-allowed"
           >
-            {sending ? 'Đang gửi...' : 'Chia sẻ'}
+            {sending ? t('chat.forward.sending') : t('chat.forward.send')}
           </button>
         </div>
       </div>

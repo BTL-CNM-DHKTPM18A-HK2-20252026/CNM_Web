@@ -2803,18 +2803,24 @@ export function useChatWindow({
                 const emoji = mapReactionToEmoji(newMsg.reactionType);
                 let newReactions = messageItem.reactions ? [...messageItem.reactions] : [];
                 if (newMsg.action === 'REMOVE') {
-                  // Xóa reaction của current user với emoji này
+                  // Xóa reaction của user với emoji này
                   newReactions = newReactions.filter(
                     r => !(r.userId === newMsg.userId && r.emoji === emoji)
                   );
                 } else if (emoji) {
-                  newReactions.push({
-                    emoji,
-                    userId: newMsg.userId,
-                    id: newMsg.reactionId,
-                    userName: newMsg.userName,
-                    userAvatar: newMsg.userAvatar,
-                  });
+                  // Chỉ thêm nếu chưa tồn tại (tránh duplicate khi click nhanh)
+                  const alreadyExists = newReactions.some(
+                    r => r.userId === newMsg.userId && r.emoji === emoji
+                  );
+                  if (!alreadyExists) {
+                    newReactions.push({
+                      emoji,
+                      userId: newMsg.userId,
+                      id: newMsg.reactionId,
+                      userName: newMsg.userName,
+                      userAvatar: newMsg.userAvatar,
+                    });
+                  }
                 }
                 return { ...messageItem, reactions: newReactions };
               }
@@ -3238,22 +3244,26 @@ export function useChatWindow({
 
   const handleRemoveReaction = useCallback(async (messageId: string) => {
     if (selectedChat.isAi) return;
-    // Tìm reaction của current user trên message này
+    // Tìm tất cả reaction của current user trên message này
     const msg = messages.find(m => String(m.id) === String(messageId));
-    const myReaction = msg?.reactions?.find(r => r.userId === currentUser?.id);
-    if (!myReaction) return; // không có reaction để xóa
+    const myReactions = msg?.reactions?.filter(r => r.userId === currentUser?.id) || [];
+    if (myReactions.length === 0) return;
 
-    // Map emoji → reactionType
-    let reactionType = 'LIKE';
-    switch (myReaction.emoji) {
-      case '❤️': reactionType = 'LOVE'; break;
-      case '😂': reactionType = 'HAHA'; break;
-      case '😲': reactionType = 'WOW'; break;
-      case '😭': reactionType = 'SAD'; break;
-      case '😡': reactionType = 'ANGRY'; break;
-    }
+    // Gửi toggle cho từng reaction để xóa
+    const emojiToType = (emoji: string) => {
+      switch (emoji) {
+        case '❤️': return 'LOVE';
+        case '😂': return 'HAHA';
+        case '😲': return 'WOW';
+        case '😭': return 'SAD';
+        case '😡': return 'ANGRY';
+        default: return 'LIKE';
+      }
+    };
     try {
-      await apiClient.post(`/messages/${messageId}/react`, { reactionType });
+      await Promise.all(myReactions.map(r =>
+        apiClient.post(`/messages/${messageId}/react`, { reactionType: emojiToType(r.emoji) })
+      ));
     } catch {
       // silent
     }

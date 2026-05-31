@@ -333,7 +333,20 @@
       "sending": "Đang gửi...",
       "success": "Đã chuyển tiếp đến {{count}} cuộc trò chuyện",
       "error": "Không thể chuyển tiếp tin nhắn",
-      "forwarded_from": "Chuyển tiếp từ {{name}}"
+      "forwarded_from": "Chuyển tiếp từ {{name}}",
+      "share_image": "Chia sẻ hình ảnh",
+      "share_image_group": "Chia sẻ album ảnh",
+      "share_video": "Chia sẻ video",
+      "share_file": "Chia sẻ tệp tin",
+      "share_voice": "Chia sẻ tin nhắn thoại",
+      "share_sticker": "Chia sẻ nhãn dán",
+      "share_contact": "Chia sẻ liên hệ",
+      "tab_recent": "Gần đây",
+      "tab_group": "Nhóm trò chuyện",
+      "tab_friends": "Bạn bè",
+      "classify": "Phân loại",
+      "attach_description": "Đính kèm mô tả",
+      "send": "Chia sẻ"
     },
     "typing": {
       "one": "{{name}} đang nhập tin nhắn...",
@@ -396,6 +409,9 @@
     "reactions": {
       "title": "Biểu cảm",
       "all": "Tất cả"
+    },
+    "system": {
+      "view_poll": "Xem"
     },
     "ctx": {
       "pin": "Ghim hội thoại",

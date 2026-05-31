@@ -83,6 +83,11 @@ const getLastMsgPreviewHtml = (html: string, t?: any): string => {
         }).filter(Boolean);
         if (names.length > 0) source = `📷 ${names.join(', ')}`;
       } else if (json && typeof json === 'object') {
+        // POLL detection
+        if (json.question !== undefined || json.type === 'poll') {
+          const q = json.question || '';
+          source = q ? `📊 ${q}` : '📊 Bình chọn';
+        } else {
         const extract = (node: any): string => {
           if (!node) return '';
           if (node.type === 'text') return node.text ?? '';
@@ -94,6 +99,7 @@ const getLastMsgPreviewHtml = (html: string, t?: any): string => {
         };
         const extracted = extract(json).trim();
         if (extracted) source = extracted;
+        }
       }
     } catch { /* not valid JSON, continue with original */ }
   }
@@ -1360,6 +1366,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                                   const extract = (node: any): string => {
                                     if (!node) return '';
                                     if (node.type === 'text') return node.text ?? '';
+                                    if (node.type === 'zaloEmoji') return node.attrs?.shortcode ?? '';
                                     if (Array.isArray(node.content)) {
                                       return node.content.map(extract).join(' ');
                                     }
@@ -1838,6 +1845,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                             const extract = (node: any): string => {
                               if (!node) return '';
                               if (node.type === 'text') return node.text ?? '';
+                              if (node.type === 'zaloEmoji') return node.attrs?.shortcode ?? '';
                               if (Array.isArray(node.content)) {
                                 return node.content.map(extract).join(' ');
                               }

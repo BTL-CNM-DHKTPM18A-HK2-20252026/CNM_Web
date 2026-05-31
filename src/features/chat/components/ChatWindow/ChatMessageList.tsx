@@ -1753,6 +1753,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                 const showAvatarAndName = isFirstInBlock(msg, effectivePrev);
                 const hasReactions = msg.reactions && msg.reactions.length > 0;
                 const isSticker = msg.type === 'STICKER' || (msg.type === 'IMAGE' && Boolean(msg.text?.includes('/stickers/')));
+                const isPoll = msg.type === 'POLL';
                 const paddingClass = showTimestamp
                   ? 'pb-4'
                   : hasReactions
@@ -1843,38 +1844,38 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
 
                         return (
                           <div className="flex justify-center my-1.5">
-                            <div className="flex items-center gap-2 bg-white border border-[#E4E6EB] dark:bg-[#1E1E1E] dark:border-[#303030] px-4 py-1.5 rounded-full max-w-[90%] shadow-sm transition-all hover:shadow-md">
+                            <div className="flex items-center gap-2 bg-[var(--card-bg)] border border-[var(--border)] px-4 py-1.5 rounded-full max-w-[90%] shadow-sm transition-all hover:shadow-md">
                               {/* Green Bar Chart Icon */}
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                                 <line x1="18" y1="20" x2="18" y2="4" />
                                 <line x1="12" y1="20" x2="12" y2="10" />
                                 <line x1="6" y1="20" x2="6" y2="14" />
                               </svg>
-                              <span className="text-[13px] font-medium text-[#081C36] dark:text-white leading-none truncate max-w-[220px] sm:max-w-[280px]">
+                              <span className="text-[13px] font-medium text-[var(--text)] leading-none truncate max-w-[220px] sm:max-w-[280px]">
                                 {sysText}
                               </span>
                               <button
                                 onClick={handleXemClick}
                                 className="text-[13px] font-bold text-[#0068FF] hover:underline cursor-pointer shrink-0 ml-1 leading-none"
                               >
-                                Xem
+                                {t('chat.system.view_poll')}
                               </button>
                             </div>
                           </div>
                         );
                       }
 
-                      const isAdd = sysText.includes('đã thêm') || sysText.includes('đã tham gia');
-                      const isRemove = sysText.includes('đã rời') || sysText.includes('đã xóa');
+                      const isAdd = sysText.includes('đã thêm') || sysText.includes('đã tham gia') || sysText.includes('added') || sysText.includes('joined');
+                      const isRemove = sysText.includes('đã rời') || sysText.includes('đã xóa') || sysText.includes('removed') || sysText.includes('left') || sysText.includes('kicked');
                       const sysColor = isAdd ? '#22c55e' : isRemove ? '#ef4444' : '#6b7280';
                       return (
                         <div className="flex justify-center my-1.5">
-                          <div className="flex items-center gap-1.5 bg-white border border-gray-200 px-3.5 py-1.5 rounded-2xl max-w-[85%] shadow-sm">
+                          <div className="flex items-center gap-1.5 bg-[var(--card-bg)] border border-[var(--border)] px-3.5 py-1.5 rounded-2xl max-w-[85%] shadow-sm">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="shrink-0" style={{ color: sysColor }} aria-hidden="true">
                               <path d="M12 2.75a6.25 6.25 0 0 0-6.25 6.25v3.41c0 .58-.23 1.13-.64 1.54l-1.3 1.3A1 1 0 0 0 4.52 17h14.96a1 1 0 0 0 .71-1.71l-1.3-1.3a2.18 2.18 0 0 1-.64-1.54V9A6.25 6.25 0 0 0 12 2.75Z" />
                               <circle cx="12" cy="18.25" r="1.75" />
                             </svg>
-                            <span className="text-[12px] leading-snug break-words" style={{ color: sysColor }}>{msg.text}</span>
+                            <span className="text-[12px] leading-snug break-words text-[var(--sub-text)]">{msg.text}</span>
                           </div>
                         </div>
                       );
@@ -2535,7 +2536,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
 
                           {!msg.isRecalled && (
                             <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity h-fit ${msg.sender === 'Me' ? 'mr-0.5 flex-row-reverse self-center' : 'ml-0.5 self-center'}`}>
-                              {!isSticker && !isAiConversation && (
+                              {!isSticker && !isAiConversation && !isPoll && (
                                 <div className="relative group/react">
                                   <div className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer text-[13px] select-none leading-none">😊</div>
                                   <div className={`absolute ${msg.sender === 'Me' ? 'right-0' : 'left-0'} bottom-full opacity-0 invisible group-hover/react:opacity-100 group-hover/react:visible transition-all duration-150 flex items-center gap-0.5 bg-[var(--card-bg)] rounded-full px-2 py-1 shadow-xl border border-[var(--border)] z-50 whitespace-nowrap`}>
@@ -2553,10 +2554,12 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                 </div>
                               )}
 
-                              {!isSticker && !isAiConversation && (
+                              {!isSticker && !isAiConversation && !isPoll && (
                                 <button title={t('chat.actions.forward')} onClick={() => setForwardingMsg({ id: msg.id, text: msg.text, type: msg.type, sender: msg.sender, caption: msg.caption || (msg.type !== 'TEXT' ? msg.text : undefined) })} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 10l5-5 5 5M8 6v8a4 4 0 004 4h9" /></svg></button>
                               )}
+                              {!isPoll && (
                               <button title={t('chat.actions.more')} onClick={(e) => openContextMenu(e, msg)} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg></button>
+                              )}
                             </div>
                           )}
                         </div>

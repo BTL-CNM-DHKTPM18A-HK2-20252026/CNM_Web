@@ -333,7 +333,20 @@
       "sending": "Sending...",
       "success": "Forwarded to {{count}} conversation(s)",
       "error": "Failed to forward message",
-      "forwarded_from": "Forwarded from {{name}}"
+      "forwarded_from": "Forwarded from {{name}}",
+      "share_image": "Share image",
+      "share_image_group": "Share image album",
+      "share_video": "Share video",
+      "share_file": "Share file",
+      "share_voice": "Share voice message",
+      "share_sticker": "Share sticker",
+      "share_contact": "Share contact",
+      "tab_recent": "Recent",
+      "tab_group": "Groups",
+      "tab_friends": "Friends",
+      "classify": "Classify",
+      "attach_description": "Attach description",
+      "send": "Share"
     },
     "typing": {
       "one": "{{name}} is typing...",
@@ -396,6 +409,9 @@
     "reactions": {
       "title": "Reactions",
       "all": "All"
+    },
+    "system": {
+      "view_poll": "View"
     },
     "ctx": {
       "pin": "Pin conversation",

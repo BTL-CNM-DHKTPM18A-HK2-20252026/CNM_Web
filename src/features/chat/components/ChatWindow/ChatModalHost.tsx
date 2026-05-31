@@ -271,7 +271,7 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
               </button>
             )}
 
-            {!contextMenu.isSticker && (
+            {!contextMenu.isSticker && contextMenu.type !== 'POLL' && (
             <button
               onClick={() => {
                 const msg = messages.find(m => m.id === contextMenu.msgId);
@@ -293,7 +293,7 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
             </button>
             )}
 
-            {!contextMenu.isSticker && (() => {
+            {!contextMenu.isSticker && contextMenu.type !== 'POLL' && (() => {
               const isPinned = pinnedMessages.some(p => p.messageId === contextMenu.msgId);
               return (
                 <button
@@ -306,7 +306,7 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
               );
             })()}
 
-            {contextMenu.isMe && (
+            {contextMenu.isMe && contextMenu.type !== 'POLL' && (
               <button
                 onClick={() => { setConfirmDialog({ type: 'recall', msgId: contextMenu.msgId }); setContextMenu(null); }}
                 className="flex items-center gap-3 w-full px-4 py-2.5 text-[14px] text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
@@ -316,6 +316,7 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
               </button>
             )}
 
+            {contextMenu.type !== 'POLL' && (
             <button
               onClick={() => { setConfirmDialog({ type: 'delete', msgId: contextMenu.msgId }); setContextMenu(null); }}
               className="flex items-center gap-3 w-full px-4 py-2.5 text-[14px] text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
