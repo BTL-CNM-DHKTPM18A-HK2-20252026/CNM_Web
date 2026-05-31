@@ -227,7 +227,7 @@ class WebRTCService {
         console.warn('[WebRTC] Call timeout — no response or connection failed');
         this.endCall();
       }
-    }, 30_000);
+    }, 60_000);
 
     this.sendSignal({
       type: 'CALL_REQUEST',
@@ -597,7 +597,11 @@ class WebRTCService {
       currentState: this.callState,
     });
 
-    this.pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    this.pc = new RTCPeerConnection({
+      iceServers: ICE_SERVERS,
+      iceCandidatePoolSize: 2,
+      iceTransportPolicy: 'all',
+    });
     this.remoteStream = new MediaStream();
 
     // Thêm local tracks vào peer connection
@@ -790,7 +794,7 @@ class WebRTCService {
         console.warn('[WebRTC] Connection did not recover from disconnected — cleaning up');
         this.cleanup();
       }
-    }, 10_000);
+    }, 30_000);
   }
 
   cleanup() {
