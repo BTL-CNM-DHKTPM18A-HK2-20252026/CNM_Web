@@ -61,6 +61,52 @@ const replaceS3Urls = (text: string, t?: any): string => {
   });
 };
 
+const parseLastMsgPreview = (text: string, t?: any): string => {
+  if (!text) return text;
+  const trimmed = text.trim();
+  let result = text;
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    try {
+      const json = JSON.parse(trimmed);
+      // JSON array (IMAGE_GROUP, etc.) → join item fileNames or URLs
+      if (Array.isArray(json)) {
+        const names = json.map((item: any) => {
+          if (typeof item === 'string') {
+            const seg = item.split('/');
+            return seg[seg.length - 1] || item;
+          }
+          if (item && typeof item === 'object') {
+            return item.fileName || item.text || (item.url ? item.url.split('/').pop() : '');
+          }
+          return '';
+        }).filter(Boolean);
+        if (names.length > 0) result = `📷 ${names.join(', ')}`;
+      } else if (json && typeof json === 'object') {
+        // JSON object: try TipTap extraction, fallback to fileName/url
+        const extract = (node: any): string => {
+          if (!node) return '';
+          if (node.type === 'text') return node.text ?? '';
+          if (Array.isArray(node.content)) {
+            return node.content.map(extract).join(' ');
+          }
+          return '';
+        };
+        const extracted = extract(json).trim();
+        if (extracted) {
+          result = extracted;
+        } else if (json.fileName) {
+          result = `📷 ${json.fileName}`;
+        } else if (json.url) {
+          const seg = json.url.split('/');
+          result = `📷 ${seg[seg.length - 1] || 'file'}`;
+        }
+      }
+    } catch { /* ignore */ }
+  }
+  return replaceS3Urls(result, t);
+};
+
+
 export interface ChatDashboardProps {
   onLogout: () => void;
   userName?: string;
@@ -415,52 +461,10 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
             || (isAi ? t('chat.ai_subheading') : t('chat.start_conversation'));
 
           // Parse JSON (TipTap format) để lấy plain text trước khi thêm tiền tố người gửi
-          const parseLastMsgPreview = (text: string): string => {
-            if (!text) return text;
-            const trimmed = text.trim();
-            let result = text;
-            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-              try {
-                const json = JSON.parse(trimmed);
-                // JSON array (IMAGE_GROUP, etc.) → join item fileNames or URLs
-                if (Array.isArray(json)) {
-                  const names = json.map((item: any) => {
-                    if (typeof item === 'string') {
-                      const seg = item.split('/');
-                      return seg[seg.length - 1] || item;
-                    }
-                    if (item && typeof item === 'object') {
-                      return item.fileName || item.text || (item.url ? item.url.split('/').pop() : '');
-                    }
-                    return '';
-                  }).filter(Boolean);
-                  if (names.length > 0) result = `📷 ${names.join(', ')}`;
-                } else if (json && typeof json === 'object') {
-                  // JSON object: try TipTap extraction, fallback to fileName/url
-                  const extract = (node: any): string => {
-                    if (!node) return '';
-                    if (node.type === 'text') return node.text ?? '';
-                    if (Array.isArray(node.content)) {
-                      return node.content.map(extract).join(' ');
-                    }
-                    return '';
-                  };
-                  const extracted = extract(json).trim();
-                  if (extracted) {
-                    result = extracted;
-                  } else if (json.fileName) {
-                    result = `📷 ${json.fileName}`;
-                  } else if (json.url) {
-                    const seg = json.url.split('/');
-                    result = `📷 ${seg[seg.length - 1] || 'file'}`;
-                  }
-                }
-              } catch { /* ignore */ }
-            }
-            return replaceS3Urls(result, t);
-          };
+          // Sử dụng hàm parseLastMsgPreview ở cấp file
 
-          let displayLastMsg = parseLastMsgPreview(rawLastMsg);
+
+          let displayLastMsg = parseLastMsgPreview(rawLastMsg, t);
 
           if (displayLastMsg && displayLastMsg !== t('chat.start_conversation') && displayLastMsg !== t('chat.ai_subheading')) {
             if (isFromMe) {
@@ -685,7 +689,7 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
               case 'CALL_MISSED': return t('chat.snippet.call_missed') || 'Cuộc gọi nhỡ';
               case 'CALL_REJECTED': return t('chat.snippet.call_rejected') || 'Cuộc gọi bị từ chối';
               case 'CALL_ENDED': return t('chat.snippet.call_ended') || 'Cuộc gọi đã kết thúc';
-              default: return replaceS3Urls(content, t);
+              default: return parseLastMsgPreview(content, t);
             }
           };
 
