@@ -20,6 +20,7 @@ import { websocketService } from '@/lib/realtime/websocketService';
 import { webrtcService } from '@/lib/realtime/webrtcService';
 import { friendService } from '@/features/friends';
 import { getLocalMessages, getLocalMessagesBefore, upsertLocalMessages } from '@/lib/db/chatDB';
+import { isTiptapEmpty } from '@/utils/tiptapRenderer';
 import type {
   AiAccessSettings,
   AiThemeType,
@@ -1070,6 +1071,7 @@ export function useChatWindow({
     mentionsOverride?: MentionMember[]
   ) => {
     const contentToUse = customContent || message?.trim();
+    if (!customContent && isTiptapEmpty(message)) return;
     if (!(contentToUse && selectedChat?.id)) return;
 
     const tempOptimisticId = optimisticId || `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

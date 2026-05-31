@@ -10,6 +10,7 @@ import { Placeholder } from '@tiptap/extension-placeholder';
 import { Image as TiptapImage } from '@tiptap/extension-image';
 import { InputRule, Extension } from '@tiptap/core';
 import emojiPack from '@/data/emoji-pack.json';
+import { isTiptapEmpty } from '@/utils/tiptapRenderer';
 
 // Mapping for input rules
 const shortcodeToSrc: Record<string, string> = {};
@@ -149,6 +150,7 @@ export function ChatInput({
   const handleSend = () => {
     if (editor) {
       const serialized = JSON.stringify(editor.getJSON());
+      if (isTiptapEmpty(serialized)) return;
       onChange(serialized);
     }
     onSend();

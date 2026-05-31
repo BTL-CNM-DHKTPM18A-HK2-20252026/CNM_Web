@@ -35,7 +35,7 @@ import { CreateNoteModal } from '@/features/chat/components/ChatWindow/CreateNot
 import { CreatePollModal } from '@/features/chat/components/ChatWindow/CreatePollModal';
 import { CreateReminderModal } from '@/features/chat/components/ChatWindow/CreateReminderModal';
 import type { ChatComposerProps } from '@/features/chat/components/ChatWindow/types';
-import { getPlainTextFromMessage } from '@/utils/tiptapRenderer';
+import { getPlainTextFromMessage, isTiptapEmpty } from '@/utils/tiptapRenderer';
 
 const SMART_REPLY_TOGGLE_STORAGE_KEY = 'chat.smart_reply.enabled';
 
@@ -563,6 +563,8 @@ export function ChatComposer({ vm }: ChatComposerProps) {
             if (event.key === 'Enter' && !event.shiftKey && !(selectedChat.isAi && isSendingAi)) {
               event.preventDefault();
               if (mentionDropdownOpen) { setMentionDropdownOpen(false); return; }
+              // Prevent sending empty messages
+              if (isTiptapEmpty(message) && imageQueue.length === 0 && !pendingAttachment) return;
               if (imageQueue.length > 0) {
                 handleSendImageQueue();
               } else {
@@ -576,9 +578,11 @@ export function ChatComposer({ vm }: ChatComposerProps) {
 
           disabled={selectedChat.isAi && isSendingAi}
           isEmojiOpen={isPickerOpen && pickerTab === 'emoji'}
-          showSendButton={Boolean(message.trim() || imageQueue.length > 0 || pendingAttachment)}
+          showSendButton={Boolean(!isTiptapEmpty(message) || imageQueue.length > 0 || pendingAttachment)}
           onToggleEmoji={() => togglePicker('emoji')}
           onSend={() => {
+            // Prevent sending empty messages
+            if (isTiptapEmpty(message) && imageQueue.length === 0 && !pendingAttachment) return;
             if (imageQueue.length > 0) {
               handleSendImageQueue();
             } else {

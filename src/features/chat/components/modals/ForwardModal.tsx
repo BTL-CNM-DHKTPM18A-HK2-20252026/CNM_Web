@@ -131,7 +131,27 @@ export function ForwardModal({ message, currentConversationId, currentUserId, on
       case 'MEDIA': return 'Chia sẻ tệp tin';
       case 'VOICE': return 'Chia sẻ tin nhắn thoại';
       default: {
-        const plain = stripHtml(message.text || '');
+        let text = message.text || '';
+        if (text.trim().startsWith('{')) {
+          try {
+            const json = JSON.parse(text);
+            if (json && typeof json === 'object') {
+              const extract = (node: any): string => {
+                if (!node) return '';
+                if (node.type === 'text') return node.text ?? '';
+                if (Array.isArray(node.content)) {
+                  return node.content.map(extract).join(' ');
+                }
+                return '';
+              };
+              const extracted = extract(json).trim();
+              if (extracted) {
+                text = extracted;
+              }
+            }
+          } catch { /* ignore */ }
+        }
+        const plain = stripHtml(text);
         return plain.length > 60 ? plain.slice(0, 60) + '...' : plain;
       }
     }

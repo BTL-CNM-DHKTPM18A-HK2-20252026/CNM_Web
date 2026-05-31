@@ -32,6 +32,28 @@ export function getPlainTextFromMessage(text: string): string {
   return text.replace(/<[^>]*>/g, '').trim();
 }
 
+export function isTiptapEmpty(text: string): boolean {
+  if (!text) return true;
+  try {
+    const json = JSON.parse(text);
+    if (json && typeof json === 'object' && json.type === 'doc') {
+      const hasContent = (node: any): boolean => {
+        if (!node) return false;
+        if (node.type === 'text' && node.text?.trim()) return true;
+        if (node.type === 'image') return true;
+        if (Array.isArray(node.content)) {
+          return node.content.some(hasContent);
+        }
+        return false;
+      };
+      return !hasContent(json);
+    }
+  } catch {
+    return !text.trim();
+  }
+  return false;
+}
+
 function escapeHtml(unsafe: string): string {
   return unsafe
     .replace(/&/g, '&amp;')
