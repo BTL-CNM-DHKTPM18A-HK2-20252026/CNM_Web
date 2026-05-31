@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { SearchIcon } from '@/components/ui/Icons';
 import { useTheme } from '@/themes';
 import emojiPack from '@/data/emoji-pack.json';
-import { apiClient } from '@/lib/apiClient';
+import { apiClient } from '@/lib/http/apiClient';
 
 interface StickerPickerProps {
   isOpen: boolean;
