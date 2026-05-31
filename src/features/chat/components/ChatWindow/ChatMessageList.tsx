@@ -193,10 +193,29 @@ function PollCard({
   const hasVoted = uniqueVoters.has(currentUserId || '');
   const showResults = !poll.hideResultsBeforeVote || hasVoted;
 
+  const [isEditingChoice, setIsEditingChoice] = useState(!hasVoted);
+
+  useEffect(() => {
+    setIsEditingChoice(!hasVoted);
+  }, [hasVoted]);
+
+  const handleEditClick = () => {
+    setIsEditingChoice(true);
+  };
+
+  const handleCancelEdit = () => {
+    setSelectedOptionIds(userVotes);
+    setIsEditingChoice(false);
+  };
+
   const handleOptionClick = (optionId: string) => {
     if (poll.deadline && new Date(poll.deadline).getTime() < Date.now()) {
       toast.error('Bình chọn này đã kết thúc!');
       return;
+    }
+
+    if (hasVoted && !isEditingChoice) {
+      setIsEditingChoice(true);
     }
 
     if (poll.multipleChoices) {
@@ -212,6 +231,7 @@ function PollCard({
     setIsSubmittingVote(true);
     try {
       await apiClient.post(`/polls/${poll.pollId}/vote`, { optionIds });
+      setIsEditingChoice(false);
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Không thể thực hiện bình chọn');
     } finally {
@@ -254,149 +274,181 @@ function PollCard({
     !selectedOptionIds.every(id => userVotes.includes(id));
 
   return (
-    <div className="w-[300px] sm:w-[340px] rounded-xl border border-[var(--border)] bg-white dark:bg-[#1E1E1E] overflow-hidden shadow-sm">
+    <div className="w-[320px] sm:w-[360px] rounded-2xl border border-[#e4e6eb] bg-white dark:bg-[#1E1E1E] dark:border-[#303030] overflow-hidden shadow-sm">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#0068FF] to-[#0095FF] px-4 py-3 text-white rounded-t-xl">
-        <div className="flex items-center gap-2">
-          <span className="text-[20px]">📊</span>
-          <div>
-            <div className="text-[12px] font-extrabold tracking-wider opacity-90 uppercase">Bình chọn nhóm</div>
-            <div className="text-[14px] font-bold mt-0.5 line-clamp-2">{poll.question}</div>
+      <div className="p-4 pb-2">
+        <h3 className="text-[16px] font-bold text-[#081C36] dark:text-white leading-tight">{poll.question}</h3>
+        <p className="text-[13px] text-[#586b82] dark:text-[#8ea3b8] mt-1.5">
+          {poll.multipleChoices ? 'Chọn nhiều phương án' : 'Chọn một phương án'}
+        </p>
+        
+        {/* Statistics link */}
+        {showResults && (
+          <div className="mt-2.5">
+            <div className="text-[13px] font-semibold text-[#0068FF] hover:underline flex items-center gap-1">
+              <span>{totalUniqueVoters} người bình chọn</span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="inline-block mt-0.5">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </div>
           </div>
-        </div>
-      </div>
-
-      {/* Settings status bar */}
-      <div className="px-4 py-1.5 bg-gray-50 dark:bg-black/10 border-b border-[var(--border)] text-[11px] text-[var(--sub-text)] flex justify-between items-center flex-wrap gap-1">
-        <span>{poll.multipleChoices ? 'Chọn nhiều phương án' : 'Chọn một phương án'}</span>
-        {poll.hideVoters && <span className="bg-gray-200 dark:bg-white/10 px-1.5 py-0.5 rounded">Ẩn danh</span>}
+        )}
       </div>
 
       {/* Body: Options */}
-      <div className="p-4 space-y-3.5">
+      <div className="px-4 py-2.5 space-y-3">
         {(() => {
-          // Largest remainder method: ensure percentages sum to exactly 100%
           const opts = poll.options || [];
-          const rawPercents = opts.map((opt: any) => {
-            const votes = opt.voterIds?.length || 0;
-            return totalVotesCast > 0 ? (votes / totalVotesCast) * 100 : 0;
-          });
-          const floored = rawPercents.map((p: number) => Math.floor(p));
-          const remainder = Math.min(100 - floored.reduce((a: number, b: number) => a + b, 0), opts.length);
-          const remainders = rawPercents.map((p: number, i: number) => ({
-            idx: i,
-            frac: p - floored[i],
-          }));
-          remainders.sort((a: any, b: any) => b.frac - a.frac);
-          for (let r = 0; r < remainder && r < remainders.length; r++) {
-            if (remainders[r]) floored[remainders[r].idx]++;
-          }
 
           return opts.map((opt: any, i: number) => {
             const optVotes = opt.voterIds?.length || 0;
-            const percent = totalVotesCast > 0 ? floored[i] : 0;
-            const isSelected = selectedOptionIds.includes(opt.optionId);
-            return (
-            <div key={opt.optionId} className="space-y-1">
-              <div 
-                onClick={() => handleOptionClick(opt.optionId)}
-                className={`relative flex items-center justify-between p-2.5 rounded-lg border transition-all cursor-pointer ${
-                  isSelected 
-                    ? 'border-[#0068FF]/50 bg-blue-50/20 dark:bg-blue-500/10' 
-                    : 'border-[var(--border)] hover:border-gray-300 dark:hover:border-white/20'
-                }`}
-              >
-                {/* Background Progress Bar */}
-                {showResults && (
-                  <div 
-                    className="absolute left-0 top-0 bottom-0 bg-[#E1EDFF] dark:bg-[#0068FF]/15 transition-all duration-500 rounded-l-lg" 
-                    style={{ width: `${percent}%`, zIndex: 0 }}
-                  />
-                )}
+            const percent = totalUniqueVoters > 0 ? Math.round((optVotes / totalUniqueVoters) * 100) : 0;
+            const isSelected = isEditingChoice
+              ? selectedOptionIds.includes(opt.optionId)
+              : opt.voterIds?.includes(currentUserId);
 
-                {/* Option Text and Check/Radio */}
-                <div className="flex items-center gap-2.5 z-10 min-w-0 flex-1">
-                  <div className="shrink-0 flex items-center justify-center">
-                    {poll.multipleChoices ? (
-                      <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+            return (
+              <div key={opt.optionId} className="flex items-center gap-3 w-full">
+                {/* The main option box */}
+                <div 
+                  onClick={() => handleOptionClick(opt.optionId)}
+                  className={`flex-1 relative flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer overflow-hidden ${
+                    isSelected 
+                      ? 'bg-[#E1EDFF] border-transparent text-[#0068FF] dark:bg-[#0068FF]/15 dark:text-[#58a6ff]' 
+                      : 'bg-[#F0F2F5] border-transparent text-[#081C36] dark:bg-[#2a2a2a] dark:text-white'
+                  }`}
+                >
+                  {/* Background Progress Bar */}
+                  {!isEditingChoice && showResults && percent > 0 && (
+                    <div 
+                      className={`absolute left-0 top-0 bottom-0 transition-all duration-500 rounded-l-xl ${
                         isSelected 
-                          ? 'border-[#0068FF] bg-[#0068FF] text-white' 
-                          : 'border-gray-300 dark:border-white/20 bg-white dark:bg-[#1E1E1E]'
-                      }`}>
-                        {isSelected && (
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                        )}
-                      </div>
-                    ) : (
-                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${
-                        isSelected 
-                          ? 'border-[#0068FF] bg-white dark:bg-[#1E1E1E]' 
-                          : 'border-gray-300 dark:border-white/20 bg-white dark:bg-[#1E1E1E]'
-                      }`}>
-                        {isSelected && (
-                          <div className="w-2.5 h-2.5 rounded-full bg-[#0068FF]" />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <span className="text-[14px] text-[var(--text)] font-medium break-words leading-tight">{opt.content}</span>
-                  {/* Voter Avatars - inline bên trong dòng */}
-                  {!poll.hideVoters && showResults && opt.voterIds && opt.voterIds.length > 0 && (
-                    <div className="flex items-center gap-0.5 shrink-0">
+                          ? 'bg-[#D2E4FC] dark:bg-[#0068FF]/20' 
+                          : 'bg-[#E2E5E8] dark:bg-[#3a3a3a]'
+                      }`} 
+                      style={{ width: `${percent}%`, zIndex: 0 }}
+                    />
+                  )}
+
+                  {/* Option content and checkmark */}
+                  <span className="relative z-10 text-[14.5px] font-semibold break-words leading-tight flex-1 pr-4">
+                    {opt.content}
+                  </span>
+
+                  {/* Checkmark circle or edit state checkbox */}
+                  <div className="relative z-10 shrink-0 flex items-center gap-2">
+                    {/* Voter Avatars */}
+                    {!isEditingChoice && !poll.hideVoters && showResults && opt.voterIds && opt.voterIds.length > 0 && (
                       <div className="flex -space-x-1.5 overflow-hidden">
-                        {opt.voterIds.slice(0, 5).map((vId: string) => {
+                        {opt.voterIds.slice(0, 3).map((vId: string) => {
                           const vInfo = getVoterInfo(vId);
                           return (
-                            <div key={vId} className="w-5 h-5 rounded-full overflow-hidden border border-white dark:border-[#1E1E1E] bg-blue-50 flex items-center justify-center shrink-0" title={vInfo.displayName}>
+                            <div key={vId} className="w-[18px] h-[18px] rounded-full overflow-hidden border border-white dark:border-[#1E1E1E] bg-blue-50 flex items-center justify-center shrink-0" title={vInfo.displayName}>
                               {vInfo.avatarUrl ? (
                                 <img src={vInfo.avatarUrl} alt="" className="w-full h-full object-cover" />
                               ) : (
-                                <span className="text-[7px] font-extrabold text-blue-600">{vInfo.displayName.charAt(0).toUpperCase()}</span>
+                                <span className="text-[7px] font-bold text-blue-600">{vInfo.displayName.charAt(0).toUpperCase()}</span>
                               )}
                             </div>
                           );
                         })}
+                        {opt.voterIds.length > 3 && (
+                          <div className="w-[18px] h-[18px] rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-[8px] font-bold text-gray-600 dark:text-gray-300 border border-white dark:border-[#1E1E1E] shrink-0">
+                            +{opt.voterIds.length - 3}
+                          </div>
+                        )}
                       </div>
-                      {opt.voterIds.length > 5 && (
-                        <span className="text-[10px] text-[var(--sub-text)] ml-0.5">+{opt.voterIds.length - 5}</span>
-                      )}
-                    </div>
-                  )}
+                    )}
+
+                    {/* Checkmark circle */}
+                    {isSelected && (
+                      <div className="w-5 h-5 rounded-full bg-[#0068FF] text-white flex items-center justify-center shrink-0 shadow-sm animate-in zoom-in-75 duration-150">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Percent / Vote Count */}
-                {showResults && (
-                  <div className="z-10 shrink-0 text-right">
-                    <span className="text-[13px] font-bold text-[#0068FF]">{percent}%</span>
-                    <span className="text-[11px] text-[var(--sub-text)] block">{optVotes} phiếu</span>
-                  </div>
+                {/* Vote Count */}
+                {!isEditingChoice && (
+                  <span className="shrink-0 text-[14px] text-[#586b82] dark:text-[#8ea3b8] font-bold min-w-[12px] text-right">
+                    {optVotes}
+                  </span>
                 )}
               </div>
-            </div>
-          );
-            });
-          })()}
+            );
+          });
+        })()}
       </div>
 
-      {/* Multiple Choices Action Bar */}
-      {poll.multipleChoices && hasChanges && (
-        <div className="px-4 pb-4">
-          <button
-            onClick={() => submitVote(selectedOptionIds)}
-            disabled={isSubmittingVote}
-            className="w-full h-9 rounded-lg bg-[#0068FF] hover:bg-[#0052CC] text-white text-[13px] font-bold shadow transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
-          >
-            {isSubmittingVote ? (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+      {/* Action Bar */}
+      <div className="px-4 pb-4 pt-1">
+        {isEditingChoice ? (
+          poll.multipleChoices ? (
+            hasVoted ? (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="px-4 h-10 rounded-xl border border-[#dcdfe6] dark:border-[#303030] text-[14px] font-bold text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 transition-all cursor-pointer flex items-center justify-center"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => submitVote(selectedOptionIds)}
+                  disabled={isSubmittingVote}
+                  className="flex-1 h-10 rounded-xl bg-[#0068FF] hover:bg-[#0052cc] text-white text-[14px] font-bold shadow transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
+                >
+                  {isSubmittingVote ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    'Xác nhận'
+                  )}
+                </button>
+              </div>
             ) : (
-              'Xác nhận bình chọn'
-            )}
-          </button>
-        </div>
-      )}
+              <button
+                type="button"
+                onClick={() => submitVote(selectedOptionIds)}
+                disabled={isSubmittingVote}
+                className="w-full h-10 rounded-xl bg-[#0068FF] hover:bg-[#0052cc] text-white text-[14px] font-bold shadow transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
+              >
+                {isSubmittingVote ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  'Bình chọn'
+                )}
+              </button>
+            )
+          ) : (
+            hasVoted && (
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="w-full h-10 rounded-xl border border-[#dcdfe6] dark:border-[#303030] text-[14px] font-bold text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 transition-all cursor-pointer flex items-center justify-center"
+              >
+                Hủy
+              </button>
+            )
+          )
+        ) : (
+          hasVoted && (
+            <button
+              type="button"
+              onClick={handleEditClick}
+              className="w-full h-10 rounded-xl border border-[#0068FF] bg-white hover:bg-blue-50/50 dark:bg-transparent dark:hover:bg-blue-500/10 text-[#0068FF] text-[14px] font-bold transition-all cursor-pointer flex items-center justify-center"
+            >
+              Đổi lựa chọn
+            </button>
+          )
+        )}
+      </div>
 
       {/* Footer Actions: Add Option */}
-      {poll.allowAddOptions && (
+      {poll.allowAddOptions && isEditingChoice && (
         <div className="border-t border-[var(--border)] p-3 bg-gray-50/50 dark:bg-black/5">
           {isAdding ? (
             <div className="relative flex items-center gap-2 p-1 bg-white dark:bg-[#1E1E1E] rounded-lg border border-[#0068FF] shadow-sm transition-all focus-within:ring-1 focus-within:ring-[#0068FF]/50">
@@ -1279,6 +1331,55 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                       </div>
                     ) : msg.type === 'SYSTEM' ? (() => {
                       const sysText = msg.text || '';
+                      
+                      // Check if it is a poll-related system message
+                      const isPollSysMsg = sysText.toLowerCase().includes('bình chọn') || sysText.toLowerCase().includes('poll');
+                      
+                      if (isPollSysMsg) {
+                        const handleXemClick = () => {
+                          const parts = sysText.split(':');
+                          const questionName = parts[1]?.trim();
+                          
+                          // Find the poll message in the list
+                          const pollMsg = messages.find(m => 
+                            m.type === 'POLL' && 
+                            (m.poll?.question === questionName || (questionName && m.poll?.question?.includes(questionName)))
+                          );
+                          
+                          const targetId = pollMsg?.id;
+                          if (targetId) {
+                            const el = document.getElementById(`msg-${targetId}`);
+                            if (el) {
+                              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              el.classList.add('highlight-msg');
+                              setTimeout(() => el.classList.remove('highlight-msg'), 2000);
+                            }
+                          }
+                        };
+
+                        return (
+                          <div className="flex justify-center my-1.5">
+                            <div className="flex items-center gap-2 bg-white border border-[#E4E6EB] dark:bg-[#1E1E1E] dark:border-[#303030] px-4 py-1.5 rounded-full max-w-[90%] shadow-sm transition-all hover:shadow-md">
+                              {/* Green Bar Chart Icon */}
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                                <line x1="18" y1="20" x2="18" y2="4" />
+                                <line x1="12" y1="20" x2="12" y2="10" />
+                                <line x1="6" y1="20" x2="6" y2="14" />
+                              </svg>
+                              <span className="text-[13px] font-medium text-[#081C36] dark:text-white leading-none truncate max-w-[220px] sm:max-w-[280px]">
+                                {sysText}
+                              </span>
+                              <button
+                                onClick={handleXemClick}
+                                className="text-[13px] font-bold text-[#0068FF] hover:underline cursor-pointer shrink-0 ml-1 leading-none"
+                              >
+                                Xem
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      }
+
                       const isAdd = sysText.includes('đã thêm') || sysText.includes('đã tham gia');
                       const isRemove = sysText.includes('đã rời') || sysText.includes('đã xóa');
                       const sysColor = isAdd ? '#22c55e' : isRemove ? '#ef4444' : '#6b7280';
