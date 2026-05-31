@@ -582,7 +582,7 @@ function PollModal({
               type="button"
               onClick={handleConfirm}
               disabled={isSubmitting || isSubmittingVote}
-              className="px-5 h-10 rounded-md bg-[#A0C4FF] hover:bg-[#0068FF] text-white text-[14.5px] font-bold shadow-sm transition-colors cursor-pointer disabled:opacity-75 flex items-center justify-center min-w-[90px]"
+              className="px-5 h-10 rounded-md bg-[#0068FF] hover:bg-[#0052CC] text-white text-[14.5px] font-bold shadow-sm transition-colors cursor-pointer disabled:opacity-75 flex items-center justify-center min-w-[90px]"
             >
               {isSubmitting || isSubmittingVote ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -1643,7 +1643,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
               <div className="shrink-0 flex items-center gap-1">
                 <button
                   onClick={() => setShowPinnedList(true)}
-                  className="h-8 px-2.5 rounded-md border border-[#C7CFDB] text-[#1F2D49] text-[11px] font-semibold hover:bg-[#EEF2F7] transition-colors cursor-pointer inline-flex items-center gap-1"
+                  className="h-8 px-2.5 rounded-md border border-[var(--border)] text-[var(--text)] text-[11px] font-semibold hover:bg-[var(--hover-bg)] transition-colors cursor-pointer inline-flex items-center gap-1"
                   aria-label="Xem tất cả tin nhắn ghim"
                 >
                   <span>+{pinnedMessages.length} ghim</span>
@@ -1664,14 +1664,14 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
           {showPinnedList && (
             <>
               <div className="absolute left-0 right-0 top-full z-50">
-                <div className="bg-white border border-[#D7DCE4] rounded-none shadow-[0_6px_28px_rgba(0,0,0,0.18)] overflow-hidden">
-                  <div className="h-10 px-4 bg-[#EEF1F6] border-b border-[#D7DCE4] flex items-center justify-between">
-                    <div className="text-[13px] font-semibold text-[#1F2D49] leading-none">
+                <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-none shadow-[0_6px_28px_rgba(0,0,0,0.18)] overflow-hidden">
+                  <div className="h-10 px-4 bg-[var(--hover-bg)] border-b border-[var(--border)] flex items-center justify-between">
+                    <div className="text-[13px] font-semibold text-[var(--text)] leading-none">
                       Danh sách ghim ({pinnedMessages.length})
                     </div>
                     <button
                       onClick={() => setShowPinnedList(false)}
-                      className="text-[13px] text-[#1F2D49] hover:text-[#0f172a] flex items-center gap-1 cursor-pointer"
+                      className="text-[13px] text-[var(--text)] hover:text-[var(--primary)] flex items-center gap-1 cursor-pointer"
                     >
                       <span>Thu gọn</span>
                       <span className="rotate-180 inline-flex"><ChevronDownIcon size={13} /></span>
@@ -1682,7 +1682,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                     {pinnedMessages.map((pin, idx) => (
                       <div
                         key={pin.id}
-                        className={`h-12 px-4 flex items-center gap-2.5 cursor-pointer hover:bg-[#F8FAFD] transition-colors ${idx < pinnedMessages.length - 1 ? 'border-b border-[#E6EAF0]' : ''}`}
+                        className={`h-12 px-4 flex items-center gap-2.5 cursor-pointer hover:bg-[var(--hover-bg)] transition-colors ${idx < pinnedMessages.length - 1 ? 'border-b border-[var(--border)]' : ''}`}
                         onClick={() => {
                           const el = document.getElementById(`msg-${pin.messageId}`);
                           if (el) {
@@ -1693,12 +1693,12 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                           setShowPinnedList(false);
                         }}
                       >
-                        <div className="shrink-0 text-[#0B63F6]">
+                        <div className="shrink-0 text-[var(--primary)]">
                           <MessageBubbleIcon size={16} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-[13px] font-semibold text-[#0f172a] leading-none">Tin nhắn</div>
-                          <div className="text-[12px] text-[#1F2D49] truncate mt-0.5 leading-snug">
+                          <div className="text-[13px] font-semibold text-[var(--text)] leading-none">Tin nhắn</div>
+                          <div className="text-[12px] text-[var(--sub-text)] truncate mt-0.5 leading-snug">
                             <span className="font-medium">{pin.senderName}: </span>
                             {getPinnedPreviewText(pin)}
                           </div>
@@ -1718,7 +1718,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                   </div>
 
                   <button
-                    className="w-full h-8 border-t border-[#D7DCE4] text-[12px] text-[#1F2D49] hover:bg-[#F8FAFD] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                    className="w-full h-8 border-t border-[var(--border)] text-[12px] text-[var(--text)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                     onClick={() => setShowPinnedList(false)}
                   >
                     <span>Xem tất cả ở bảng tin nhóm</span>
