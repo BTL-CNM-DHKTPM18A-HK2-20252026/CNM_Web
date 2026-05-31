@@ -148,6 +148,25 @@ function GroupCallCard({
   );
 }
 
+const parseDate = (dateStr: any) => {
+  if (!dateStr) return new Date();
+  if (dateStr instanceof Date) return dateStr;
+  let s = String(dateStr);
+  if (!s.endsWith('Z') && !s.includes('+') && !s.includes('-') && s.includes('T')) {
+    s = s + 'Z';
+  } else if (!s.endsWith('Z') && !s.includes('+') && !s.includes('-') && s.includes(' ')) {
+    s = s.replace(' ', 'T') + 'Z';
+  }
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? new Date(dateStr) : d;
+};
+
+interface AddedOption {
+  tempId: string;
+  text: string;
+  isSelected: boolean;
+}
+
 function PollModal({
   isOpen,
   onClose,
@@ -172,9 +191,8 @@ function PollModal({
   getVoterInfo: (voterId: string) => { displayName: string; avatarUrl: string | null };
 }) {
   const [localSelectedIds, setLocalSelectedIds] = useState<string[]>([]);
-  const [newOptionText, setNewOptionText] = useState('');
-  const [isAddingOption, setIsAddingOption] = useState(false);
-  const [isLocalAdding, setIsLocalAdding] = useState(false);
+  const [addedOptions, setAddedOptions] = useState<AddedOption[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showVotersList, setShowVotersList] = useState(false);
 
   const userVotes = poll?.options
@@ -184,8 +202,7 @@ function PollModal({
   useEffect(() => {
     if (isOpen) {
       setLocalSelectedIds(userVotes);
-      setIsLocalAdding(false);
-      setNewOptionText('');
+      setAddedOptions([]);
     }
   }, [isOpen, poll, currentUserId]);
 
@@ -203,32 +220,112 @@ function PollModal({
       );
     } else {
       setLocalSelectedIds([optionId]);
+      setAddedOptions(prev => prev.map(item => ({ ...item, isSelected: false })));
     }
   };
 
-  const handleConfirm = async () => {
-    await submitVote(localSelectedIds);
-    onClose();
+  const handleAddNewOptionField = () => {
+    const tempId = Math.random().toString();
+    setAddedOptions(prev => {
+      let nextSelectedIds = [...localSelectedIds];
+      let nextAdded = prev.map(item => ({ ...item }));
+      
+      const newOption = {
+        tempId,
+        text: '',
+        isSelected: true
+      };
+      
+      if (!poll.multipleChoices) {
+        nextSelectedIds = [];
+        nextAdded = nextAdded.map(item => ({ ...item, isSelected: false }));
+      }
+      
+      setLocalSelectedIds(nextSelectedIds);
+      return [...nextAdded, newOption];
+    });
   };
 
-  const handleAddOptionSubmitLocal = async () => {
-    if (!newOptionText.trim()) return;
-    setIsAddingOption(true);
+  const handleAddedOptionTextChange = (tempId: string, text: string) => {
+    setAddedOptions(prev => prev.map(item => 
+      item.tempId === tempId ? { ...item, text } : item
+    ));
+  };
+
+  const handleRemoveAddedOption = (tempId: string) => {
+    setAddedOptions(prev => prev.filter(item => item.tempId !== tempId));
+  };
+
+  const handleAddedOptionToggle = (tempId: string) => {
+    if (poll.deadline && new Date(poll.deadline).getTime() < Date.now()) {
+      toast.error('Bình chọn này đã kết thúc!');
+      return;
+    }
+    setAddedOptions(prev => {
+      if (poll.multipleChoices) {
+        return prev.map(item => 
+          item.tempId === tempId ? { ...item, isSelected: !item.isSelected } : item
+        );
+      } else {
+        setLocalSelectedIds([]);
+        return prev.map(item => ({
+          ...item,
+          isSelected: item.tempId === tempId
+        }));
+      }
+    });
+  };
+
+  const handleConfirm = async () => {
+    setIsSubmitting(true);
     try {
-      await apiClient.post(`/polls/${poll.pollId}/options`, { content: newOptionText.trim() });
-      setNewOptionText('');
-      setIsLocalAdding(false);
-      toast.success('Thêm phương án thành công!');
+      const selectedNewOptions = addedOptions.filter(opt => opt.text.trim() && opt.isSelected);
+      const newlyCreatedOptionIds: string[] = [];
+      
+      for (const opt of selectedNewOptions) {
+        const text = opt.text.trim();
+        const updatedPoll = await apiClient.post<any>(`/polls/${poll.pollId}/options`, { content: text });
+        const newOpt = updatedPoll.options?.find((o: any) => o.content === text);
+        if (newOpt) {
+          newlyCreatedOptionIds.push(newOpt.optionId);
+        }
+      }
+      
+      const finalOptionIds = [...localSelectedIds, ...newlyCreatedOptionIds];
+      await submitVote(finalOptionIds);
+      onClose();
     } catch (err: any) {
-      const msg = err?.message || err?.response?.data?.message || 'Không thể thêm phương án';
-      toast.error(msg);
+      toast.error(err?.message || 'Không thể thực hiện bình chọn');
     } finally {
-      setIsAddingOption(false);
+      setIsSubmitting(false);
     }
   };
 
   const creatorName = msg.senderName || (msg.sender === 'Me' ? 'Tôi' : '') || getVoterInfo(msg.senderId || '').displayName || 'Thành viên';
-  const timeText = msg.time || 'Hôm nay';
+  
+  const getPollTimeText = () => {
+    if (!msg.rawDate) return 'Hôm nay';
+    const date = parseDate(msg.rawDate);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    const isToday = date.toDateString() === today.toDateString();
+    const isYesterday = date.toDateString() === yesterday.toDateString();
+
+    const hh = String(date.getHours()).padStart(2, '0');
+    const mm = String(date.getMinutes()).padStart(2, '0');
+    const timeStr = `${hh}:${mm}`;
+
+    if (isToday) return `${timeStr} Hôm nay`;
+    if (isYesterday) return `${timeStr} Hôm qua`;
+
+    // Format as HH:mm DD/MM/YYYY
+    const d = String(date.getDate()).padStart(2, '0');
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const y = date.getFullYear();
+    return `${timeStr} ${d}/${m}/${y}`;
+  };
 
   const uniqueVoters = new Set<string>();
   poll.options?.forEach((opt: any) => {
@@ -263,7 +360,7 @@ function PollModal({
           <div>
             <h2 className="text-[18px] font-bold text-gray-900 dark:text-white leading-tight break-words">{poll.question}</h2>
             <p className="text-[13px] text-[#586b82] dark:text-[#8ea3b8] mt-1.5">
-              Tạo bởi {creatorName} - {timeText.includes('Hôm nay') || timeText.includes('Yesterday') || timeText.includes('/') ? timeText : `${timeText} Hôm nay`}
+              Tạo bởi {creatorName} - {getPollTimeText()}
             </p>
           </div>
 
@@ -395,52 +492,60 @@ function PollModal({
             })}
           </div>
 
-          {/* Add Option section */}
+          {/* Added Options (newly typed in the modal) */}
+          {addedOptions.map((addedOpt) => (
+            <div key={addedOpt.tempId} className="flex items-center gap-3 w-full animate-in fade-in slide-in-from-top-1 duration-150">
+              {/* Circle/Checkbox on the left */}
+              <div 
+                onClick={() => handleAddedOptionToggle(addedOpt.tempId)}
+                className="shrink-0 cursor-pointer p-0.5 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+              >
+                {addedOpt.isSelected ? (
+                  <div className="w-[20px] h-[20px] rounded-full bg-[#0068FF] text-white flex items-center justify-center shadow-sm">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+                ) : (
+                  <div className="w-[20px] h-[20px] rounded-full border border-gray-300 dark:border-gray-600 bg-transparent" />
+                )}
+              </div>
+
+              {/* Input box */}
+              <div className="flex-1 relative flex items-center bg-white dark:bg-[#1E1E1E] rounded-md border border-[#0068FF] shadow-sm transition-all focus-within:ring-1 focus-within:ring-[#0068FF]/50 pr-8">
+                <input
+                  type="text"
+                  placeholder="Nhập phương án mới..."
+                  value={addedOpt.text}
+                  onChange={e => handleAddedOptionTextChange(addedOpt.tempId, e.target.value)}
+                  className="flex-1 h-9 px-3 bg-transparent border-none outline-none text-[14.5px] text-gray-900 dark:text-white placeholder-gray-400 font-semibold"
+                  autoFocus={addedOpt.text === ''}
+                />
+                <button
+                  type="button"
+                  onClick={() => handleRemoveAddedOption(addedOpt.tempId)}
+                  className="absolute right-1.5 h-6 w-6 rounded flex items-center justify-center hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors cursor-pointer"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                </button>
+              </div>
+
+              {/* Dummy spacing to align with existing options vote count */}
+              <div className="w-[12px] shrink-0" />
+            </div>
+          ))}
+
+          {/* Add Option button */}
           {poll.allowAddOptions && (
             <div className="pt-1">
-              {isLocalAdding ? (
-                <div className="relative flex items-center gap-2 p-1 bg-white dark:bg-[#1E1E1E] rounded-md border border-[#0068FF] shadow-sm transition-all focus-within:ring-1 focus-within:ring-[#0068FF]/50">
-                  <input
-                    type="text"
-                    placeholder="Nhập phương án mới..."
-                    value={newOptionText}
-                    onChange={e => setNewOptionText(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') handleAddOptionSubmitLocal();
-                      if (e.key === 'Escape') {
-                        setIsLocalAdding(false);
-                        setNewOptionText('');
-                      }
-                    }}
-                    className="flex-1 h-8 bg-transparent border-none outline-none text-[13.5px] text-[var(--text)] placeholder-gray-400"
-                    autoFocus
-                  />
-                  <button
-                    onClick={handleAddOptionSubmitLocal}
-                    disabled={!newOptionText.trim() || isAddingOption}
-                    className="h-8 px-3 rounded bg-[#0068FF] hover:bg-[#0052CC] text-white text-[12.5px] font-bold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-                  >
-                    {isAddingOption ? '...' : 'Thêm'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsLocalAdding(false);
-                      setNewOptionText('');
-                    }}
-                    className="h-8 w-8 rounded flex items-center justify-center hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 cursor-pointer shrink-0 flex items-center justify-center"
-                  >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setIsLocalAdding(true)}
-                  className="flex items-center gap-1.5 text-[#0068FF] hover:text-[#005AE0] text-[14.5px] font-bold py-1 px-1 cursor-pointer transition-colors"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                  Thêm lựa chọn
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handleAddNewOptionField}
+                className="flex items-center gap-1.5 text-[#0068FF] hover:text-[#005AE0] text-[14.5px] font-bold py-1 px-1 cursor-pointer transition-colors"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                Thêm lựa chọn
+              </button>
             </div>
           )}
         </div>
@@ -470,10 +575,10 @@ function PollModal({
             <button
               type="button"
               onClick={handleConfirm}
-              disabled={isSubmittingVote}
+              disabled={isSubmitting || isSubmittingVote}
               className="px-5 h-10 rounded-md bg-[#A0C4FF] hover:bg-[#0068FF] text-white text-[14.5px] font-bold shadow-sm transition-colors cursor-pointer disabled:opacity-75 flex items-center justify-center min-w-[90px]"
             >
-              {isSubmittingVote ? (
+              {isSubmitting || isSubmittingVote ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
                 'Xác nhận'

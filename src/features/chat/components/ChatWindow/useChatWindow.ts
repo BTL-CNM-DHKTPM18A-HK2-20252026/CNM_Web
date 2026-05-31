@@ -560,6 +560,19 @@ const splitPlainText = (text: string, chunkSize: number = 800): string[] => {
   return chunks;
 };
 
+const parseDate = (dateStr: any) => {
+  if (!dateStr) return new Date();
+  if (dateStr instanceof Date) return dateStr;
+  let s = String(dateStr);
+  if (!s.endsWith('Z') && !s.includes('+') && !s.includes('-') && s.includes('T')) {
+    s = s + 'Z';
+  } else if (!s.endsWith('Z') && !s.includes('+') && !s.includes('-') && s.includes(' ')) {
+    s = s.replace(' ', 'T') + 'Z';
+  }
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? new Date(dateStr) : d;
+};
+
 const mapIncomingMessage = (m: any, currentUserId?: string): ChatMessage => ({
   id: String(m.messageId || m.id),
   text: normalizeIncomingContent(m.content, m.senderId, m.messageType, m.senderName),
@@ -582,7 +595,7 @@ const mapIncomingMessage = (m: any, currentUserId?: string): ChatMessage => ({
         : m.senderName,
   senderId: m.senderId,
   time: m.createdAt
-    ? new Date(m.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
+    ? parseDate(m.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
     : '',
   avatar: m.senderAvatarUrl,
   reactions: (m.reactions || []).map((r: any) => ({
@@ -592,7 +605,7 @@ const mapIncomingMessage = (m: any, currentUserId?: string): ChatMessage => ({
     userName: r.userName,
     userAvatar: r.userAvatar,
   })),
-  rawDate: m.createdAt ? new Date(m.createdAt) : undefined,
+  rawDate: m.createdAt ? parseDate(m.createdAt) : undefined,
   isEdited: m.isEdited || false,
   isRecalled: m.isRecalled || false,
   forwardedFromSenderName: m.forwardedFromSenderName || null,
@@ -1486,7 +1499,7 @@ export function useChatWindow({
                   time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
                   avatar: imageMessage.senderAvatarUrl,
                   reactions: [],
-                  rawDate: imageMessage.createdAt ? new Date(imageMessage.createdAt) : new Date(),
+                  rawDate: imageMessage.createdAt ? parseDate(imageMessage.createdAt) : new Date(),
                   isEdited: imageMessage.isEdited || false,
                   isRecalled: imageMessage.isRecalled || false,
                   forwardedFromSenderName: imageMessage.forwardedFromSenderName || null,
@@ -1507,7 +1520,7 @@ export function useChatWindow({
                   time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
                   avatar: assistantMessage.senderAvatarUrl,
                   reactions: [],
-                  rawDate: assistantMessage.createdAt ? new Date(assistantMessage.createdAt) : new Date(),
+                  rawDate: assistantMessage.createdAt ? parseDate(assistantMessage.createdAt) : new Date(),
                   isEdited: assistantMessage.isEdited || false,
                   isRecalled: assistantMessage.isRecalled || false,
                   forwardedFromSenderName: assistantMessage.forwardedFromSenderName || null,
@@ -2891,7 +2904,7 @@ export function useChatWindow({
               t
             ),
             newMsg.createdAt
-              ? new Date(newMsg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
+              ? parseDate(newMsg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
               : undefined
           );
 
@@ -2926,11 +2939,11 @@ export function useChatWindow({
                   : (newMsg.senderId === AI_TYPING_USER_ID ? (newMsg.senderName || 'Fruvia Chatbot') : newMsg.senderName),
               senderId: newMsg.senderId,
               time: newMsg.createdAt
-                ? new Date(newMsg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
+                ? parseDate(newMsg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
                 : new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
               avatar: newMsg.senderAvatarUrl,
               reactions: [],
-              rawDate: newMsg.createdAt ? new Date(newMsg.createdAt) : new Date(),
+              rawDate: newMsg.createdAt ? parseDate(newMsg.createdAt) : new Date(),
               isEdited: newMsg.isEdited || false,
               isRecalled: newMsg.isRecalled || false,
               forwardedFromSenderName: newMsg.forwardedFromSenderName || null,
