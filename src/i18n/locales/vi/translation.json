@@ -205,6 +205,8 @@
     "cloud_subheading": "Truyền file giữa các thiết bị của bạn",
     "ai_input_placeholder": "Nhập câu hỏi cho Fruvia Chatbot",
     "input_placeholder": "Nhập @, tin nhắn tới Cloud của tôi",
+    "input_placeholder_default": "Nhập tin nhắn...",
+    "input_placeholder_group": "Nhập tin nhắn tới nhóm...",
     "you": "Bạn",
     "time_unit": "phút",
     "today": "Hôm nay",

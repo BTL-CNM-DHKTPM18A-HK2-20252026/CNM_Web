@@ -205,6 +205,8 @@
     "cloud_subheading": "Transfer files across your devices",
     "ai_input_placeholder": "Ask Fruvia Chatbot...",
     "input_placeholder": "Enter @, message to My Documents",
+    "input_placeholder_default": "Type a message...",
+    "input_placeholder_group": "Type a message to group...",
     "you": "You",
     "time_unit": "min",
     "today": "Today",

@@ -538,12 +538,19 @@ export function ChatComposer({ vm }: ChatComposerProps) {
         <ChatInput
           onEditorReady={setEditor}
           value={message}
-          placeholder={isFormattingActive ? t('chat.format_keyboard_hint') : (selectedChat.isAi && isSendingAi) ? (t('chat.ai_thinking') || 'AI đang suy nghĩ...') : selectedChat.isAi ? (t('chat.input_placeholder_ai') || t('chat.ai_input_placeholder')) : t('chat.input_placeholder', { name: selectedChat.name })}
-
-
-
-
-
+          placeholder={
+            isFormattingActive
+              ? t('chat.format_keyboard_hint')
+              : (selectedChat.isAi && isSendingAi)
+              ? (t('chat.ai_thinking') || 'AI đang suy nghĩ...')
+              : selectedChat.isAi
+              ? t('chat.ai_input_placeholder')
+              : selectedChat.isCloud
+              ? t('chat.input_placeholder')
+              : selectedChat.isGroup
+              ? t('chat.input_placeholder_group') || 'Nhập tin nhắn tới nhóm...'
+              : t('chat.input_placeholder_default', { name: selectedChat.name }) || 'Nhập tin nhắn...'
+          }
           onChange={(value) => {
             handleMentionInput(value);
             sendTypingIndicator();
