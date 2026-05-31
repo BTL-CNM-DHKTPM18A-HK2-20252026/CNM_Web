@@ -1013,7 +1013,24 @@ const getPreviewUrl = (url: string) => {
 /** Returns true only if caption has actual visible text (not just empty HTML like <p></p>) */
 const hasVisibleCaption = (caption?: string | null): boolean => {
   if (!caption) return false;
-  return caption.replace(/<[^>]*>/g, '').trim().length > 0;
+  const trimmed = caption.trim();
+  // Nếu là TipTap JSON rỗng (không có text content) → coi như không có caption
+  if (trimmed.startsWith('{')) {
+    try {
+      const json = JSON.parse(trimmed);
+      const hasText = (node: any): boolean => {
+        if (!node) return false;
+        if (node.type === 'text' && (node.text || '').trim()) return true;
+        if (node.type === 'image' || node.type === 'zaloEmoji') return true;
+        if (Array.isArray(node.content)) return node.content.some(hasText);
+        return false;
+      };
+      return hasText(json);
+    } catch {
+      // Không phải JSON hợp lệ → fallback kiểm tra HTML
+    }
+  }
+  return trimmed.replace(/<[^>]*>/g, '').trim().length > 0;
 };
 
 /**
