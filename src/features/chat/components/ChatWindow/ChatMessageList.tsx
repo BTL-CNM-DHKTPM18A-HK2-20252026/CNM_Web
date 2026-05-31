@@ -240,7 +240,7 @@ function PollModal({
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#00000073] backdrop-blur-[1px] p-4 select-none">
       <div 
-        className="bg-white dark:bg-[#1E1E1E] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#303030] w-[440px] max-w-full overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150"
+        className="bg-white dark:bg-[#1E1E1E] rounded-xl shadow-2xl border border-gray-100 dark:border-[#303030] w-[440px] max-w-full overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -293,7 +293,7 @@ function PollModal({
 
           {/* Voter details list if open */}
           {showVotersList && totalUniqueVoters > 0 && (
-            <div className="p-3 bg-gray-50 dark:bg-black/15 rounded-xl space-y-2 border border-gray-100 dark:border-[#2a2a2a] max-h-[150px] overflow-y-auto custom-scrollbar">
+            <div className="p-3 bg-gray-50 dark:bg-black/15 rounded-lg space-y-2 border border-gray-100 dark:border-[#2a2a2a] max-h-[150px] overflow-y-auto custom-scrollbar">
               {Array.from(uniqueVoters).map(vId => {
                 const info = getVoterInfo(vId);
                 return (
@@ -340,7 +340,7 @@ function PollModal({
                   {/* Option box */}
                   <div 
                     onClick={() => handleOptionClick(opt.optionId)}
-                    className={`flex-1 relative flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer overflow-hidden ${
+                    className={`flex-1 relative flex items-center justify-between p-3.5 rounded-lg border transition-all cursor-pointer overflow-hidden ${
                       isSelected 
                         ? 'bg-[#E1EDFF] border-transparent text-[#0068FF] dark:bg-[#0068FF]/15 dark:text-[#58a6ff]' 
                         : 'bg-[#F0F2F5] border-transparent text-[#081C36] dark:bg-[#2a2a2a] dark:text-white'
@@ -349,7 +349,7 @@ function PollModal({
                     {/* Background Progress Bar */}
                     {percent > 0 && (
                       <div 
-                        className={`absolute left-0 top-0 bottom-0 transition-all duration-500 rounded-l-xl ${
+                        className={`absolute left-0 top-0 bottom-0 transition-all duration-500 rounded-l-lg ${
                           isSelected 
                             ? 'bg-[#D2E4FC] dark:bg-[#0068FF]/20' 
                             : 'bg-[#E2E5E8] dark:bg-[#3a3a3a]'
@@ -399,7 +399,7 @@ function PollModal({
           {poll.allowAddOptions && (
             <div className="pt-1">
               {isLocalAdding ? (
-                <div className="relative flex items-center gap-2 p-1 bg-white dark:bg-[#1E1E1E] rounded-lg border border-[#0068FF] shadow-sm transition-all focus-within:ring-1 focus-within:ring-[#0068FF]/50">
+                <div className="relative flex items-center gap-2 p-1 bg-white dark:bg-[#1E1E1E] rounded-md border border-[#0068FF] shadow-sm transition-all focus-within:ring-1 focus-within:ring-[#0068FF]/50">
                   <input
                     type="text"
                     placeholder="Nhập phương án mới..."
@@ -418,7 +418,7 @@ function PollModal({
                   <button
                     onClick={handleAddOptionSubmitLocal}
                     disabled={!newOptionText.trim() || isAddingOption}
-                    className="h-8 px-3 rounded-md bg-[#0068FF] hover:bg-[#0052CC] text-white text-[12.5px] font-bold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                    className="h-8 px-3 rounded bg-[#0068FF] hover:bg-[#0052CC] text-white text-[12.5px] font-bold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                   >
                     {isAddingOption ? '...' : 'Thêm'}
                   </button>
@@ -427,7 +427,7 @@ function PollModal({
                       setIsLocalAdding(false);
                       setNewOptionText('');
                     }}
-                    className="h-8 w-8 rounded-md flex items-center justify-center hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 cursor-pointer shrink-0 flex items-center justify-center"
+                    className="h-8 w-8 rounded flex items-center justify-center hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 cursor-pointer shrink-0 flex items-center justify-center"
                   >
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                   </button>
@@ -449,7 +449,7 @@ function PollModal({
         <div className="flex items-center justify-between px-5 py-4 border-t border-gray-100 dark:border-[#303030] bg-gray-50/50 dark:bg-black/10">
           {/* Settings gear on the left */}
           <button 
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 flex items-center justify-center"
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer p-2 rounded hover:bg-gray-100 dark:hover:bg-white/5 flex items-center justify-center"
             title="Cài đặt bình chọn"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -463,7 +463,7 @@ function PollModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-5 h-10 rounded-lg bg-[#E4E6EB] hover:bg-[#D8DADF] dark:bg-white/10 dark:hover:bg-white/15 text-[14.5px] font-bold text-gray-700 dark:text-gray-200 transition-colors cursor-pointer"
+              className="px-5 h-10 rounded-md bg-[#E4E6EB] hover:bg-[#D8DADF] dark:bg-white/10 dark:hover:bg-white/15 text-[14.5px] font-bold text-gray-700 dark:text-gray-200 transition-colors cursor-pointer"
             >
               Hủy
             </button>
@@ -471,7 +471,7 @@ function PollModal({
               type="button"
               onClick={handleConfirm}
               disabled={isSubmittingVote}
-              className="px-5 h-10 rounded-lg bg-[#A0C4FF] hover:bg-[#0068FF] text-white text-[14.5px] font-bold shadow-sm transition-colors cursor-pointer disabled:opacity-75 flex items-center justify-center min-w-[90px]"
+              className="px-5 h-10 rounded-md bg-[#A0C4FF] hover:bg-[#0068FF] text-white text-[14.5px] font-bold shadow-sm transition-colors cursor-pointer disabled:opacity-75 flex items-center justify-center min-w-[90px]"
             >
               {isSubmittingVote ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -615,7 +615,7 @@ function PollCard({
     !selectedOptionIds.every(id => userVotes.includes(id));
 
   return (
-    <div className="w-[320px] sm:w-[360px] rounded-2xl border border-[#e4e6eb] bg-white dark:bg-[#1E1E1E] dark:border-[#303030] overflow-hidden shadow-sm">
+    <div className="w-[320px] sm:w-[360px] rounded-xl border border-[#e4e6eb] bg-white dark:bg-[#1E1E1E] dark:border-[#303030] overflow-hidden shadow-sm">
       {/* Header */}
       <div className="p-4 pb-2">
         <h3 className="text-[16px] font-bold text-[#081C36] dark:text-white leading-tight">{poll.question}</h3>
@@ -656,7 +656,7 @@ function PollCard({
                 {/* The main option box */}
                 <div 
                   onClick={() => handleOptionClick(opt.optionId)}
-                  className={`flex-1 relative flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer overflow-hidden ${
+                  className={`flex-1 relative flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer overflow-hidden ${
                     isSelected 
                       ? 'bg-[#E1EDFF] border-transparent text-[#0068FF] dark:bg-[#0068FF]/15 dark:text-[#58a6ff]' 
                       : 'bg-[#F0F2F5] border-transparent text-[#081C36] dark:bg-[#2a2a2a] dark:text-white'
@@ -665,7 +665,7 @@ function PollCard({
                   {/* Background Progress Bar */}
                   {!isEditingChoice && showResults && percent > 0 && (
                     <div 
-                      className={`absolute left-0 top-0 bottom-0 transition-all duration-500 rounded-l-xl ${
+                      className={`absolute left-0 top-0 bottom-0 transition-all duration-500 rounded-l-lg ${
                         isSelected 
                           ? 'bg-[#D2E4FC] dark:bg-[#0068FF]/20' 
                           : 'bg-[#E2E5E8] dark:bg-[#3a3a3a]'
@@ -736,7 +736,7 @@ function PollCard({
                 <button
                   type="button"
                   onClick={handleCancelEdit}
-                  className="px-4 h-10 rounded-xl border border-[#dcdfe6] dark:border-[#303030] text-[14px] font-bold text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 transition-all cursor-pointer flex items-center justify-center"
+                  className="px-4 h-10 rounded-lg border border-[#dcdfe6] dark:border-[#303030] text-[14px] font-bold text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 transition-all cursor-pointer flex items-center justify-center"
                 >
                   Hủy
                 </button>
@@ -744,7 +744,7 @@ function PollCard({
                   type="button"
                   onClick={() => submitVote(selectedOptionIds)}
                   disabled={isSubmittingVote}
-                  className="flex-1 h-10 rounded-xl bg-[#0068FF] hover:bg-[#0052cc] text-white text-[14px] font-bold shadow transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
+                  className="flex-1 h-10 rounded-lg bg-[#0068FF] hover:bg-[#0052cc] text-white text-[14px] font-bold shadow transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
                 >
                   {isSubmittingVote ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -758,7 +758,7 @@ function PollCard({
                 type="button"
                 onClick={() => submitVote(selectedOptionIds)}
                 disabled={isSubmittingVote}
-                className="w-full h-10 rounded-xl bg-[#0068FF] hover:bg-[#0052cc] text-white text-[14px] font-bold shadow transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
+                className="w-full h-10 rounded-lg bg-[#0068FF] hover:bg-[#0052cc] text-white text-[14px] font-bold shadow transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
               >
                 {isSubmittingVote ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -772,7 +772,7 @@ function PollCard({
               <button
                 type="button"
                 onClick={handleCancelEdit}
-                className="w-full h-10 rounded-xl border border-[#dcdfe6] dark:border-[#303030] text-[14px] font-bold text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 transition-all cursor-pointer flex items-center justify-center"
+                className="w-full h-10 rounded-lg border border-[#dcdfe6] dark:border-[#303030] text-[14px] font-bold text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 transition-all cursor-pointer flex items-center justify-center"
               >
                 Hủy
               </button>
@@ -783,7 +783,7 @@ function PollCard({
             <button
               type="button"
               onClick={handleEditClick}
-              className="w-full h-10 rounded-xl border border-[#0068FF] bg-white hover:bg-blue-50/50 dark:bg-transparent dark:hover:bg-blue-500/10 text-[#0068FF] text-[14px] font-bold transition-all cursor-pointer flex items-center justify-center"
+              className="w-full h-10 rounded-lg border border-[#0068FF] bg-white hover:bg-blue-50/50 dark:bg-transparent dark:hover:bg-blue-500/10 text-[#0068FF] text-[14px] font-bold transition-all cursor-pointer flex items-center justify-center"
             >
               Đổi lựa chọn
             </button>
@@ -795,7 +795,7 @@ function PollCard({
       {poll.allowAddOptions && isEditingChoice && (
         <div className="border-t border-[var(--border)] p-3 bg-gray-50/50 dark:bg-black/5">
           {isAdding ? (
-            <div className="relative flex items-center gap-2 p-1 bg-white dark:bg-[#1E1E1E] rounded-lg border border-[#0068FF] shadow-sm transition-all focus-within:ring-1 focus-within:ring-[#0068FF]/50">
+            <div className="relative flex items-center gap-2 p-1 bg-white dark:bg-[#1E1E1E] rounded-md border border-[#0068FF] shadow-sm transition-all focus-within:ring-1 focus-within:ring-[#0068FF]/50">
               <input
                 type="text"
                 placeholder="Nhập phương án mới..."
