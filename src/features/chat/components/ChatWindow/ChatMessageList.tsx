@@ -1673,10 +1673,10 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                             e.stopPropagation();
                             handleUnpinMessage(pin.messageId);
                           }}
-                          className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[#374151] hover:bg-[#EEF2F7] cursor-pointer"
+                          className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[#EF4444] hover:bg-[#FEE2E2] cursor-pointer"
                           title={t('chat.ctx_menu.unpin')}
                         >
-                          <MoreHorizontalIcon size={14} />
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                         </button>
                       </div>
                     ))}
