@@ -2019,6 +2019,16 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                       <button onClick={() => handleEditMessage(msg.id)} className="text-[12px] text-white bg-[#0068FF] hover:bg-[#0052CC] px-4 py-1 rounded-md font-semibold cursor-pointer shadow-sm transition-colors">{t('chat.confirm.edit_save')}</button>
                                     </div>
                                   </div>
+                                ) : isSticker ? (
+                                  /* STICKER: large centered image, no bubble */
+                                  <div className="flex justify-center my-2">
+                                    <img
+                                      src={msg.text}
+                                      alt="Sticker"
+                                      className="w-[120px] h-[120px] object-contain cursor-pointer hover:scale-110 transition-transform"
+                                      onClick={() => setOpenedImageSrc(msg.text)}
+                                    />
+                                  </div>
                                 ) : msg.type === 'IMAGE' || msg.type === 'VIDEO' ? (
                                   <div className="relative group/media-content w-fit max-w-full">
                                     {msg.type === 'IMAGE' ? (

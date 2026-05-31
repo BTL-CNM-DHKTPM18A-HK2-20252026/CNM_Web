@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { SearchIcon } from '@/components/ui/Icons';
 import { useTheme } from '@/themes';
 import emojiPack from '@/data/emoji-pack.json';
+import { apiClient } from '@/lib/apiClient';
 
 interface StickerPickerProps {
   isOpen: boolean;
@@ -65,19 +66,38 @@ export function StickerPicker({
     };
   }, [isOpen, onClose]);
 
-  // Lazy-load sticker packs from S3 the first time the sticker tab is opened
+  // Load sticker packs from API, fallback to S3 JSON
   useEffect(() => {
     if (activeTab !== 'sticker' || stickerPacks.length > 0) return;
     setStickerLoading(true);
-    fetch(`${S3_BASE}/stickers/sticker-pack.json`)
-      .then(r => r.json())
-      .then((data: { packs: StickerPackData[] }) => {
-        const packs = data.packs.filter(p => p.id !== 'pack_0');
-        setStickerPacks(packs);
-        setActiveStickerPackId(packs[0]?.id ?? '');
+
+    const loadFromS3 = () => {
+      fetch(`${S3_BASE}/stickers/sticker-pack.json`)
+        .then(r => r.json())
+        .then((data: { packs: StickerPackData[] }) => {
+          const packs = data.packs.filter(p => p.id !== 'pack_0');
+          setStickerPacks(packs);
+          setActiveStickerPackId(packs[0]?.id ?? '');
+        })
+        .catch(() => { /* silent */ })
+        .finally(() => setStickerLoading(false));
+    };
+
+    // Try API first
+    apiClient.get<any>('/stickers/packs')
+      .then(res => {
+        const packs = res?.data ?? res;
+        if (Array.isArray(packs) && packs.length > 0) {
+          setStickerPacks(packs);
+          setActiveStickerPackId(packs[0]?.id ?? '');
+          setStickerLoading(false);
+        } else {
+          loadFromS3();
+        }
       })
-      .catch(() => { /* silent – giữ nguyên "Chưa có sticker" khi lỗi */ })
-      .finally(() => setStickerLoading(false));
+      .catch(() => {
+        loadFromS3();
+      });
   }, [activeTab, S3_BASE, stickerPacks.length]);
 
   const activePack = stickerPacks.find(p => p.id === activeStickerPackId);
