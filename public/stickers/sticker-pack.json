@@ -1,0 +1,947 @@
+{
+    "total_packs":  9,
+    "packs":  [
+                  {
+                      "icon":  "",
+                      "name":  "pack_0",
+                      "id":  "pack_0",
+                      "stickers":  [
+                                       {
+                                           "id":  "sprite_b597b66fb4",
+                                           "src":  "/stickers/pack_0/sprite_b597b66fb4.png"
+                                       },
+                                       {
+                                           "id":  "tonton_ic_8a0594fc4d",
+                                           "src":  "/stickers/pack_0/tonton_ic_8a0594fc4d.png"
+                                       },
+                                       {
+                                           "id":  "webpc_0f4bfab4b6",
+                                           "src":  "/stickers/pack_0/webpc_0f4bfab4b6.png"
+                                       },
+                                       {
+                                           "id":  "webpc_1b9e13e0a1",
+                                           "src":  "/stickers/pack_0/webpc_1b9e13e0a1.png"
+                                       },
+                                       {
+                                           "id":  "webpc_1e3a8ccf22",
+                                           "src":  "/stickers/pack_0/webpc_1e3a8ccf22.png"
+                                       },
+                                       {
+                                           "id":  "webpc_232520686e",
+                                           "src":  "/stickers/pack_0/webpc_232520686e.png"
+                                       },
+                                       {
+                                           "id":  "webpc_32f40e74d8",
+                                           "src":  "/stickers/pack_0/webpc_32f40e74d8.png"
+                                       },
+                                       {
+                                           "id":  "webpc_34f07ee119",
+                                           "src":  "/stickers/pack_0/webpc_34f07ee119.png"
+                                       },
+                                       {
+                                           "id":  "webpc_4be9e959f5",
+                                           "src":  "/stickers/pack_0/webpc_4be9e959f5.png"
+                                       },
+                                       {
+                                           "id":  "webpc_6078974f20",
+                                           "src":  "/stickers/pack_0/webpc_6078974f20.png"
+                                       },
+                                       {
+                                           "id":  "webpc_6f93704b3b",
+                                           "src":  "/stickers/pack_0/webpc_6f93704b3b.png"
+                                       },
+                                       {
+                                           "id":  "webpc_6fd4ed42c3",
+                                           "src":  "/stickers/pack_0/webpc_6fd4ed42c3.png"
+                                       },
+                                       {
+                                           "id":  "webpc_71799afb07",
+                                           "src":  "/stickers/pack_0/webpc_71799afb07.png"
+                                       },
+                                       {
+                                           "id":  "webpc_7665f33300",
+                                           "src":  "/stickers/pack_0/webpc_7665f33300.png"
+                                       },
+                                       {
+                                           "id":  "webpc_7dac47b9be",
+                                           "src":  "/stickers/pack_0/webpc_7dac47b9be.png"
+                                       },
+                                       {
+                                           "id":  "webpc_8519a5e7b2",
+                                           "src":  "/stickers/pack_0/webpc_8519a5e7b2.png"
+                                       },
+                                       {
+                                           "id":  "webpc_9d87628649",
+                                           "src":  "/stickers/pack_0/webpc_9d87628649.png"
+                                       },
+                                       {
+                                           "id":  "webpc_af14d71803",
+                                           "src":  "/stickers/pack_0/webpc_af14d71803.png"
+                                       },
+                                       {
+                                           "id":  "webpc_f39cfe6ff7",
+                                           "src":  "/stickers/pack_0/webpc_f39cfe6ff7.png"
+                                       },
+                                       {
+                                           "id":  "zapynoel_icon_6b4b26d21a",
+                                           "src":  "/stickers/pack_0/zapynoel_icon_6b4b26d21a.png"
+                                       }
+                                   ]
+                  },
+                  {
+                      "icon":  "",
+                      "name":  "pack_1",
+                      "id":  "pack_1",
+                      "stickers":  [
+                                       {
+                                           "id":  "1_cd8eeff025",
+                                           "src":  "/stickers/pack_1/1_cd8eeff025.png"
+                                       },
+                                       {
+                                           "id":  "10_f10ba49ecc",
+                                           "src":  "/stickers/pack_1/10_f10ba49ecc.png"
+                                       },
+                                       {
+                                           "id":  "11_ab679794d5",
+                                           "src":  "/stickers/pack_1/11_ab679794d5.png"
+                                       },
+                                       {
+                                           "id":  "12_2e1ce511f6",
+                                           "src":  "/stickers/pack_1/12_2e1ce511f6.png"
+                                       },
+                                       {
+                                           "id":  "13_951c725a66",
+                                           "src":  "/stickers/pack_1/13_951c725a66.png"
+                                       },
+                                       {
+                                           "id":  "14_1a4c6772ec",
+                                           "src":  "/stickers/pack_1/14_1a4c6772ec.png"
+                                       },
+                                       {
+                                           "id":  "15_dad2de0828",
+                                           "src":  "/stickers/pack_1/15_dad2de0828.png"
+                                       },
+                                       {
+                                           "id":  "16_cb6fbbad06",
+                                           "src":  "/stickers/pack_1/16_cb6fbbad06.png"
+                                       },
+                                       {
+                                           "id":  "17_5f1787e595",
+                                           "src":  "/stickers/pack_1/17_5f1787e595.png"
+                                       },
+                                       {
+                                           "id":  "18_42f00faa96",
+                                           "src":  "/stickers/pack_1/18_42f00faa96.png"
+                                       },
+                                       {
+                                           "id":  "19_c66c5e7265",
+                                           "src":  "/stickers/pack_1/19_c66c5e7265.png"
+                                       },
+                                       {
+                                           "id":  "2_abcdbb417b",
+                                           "src":  "/stickers/pack_1/2_abcdbb417b.png"
+                                       },
+                                       {
+                                           "id":  "20_a166d3f824",
+                                           "src":  "/stickers/pack_1/20_a166d3f824.png"
+                                       },
+                                       {
+                                           "id":  "3_5eadb6d42a",
+                                           "src":  "/stickers/pack_1/3_5eadb6d42a.png"
+                                       },
+                                       {
+                                           "id":  "4_a5e1e2433d",
+                                           "src":  "/stickers/pack_1/4_a5e1e2433d.png"
+                                       },
+                                       {
+                                           "id":  "5_c25d4df983",
+                                           "src":  "/stickers/pack_1/5_c25d4df983.png"
+                                       },
+                                       {
+                                           "id":  "6_d06f316cc4",
+                                           "src":  "/stickers/pack_1/6_d06f316cc4.png"
+                                       },
+                                       {
+                                           "id":  "7_6c08ae1dd4",
+                                           "src":  "/stickers/pack_1/7_6c08ae1dd4.png"
+                                       },
+                                       {
+                                           "id":  "8_e6c7fcdba2",
+                                           "src":  "/stickers/pack_1/8_e6c7fcdba2.png"
+                                       },
+                                       {
+                                           "id":  "9_5717c4dfdd",
+                                           "src":  "/stickers/pack_1/9_5717c4dfdd.png"
+                                       }
+                                   ]
+                  },
+                  {
+                      "icon":  "",
+                      "name":  "pack_2",
+                      "id":  "pack_2",
+                      "stickers":  [
+                                       {
+                                           "id":  "21_abf44b730b",
+                                           "src":  "/stickers/pack_2/21_abf44b730b.png"
+                                       },
+                                       {
+                                           "id":  "22_be4dbf1586",
+                                           "src":  "/stickers/pack_2/22_be4dbf1586.png"
+                                       },
+                                       {
+                                           "id":  "23_460886fb6e",
+                                           "src":  "/stickers/pack_2/23_460886fb6e.png"
+                                       },
+                                       {
+                                           "id":  "24_8c948a1e8d",
+                                           "src":  "/stickers/pack_2/24_8c948a1e8d.png"
+                                       },
+                                       {
+                                           "id":  "25_4f580c4175",
+                                           "src":  "/stickers/pack_2/25_4f580c4175.png"
+                                       },
+                                       {
+                                           "id":  "26_60df2d57af",
+                                           "src":  "/stickers/pack_2/26_60df2d57af.png"
+                                       },
+                                       {
+                                           "id":  "27_d41e03e67e",
+                                           "src":  "/stickers/pack_2/27_d41e03e67e.png"
+                                       },
+                                       {
+                                           "id":  "28_841f42405e",
+                                           "src":  "/stickers/pack_2/28_841f42405e.png"
+                                       },
+                                       {
+                                           "id":  "29_42021f9fff",
+                                           "src":  "/stickers/pack_2/29_42021f9fff.png"
+                                       },
+                                       {
+                                           "id":  "30_6491779e4d",
+                                           "src":  "/stickers/pack_2/30_6491779e4d.png"
+                                       },
+                                       {
+                                           "id":  "webpc_1246ac2bfb",
+                                           "src":  "/stickers/pack_2/webpc_1246ac2bfb.png"
+                                       },
+                                       {
+                                           "id":  "webpc_259867c491",
+                                           "src":  "/stickers/pack_2/webpc_259867c491.png"
+                                       },
+                                       {
+                                           "id":  "webpc_33ab39e7b1",
+                                           "src":  "/stickers/pack_2/webpc_33ab39e7b1.png"
+                                       },
+                                       {
+                                           "id":  "webpc_53845bfb2b",
+                                           "src":  "/stickers/pack_2/webpc_53845bfb2b.png"
+                                       },
+                                       {
+                                           "id":  "webpc_65d42f2ede",
+                                           "src":  "/stickers/pack_2/webpc_65d42f2ede.png"
+                                       },
+                                       {
+                                           "id":  "webpc_6925ee001c",
+                                           "src":  "/stickers/pack_2/webpc_6925ee001c.png"
+                                       },
+                                       {
+                                           "id":  "webpc_743d82a83a",
+                                           "src":  "/stickers/pack_2/webpc_743d82a83a.png"
+                                       },
+                                       {
+                                           "id":  "webpc_88a2a5821c",
+                                           "src":  "/stickers/pack_2/webpc_88a2a5821c.png"
+                                       },
+                                       {
+                                           "id":  "webpc_95363d4d64",
+                                           "src":  "/stickers/pack_2/webpc_95363d4d64.png"
+                                       },
+                                       {
+                                           "id":  "webpc_9902a660bb",
+                                           "src":  "/stickers/pack_2/webpc_9902a660bb.png"
+                                       },
+                                       {
+                                           "id":  "webpc_b30c05391d",
+                                           "src":  "/stickers/pack_2/webpc_b30c05391d.png"
+                                       },
+                                       {
+                                           "id":  "webpc_cb9c898156",
+                                           "src":  "/stickers/pack_2/webpc_cb9c898156.png"
+                                       },
+                                       {
+                                           "id":  "webpc_d2d84ef687",
+                                           "src":  "/stickers/pack_2/webpc_d2d84ef687.png"
+                                       },
+                                       {
+                                           "id":  "webpc_e8238cd529",
+                                           "src":  "/stickers/pack_2/webpc_e8238cd529.png"
+                                       },
+                                       {
+                                           "id":  "webpc_eb7c3442f9",
+                                           "src":  "/stickers/pack_2/webpc_eb7c3442f9.png"
+                                       },
+                                       {
+                                           "id":  "webpc_f0c47642f2",
+                                           "src":  "/stickers/pack_2/webpc_f0c47642f2.png"
+                                       }
+                                   ]
+                  },
+                  {
+                      "icon":  "",
+                      "name":  "pack_3",
+                      "id":  "pack_3",
+                      "stickers":  [
+                                       {
+                                           "id":  "sprite_5dc96802a9",
+                                           "src":  "/stickers/pack_3/sprite_5dc96802a9.png"
+                                       },
+                                       {
+                                           "id":  "sprite_a8d178d253",
+                                           "src":  "/stickers/pack_3/sprite_a8d178d253.png"
+                                       },
+                                       {
+                                           "id":  "sprite_e0de5516a6",
+                                           "src":  "/stickers/pack_3/sprite_e0de5516a6.png"
+                                       },
+                                       {
+                                           "id":  "webpc_0d0ab135e4",
+                                           "src":  "/stickers/pack_3/webpc_0d0ab135e4.png"
+                                       },
+                                       {
+                                           "id":  "webpc_3b34170dce",
+                                           "src":  "/stickers/pack_3/webpc_3b34170dce.png"
+                                       },
+                                       {
+                                           "id":  "webpc_451e372226",
+                                           "src":  "/stickers/pack_3/webpc_451e372226.png"
+                                       },
+                                       {
+                                           "id":  "webpc_52da2c7cae",
+                                           "src":  "/stickers/pack_3/webpc_52da2c7cae.png"
+                                       },
+                                       {
+                                           "id":  "webpc_cabd5f846c",
+                                           "src":  "/stickers/pack_3/webpc_cabd5f846c.png"
+                                       },
+                                       {
+                                           "id":  "webpc_ddcb8ff321",
+                                           "src":  "/stickers/pack_3/webpc_ddcb8ff321.png"
+                                       },
+                                       {
+                                           "id":  "webpc_e01db4c409",
+                                           "src":  "/stickers/pack_3/webpc_e01db4c409.png"
+                                       },
+                                       {
+                                           "id":  "webpc_f4c41255f7",
+                                           "src":  "/stickers/pack_3/webpc_f4c41255f7.png"
+                                       },
+                                       {
+                                           "id":  "webpc_f859f828a3",
+                                           "src":  "/stickers/pack_3/webpc_f859f828a3.png"
+                                       }
+                                   ]
+                  },
+                  {
+                      "icon":  "",
+                      "name":  "pack_4",
+                      "id":  "pack_4",
+                      "stickers":  [
+                                       {
+                                           "id":  "sprite_22c15e4b1c",
+                                           "src":  "/stickers/pack_4/sprite_22c15e4b1c.png"
+                                       },
+                                       {
+                                           "id":  "sprite_2f74dc7f41",
+                                           "src":  "/stickers/pack_4/sprite_2f74dc7f41.png"
+                                       },
+                                       {
+                                           "id":  "webpc_0a032ed01f",
+                                           "src":  "/stickers/pack_4/webpc_0a032ed01f.png"
+                                       },
+                                       {
+                                           "id":  "webpc_0a3192a68a",
+                                           "src":  "/stickers/pack_4/webpc_0a3192a68a.png"
+                                       },
+                                       {
+                                           "id":  "webpc_286bfa4a8e",
+                                           "src":  "/stickers/pack_4/webpc_286bfa4a8e.png"
+                                       },
+                                       {
+                                           "id":  "webpc_29001ee27e",
+                                           "src":  "/stickers/pack_4/webpc_29001ee27e.png"
+                                       },
+                                       {
+                                           "id":  "webpc_292ab522a7",
+                                           "src":  "/stickers/pack_4/webpc_292ab522a7.png"
+                                       },
+                                       {
+                                           "id":  "webpc_2c11b093da",
+                                           "src":  "/stickers/pack_4/webpc_2c11b093da.png"
+                                       },
+                                       {
+                                           "id":  "webpc_38c04d63b9",
+                                           "src":  "/stickers/pack_4/webpc_38c04d63b9.png"
+                                       },
+                                       {
+                                           "id":  "webpc_6ae4ae8498",
+                                           "src":  "/stickers/pack_4/webpc_6ae4ae8498.png"
+                                       },
+                                       {
+                                           "id":  "webpc_6b6806bcd0",
+                                           "src":  "/stickers/pack_4/webpc_6b6806bcd0.png"
+                                       },
+                                       {
+                                           "id":  "webpc_77f6f27987",
+                                           "src":  "/stickers/pack_4/webpc_77f6f27987.png"
+                                       },
+                                       {
+                                           "id":  "webpc_806b4769e1",
+                                           "src":  "/stickers/pack_4/webpc_806b4769e1.png"
+                                       },
+                                       {
+                                           "id":  "webpc_90bd39bb10",
+                                           "src":  "/stickers/pack_4/webpc_90bd39bb10.png"
+                                       },
+                                       {
+                                           "id":  "webpc_9521f8fd9b",
+                                           "src":  "/stickers/pack_4/webpc_9521f8fd9b.png"
+                                       },
+                                       {
+                                           "id":  "webpc_992ee993f2",
+                                           "src":  "/stickers/pack_4/webpc_992ee993f2.png"
+                                       },
+                                       {
+                                           "id":  "webpc_aff4b5334d",
+                                           "src":  "/stickers/pack_4/webpc_aff4b5334d.png"
+                                       },
+                                       {
+                                           "id":  "webpc_b794812c96",
+                                           "src":  "/stickers/pack_4/webpc_b794812c96.png"
+                                       },
+                                       {
+                                           "id":  "webpc_d6ef5f2366",
+                                           "src":  "/stickers/pack_4/webpc_d6ef5f2366.png"
+                                       },
+                                       {
+                                           "id":  "webpc_dd8c12e7dc",
+                                           "src":  "/stickers/pack_4/webpc_dd8c12e7dc.png"
+                                       },
+                                       {
+                                           "id":  "webpc_e8498a25f7",
+                                           "src":  "/stickers/pack_4/webpc_e8498a25f7.png"
+                                       },
+                                       {
+                                           "id":  "webpc_f64fde800f",
+                                           "src":  "/stickers/pack_4/webpc_f64fde800f.png"
+                                       }
+                                   ]
+                  },
+                  {
+                      "icon":  "",
+                      "name":  "pack_5",
+                      "id":  "pack_5",
+                      "stickers":  [
+                                       {
+                                           "id":  "webpc_0001e7bf04",
+                                           "src":  "/stickers/pack_5/webpc_0001e7bf04.png"
+                                       },
+                                       {
+                                           "id":  "webpc_014074e6f9",
+                                           "src":  "/stickers/pack_5/webpc_014074e6f9.png"
+                                       },
+                                       {
+                                           "id":  "webpc_020fbb8cdc",
+                                           "src":  "/stickers/pack_5/webpc_020fbb8cdc.png"
+                                       },
+                                       {
+                                           "id":  "webpc_1124b30973",
+                                           "src":  "/stickers/pack_5/webpc_1124b30973.png"
+                                       },
+                                       {
+                                           "id":  "webpc_17f94a8075",
+                                           "src":  "/stickers/pack_5/webpc_17f94a8075.png"
+                                       },
+                                       {
+                                           "id":  "webpc_19565fa985",
+                                           "src":  "/stickers/pack_5/webpc_19565fa985.png"
+                                       },
+                                       {
+                                           "id":  "webpc_29048713fb",
+                                           "src":  "/stickers/pack_5/webpc_29048713fb.png"
+                                       },
+                                       {
+                                           "id":  "webpc_3228a3d8f7",
+                                           "src":  "/stickers/pack_5/webpc_3228a3d8f7.png"
+                                       },
+                                       {
+                                           "id":  "webpc_37f6269b76",
+                                           "src":  "/stickers/pack_5/webpc_37f6269b76.png"
+                                       },
+                                       {
+                                           "id":  "webpc_3cf836cba9",
+                                           "src":  "/stickers/pack_5/webpc_3cf836cba9.png"
+                                       },
+                                       {
+                                           "id":  "webpc_448cf866b5",
+                                           "src":  "/stickers/pack_5/webpc_448cf866b5.png"
+                                       },
+                                       {
+                                           "id":  "webpc_5074528166",
+                                           "src":  "/stickers/pack_5/webpc_5074528166.png"
+                                       },
+                                       {
+                                           "id":  "webpc_5f6e01235f",
+                                           "src":  "/stickers/pack_5/webpc_5f6e01235f.png"
+                                       },
+                                       {
+                                           "id":  "webpc_60fbb513ec",
+                                           "src":  "/stickers/pack_5/webpc_60fbb513ec.png"
+                                       },
+                                       {
+                                           "id":  "webpc_631dbbd19f",
+                                           "src":  "/stickers/pack_5/webpc_631dbbd19f.png"
+                                       },
+                                       {
+                                           "id":  "webpc_637cc1fd99",
+                                           "src":  "/stickers/pack_5/webpc_637cc1fd99.png"
+                                       },
+                                       {
+                                           "id":  "webpc_6942a948e6",
+                                           "src":  "/stickers/pack_5/webpc_6942a948e6.png"
+                                       },
+                                       {
+                                           "id":  "webpc_6ade88d8da",
+                                           "src":  "/stickers/pack_5/webpc_6ade88d8da.png"
+                                       },
+                                       {
+                                           "id":  "webpc_6d63763979",
+                                           "src":  "/stickers/pack_5/webpc_6d63763979.png"
+                                       },
+                                       {
+                                           "id":  "webpc_722e55e75e",
+                                           "src":  "/stickers/pack_5/webpc_722e55e75e.png"
+                                       },
+                                       {
+                                           "id":  "webpc_734c65073f",
+                                           "src":  "/stickers/pack_5/webpc_734c65073f.png"
+                                       },
+                                       {
+                                           "id":  "webpc_741e210b62",
+                                           "src":  "/stickers/pack_5/webpc_741e210b62.png"
+                                       },
+                                       {
+                                           "id":  "webpc_77ab8023d1",
+                                           "src":  "/stickers/pack_5/webpc_77ab8023d1.png"
+                                       },
+                                       {
+                                           "id":  "webpc_7a364cafe3",
+                                           "src":  "/stickers/pack_5/webpc_7a364cafe3.png"
+                                       },
+                                       {
+                                           "id":  "webpc_8167d7cb58",
+                                           "src":  "/stickers/pack_5/webpc_8167d7cb58.png"
+                                       },
+                                       {
+                                           "id":  "webpc_82fa1654b2",
+                                           "src":  "/stickers/pack_5/webpc_82fa1654b2.png"
+                                       },
+                                       {
+                                           "id":  "webpc_83d552b88b",
+                                           "src":  "/stickers/pack_5/webpc_83d552b88b.png"
+                                       },
+                                       {
+                                           "id":  "webpc_8514ea9242",
+                                           "src":  "/stickers/pack_5/webpc_8514ea9242.png"
+                                       },
+                                       {
+                                           "id":  "webpc_85ed581512",
+                                           "src":  "/stickers/pack_5/webpc_85ed581512.png"
+                                       },
+                                       {
+                                           "id":  "webpc_8d062c4f1e",
+                                           "src":  "/stickers/pack_5/webpc_8d062c4f1e.png"
+                                       },
+                                       {
+                                           "id":  "webpc_8e1afec568",
+                                           "src":  "/stickers/pack_5/webpc_8e1afec568.png"
+                                       },
+                                       {
+                                           "id":  "webpc_91e50b8e9e",
+                                           "src":  "/stickers/pack_5/webpc_91e50b8e9e.png"
+                                       },
+                                       {
+                                           "id":  "webpc_9256fdef9a",
+                                           "src":  "/stickers/pack_5/webpc_9256fdef9a.png"
+                                       },
+                                       {
+                                           "id":  "webpc_976a325540",
+                                           "src":  "/stickers/pack_5/webpc_976a325540.png"
+                                       },
+                                       {
+                                           "id":  "webpc_9b503e6491",
+                                           "src":  "/stickers/pack_5/webpc_9b503e6491.png"
+                                       },
+                                       {
+                                           "id":  "webpc_9b8f56b36a",
+                                           "src":  "/stickers/pack_5/webpc_9b8f56b36a.png"
+                                       },
+                                       {
+                                           "id":  "webpc_9fb3f9229e",
+                                           "src":  "/stickers/pack_5/webpc_9fb3f9229e.png"
+                                       },
+                                       {
+                                           "id":  "webpc_a25ea9e463",
+                                           "src":  "/stickers/pack_5/webpc_a25ea9e463.png"
+                                       },
+                                       {
+                                           "id":  "webpc_a985f17efb",
+                                           "src":  "/stickers/pack_5/webpc_a985f17efb.png"
+                                       },
+                                       {
+                                           "id":  "webpc_ab136c2a5e",
+                                           "src":  "/stickers/pack_5/webpc_ab136c2a5e.png"
+                                       },
+                                       {
+                                           "id":  "webpc_aca54dbeaf",
+                                           "src":  "/stickers/pack_5/webpc_aca54dbeaf.png"
+                                       },
+                                       {
+                                           "id":  "webpc_b31c155aff",
+                                           "src":  "/stickers/pack_5/webpc_b31c155aff.png"
+                                       },
+                                       {
+                                           "id":  "webpc_b379bb962d",
+                                           "src":  "/stickers/pack_5/webpc_b379bb962d.png"
+                                       },
+                                       {
+                                           "id":  "webpc_b5f604b801",
+                                           "src":  "/stickers/pack_5/webpc_b5f604b801.png"
+                                       },
+                                       {
+                                           "id":  "webpc_cf18b41cbc",
+                                           "src":  "/stickers/pack_5/webpc_cf18b41cbc.png"
+                                       },
+                                       {
+                                           "id":  "webpc_d745a615bd",
+                                           "src":  "/stickers/pack_5/webpc_d745a615bd.png"
+                                       },
+                                       {
+                                           "id":  "webpc_dd8c9fdca7",
+                                           "src":  "/stickers/pack_5/webpc_dd8c9fdca7.png"
+                                       },
+                                       {
+                                           "id":  "webpc_e1824e5b60",
+                                           "src":  "/stickers/pack_5/webpc_e1824e5b60.png"
+                                       },
+                                       {
+                                           "id":  "webpc_e77b985d8a",
+                                           "src":  "/stickers/pack_5/webpc_e77b985d8a.png"
+                                       },
+                                       {
+                                           "id":  "webpc_eb6f4e2be6",
+                                           "src":  "/stickers/pack_5/webpc_eb6f4e2be6.png"
+                                       },
+                                       {
+                                           "id":  "webpc_f71330beb0",
+                                           "src":  "/stickers/pack_5/webpc_f71330beb0.png"
+                                       }
+                                   ]
+                  },
+                  {
+                      "icon":  "",
+                      "name":  "pack_6",
+                      "id":  "pack_6",
+                      "stickers":  [
+                                       {
+                                           "id":  "webpc_04a1168250",
+                                           "src":  "/stickers/pack_6/webpc_04a1168250.png"
+                                       },
+                                       {
+                                           "id":  "webpc_117f96c94c",
+                                           "src":  "/stickers/pack_6/webpc_117f96c94c.png"
+                                       },
+                                       {
+                                           "id":  "webpc_161bf7a3b7",
+                                           "src":  "/stickers/pack_6/webpc_161bf7a3b7.png"
+                                       },
+                                       {
+                                           "id":  "webpc_17c83cca1c",
+                                           "src":  "/stickers/pack_6/webpc_17c83cca1c.png"
+                                       },
+                                       {
+                                           "id":  "webpc_3755b5c00e",
+                                           "src":  "/stickers/pack_6/webpc_3755b5c00e.png"
+                                       },
+                                       {
+                                           "id":  "webpc_430e7b22ce",
+                                           "src":  "/stickers/pack_6/webpc_430e7b22ce.png"
+                                       },
+                                       {
+                                           "id":  "webpc_58341528db",
+                                           "src":  "/stickers/pack_6/webpc_58341528db.png"
+                                       },
+                                       {
+                                           "id":  "webpc_5ce28d7a5f",
+                                           "src":  "/stickers/pack_6/webpc_5ce28d7a5f.png"
+                                       },
+                                       {
+                                           "id":  "webpc_65a18d0697",
+                                           "src":  "/stickers/pack_6/webpc_65a18d0697.png"
+                                       },
+                                       {
+                                           "id":  "webpc_7e3996d024",
+                                           "src":  "/stickers/pack_6/webpc_7e3996d024.png"
+                                       },
+                                       {
+                                           "id":  "webpc_b3f9cf7d6e",
+                                           "src":  "/stickers/pack_6/webpc_b3f9cf7d6e.png"
+                                       },
+                                       {
+                                           "id":  "webpc_cf56a36c25",
+                                           "src":  "/stickers/pack_6/webpc_cf56a36c25.png"
+                                       },
+                                       {
+                                           "id":  "webpc_d2f5bebde7",
+                                           "src":  "/stickers/pack_6/webpc_d2f5bebde7.png"
+                                       },
+                                       {
+                                           "id":  "webpc_e597fedf7a",
+                                           "src":  "/stickers/pack_6/webpc_e597fedf7a.png"
+                                       },
+                                       {
+                                           "id":  "webpc_f09594f008",
+                                           "src":  "/stickers/pack_6/webpc_f09594f008.png"
+                                       },
+                                       {
+                                           "id":  "webpc_ffa53bfc7e",
+                                           "src":  "/stickers/pack_6/webpc_ffa53bfc7e.png"
+                                       }
+                                   ]
+                  },
+                  {
+                      "icon":  "",
+                      "name":  "pack_7",
+                      "id":  "pack_7",
+                      "stickers":  [
+                                       {
+                                           "id":  "webpc_0b00713145",
+                                           "src":  "/stickers/pack_7/webpc_0b00713145.png"
+                                       },
+                                       {
+                                           "id":  "webpc_0ef09348e9",
+                                           "src":  "/stickers/pack_7/webpc_0ef09348e9.png"
+                                       },
+                                       {
+                                           "id":  "webpc_13cd06cb4b",
+                                           "src":  "/stickers/pack_7/webpc_13cd06cb4b.png"
+                                       },
+                                       {
+                                           "id":  "webpc_178efc1848",
+                                           "src":  "/stickers/pack_7/webpc_178efc1848.png"
+                                       },
+                                       {
+                                           "id":  "webpc_2224a37d53",
+                                           "src":  "/stickers/pack_7/webpc_2224a37d53.png"
+                                       },
+                                       {
+                                           "id":  "webpc_22ba64ed6d",
+                                           "src":  "/stickers/pack_7/webpc_22ba64ed6d.png"
+                                       },
+                                       {
+                                           "id":  "webpc_2b1f63ca4c",
+                                           "src":  "/stickers/pack_7/webpc_2b1f63ca4c.png"
+                                       },
+                                       {
+                                           "id":  "webpc_33e5496658",
+                                           "src":  "/stickers/pack_7/webpc_33e5496658.png"
+                                       },
+                                       {
+                                           "id":  "webpc_44ae975f04",
+                                           "src":  "/stickers/pack_7/webpc_44ae975f04.png"
+                                       },
+                                       {
+                                           "id":  "webpc_4d45945476",
+                                           "src":  "/stickers/pack_7/webpc_4d45945476.png"
+                                       },
+                                       {
+                                           "id":  "webpc_5109ab9a56",
+                                           "src":  "/stickers/pack_7/webpc_5109ab9a56.png"
+                                       },
+                                       {
+                                           "id":  "webpc_5c5e1299ce",
+                                           "src":  "/stickers/pack_7/webpc_5c5e1299ce.png"
+                                       },
+                                       {
+                                           "id":  "webpc_682312c22a",
+                                           "src":  "/stickers/pack_7/webpc_682312c22a.png"
+                                       },
+                                       {
+                                           "id":  "webpc_6ca16e923a",
+                                           "src":  "/stickers/pack_7/webpc_6ca16e923a.png"
+                                       },
+                                       {
+                                           "id":  "webpc_76949764c8",
+                                           "src":  "/stickers/pack_7/webpc_76949764c8.png"
+                                       },
+                                       {
+                                           "id":  "webpc_813dabb850",
+                                           "src":  "/stickers/pack_7/webpc_813dabb850.png"
+                                       },
+                                       {
+                                           "id":  "webpc_829a1d3ed4",
+                                           "src":  "/stickers/pack_7/webpc_829a1d3ed4.png"
+                                       },
+                                       {
+                                           "id":  "webpc_89cb56112a",
+                                           "src":  "/stickers/pack_7/webpc_89cb56112a.png"
+                                       },
+                                       {
+                                           "id":  "webpc_95fb23cd19",
+                                           "src":  "/stickers/pack_7/webpc_95fb23cd19.png"
+                                       },
+                                       {
+                                           "id":  "webpc_99689ad27d",
+                                           "src":  "/stickers/pack_7/webpc_99689ad27d.png"
+                                       },
+                                       {
+                                           "id":  "webpc_abd3660c54",
+                                           "src":  "/stickers/pack_7/webpc_abd3660c54.png"
+                                       },
+                                       {
+                                           "id":  "webpc_b6dc8461a9",
+                                           "src":  "/stickers/pack_7/webpc_b6dc8461a9.png"
+                                       },
+                                       {
+                                           "id":  "webpc_c9e8dd99ec",
+                                           "src":  "/stickers/pack_7/webpc_c9e8dd99ec.png"
+                                       },
+                                       {
+                                           "id":  "webpc_d12b842b7c",
+                                           "src":  "/stickers/pack_7/webpc_d12b842b7c.png"
+                                       },
+                                       {
+                                           "id":  "webpc_e196bcf522",
+                                           "src":  "/stickers/pack_7/webpc_e196bcf522.png"
+                                       },
+                                       {
+                                           "id":  "webpc_e6ab06d1f2",
+                                           "src":  "/stickers/pack_7/webpc_e6ab06d1f2.png"
+                                       },
+                                       {
+                                           "id":  "webpc_f4d0f166cc",
+                                           "src":  "/stickers/pack_7/webpc_f4d0f166cc.png"
+                                       },
+                                       {
+                                           "id":  "webpc_f9c2e4c91d",
+                                           "src":  "/stickers/pack_7/webpc_f9c2e4c91d.png"
+                                       }
+                                   ]
+                  },
+                  {
+                      "icon":  "",
+                      "name":  "pack_8",
+                      "id":  "pack_8",
+                      "stickers":  [
+                                       {
+                                           "id":  "webpc_00c08e3ccd",
+                                           "src":  "/stickers/pack_8/webpc_00c08e3ccd.png"
+                                       },
+                                       {
+                                           "id":  "webpc_0c4eb9c6b2",
+                                           "src":  "/stickers/pack_8/webpc_0c4eb9c6b2.png"
+                                       },
+                                       {
+                                           "id":  "webpc_1b4eeb6db3",
+                                           "src":  "/stickers/pack_8/webpc_1b4eeb6db3.png"
+                                       },
+                                       {
+                                           "id":  "webpc_3195cd250f",
+                                           "src":  "/stickers/pack_8/webpc_3195cd250f.png"
+                                       },
+                                       {
+                                           "id":  "webpc_484865ee95",
+                                           "src":  "/stickers/pack_8/webpc_484865ee95.png"
+                                       },
+                                       {
+                                           "id":  "webpc_5a8c451a56",
+                                           "src":  "/stickers/pack_8/webpc_5a8c451a56.png"
+                                       },
+                                       {
+                                           "id":  "webpc_5aa05bb4b8",
+                                           "src":  "/stickers/pack_8/webpc_5aa05bb4b8.png"
+                                       },
+                                       {
+                                           "id":  "webpc_5e60035e9a",
+                                           "src":  "/stickers/pack_8/webpc_5e60035e9a.png"
+                                       },
+                                       {
+                                           "id":  "webpc_67b466120f",
+                                           "src":  "/stickers/pack_8/webpc_67b466120f.png"
+                                       },
+                                       {
+                                           "id":  "webpc_79242ce40c",
+                                           "src":  "/stickers/pack_8/webpc_79242ce40c.png"
+                                       },
+                                       {
+                                           "id":  "webpc_82cb566ae6",
+                                           "src":  "/stickers/pack_8/webpc_82cb566ae6.png"
+                                       },
+                                       {
+                                           "id":  "webpc_9cd4db0b0a",
+                                           "src":  "/stickers/pack_8/webpc_9cd4db0b0a.png"
+                                       },
+                                       {
+                                           "id":  "webpc_a904f34855",
+                                           "src":  "/stickers/pack_8/webpc_a904f34855.png"
+                                       },
+                                       {
+                                           "id":  "webpc_b505676443",
+                                           "src":  "/stickers/pack_8/webpc_b505676443.png"
+                                       },
+                                       {
+                                           "id":  "webpc_ba9e40f3d4",
+                                           "src":  "/stickers/pack_8/webpc_ba9e40f3d4.png"
+                                       },
+                                       {
+                                           "id":  "webpc_befb144812",
+                                           "src":  "/stickers/pack_8/webpc_befb144812.png"
+                                       },
+                                       {
+                                           "id":  "webpc_c311ed814c",
+                                           "src":  "/stickers/pack_8/webpc_c311ed814c.png"
+                                       },
+                                       {
+                                           "id":  "webpc_c850044f7e",
+                                           "src":  "/stickers/pack_8/webpc_c850044f7e.png"
+                                       },
+                                       {
+                                           "id":  "webpc_cc309fc51a",
+                                           "src":  "/stickers/pack_8/webpc_cc309fc51a.png"
+                                       },
+                                       {
+                                           "id":  "webpc_cf9e51c877",
+                                           "src":  "/stickers/pack_8/webpc_cf9e51c877.png"
+                                       },
+                                       {
+                                           "id":  "webpc_d008cce7ba",
+                                           "src":  "/stickers/pack_8/webpc_d008cce7ba.png"
+                                       },
+                                       {
+                                           "id":  "webpc_d0dc3c47ab",
+                                           "src":  "/stickers/pack_8/webpc_d0dc3c47ab.png"
+                                       },
+                                       {
+                                           "id":  "webpc_dd38d7031e",
+                                           "src":  "/stickers/pack_8/webpc_dd38d7031e.png"
+                                       },
+                                       {
+                                           "id":  "webpc_e388e76eb9",
+                                           "src":  "/stickers/pack_8/webpc_e388e76eb9.png"
+                                       }
+                                   ]
+                  }
+              ],
+    "pack":  "zalo-stickers",
+    "version":  "2.0.0",
+    "base_path":  "/stickers"
+}
