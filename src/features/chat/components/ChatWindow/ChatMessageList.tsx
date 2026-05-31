@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { FruviaChatbotAvatar } from '@/components/ui/FruviaChatbotAvatar';
 import { ChevronDownIcon, ChevronRightIcon, MessageBubbleIcon, MoreHorizontalIcon, SparklesIcon } from '@/components/ui/Icons';
@@ -147,6 +148,345 @@ function GroupCallCard({
   );
 }
 
+function PollModal({
+  isOpen,
+  onClose,
+  poll,
+  msg,
+  currentUserId,
+  selectedChat,
+  t,
+  submitVote,
+  isSubmittingVote,
+  getVoterInfo,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  poll: any;
+  msg: ChatMessage;
+  currentUserId?: string;
+  selectedChat: any;
+  t: any;
+  submitVote: (optionIds: string[]) => Promise<void>;
+  isSubmittingVote: boolean;
+  getVoterInfo: (voterId: string) => { displayName: string; avatarUrl: string | null };
+}) {
+  const [localSelectedIds, setLocalSelectedIds] = useState<string[]>([]);
+  const [newOptionText, setNewOptionText] = useState('');
+  const [isAddingOption, setIsAddingOption] = useState(false);
+  const [isLocalAdding, setIsLocalAdding] = useState(false);
+  const [showVotersList, setShowVotersList] = useState(false);
+
+  const userVotes = poll?.options
+    ?.filter((opt: any) => opt.voterIds?.includes(currentUserId))
+    .map((opt: any) => opt.optionId) || [];
+
+  useEffect(() => {
+    if (isOpen) {
+      setLocalSelectedIds(userVotes);
+      setIsLocalAdding(false);
+      setNewOptionText('');
+    }
+  }, [isOpen, poll, currentUserId]);
+
+  if (!isOpen) return null;
+
+  const handleOptionClick = (optionId: string) => {
+    if (poll.deadline && new Date(poll.deadline).getTime() < Date.now()) {
+      toast.error('Bình chọn này đã kết thúc!');
+      return;
+    }
+
+    if (poll.multipleChoices) {
+      setLocalSelectedIds(prev =>
+        prev.includes(optionId) ? prev.filter(id => id !== optionId) : [...prev, optionId]
+      );
+    } else {
+      setLocalSelectedIds([optionId]);
+    }
+  };
+
+  const handleConfirm = async () => {
+    await submitVote(localSelectedIds);
+    onClose();
+  };
+
+  const handleAddOptionSubmitLocal = async () => {
+    if (!newOptionText.trim()) return;
+    setIsAddingOption(true);
+    try {
+      await apiClient.post(`/polls/${poll.pollId}/options`, { content: newOptionText.trim() });
+      setNewOptionText('');
+      setIsLocalAdding(false);
+      toast.success('Thêm phương án thành công!');
+    } catch (err: any) {
+      const msg = err?.message || err?.response?.data?.message || 'Không thể thêm phương án';
+      toast.error(msg);
+    } finally {
+      setIsAddingOption(false);
+    }
+  };
+
+  const creatorName = msg.senderName || (msg.sender === 'Me' ? 'Tôi' : '') || getVoterInfo(msg.senderId || '').displayName || 'Thành viên';
+  const timeText = msg.time || 'Hôm nay';
+
+  const uniqueVoters = new Set<string>();
+  poll.options?.forEach((opt: any) => {
+    opt.voterIds?.forEach((v: string) => uniqueVoters.add(v));
+  });
+  const totalUniqueVoters = uniqueVoters.size;
+  const totalVotesCast = poll.options?.reduce((sum: number, opt: any) => sum + (opt.voterIds?.length || 0), 0) || 0;
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#00000073] backdrop-blur-[1px] p-4 select-none">
+      <div 
+        className="bg-white dark:bg-[#1E1E1E] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#303030] w-[440px] max-w-full overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-[#303030]">
+          <span className="text-[17px] font-bold text-gray-900 dark:text-white">Bình chọn</span>
+          <button 
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors cursor-pointer p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 flex items-center justify-center"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-5 space-y-4 overflow-y-auto max-h-[55vh] custom-scrollbar">
+          {/* Question & Creator */}
+          <div>
+            <h2 className="text-[18px] font-bold text-gray-900 dark:text-white leading-tight break-words">{poll.question}</h2>
+            <p className="text-[13px] text-[#586b82] dark:text-[#8ea3b8] mt-1.5">
+              Tạo bởi {creatorName} - {timeText.includes('Hôm nay') || timeText.includes('Yesterday') || timeText.includes('/') ? timeText : `${timeText} Hôm nay`}
+            </p>
+          </div>
+
+          {/* Properties */}
+          <div className="flex items-center gap-2 text-[14px] text-gray-600 dark:text-gray-300">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
+              <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+            </svg>
+            <span>{poll.multipleChoices ? 'Chọn nhiều phương án' : 'Chọn một phương án'}</span>
+          </div>
+
+          <hr className="border-gray-100 dark:border-[#303030]" />
+
+          {/* Statistics */}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setShowVotersList(!showVotersList)}
+              className="text-[13.5px] font-semibold text-[#0068FF] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <span>{totalUniqueVoters} người bình chọn, {totalVotesCast} lượt bình chọn</span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`mt-0.5 transition-transform ${showVotersList ? 'rotate-90' : ''}`}>
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Voter details list if open */}
+          {showVotersList && totalUniqueVoters > 0 && (
+            <div className="p-3 bg-gray-50 dark:bg-black/15 rounded-xl space-y-2 border border-gray-100 dark:border-[#2a2a2a] max-h-[150px] overflow-y-auto custom-scrollbar">
+              {Array.from(uniqueVoters).map(vId => {
+                const info = getVoterInfo(vId);
+                return (
+                  <div key={vId} className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full overflow-hidden bg-blue-100 flex items-center justify-center shrink-0 border border-white dark:border-[#303030]">
+                      {info.avatarUrl ? (
+                        <img src={info.avatarUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-[10px] font-bold text-blue-600">{info.displayName.charAt(0).toUpperCase()}</span>
+                      )}
+                    </div>
+                    <span className="text-[13px] font-medium text-gray-700 dark:text-gray-200">{info.displayName}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Options */}
+          <div className="space-y-3">
+            {poll.options?.map((opt: any) => {
+              const isSelected = localSelectedIds.includes(opt.optionId);
+              const optVotes = opt.voterIds?.length || 0;
+              const percent = totalUniqueVoters > 0 ? Math.round((optVotes / totalUniqueVoters) * 100) : 0;
+
+              return (
+                <div key={opt.optionId} className="flex items-center gap-3 w-full">
+                  {/* Circle Check on the left */}
+                  <div 
+                    onClick={() => handleOptionClick(opt.optionId)}
+                    className="shrink-0 cursor-pointer p-0.5 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+                  >
+                    {isSelected ? (
+                      <div className="w-[20px] h-[20px] rounded-full bg-[#0068FF] text-white flex items-center justify-center shadow-sm">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      </div>
+                    ) : (
+                      <div className="w-[20px] h-[20px] rounded-full border-2 border-gray-300 dark:border-gray-600 bg-transparent" />
+                    )}
+                  </div>
+
+                  {/* Option box */}
+                  <div 
+                    onClick={() => handleOptionClick(opt.optionId)}
+                    className={`flex-1 relative flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer overflow-hidden ${
+                      isSelected 
+                        ? 'bg-[#E1EDFF] border-transparent text-[#0068FF] dark:bg-[#0068FF]/15 dark:text-[#58a6ff]' 
+                        : 'bg-[#F0F2F5] border-transparent text-[#081C36] dark:bg-[#2a2a2a] dark:text-white'
+                    }`}
+                  >
+                    {/* Background Progress Bar */}
+                    {percent > 0 && (
+                      <div 
+                        className={`absolute left-0 top-0 bottom-0 transition-all duration-500 rounded-l-xl ${
+                          isSelected 
+                            ? 'bg-[#D2E4FC] dark:bg-[#0068FF]/20' 
+                            : 'bg-[#E2E5E8] dark:bg-[#3a3a3a]'
+                        }`} 
+                        style={{ width: `${percent}%`, zIndex: 0 }}
+                      />
+                    )}
+
+                    <span className="relative z-10 text-[14.5px] font-semibold break-words leading-tight flex-1 pr-4">
+                      {opt.content}
+                    </span>
+
+                    {/* Stacked voter avatars inside the option box */}
+                    {opt.voterIds && opt.voterIds.length > 0 && (
+                      <div className="relative z-10 flex -space-x-1.5 overflow-hidden shrink-0">
+                        {opt.voterIds.slice(0, 3).map((vId: string) => {
+                          const vInfo = getVoterInfo(vId);
+                          return (
+                            <div key={vId} className="w-[18px] h-[18px] rounded-full overflow-hidden border border-white dark:border-[#1E1E1E] bg-blue-50 flex items-center justify-center shrink-0" title={vInfo.displayName}>
+                              {vInfo.avatarUrl ? (
+                                <img src={vInfo.avatarUrl} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-[7px] font-bold text-blue-600">{vInfo.displayName.charAt(0).toUpperCase()}</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {opt.voterIds.length > 3 && (
+                          <div className="w-[18px] h-[18px] rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-[8px] font-bold text-gray-600 dark:text-gray-300 border border-white dark:border-[#1E1E1E] shrink-0">
+                            +{opt.voterIds.length - 3}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Vote Count on the right */}
+                  <span className="shrink-0 text-[14px] text-gray-600 dark:text-gray-400 font-bold min-w-[12px] text-right pr-1">
+                    {optVotes}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Add Option section */}
+          {poll.allowAddOptions && (
+            <div className="pt-1">
+              {isLocalAdding ? (
+                <div className="relative flex items-center gap-2 p-1 bg-white dark:bg-[#1E1E1E] rounded-lg border border-[#0068FF] shadow-sm transition-all focus-within:ring-1 focus-within:ring-[#0068FF]/50">
+                  <input
+                    type="text"
+                    placeholder="Nhập phương án mới..."
+                    value={newOptionText}
+                    onChange={e => setNewOptionText(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') handleAddOptionSubmitLocal();
+                      if (e.key === 'Escape') {
+                        setIsLocalAdding(false);
+                        setNewOptionText('');
+                      }
+                    }}
+                    className="flex-1 h-8 bg-transparent border-none outline-none text-[13.5px] text-[var(--text)] placeholder-gray-400"
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleAddOptionSubmitLocal}
+                    disabled={!newOptionText.trim() || isAddingOption}
+                    className="h-8 px-3 rounded-md bg-[#0068FF] hover:bg-[#0052CC] text-white text-[12.5px] font-bold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                  >
+                    {isAddingOption ? '...' : 'Thêm'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsLocalAdding(false);
+                      setNewOptionText('');
+                    }}
+                    className="h-8 w-8 rounded-md flex items-center justify-center hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 cursor-pointer shrink-0 flex items-center justify-center"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setIsLocalAdding(true)}
+                  className="flex items-center gap-1.5 text-[#0068FF] hover:text-[#005AE0] text-[14.5px] font-bold py-1 px-1 cursor-pointer transition-colors"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                  Thêm lựa chọn
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-5 py-4 border-t border-gray-100 dark:border-[#303030] bg-gray-50/50 dark:bg-black/10">
+          {/* Settings gear on the left */}
+          <button 
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 flex items-center justify-center"
+            title="Cài đặt bình chọn"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
+
+          {/* Action buttons on the right */}
+          <div className="flex gap-2.5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-5 h-10 rounded-lg bg-[#E4E6EB] hover:bg-[#D8DADF] dark:bg-white/10 dark:hover:bg-white/15 text-[14.5px] font-bold text-gray-700 dark:text-gray-200 transition-colors cursor-pointer"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirm}
+              disabled={isSubmittingVote}
+              className="px-5 h-10 rounded-lg bg-[#A0C4FF] hover:bg-[#0068FF] text-white text-[14.5px] font-bold shadow-sm transition-colors cursor-pointer disabled:opacity-75 flex items-center justify-center min-w-[90px]"
+            >
+              {isSubmittingVote ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                'Xác nhận'
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function PollCard({
   msg,
   currentUserId,
@@ -163,6 +503,7 @@ function PollCard({
   const [isAdding, setIsAdding] = useState(false);
   const [isSubmittingVote, setIsSubmittingVote] = useState(false);
   const [isAddingOption, setIsAddingOption] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // ⚠️ ALL hooks must be before any early return (React rule of hooks)
   const userVotes = poll?.options
@@ -200,7 +541,7 @@ function PollCard({
   }, [hasVoted]);
 
   const handleEditClick = () => {
-    setIsEditingChoice(true);
+    setIsModalOpen(true);
   };
 
   const handleCancelEdit = () => {
@@ -285,7 +626,10 @@ function PollCard({
         {/* Statistics link */}
         {showResults && (
           <div className="mt-2.5">
-            <div className="text-[13px] font-semibold text-[#0068FF] hover:underline flex items-center gap-1">
+            <div 
+              onClick={() => setIsModalOpen(true)}
+              className="text-[13px] font-semibold text-[#0068FF] hover:underline flex items-center gap-1 cursor-pointer"
+            >
               <span>{totalUniqueVoters} người bình chọn</span>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="inline-block mt-0.5">
                 <polyline points="9 18 15 12 9 6" />
@@ -495,6 +839,18 @@ function PollCard({
           )}
         </div>
       )}
+      <PollModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        poll={poll}
+        msg={msg}
+        currentUserId={currentUserId}
+        selectedChat={selectedChat}
+        t={t}
+        submitVote={submitVote}
+        isSubmittingVote={isSubmittingVote}
+        getVoterInfo={getVoterInfo}
+      />
     </div>
   );
 }
