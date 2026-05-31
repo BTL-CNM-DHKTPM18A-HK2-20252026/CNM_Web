@@ -125,6 +125,66 @@ export function VideoCallScreen({ currentUserId, callInfo, callState, onEnd }: V
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [showControls, setShowControls] = useState(true);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ringtoneRef = useRef<{ stop: () => void } | null>(null);
+
+  // Ringing sound while calling (requesting state)
+  useEffect(() => {
+    if (callState !== 'requesting') {
+      ringtoneRef.current?.stop();
+      ringtoneRef.current = null;
+      return;
+    }
+
+    // Create a simple ring-ring pattern using Web Audio API
+    try {
+      const ctx = new AudioContext();
+      let playing = true;
+      let timeoutId: ReturnType<typeof setTimeout>;
+
+      const playTone = (freq: number, duration: number, delay: number) => {
+        if (!playing) return;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.value = 0.3;
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + delay);
+        osc.stop(ctx.currentTime + delay + duration);
+      };
+
+      const scheduleRing = () => {
+        if (!playing) return;
+        // Ring pattern: 2 short tones, pause, repeat
+        playTone(480, 0.4, 0);
+        playTone(620, 0.4, 0.2);
+        timeoutId = setTimeout(() => {
+          playTone(480, 0.4, 0);
+          playTone(620, 0.4, 0.2);
+          timeoutId = setTimeout(scheduleRing, 2000);
+        }, 800);
+      };
+
+      scheduleRing();
+
+      ringtoneRef.current = {
+        stop: () => {
+          playing = false;
+          clearTimeout(timeoutId);
+          ctx.close().catch(() => {});
+        },
+      };
+    } catch {
+      // Audio not available
+    }
+
+    return () => {
+      ringtoneRef.current?.stop();
+      ringtoneRef.current = null;
+    };
+  }, [callState]);
 
   // Auto-hide controls after 4s when connected
   useEffect(() => {
