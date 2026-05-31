@@ -44,9 +44,18 @@ export function StickerPicker({
   const { t } = useTranslation();
   const S3_BASE = process.env.NEXT_PUBLIC_S3_BASE_URL ?? '';
   const normalizeSrc = (src: string) => {
-    // Nếu src đã là full URL (từ API backend) thì giữ nguyên
-    if (src.startsWith('http://') || src.startsWith('https://')) return src;
-    return S3_BASE + src.replace(/\\/g, '/').replace(/\.webp$/i, '.png');
+    // Nếu src đã là full URL (từ API backend) thì map về local path
+    if (src.startsWith('http://') || src.startsWith('https://')) {
+      // API trả về: https://fruvia-asset.s3.../public/stickers/pusheen/1.png
+      // Map về: /stickers/pack_1/1_{hash}.png (dùng localStickerFallback)
+      const match = src.match(/\/public\/stickers\/([^/]+)\/(.+)$/);
+      if (match) {
+        const packMap: Record<string, string> = { 'pusheen': 'pack_1', 'pepe': 'pack_2', 'cat': 'pack_3', 'emoji': 'pack_4' };
+        return `/stickers/${packMap[match[1]] || match[1]}/${match[2]}`;
+      }
+      return src;
+    }
+    return src; // local path đã đúng định dạng
   };
   const normalizeEmojiSrc = (src: string) => {
     if (src.startsWith('http://') || src.startsWith('https://')) return src;
@@ -71,10 +80,36 @@ export function StickerPicker({
     };
   }, [isOpen, onClose]);
 
-  // Load sticker packs from API, fallback to S3 JSON
+  // Load sticker packs: ưu tiên local JSON → API → S3 JSON
   useEffect(() => {
     if (activeTab !== 'sticker' || stickerPacks.length > 0) return;
     setStickerLoading(true);
+
+    const loadFromLocal = () => {
+      fetch('/stickers/sticker-pack.json')
+        .then(r => r.json())
+        .then((data: { packs: StickerPackData[] }) => {
+          const packs = data.packs.filter(p => p.id !== 'pack_0');
+          setStickerPacks(packs);
+          setActiveStickerPackId(packs[0]?.id ?? '');
+        })
+        .catch(() => loadFromApi())
+        .finally(() => setStickerLoading(false));
+    };
+
+    const loadFromApi = () => {
+      apiClient.get<any>('/stickers/packs')
+        .then(res => {
+          const packs = res?.data ?? res;
+          if (Array.isArray(packs) && packs.length > 0) {
+            setStickerPacks(packs);
+            setActiveStickerPackId(packs[0]?.id ?? '');
+          } else {
+            loadFromS3();
+          }
+        })
+        .catch(() => loadFromS3());
+    };
 
     const loadFromS3 = () => {
       fetch(`${S3_BASE}/stickers/sticker-pack.json`)
@@ -88,21 +123,7 @@ export function StickerPicker({
         .finally(() => setStickerLoading(false));
     };
 
-    // Try API first
-    apiClient.get<any>('/stickers/packs')
-      .then(res => {
-        const packs = res?.data ?? res;
-        if (Array.isArray(packs) && packs.length > 0) {
-          setStickerPacks(packs);
-          setActiveStickerPackId(packs[0]?.id ?? '');
-          setStickerLoading(false);
-        } else {
-          loadFromS3();
-        }
-      })
-      .catch(() => {
-        loadFromS3();
-      });
+    loadFromLocal();
   }, [activeTab, S3_BASE, stickerPacks.length]);
 
   const activePack = stickerPacks.find(p => p.id === activeStickerPackId);

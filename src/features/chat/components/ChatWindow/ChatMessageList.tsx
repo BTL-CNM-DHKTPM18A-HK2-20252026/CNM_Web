@@ -2043,6 +2043,17 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                       alt="Sticker"
                                       className="w-[120px] h-[120px] object-contain cursor-pointer hover:scale-110 transition-transform"
                                       onClick={() => setOpenedImageSrc(msg.text)}
+                                      onError={(e) => {
+                                        const img = e.target as HTMLImageElement;
+                                        // Fallback sticker S3 URL → local
+                                        const match = img.src.match(/\/public\/stickers\/([^/]+)\/(.+)$/);
+                                        if (match) {
+                                          const packMap: Record<string, string> = { 'pusheen': 'pack_1', 'pepe': 'pack_2', 'cat': 'pack_3', 'emoji': 'pack_4' };
+                                          const packFolder = packMap[match[1]] || match[1];
+                                          const fallback = `/stickers/${packFolder}/${match[2]}`;
+                                          if (img.src !== fallback) img.src = fallback;
+                                        }
+                                      }}
                                     />
                                   </div>
                                 ) : msg.type === 'IMAGE' || msg.type === 'VIDEO' ? (

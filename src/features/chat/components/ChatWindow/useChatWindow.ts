@@ -3172,8 +3172,8 @@ export function useChatWindow({
   const onSelectSticker = useCallback((sticker: any) => {
     const shortcode = typeof sticker === 'string' ? sticker : sticker.shortcode;
 
-    // Sticker từ sticker tab — value là S3 URL trực tiếp, gửi ngay như IMAGE
-    if (shortcode.startsWith('http')) {
+    // Sticker từ sticker tab — value là URL hoặc local path, gửi ngay như IMAGE
+    if (shortcode.startsWith('http') || shortcode.startsWith('/stickers/')) {
       handleSendMessage(shortcode, 'IMAGE');
       return;
     }
