@@ -2801,8 +2801,13 @@ export function useChatWindow({
             setMessages(prev => prev.map(messageItem => {
               if (messageItem.id === String(newMsg.messageId)) {
                 const emoji = mapReactionToEmoji(newMsg.reactionType);
-                const newReactions = messageItem.reactions ? [...messageItem.reactions] : [];
-                if (emoji && newMsg.action !== 'REMOVE') {
+                let newReactions = messageItem.reactions ? [...messageItem.reactions] : [];
+                if (newMsg.action === 'REMOVE') {
+                  // Xóa reaction của current user với emoji này
+                  newReactions = newReactions.filter(
+                    r => !(r.userId === newMsg.userId && r.emoji === emoji)
+                  );
+                } else if (emoji) {
                   newReactions.push({
                     emoji,
                     userId: newMsg.userId,
