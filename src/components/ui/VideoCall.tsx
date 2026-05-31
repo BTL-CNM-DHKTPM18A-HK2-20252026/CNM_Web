@@ -125,7 +125,7 @@ export function VideoCallScreen({ currentUserId, callInfo, callState, onEnd }: V
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [showControls, setShowControls] = useState(true);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const ringtoneRef = useRef<{ stop: () => void } | null>(null);
+        const ringtoneRef = useRef<{ stop: () => void } | null>(null);
 
   // Ringing sound while calling (requesting state)
   useEffect(() => {

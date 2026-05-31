@@ -3178,19 +3178,12 @@ export function useChatWindow({
       return;
     }
 
-    const src = emojiMap[shortcode];
-
+    // Emoji: chèn zaloEmoji node → hiển thị icon trong editor, JSON chỉ chứa shortcode
     if (editor) {
-      if (src) {
-        // Insert as an image node for visual feedback in the editor
-        editor.chain().focus().setImage({
-          src: src,
-          alt: shortcode,
-          title: shortcode
-        }).run();
-      } else {
-        editor.chain().focus().insertContent(shortcode).run();
-      }
+      editor.chain().focus().insertContent({
+        type: 'zaloEmoji',
+        attrs: { shortcode },
+      }).run();
     } else {
       setMessage(prev => prev + shortcode);
     }

@@ -8,38 +8,74 @@ import { Strike } from '@tiptap/extension-strike';
 import { Highlight } from '@tiptap/extension-highlight';
 import { Placeholder } from '@tiptap/extension-placeholder';
 import { Image as TiptapImage } from '@tiptap/extension-image';
-import { InputRule, Extension } from '@tiptap/core';
+import { Node, InputRule } from '@tiptap/core';
 import emojiPack from '@/data/emoji-pack.json';
 import { isTiptapEmpty } from '@/utils/tiptapRenderer';
 
-// Mapping for input rules
-const shortcodeToSrc: Record<string, string> = {};
+// Build emoji lookup map (shortcode → S3 URL) for rendering
+const emojiSrcMap: Record<string, string> = {};
 emojiPack.categories.forEach(cat => {
   cat.icons.forEach(icon => {
-    shortcodeToSrc[icon.shortcode] = icon.src;
+    emojiSrcMap[icon.shortcode] = icon.src;
   });
 });
 
-const ZaloStickerInputRule = Extension.create({
-  name: 'zaloStickerInputRule',
+/**
+ * Custom TipTap node for Zalo emojis.
+ * Stores only the shortcode in JSON (no S3 URL), renders as <img> inline.
+ */
+const ZaloEmoji = Node.create({
+  name: 'zaloEmoji',
+  group: 'inline',
+  inline: true,
+  atom: true,
+  selectable: false,
+
+  addAttributes() {
+    return {
+      shortcode: { default: '' },
+    };
+  },
+
+  renderHTML({ node }) {
+    const shortcode = node.attrs.shortcode as string;
+    const src = emojiSrcMap[shortcode] || '';
+    return ['img', {
+      src,
+      alt: shortcode,
+      title: shortcode,
+      'data-zalo-emoji': shortcode,
+      class: 'inline-block w-6 h-6 mx-0.5 align-text-bottom',
+    }];
+  },
+
+  parseHTML() {
+    return [{ tag: 'img[data-zalo-emoji]' }];
+  },
+});
+
+/**
+ * InputRule: khi gõ :zalo_X_Y: + space → chèn zaloEmoji node (hiển thị icon)
+ */
+const ZaloEmojiInputRule = Node.create({
+  name: 'zaloEmojiInputRule',
+  group: 'inline',
+  inline: true,
+
   addInputRules() {
     return [
       new InputRule({
-        find: /(:zalo_\d+_\d+:)\s$/, // Triggers when you type shortcode followed by a space
+        find: /(:zalo_\d+_\d+:)\s$/,
         handler: ({ range, match, chain }) => {
           const shortcode = match[1];
-          const src = shortcodeToSrc[shortcode];
-          if (!src) return null;
-
+          if (!emojiSrcMap[shortcode]) return;
           chain()
-            .insertContentAt(range, {
-              type: 'image',
-              attrs: {
-                src: src,
-                alt: shortcode,
-                title: shortcode,
-              },
+            .deleteRange(range)
+            .insertContentAt(range.from, {
+              type: 'zaloEmoji',
+              attrs: { shortcode },
             })
+            .insertContentAt(range.from + 1, ' ')
             .run();
         },
       }),
@@ -119,7 +155,8 @@ export function ChatInput({
           class: 'inline-block w-6 h-6 mx-0.5 align-text-bottom',
         },
       }),
-      ZaloStickerInputRule,
+      ZaloEmoji,
+      ZaloEmojiInputRule,
     ],
     content: value,
     editorProps: {

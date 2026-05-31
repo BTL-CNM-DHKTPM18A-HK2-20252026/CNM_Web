@@ -2,6 +2,24 @@
  * Converts a Tiptap JSON string to HTML.
  * If the input is not valid Tiptap JSON, returns the original string (backward compatible).
  */
+
+import emojiPack from '@/data/emoji-pack.json';
+
+// Emoji lookup: shortcode → full S3 URL
+const emojiSrcMap: Record<string, string> = {};
+const _s3Base = process.env.NEXT_PUBLIC_S3_BASE_URL ?? '';
+emojiPack.categories.forEach(cat => {
+  cat.icons.forEach(icon => {
+    emojiSrcMap[icon.shortcode] = `${_s3Base}${icon.src.replace('/fruvia_emoji', '')}`;
+  });
+});
+
+function emojiRendererImg(shortcode: string): string {
+  const src = emojiSrcMap[shortcode] || '';
+  if (!src) return shortcode;
+  return `<img src="${src}" alt="${shortcode}" title="${shortcode}" class="inline-block w-6 h-6 mx-0.5 align-text-bottom" />`;
+}
+
 export function getMessageHtml(text: string): string {
   if (!text) return '';
   try {
@@ -41,6 +59,7 @@ export function isTiptapEmpty(text: string): boolean {
         if (!node) return false;
         if (node.type === 'text' && node.text?.trim()) return true;
         if (node.type === 'image') return true;
+        if (node.type === 'zaloEmoji') return true;
         if (Array.isArray(node.content)) {
           return node.content.some(hasContent);
         }
@@ -103,6 +122,13 @@ function renderTiptapNode(node: any): string {
     return `<img src="${src}" alt="${alt}" title="${title}" class="inline-block w-6 h-6 mx-0.5 align-text-bottom" />`;
   }
 
+  // Zalo emoji node: lưu shortcode, render ra <img> với S3 URL
+  if (node.type === 'zaloEmoji') {
+    const shortcode = node.attrs?.shortcode || '';
+    // Import emojiPack here (top-level import)
+    return emojiRendererImg(shortcode);
+  }
+
   // Process children recursively
   let childrenHtml = '';
   if (Array.isArray(node.content)) {
@@ -135,6 +161,7 @@ function renderTiptapNode(node: any): string {
 function extractPlainText(node: any): string {
   if (!node) return '';
   if (node.type === 'text') return node.text ?? '';
+  if (node.type === 'zaloEmoji') return node.attrs?.shortcode ?? '';
   if (Array.isArray(node.content)) {
     const childText = node.content.map(extractPlainText).join('');
     const blockTypes = ['paragraph', 'heading', 'blockquote', 'listItem'];
