@@ -147,28 +147,38 @@ export function VideoCallScreen({ currentUserId, callInfo, callState, onEnd }: V
     };
   }, [callState]);
 
-  const attachStream = useCallback((videoEl: HTMLVideoElement | null, stream: MediaStream) => {
-    if (!videoEl) return;
-    videoEl.srcObject = stream;
-    videoEl.play().catch(err => {
-      console.warn('[VideoCallScreen] play() blocked:', err.name, err.message);
-    });
+  const attachStream = useCallback((videoEl: HTMLVideoElement | null, stream: MediaStream, isLocal: boolean) => {
+    if (!videoEl || !stream) return;
+    if (videoEl.srcObject !== stream) {
+      videoEl.srcObject = stream;
+    }
+    videoEl.muted = isLocal;
+    const playPromise = videoEl.play();
+    if (playPromise) {
+      playPromise.catch(err => {
+        if (err.name === 'NotAllowedError' && !isLocal) {
+          videoEl.muted = true;
+          videoEl.play().catch(() => {});
+        }
+        console.warn('[VideoCallScreen] play() blocked:', err.name);
+      });
+    }
   }, []);
 
   useEffect(() => {
     webrtcService.onLocalStream((stream) => {
-      attachStream(localVideoRef.current, stream);
+      attachStream(localVideoRef.current, stream, true);
     });
     webrtcService.onRemoteStream((stream) => {
-      attachStream(remoteVideoRef.current, stream);
+      attachStream(remoteVideoRef.current, stream, false);
     });
     webrtcService.onMediaError((error) => {
       setMediaError(error);
     });
     const localStream = webrtcService.getLocalStream();
-    if (localStream) attachStream(localVideoRef.current, localStream);
+    if (localStream) attachStream(localVideoRef.current, localStream, true);
     const remoteStream = webrtcService.getRemoteStream();
-    if (remoteStream) attachStream(remoteVideoRef.current, remoteStream);
+    if (remoteStream) attachStream(remoteVideoRef.current, remoteStream, false);
   }, [attachStream]);
 
   useEffect(() => {
