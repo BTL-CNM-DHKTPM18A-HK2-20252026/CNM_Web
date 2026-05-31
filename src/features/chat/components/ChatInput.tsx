@@ -12,11 +12,12 @@ import { Node, InputRule } from '@tiptap/core';
 import emojiPack from '@/data/emoji-pack.json';
 import { isTiptapEmpty } from '@/utils/tiptapRenderer';
 
-// Build emoji lookup map (shortcode → S3 URL) for rendering
+// Build emoji lookup map (shortcode → full S3 URL) for rendering
+const _emojiS3Base = process.env.NEXT_PUBLIC_S3_BASE_URL ?? '';
 const emojiSrcMap: Record<string, string> = {};
 emojiPack.categories.forEach(cat => {
   cat.icons.forEach(icon => {
-    emojiSrcMap[icon.shortcode] = icon.src;
+    emojiSrcMap[icon.shortcode] = `${_emojiS3Base}${icon.src.replace('/fruvia_emoji', '')}`;
   });
 });
 

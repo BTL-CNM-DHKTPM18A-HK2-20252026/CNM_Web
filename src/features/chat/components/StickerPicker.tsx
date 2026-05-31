@@ -43,10 +43,15 @@ export function StickerPicker({
   const { currentTheme } = useTheme();
   const { t } = useTranslation();
   const S3_BASE = process.env.NEXT_PUBLIC_S3_BASE_URL ?? '';
-  const normalizeSrc = (src: string) =>
-    S3_BASE + src.replace(/\\/g, '/').replace(/\.webp$/i, '.png');
-  const normalizeEmojiSrc = (src: string) =>
-    S3_BASE + src.replace('/fruvia_emoji', '');
+  const normalizeSrc = (src: string) => {
+    // Nếu src đã là full URL (từ API backend) thì giữ nguyên
+    if (src.startsWith('http://') || src.startsWith('https://')) return src;
+    return S3_BASE + src.replace(/\\/g, '/').replace(/\.webp$/i, '.png');
+  };
+  const normalizeEmojiSrc = (src: string) => {
+    if (src.startsWith('http://') || src.startsWith('https://')) return src;
+    return S3_BASE + src.replace('/fruvia_emoji', '');
+  };
 
   useEffect(() => {
     setActiveTab(initialTab);
