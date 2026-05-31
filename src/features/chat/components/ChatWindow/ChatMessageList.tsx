@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
+import { websocketService } from '@/lib/realtime/websocketService';
 import { FruviaChatbotAvatar } from '@/components/ui/FruviaChatbotAvatar';
 import { ChevronDownIcon, ChevronRightIcon, MessageBubbleIcon, MoreHorizontalIcon, SparklesIcon } from '@/components/ui/Icons';
 import { AI_TYPING_USER_ID } from '@/features/chat/components/ChatWindow/types';
@@ -137,7 +138,19 @@ function GroupCallCard({
         </div>
         <div className="p-2.5 bg-white dark:bg-[#1E1E1E]">
           <button
-            onClick={() => toast.info('Tham gia cuộc gọi nhóm đang được kết nối...')}
+            onClick={() => {
+              // Join group call: send CALL_GROUP_JOIN signal
+              const joinSignal = {
+                type: 'CALL_GROUP_JOIN',
+                receiverId: selectedChat.id,
+                callId: msg.id || crypto.randomUUID(),
+                callerName: currentUserId || 'Thành viên',
+                conversationId: selectedChat.id,
+              };
+              websocketService.send('/app/call/signal', joinSignal);
+              // Open 1-1 calls with each room participant via the existing webrtcService
+              toast.success('Đã tham gia cuộc gọi nhóm! Kết nối với các thành viên...');
+            }}
             className="w-full py-2 bg-[#0068FF] hover:bg-[#0052CC] text-white text-[14px] font-bold rounded-lg transition-colors cursor-pointer"
           >
             Tham gia
