@@ -2525,6 +2525,13 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                     {(['👍', '❤️', '😂', '😲', '😭', '😡'] as const).map((emoji) => (
                                       <button key={emoji} onClick={(e) => { e.stopPropagation(); vm.handleReactMessage(String(msg.id), emoji); }} className="w-7 h-7 text-[20px] hover:scale-125 transition-transform cursor-pointer flex items-center justify-center rounded-full hover:bg-[var(--hover-bg)]">{emoji}</button>
                                     ))}
+                                    {/* Nút xóa reaction */}
+                                    <div className="w-[1px] h-5 bg-[var(--border)] mx-0.5" />
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); vm.handleRemoveReaction(String(msg.id)); }}
+                                      className="w-7 h-7 text-[14px] text-red-400 hover:text-red-500 hover:scale-110 transition-all cursor-pointer flex items-center justify-center rounded-full hover:bg-red-50 dark:hover:bg-red-500/10"
+                                      title="Xóa cảm xúc"
+                                    >✕</button>
                                   </div>
                                 </div>
                               )}

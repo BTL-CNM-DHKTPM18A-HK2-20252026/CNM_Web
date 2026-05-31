@@ -122,6 +122,27 @@ export function PresenceProvider({ children, currentUserId }: PresenceProviderPr
         };
     }, [currentUserId]);
 
+    // ─── Poll refresh: re-fetch presence mỗi 15s để đảm bảo UI luôn cập nhật ───
+    useEffect(() => {
+        if (!currentUserId) return;
+
+        const pollInterval = setInterval(async () => {
+            try {
+                const res: any = await apiClient.get('/presence/friends');
+                const list: UserStatus[] = Array.isArray(res) ? res : (res?.data || []);
+                setStatuses((prev) => {
+                    const next = new Map(prev);
+                    list.forEach((s) => next.set(s.userId, s));
+                    return next;
+                });
+            } catch {
+                // silent
+            }
+        }, 15_000);
+
+        return () => clearInterval(pollInterval);
+    }, [currentUserId]);
+
     // ─── Helper functions ──────────────────────────────────
     const isOnline = useCallback(
         (userId: string) => statuses.get(userId)?.online ?? false,

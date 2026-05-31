@@ -3236,6 +3236,29 @@ export function useChatWindow({
     }
   }, [selectedChat.isAi, t]);
 
+  const handleRemoveReaction = useCallback(async (messageId: string) => {
+    if (selectedChat.isAi) return;
+    // Tìm reaction của current user trên message này
+    const msg = messages.find(m => String(m.id) === String(messageId));
+    const myReaction = msg?.reactions?.find(r => r.userId === currentUser?.id);
+    if (!myReaction) return; // không có reaction để xóa
+
+    // Map emoji → reactionType
+    let reactionType = 'LIKE';
+    switch (myReaction.emoji) {
+      case '❤️': reactionType = 'LOVE'; break;
+      case '😂': reactionType = 'HAHA'; break;
+      case '😲': reactionType = 'WOW'; break;
+      case '😭': reactionType = 'SAD'; break;
+      case '😡': reactionType = 'ANGRY'; break;
+    }
+    try {
+      await apiClient.post(`/messages/${messageId}/react`, { reactionType });
+    } catch {
+      // silent
+    }
+  }, [selectedChat.isAi, messages, currentUser?.id]);
+
   const handleEditMessage = useCallback(async (messageId: string) => {
     if (!editContent.trim()) return;
     try {
@@ -3638,6 +3661,7 @@ export function useChatWindow({
     togglePicker,
     onSelectSticker,
     handleReactMessage,
+    handleRemoveReaction,
     handleEditMessage,
     handleRecallMessage,
     handleDeleteLocal,
