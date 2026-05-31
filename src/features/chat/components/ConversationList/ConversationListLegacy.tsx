@@ -13,9 +13,51 @@ import { ChatSearchHeader } from '../shared/ChatSearchHeader';
 
 const stripHtml = (html: string) => (html || '').replace(/<[^>]*>?/gm, '');
 
+const replaceS3Urls = (text: string, t?: any): string => {
+  if (!text) return text;
+  // Match URLs pointing to S3 or fruvia-asset
+  const s3UrlRegex = /https?:\/\/(?:[a-zA-Z0-9.-]+\.)?(?:s3[.-][a-zA-Z0-9.-]+\.amazonaws\.com|fruvia-asset[a-zA-Z0-9.-]*\.[a-zA-Z0-9.-]+)\/[^\s]+/gi;
+  
+  const hasS3Url = s3UrlRegex.test(text);
+  if (!hasS3Url) return text;
+
+  // Reset lastIndex because of test()
+  s3UrlRegex.lastIndex = 0;
+
+  return text.replace(s3UrlRegex, (url) => {
+    const cleanUrl = url.split('?')[0];
+    const extension = cleanUrl.split('.').pop()?.toLowerCase() || '';
+    
+    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'heic'];
+    const videoExtensions = ['mp4', 'mov', 'avi', 'mkv', 'flv', 'wmv', 'webm', '3gp'];
+    const audioExtensions = ['mp3', 'wav', 'm4a', 'ogg', 'aac', 'flac'];
+    
+    const translate = t || ((key: string) => {
+      const translations: Record<string, string> = {
+        'chat.snippet.image': '[Hình ảnh]',
+        'chat.snippet.video': '[Video]',
+        'chat.snippet.file': '[Tệp tin]',
+        'chat.snippet.voice': '[Tin nhắn thoại]',
+      };
+      return translations[key] || '';
+    });
+
+    if (imageExtensions.includes(extension)) {
+      return translate('chat.snippet.image');
+    }
+    if (videoExtensions.includes(extension)) {
+      return translate('chat.snippet.video');
+    }
+    if (audioExtensions.includes(extension)) {
+      return translate('chat.snippet.voice');
+    }
+    return translate('chat.snippet.file');
+  });
+};
+
 // Converts lastMsg HTML/JSON to renderable HTML: keeps <img> with small size, strips other tags,
 // and parses TipTap JSON format to plain text.
-const getLastMsgPreviewHtml = (html: string): string => {
+const getLastMsgPreviewHtml = (html: string, t?: any): string => {
   if (!html) return '';
   let source = html;
 
@@ -64,6 +106,9 @@ const getLastMsgPreviewHtml = (html: string): string => {
   result = result.replace(/<[^>]+>/g, '');
   // Restore img placeholders
   result = result.replace(/\x00IMG(\d+)\x00/g, (_, i) => imgs[parseInt(i)]);
+
+  result = replaceS3Urls(result, t);
+
   return result.trim();
 };
 
@@ -1460,7 +1505,7 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
                                   {name}
                                 </p>
-                                <p className="text-[12px] text-[var(--sub-text)] truncate">{stripHtml(conv.lastMessageContent || '')}</p>
+                                <p className="text-[12px] text-[var(--sub-text)] truncate">{replaceS3Urls(stripHtml(conv.lastMessageContent || ''), t)}</p>
                               </div>
                             </div>
                           );
@@ -1508,10 +1553,10 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                 ) : getTimeAgo(conv.otherUserId) ? (
                   <span className="truncate">{getTimeAgo(conv.otherUserId)}</span>
                 ) : (
-                  <span className="truncate" dangerouslySetInnerHTML={{ __html: getLastMsgPreviewHtml(conv.lastMsg) }} />
+                  <span className="truncate" dangerouslySetInnerHTML={{ __html: getLastMsgPreviewHtml(conv.lastMsg, t) }} />
                 )
               ) : (
-                <span className="truncate" dangerouslySetInnerHTML={{ __html: getLastMsgPreviewHtml(conv.lastMsg) }} />
+                <span className="truncate" dangerouslySetInnerHTML={{ __html: getLastMsgPreviewHtml(conv.lastMsg, t) }} />
               );
 
               return (
@@ -1764,38 +1809,44 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                     }
                     if (!name) name = t('common.unknown_user');
                     const rawLastMsg = conv.lastMessageContent || conv.last_message_content || '';
-                    // Parse JSON (TipTap hoặc array) → plain text, then strip remaining HTML
                     const lastMsg = (() => {
                       const trimmed = rawLastMsg.trim();
-                      if (!trimmed || (!trimmed.startsWith('{') && !trimmed.startsWith('['))) return stripHtml(rawLastMsg);
-                      try {
-                        const json = JSON.parse(trimmed);
-                        if (Array.isArray(json)) {
-                          const names = json.map((item: any) => {
-                            if (typeof item === 'string') {
-                              const seg = item.split('/');
-                              return seg[seg.length - 1] || item;
-                            }
-                            if (item && typeof item === 'object') {
-                              return item.fileName || item.text || (item.url ? item.url.split('/').pop() : '');
-                            }
-                            return '';
-                          }).filter(Boolean);
-                          if (names.length > 0) return `📷 ${names.join(', ')}`;
-                        } else if (json && typeof json === 'object') {
-                          const extract = (node: any): string => {
-                            if (!node) return '';
-                            if (node.type === 'text') return node.text ?? '';
-                            if (Array.isArray(node.content)) {
-                              return node.content.map(extract).join(' ');
-                            }
-                            return '';
-                          };
-                          const extracted = extract(json).trim();
-                          if (extracted) return extracted;
+                      let result = '';
+                      if (!trimmed || (!trimmed.startsWith('{') && !trimmed.startsWith('['))) {
+                        result = stripHtml(rawLastMsg);
+                      } else {
+                        try {
+                          const json = JSON.parse(trimmed);
+                          if (Array.isArray(json)) {
+                            const names = json.map((item: any) => {
+                              if (typeof item === 'string') {
+                                const seg = item.split('/');
+                                return seg[seg.length - 1] || item;
+                              }
+                              if (item && typeof item === 'object') {
+                                return item.fileName || item.text || (item.url ? item.url.split('/').pop() : '');
+                              }
+                              return '';
+                            }).filter(Boolean);
+                            if (names.length > 0) result = `📷 ${names.join(', ')}`;
+                          } else if (json && typeof json === 'object') {
+                            const extract = (node: any): string => {
+                              if (!node) return '';
+                              if (node.type === 'text') return node.text ?? '';
+                              if (Array.isArray(node.content)) {
+                                return node.content.map(extract).join(' ');
+                              }
+                              return '';
+                            };
+                            const extracted = extract(json).trim();
+                            if (extracted) result = extracted;
+                          }
+                        } catch {
+                          result = stripHtml(rawLastMsg);
                         }
-                      } catch { /* ignore */ }
-                      return stripHtml(rawLastMsg);
+                      }
+                      if (!result) result = stripHtml(rawLastMsg);
+                      return replaceS3Urls(result, t);
                     })();
                     return (
                       <div key={convId} className="flex items-center gap-3 p-3 rounded-lg hover:bg-[var(--hover-bg)] transition-colors">

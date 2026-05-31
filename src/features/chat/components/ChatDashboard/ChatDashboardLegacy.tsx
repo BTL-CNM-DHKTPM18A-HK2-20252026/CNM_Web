@@ -19,6 +19,48 @@ import { SocialFeed } from '@/features/social';
 import { useTheme } from '@/themes';
 import { SunIcon, MoonIcon } from '@/components/ui/Icons';
 
+const replaceS3Urls = (text: string, t?: any): string => {
+  if (!text) return text;
+  // Match URLs pointing to S3 or fruvia-asset
+  const s3UrlRegex = /https?:\/\/(?:[a-zA-Z0-9.-]+\.)?(?:s3[.-][a-zA-Z0-9.-]+\.amazonaws\.com|fruvia-asset[a-zA-Z0-9.-]*\.[a-zA-Z0-9.-]+)\/[^\s]+/gi;
+  
+  const hasS3Url = s3UrlRegex.test(text);
+  if (!hasS3Url) return text;
+
+  // Reset lastIndex because of test()
+  s3UrlRegex.lastIndex = 0;
+
+  return text.replace(s3UrlRegex, (url) => {
+    const cleanUrl = url.split('?')[0];
+    const extension = cleanUrl.split('.').pop()?.toLowerCase() || '';
+    
+    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'heic'];
+    const videoExtensions = ['mp4', 'mov', 'avi', 'mkv', 'flv', 'wmv', 'webm', '3gp'];
+    const audioExtensions = ['mp3', 'wav', 'm4a', 'ogg', 'aac', 'flac'];
+    
+    const translate = t || ((key: string) => {
+      const translations: Record<string, string> = {
+        'chat.snippet.image': '[Hình ảnh]',
+        'chat.snippet.video': '[Video]',
+        'chat.snippet.file': '[Tệp tin]',
+        'chat.snippet.voice': '[Tin nhắn thoại]',
+      };
+      return translations[key] || '';
+    });
+
+    if (imageExtensions.includes(extension)) {
+      return translate('chat.snippet.image');
+    }
+    if (videoExtensions.includes(extension)) {
+      return translate('chat.snippet.video');
+    }
+    if (audioExtensions.includes(extension)) {
+      return translate('chat.snippet.voice');
+    }
+    return translate('chat.snippet.file');
+  });
+};
+
 export interface ChatDashboardProps {
   onLogout: () => void;
   userName?: string;
@@ -376,45 +418,46 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
           const parseLastMsgPreview = (text: string): string => {
             if (!text) return text;
             const trimmed = text.trim();
-            if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return text;
-            try {
-              const json = JSON.parse(trimmed);
-              // JSON array (IMAGE_GROUP, etc.) → join item fileNames or URLs
-              if (Array.isArray(json)) {
-                const names = json.map((item: any) => {
-                  if (typeof item === 'string') {
-                    const seg = item.split('/');
-                    return seg[seg.length - 1] || item;
+            let result = text;
+            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+              try {
+                const json = JSON.parse(trimmed);
+                // JSON array (IMAGE_GROUP, etc.) → join item fileNames or URLs
+                if (Array.isArray(json)) {
+                  const names = json.map((item: any) => {
+                    if (typeof item === 'string') {
+                      const seg = item.split('/');
+                      return seg[seg.length - 1] || item;
+                    }
+                    if (item && typeof item === 'object') {
+                      return item.fileName || item.text || (item.url ? item.url.split('/').pop() : '');
+                    }
+                    return '';
+                  }).filter(Boolean);
+                  if (names.length > 0) result = `📷 ${names.join(', ')}`;
+                } else if (json && typeof json === 'object') {
+                  // JSON object: try TipTap extraction, fallback to fileName/url
+                  const extract = (node: any): string => {
+                    if (!node) return '';
+                    if (node.type === 'text') return node.text ?? '';
+                    if (Array.isArray(node.content)) {
+                      return node.content.map(extract).join(' ');
+                    }
+                    return '';
+                  };
+                  const extracted = extract(json).trim();
+                  if (extracted) {
+                    result = extracted;
+                  } else if (json.fileName) {
+                    result = `📷 ${json.fileName}`;
+                  } else if (json.url) {
+                    const seg = json.url.split('/');
+                    result = `📷 ${seg[seg.length - 1] || 'file'}`;
                   }
-                  if (item && typeof item === 'object') {
-                    return item.fileName || item.text || (item.url ? item.url.split('/').pop() : '');
-                  }
-                  return '';
-                }).filter(Boolean);
-                if (names.length > 0) return `📷 ${names.join(', ')}`;
-                return text;
-              }
-              if (json && typeof json === 'object') {
-                // JSON object: try TipTap extraction, fallback to fileName/url
-                const extract = (node: any): string => {
-                  if (!node) return '';
-                  if (node.type === 'text') return node.text ?? '';
-                  if (Array.isArray(node.content)) {
-                    return node.content.map(extract).join(' ');
-                  }
-                  return '';
-                };
-                const extracted = extract(json).trim();
-                if (extracted) return extracted;
-                // Fallback for non-TipTap objects (MEDIA single image, etc.)
-                if (json.fileName) return `📷 ${json.fileName}`;
-                if (json.url) {
-                  const seg = json.url.split('/');
-                  return `📷 ${seg[seg.length - 1] || 'file'}`;
                 }
-              }
-            } catch { /* ignore */ }
-            return text;
+              } catch { /* ignore */ }
+            }
+            return replaceS3Urls(result, t);
           };
 
           let displayLastMsg = parseLastMsgPreview(rawLastMsg);
@@ -639,7 +682,7 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
               case 'VOICE': return t('chat.snippet.voice');
               case 'STICKER': return t('chat.snippet.sticker');
               case 'SHARE_CONTACT': return `📇 ${t('share_contact.snippet')}`;
-              default: return content;
+              default: return replaceS3Urls(content, t);
             }
           };
 
