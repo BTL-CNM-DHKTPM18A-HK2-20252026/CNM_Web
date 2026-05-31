@@ -150,8 +150,8 @@ export function SidebarItem({
             ) : null}
             <span className={`text-[12px] text-[#708090] font-medium mr-1 whitespace-nowrap leading-none tabular-nums ${onMoreClick ? 'group-hover:hidden' : ''}`}>{time}</span>
             {pinned && (
-              <div className="text-[#708090] opacity-80 shrink-0 mr-1">
-                <PinIcon size={12} />
+              <div className="text-[#526075] dark:text-[#a0aec0] shrink-0 mr-1">
+                <PinIcon size={15} />
               </div>
             )}
             {mutedUntil ? (

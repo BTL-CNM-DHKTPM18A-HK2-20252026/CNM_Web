@@ -682,6 +682,9 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
               case 'VOICE': return t('chat.snippet.voice');
               case 'STICKER': return t('chat.snippet.sticker');
               case 'SHARE_CONTACT': return `📇 ${t('share_contact.snippet')}`;
+              case 'CALL_MISSED': return t('chat.snippet.call_missed') || 'Cuộc gọi nhỡ';
+              case 'CALL_REJECTED': return t('chat.snippet.call_rejected') || 'Cuộc gọi bị từ chối';
+              case 'CALL_ENDED': return t('chat.snippet.call_ended') || 'Cuộc gọi đã kết thúc';
               default: return replaceS3Urls(content, t);
             }
           };

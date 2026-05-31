@@ -226,24 +226,14 @@ function PollModal({
 
   const handleAddNewOptionField = () => {
     const tempId = Math.random().toString();
-    setAddedOptions(prev => {
-      let nextSelectedIds = [...localSelectedIds];
-      let nextAdded = prev.map(item => ({ ...item }));
-      
-      const newOption = {
+    setAddedOptions(prev => [
+      ...prev,
+      {
         tempId,
         text: '',
-        isSelected: true
-      };
-      
-      if (!poll.multipleChoices) {
-        nextSelectedIds = [];
-        nextAdded = nextAdded.map(item => ({ ...item, isSelected: false }));
+        isSelected: false
       }
-      
-      setLocalSelectedIds(nextSelectedIds);
-      return [...nextAdded, newOption];
-    });
+    ]);
   };
 
   const handleAddedOptionTextChange = (tempId: string, text: string) => {
@@ -279,14 +269,14 @@ function PollModal({
   const handleConfirm = async () => {
     setIsSubmitting(true);
     try {
-      const selectedNewOptions = addedOptions.filter(opt => opt.text.trim() && opt.isSelected);
+      const nonNewOptions = addedOptions.filter(opt => opt.text.trim());
       const newlyCreatedOptionIds: string[] = [];
       
-      for (const opt of selectedNewOptions) {
+      for (const opt of nonNewOptions) {
         const text = opt.text.trim();
         const updatedPoll = await apiClient.post<any>(`/polls/${poll.pollId}/options`, { content: text });
         const newOpt = updatedPoll.options?.find((o: any) => o.content === text);
-        if (newOpt) {
+        if (newOpt && opt.isSelected) {
           newlyCreatedOptionIds.push(newOpt.optionId);
         }
       }
@@ -1752,13 +1742,13 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                       <div className="flex justify-center my-1">
                         <div className="flex items-center gap-1.5 px-2 py-0.5 max-w-[85%]">
                           {msg.type === 'MESSAGE_PIN' ? (
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0068FF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                               <path d="M12 17v5" /><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z" />
                             </svg>
                           ) : (
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                               <path d="M12 17v5" /><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z" />
-                              <line x1="3" y1="3" x2="21" y2="21" stroke="#f97316" strokeWidth="2" />
+                              <line x1="3" y1="3" x2="21" y2="21" stroke="#f97316" strokeWidth="2.5" />
                             </svg>
                           )}
                           <span className="text-[12px] leading-snug" style={{ color: msg.type === 'MESSAGE_PIN' ? '#0068FF' : '#f97316' }}>
