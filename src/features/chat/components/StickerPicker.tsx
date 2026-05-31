@@ -42,7 +42,11 @@ export function StickerPicker({
   const { currentTheme } = useTheme();
   const { t } = useTranslation();
   const S3_BASE = process.env.NEXT_PUBLIC_S3_BASE_URL ?? '';
-  const normalizeSrc = (src: string) => src; // local JSON đã có path đúng, không cần transform
+  const normalizeSrc = (src: string) => {
+    if (src.startsWith('http://') || src.startsWith('https://')) return src;
+    // Local path /stickers/pack_1/10_xxx.png → S3 URL (giống cách emoji hoạt động)
+    return S3_BASE + src;
+  };
   const normalizeEmojiSrc = (src: string) => {
     if (src.startsWith('http://') || src.startsWith('https://')) return src;
     return S3_BASE + src.replace('/fruvia_emoji', '');
@@ -66,21 +70,37 @@ export function StickerPicker({
     };
   }, [isOpen, onClose]);
 
-  // Load sticker packs: chỉ dùng local JSON (API/S3 path không khớp file thực tế)
+  // Load sticker packs: local JSON metadata → S3 images (giống cách emoji hoạt động)
   useEffect(() => {
     if (activeTab !== 'sticker' || stickerPacks.length > 0) return;
     setStickerLoading(true);
 
-    fetch('/stickers/sticker-pack.json')
-      .then(r => r.json())
-      .then((data: { packs: StickerPackData[] }) => {
-        const packs = data.packs.filter(p => p.id !== 'pack_0');
-        setStickerPacks(packs);
-        setActiveStickerPackId(packs[0]?.id ?? '');
-      })
-      .catch(() => { /* silent */ })
-      .finally(() => setStickerLoading(false));
-  }, [activeTab, stickerPacks.length]);
+    const loadFromLocal = () => {
+      fetch('/stickers/sticker-pack.json')
+        .then(r => r.json())
+        .then((data: { packs: StickerPackData[] }) => {
+          const packs = data.packs.filter(p => p.id !== 'pack_0');
+          setStickerPacks(packs);
+          setActiveStickerPackId(packs[0]?.id ?? '');
+        })
+        .catch(() => loadFromS3())
+        .finally(() => setStickerLoading(false));
+    };
+
+    const loadFromS3 = () => {
+      fetch(`${S3_BASE}/stickers/sticker-pack.json`)
+        .then(r => r.json())
+        .then((data: { packs: StickerPackData[] }) => {
+          const packs = data.packs.filter(p => p.id !== 'pack_0');
+          setStickerPacks(packs);
+          setActiveStickerPackId(packs[0]?.id ?? '');
+        })
+        .catch(() => { /* silent */ })
+        .finally(() => setStickerLoading(false));
+    };
+
+    loadFromLocal();
+  }, [activeTab, S3_BASE, stickerPacks.length]);
 
   const activePack = stickerPacks.find(p => p.id === activeStickerPackId);
   const filteredStickers = activePack
