@@ -3364,6 +3364,22 @@ export function useChatWindow({
 
   const handlePinMessage = useCallback(async (messageId: string) => {
     try {
+      if (pinnedMessagesRef.current.length >= 5) {
+        const sorted = [...pinnedMessagesRef.current].sort((a, b) => {
+          const timeA = a.pinnedAt ? new Date(a.pinnedAt).getTime() : 0;
+          const timeB = b.pinnedAt ? new Date(b.pinnedAt).getTime() : 0;
+          return timeA - timeB;
+        });
+        const oldestPin = sorted[0];
+        if (oldestPin?.messageId) {
+          try {
+            await apiClient.delete(`/messages/${oldestPin.messageId}/pin`);
+          } catch (unpinErr) {
+            console.error('Failed to auto-unpin oldest message:', unpinErr);
+          }
+        }
+      }
+
       await apiClient.post(`/messages/${messageId}/pin`, {});
       toast.success(t('chat.pin.pin_success'));
       if (selectedChat?.id) {

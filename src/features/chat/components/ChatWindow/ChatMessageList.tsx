@@ -237,7 +237,7 @@ function PollModal({
   };
 
   const handleAddedOptionTextChange = (tempId: string, text: string) => {
-    setAddedOptions(prev => prev.map(item => 
+    setAddedOptions(prev => prev.map(item =>
       item.tempId === tempId ? { ...item, text } : item
     ));
   };
@@ -253,7 +253,7 @@ function PollModal({
     }
     setAddedOptions(prev => {
       if (poll.multipleChoices) {
-        return prev.map(item => 
+        return prev.map(item =>
           item.tempId === tempId ? { ...item, isSelected: !item.isSelected } : item
         );
       } else {
@@ -271,7 +271,7 @@ function PollModal({
     try {
       const nonNewOptions = addedOptions.filter(opt => opt.text.trim());
       const newlyCreatedOptionIds: string[] = [];
-      
+
       for (const opt of nonNewOptions) {
         const text = opt.text.trim();
         const updatedPoll = await apiClient.post<any>(`/polls/${poll.pollId}/options`, { content: text });
@@ -280,7 +280,7 @@ function PollModal({
           newlyCreatedOptionIds.push(newOpt.optionId);
         }
       }
-      
+
       const finalOptionIds = [...localSelectedIds, ...newlyCreatedOptionIds];
       await submitVote(finalOptionIds);
       onClose();
@@ -292,7 +292,7 @@ function PollModal({
   };
 
   const creatorName = msg.senderName || (msg.sender === 'Me' ? 'Tôi' : '') || getVoterInfo(msg.senderId || '').displayName || 'Thành viên';
-  
+
   const getPollTimeText = () => {
     if (!msg.rawDate) return 'Hôm nay';
     const date = parseDate(msg.rawDate);
@@ -326,14 +326,14 @@ function PollModal({
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#00000073] backdrop-blur-[1px] p-4 select-none">
-      <div 
+      <div
         className="bg-white dark:bg-[#1E1E1E] rounded-xl shadow-2xl border border-gray-100 dark:border-[#303030] w-[440px] max-w-full overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-[#303030]">
           <span className="text-[17px] font-bold text-gray-900 dark:text-white">Bình chọn</span>
-          <button 
+          <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors cursor-pointer p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 flex items-center justify-center"
           >
@@ -409,7 +409,7 @@ function PollModal({
               return (
                 <div key={opt.optionId} className="flex items-center gap-3 w-full">
                   {/* Circle Check on the left */}
-                  <div 
+                  <div
                     onClick={() => handleOptionClick(opt.optionId)}
                     className="shrink-0 cursor-pointer p-0.5 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
                   >
@@ -425,22 +425,20 @@ function PollModal({
                   </div>
 
                   {/* Option box */}
-                  <div 
+                  <div
                     onClick={() => handleOptionClick(opt.optionId)}
-                    className={`flex-1 relative flex items-center justify-between p-3.5 rounded-lg border transition-all cursor-pointer overflow-hidden ${
-                      isSelected 
-                        ? 'bg-[#E1EDFF] border-transparent text-[#0068FF] dark:bg-[#0068FF]/15 dark:text-[#58a6ff]' 
+                    className={`flex-1 relative flex items-center justify-between p-3.5 rounded-lg border transition-all cursor-pointer overflow-hidden ${isSelected
+                        ? 'bg-[#E1EDFF] border-transparent text-[#0068FF] dark:bg-[#0068FF]/15 dark:text-[#58a6ff]'
                         : 'bg-[#F0F2F5] border-transparent text-[#081C36] dark:bg-[#2a2a2a] dark:text-white'
-                    }`}
+                      }`}
                   >
                     {/* Background Progress Bar */}
                     {percent > 0 && (
-                      <div 
-                        className={`absolute left-0 top-0 bottom-0 transition-all duration-500 rounded-l-lg ${
-                          isSelected 
-                            ? 'bg-[#D2E4FC] dark:bg-[#0068FF]/20' 
+                      <div
+                        className={`absolute left-0 top-0 bottom-0 transition-all duration-500 rounded-l-lg ${isSelected
+                            ? 'bg-[#D2E4FC] dark:bg-[#0068FF]/20'
                             : 'bg-[#E2E5E8] dark:bg-[#3a3a3a]'
-                        }`} 
+                          }`}
                         style={{ width: `${percent}%`, zIndex: 0 }}
                       />
                     )}
@@ -486,7 +484,7 @@ function PollModal({
           {addedOptions.map((addedOpt) => (
             <div key={addedOpt.tempId} className="flex items-center gap-3 w-full animate-in fade-in slide-in-from-top-1 duration-150">
               {/* Circle/Checkbox on the left */}
-              <div 
+              <div
                 onClick={() => handleAddedOptionToggle(addedOpt.tempId)}
                 className="shrink-0 cursor-pointer p-0.5 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
               >
@@ -543,7 +541,7 @@ function PollModal({
         {/* Footer */}
         <div className="flex items-center justify-between px-5 py-4 border-t border-gray-100 dark:border-[#303030] bg-gray-50/50 dark:bg-black/10">
           {/* Settings gear on the left */}
-          <button 
+          <button
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer p-2 rounded hover:bg-gray-100 dark:hover:bg-white/5 flex items-center justify-center"
             title="Cài đặt bình chọn"
           >
@@ -717,11 +715,11 @@ function PollCard({
         <p className="text-[13px] text-[#586b82] dark:text-[#8ea3b8] mt-1.5">
           {poll.multipleChoices ? 'Chọn nhiều phương án' : 'Chọn một phương án'}
         </p>
-        
+
         {/* Statistics link */}
         {showResults && (
           <div className="mt-2.5">
-            <div 
+            <div
               onClick={() => setIsModalOpen(true)}
               className="text-[13px] font-semibold text-[#0068FF] hover:underline flex items-center gap-1 cursor-pointer"
             >
@@ -749,22 +747,20 @@ function PollCard({
             return (
               <div key={opt.optionId} className="flex items-center gap-3 w-full">
                 {/* The main option box */}
-                <div 
+                <div
                   onClick={() => handleOptionClick(opt.optionId)}
-                  className={`flex-1 relative flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer overflow-hidden ${
-                    isSelected 
-                      ? 'bg-[#E1EDFF] border-transparent text-[#0068FF] dark:bg-[#0068FF]/15 dark:text-[#58a6ff]' 
+                  className={`flex-1 relative flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer overflow-hidden ${isSelected
+                      ? 'bg-[#E1EDFF] border-transparent text-[#0068FF] dark:bg-[#0068FF]/15 dark:text-[#58a6ff]'
                       : 'bg-[#F0F2F5] border-transparent text-[#081C36] dark:bg-[#2a2a2a] dark:text-white'
-                  }`}
+                    }`}
                 >
                   {/* Background Progress Bar */}
                   {!isEditingChoice && showResults && percent > 0 && (
-                    <div 
-                      className={`absolute left-0 top-0 bottom-0 transition-all duration-500 rounded-l-lg ${
-                        isSelected 
-                          ? 'bg-[#D2E4FC] dark:bg-[#0068FF]/20' 
+                    <div
+                      className={`absolute left-0 top-0 bottom-0 transition-all duration-500 rounded-l-lg ${isSelected
+                          ? 'bg-[#D2E4FC] dark:bg-[#0068FF]/20'
                           : 'bg-[#E2E5E8] dark:bg-[#3a3a3a]'
-                      }`} 
+                        }`}
                       style={{ width: `${percent}%`, zIndex: 0 }}
                     />
                   )}
@@ -1647,11 +1643,11 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                     </button>
                   </div>
 
-                  <div className="max-h-[320px] overflow-y-auto custom-scrollbar">
+                  <div className="max-h-[240px] overflow-y-auto custom-scrollbar">
                     {pinnedMessages.map((pin, idx) => (
                       <div
                         key={pin.id}
-                        className={`px-4 py-2 flex items-center gap-2.5 cursor-pointer hover:bg-[#F8FAFD] transition-colors ${idx < pinnedMessages.length - 1 ? 'border-b border-[#E6EAF0]' : ''}`}
+                        className={`h-12 px-4 flex items-center gap-2.5 cursor-pointer hover:bg-[#F8FAFD] transition-colors ${idx < pinnedMessages.length - 1 ? 'border-b border-[#E6EAF0]' : ''}`}
                         onClick={() => {
                           const el = document.getElementById(`msg-${pin.messageId}`);
                           if (el) {
@@ -1711,9 +1707,11 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
             {isLoadingMore && <div className="flex justify-center p-2"><div className="w-5 h-5 border-2 border-[#0068FF] border-t-transparent rounded-full animate-spin" /></div>}
 
             <div>
-              {messages.map((msg, index) => {
-                const prevMsg = messages[index - 1];
-                const nextMsg = messages[index + 1];
+              {messages
+                .filter((msg) => msg.type !== 'MESSAGE_PIN' && msg.type !== 'MESSAGE_UNPIN')
+                .map((msg, index, filteredArray) => {
+                  const prevMsg = filteredArray[index - 1];
+                  const nextMsg = filteredArray[index + 1];
                 const showDateSeparator = !prevMsg || isDifferentDay(msg.rawDate, prevMsg.rawDate);
                 const showTimestamp = shouldShowTimestamp(msg, nextMsg);
                 const effectivePrev = showDateSeparator ? undefined : prevMsg;
@@ -1782,21 +1780,21 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                       </div>
                     ) : msg.type === 'SYSTEM' ? (() => {
                       const sysText = msg.text || '';
-                      
+
                       // Check if it is a poll-related system message
                       const isPollSysMsg = sysText.toLowerCase().includes('bình chọn') || sysText.toLowerCase().includes('poll');
-                      
+
                       if (isPollSysMsg) {
                         const handleXemClick = () => {
                           const parts = sysText.split(':');
                           const questionName = parts[1]?.trim();
-                          
+
                           // Find the poll message in the list
-                          const pollMsg = messages.find(m => 
-                            m.type === 'POLL' && 
+                          const pollMsg = messages.find(m =>
+                            m.type === 'POLL' &&
                             (m.poll?.question === questionName || (questionName && m.poll?.question?.includes(questionName)))
                           );
-                          
+
                           const targetId = pollMsg?.id;
                           if (targetId) {
                             const el = document.getElementById(`msg-${targetId}`);
@@ -1835,15 +1833,15 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                       const isRemove = sysText.includes('đã rời') || sysText.includes('đã xóa');
                       const sysColor = isAdd ? '#22c55e' : isRemove ? '#ef4444' : '#6b7280';
                       return (
-                      <div className="flex justify-center my-1.5">
-                        <div className="flex items-center gap-1.5 bg-white border border-gray-200 px-3.5 py-1.5 rounded-2xl max-w-[85%] shadow-sm">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="shrink-0" style={{ color: sysColor }} aria-hidden="true">
-                            <path d="M12 2.75a6.25 6.25 0 0 0-6.25 6.25v3.41c0 .58-.23 1.13-.64 1.54l-1.3 1.3A1 1 0 0 0 4.52 17h14.96a1 1 0 0 0 .71-1.71l-1.3-1.3a2.18 2.18 0 0 1-.64-1.54V9A6.25 6.25 0 0 0 12 2.75Z" />
-                            <circle cx="12" cy="18.25" r="1.75" />
-                          </svg>
-                          <span className="text-[12px] leading-snug break-words" style={{ color: sysColor }}>{msg.text}</span>
+                        <div className="flex justify-center my-1.5">
+                          <div className="flex items-center gap-1.5 bg-white border border-gray-200 px-3.5 py-1.5 rounded-2xl max-w-[85%] shadow-sm">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="shrink-0" style={{ color: sysColor }} aria-hidden="true">
+                              <path d="M12 2.75a6.25 6.25 0 0 0-6.25 6.25v3.41c0 .58-.23 1.13-.64 1.54l-1.3 1.3A1 1 0 0 0 4.52 17h14.96a1 1 0 0 0 .71-1.71l-1.3-1.3a2.18 2.18 0 0 1-.64-1.54V9A6.25 6.25 0 0 0 12 2.75Z" />
+                              <circle cx="12" cy="18.25" r="1.75" />
+                            </svg>
+                            <span className="text-[12px] leading-snug break-words" style={{ color: sysColor }}>{msg.text}</span>
+                          </div>
                         </div>
-                      </div>
                       );
                     })() : msg.type === 'CALL_MISSED' || msg.type === 'CALL_REJECTED' || msg.type === 'CALL_ENDED' ? (
                       <div
@@ -1883,7 +1881,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                               className={`relative group w-fit min-w-[92px] px-2.5 pt-1.5 pb-1.5 rounded-md shadow-sm text-[14px] border ${String(msg.senderId ?? '') === String(currentUser?.id ?? '') || msg.sender === 'Me'
                                 ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)] border-[var(--message-me-border)]'
                                 : 'bg-[var(--message-other-bg)] text-[var(--message-other-text)] border-[var(--message-other-border)]'
-                              }`}
+                                }`}
                               onContextMenu={(e) => openContextMenu(e, msg)}
                             >
                               <CallHistoryMessage msg={msg} currentUserId={currentUser?.id} t={t} onVideoCall={vm.handleVideoCall} />
@@ -1933,19 +1931,19 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                 ? t('chat.message.recalled')
                                 : repliedMsg.type === 'IMAGE'
                                   ? `📷 ${t('chat.snippet.image')}`
-                                : repliedMsg.type === 'IMAGE_GROUP'
-                                  ? `📷 ${t('chat.snippet.image_group')}`
-                                : repliedMsg.type === 'VIDEO'
-                                  ? `🎬 ${t('chat.snippet.video')}`
-                                  : repliedMsg.type === 'VOICE'
-                                    ? `🎤 ${t('chat.snippet.voice')}`
-                                    : repliedMsg.type === 'MEDIA'
-                                      ? `📎 ${t('chat.snippet.file')}`
-                                      : repliedMsg.type === 'SHARE_CONTACT'
-                                        ? (() => { try { const c = JSON.parse(repliedMsg.text || '{}'); return `📇 ${c.fullName || t('share_contact.snippet')}`; } catch { return `📇 ${t('share_contact.snippet')}`; } })()
-                                        : plainText.length > 80
-                                          ? `${plainText.slice(0, 80)}...`
-                                          : plainText;
+                                  : repliedMsg.type === 'IMAGE_GROUP'
+                                    ? `📷 ${t('chat.snippet.image_group')}`
+                                    : repliedMsg.type === 'VIDEO'
+                                      ? `🎬 ${t('chat.snippet.video')}`
+                                      : repliedMsg.type === 'VOICE'
+                                        ? `🎤 ${t('chat.snippet.voice')}`
+                                        : repliedMsg.type === 'MEDIA'
+                                          ? `📎 ${t('chat.snippet.file')}`
+                                          : repliedMsg.type === 'SHARE_CONTACT'
+                                            ? (() => { try { const c = JSON.parse(repliedMsg.text || '{}'); return `📇 ${c.fullName || t('share_contact.snippet')}`; } catch { return `📇 ${t('share_contact.snippet')}`; } })()
+                                            : plainText.length > 80
+                                              ? `${plainText.slice(0, 80)}...`
+                                              : plainText;
 
                               return (
                                 <div
@@ -2069,8 +2067,8 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                     )}
                                     {hasVisibleCaption(msg.caption) && (
                                       <div className={`px-2.5 py-1.5 text-[14px] leading-snug break-words rounded-b-md max-w-[320px] shadow-sm ${msg.sender === 'Me'
-                                          ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)]'
-                                          : 'bg-[var(--message-other-bg)] text-[var(--message-other-text)]'
+                                        ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)]'
+                                        : 'bg-[var(--message-other-bg)] text-[var(--message-other-text)]'
                                         }`}>
                                         {renderCaptionContent(msg.caption!)}
                                       </div>
@@ -2175,8 +2173,8 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                     )}
                                     {hasVisibleCaption(msg.caption) && (
                                       <div className={`px-2.5 py-1.5 text-[14px] leading-snug break-words rounded-b-md max-w-[320px] shadow-sm ${msg.sender === 'Me'
-                                          ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)]'
-                                          : 'bg-[var(--message-other-bg)] text-[var(--message-other-text)]'
+                                        ? 'bg-[var(--message-me-bg)] text-[var(--message-me-text)]'
+                                        : 'bg-[var(--message-other-bg)] text-[var(--message-other-text)]'
                                         }`}>
                                         {renderCaptionContent(msg.caption!)}
                                       </div>
@@ -2275,57 +2273,56 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
 
                                   return (
                                     <>
-                                    <div className={`border rounded-xl p-3 flex items-center gap-3 min-w-[280px] max-w-[380px] hover:shadow-lg transition-all group/file relative ${msg.isUploading ? 'cursor-default opacity-80' : 'cursor-pointer'} ${msg.sender === 'Me' ? 'bg-[#EBF5FF] border-[#D0E7FF]' : 'bg-[#F0F7FF] border-[#E0EFFF]'}`} onClick={() => !msg.isUploading && window.open(getPreviewUrl(msg.text), '_blank')}>
-                                      <div className={`h-12 w-10 rounded-lg flex flex-col items-center justify-center text-white font-bold shadow-sm shrink-0 ${isPDF ? 'bg-[#FF5C5C]' : isWord ? 'bg-[#2B7CF6]' : isExcel ? 'bg-[#1D6F42]' : 'bg-gray-400'}`}>
-                                        {msg.isUploading ? (
-                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
-                                        ) : isWord ? (
-                                          <span className="text-[14px]">W</span>
-                                        ) : isPDF ? (
-                                          <span className="text-[8px]">PDF</span>
-                                        ) : (
-                                          <span className="text-[8px]">{ext.slice(0, 3)}</span>
-                                        )}
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <h4 className="text-[13px] font-semibold text-[#1f2329] truncate mb-0.5">{displayName}</h4>
-                                        <div className="flex items-center gap-2 text-[10px] text-[#647081] opacity-90">
-                                          {msg.fileSize && <span>{formatFileSize(msg.fileSize)}</span>}
-                                          <div className="flex items-center gap-1">
-                                            {msg.isUploading ? (
-                                              <span className="italic">{t('chat.upload.uploading')} {msg.uploadProgress != null ? `${msg.uploadProgress}%` : ''}</span>
-                                            ) : (
-                                              <>
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="shrink-0"><path d="M17.5 11.5c.34-.33.74-.5 1.14-.5a1.88 1.88 0 1 1 0 3.75h-10a3.13 3.13 0 1 1 0-6.25c.34 0 .66.05.97.15A4.38 4.38 0 1 1 17.5 11.5Z" /></svg>
-                                                <span>{t('chat.status.on_cloud')}</span>
-                                              </>
-                                            )}
+                                      <div className={`border rounded-xl p-3 flex items-center gap-3 min-w-[280px] max-w-[380px] hover:shadow-lg transition-all group/file relative ${msg.isUploading ? 'cursor-default opacity-80' : 'cursor-pointer'} ${msg.sender === 'Me' ? 'bg-[#EBF5FF] border-[#D0E7FF]' : 'bg-[#F0F7FF] border-[#E0EFFF]'}`} onClick={() => !msg.isUploading && window.open(getPreviewUrl(msg.text), '_blank')}>
+                                        <div className={`h-12 w-10 rounded-lg flex flex-col items-center justify-center text-white font-bold shadow-sm shrink-0 ${isPDF ? 'bg-[#FF5C5C]' : isWord ? 'bg-[#2B7CF6]' : isExcel ? 'bg-[#1D6F42]' : 'bg-gray-400'}`}>
+                                          {msg.isUploading ? (
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
+                                          ) : isWord ? (
+                                            <span className="text-[14px]">W</span>
+                                          ) : isPDF ? (
+                                            <span className="text-[8px]">PDF</span>
+                                          ) : (
+                                            <span className="text-[8px]">{ext.slice(0, 3)}</span>
+                                          )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <h4 className="text-[13px] font-semibold text-[#1f2329] truncate mb-0.5">{displayName}</h4>
+                                          <div className="flex items-center gap-2 text-[10px] text-[#647081] opacity-90">
+                                            {msg.fileSize && <span>{formatFileSize(msg.fileSize)}</span>}
+                                            <div className="flex items-center gap-1">
+                                              {msg.isUploading ? (
+                                                <span className="italic">{t('chat.upload.uploading')} {msg.uploadProgress != null ? `${msg.uploadProgress}%` : ''}</span>
+                                              ) : (
+                                                <>
+                                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="shrink-0"><path d="M17.5 11.5c.34-.33.74-.5 1.14-.5a1.88 1.88 0 1 1 0 3.75h-10a3.13 3.13 0 1 1 0-6.25c.34 0 .66.05.97.15A4.38 4.38 0 1 1 17.5 11.5Z" /></svg>
+                                                  <span>{t('chat.status.on_cloud')}</span>
+                                                </>
+                                              )}
+                                            </div>
                                           </div>
                                         </div>
+                                        {!msg.isUploading && (
+                                          <button
+                                            onClick={(e) => handleDownloadFile(e, msg.text, displayName)}
+                                            className="h-8 w-8 rounded-md flex items-center justify-center border border-[#D0E7FF] group-hover/file:bg-white transition-all shrink-0 cursor-pointer hover:scale-110 active:scale-95 shadow-sm bg-white/50"
+                                            title="Tải xuống"
+                                          >
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-[#1f2329]">
+                                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                              <polyline points="7 10 12 15 17 10" />
+                                              <line x1="12" x2="12" y1="15" y2="3" />
+                                            </svg>
+                                          </button>
+                                        )}
                                       </div>
-                                      {!msg.isUploading && (
-                                        <button
-                                          onClick={(e) => handleDownloadFile(e, msg.text, displayName)}
-                                          className="h-8 w-8 rounded-md flex items-center justify-center border border-[#D0E7FF] group-hover/file:bg-white transition-all shrink-0 cursor-pointer hover:scale-110 active:scale-95 shadow-sm bg-white/50"
-                                          title="Tải xuống"
-                                        >
-                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-[#1f2329]">
-                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                            <polyline points="7 10 12 15 17 10" />
-                                            <line x1="12" x2="12" y1="15" y2="3" />
-                                          </svg>
-                                        </button>
+                                      {hasVisibleCaption(msg.caption) && (
+                                        <div className={`px-3 py-2 text-[13.5px] leading-snug break-words rounded-b-xl max-w-[380px] border border-t-0 ${msg.sender === 'Me'
+                                            ? 'bg-[#dceeff] border-[#D0E7FF] text-[#1a3a5c]'
+                                            : 'bg-[#e8f3ff] border-[#E0EFFF] text-[#1a3a5c]'
+                                          }`}>
+                                          {renderCaptionContent(msg.caption!)}
+                                        </div>
                                       )}
-                                    </div>
-                                    {hasVisibleCaption(msg.caption) && (
-                                      <div className={`px-3 py-2 text-[13.5px] leading-snug break-words rounded-b-xl max-w-[380px] border border-t-0 ${
-                                        msg.sender === 'Me'
-                                          ? 'bg-[#dceeff] border-[#D0E7FF] text-[#1a3a5c]'
-                                          : 'bg-[#e8f3ff] border-[#E0EFFF] text-[#1a3a5c]'
-                                      }`}>
-                                        {renderCaptionContent(msg.caption!)}
-                                      </div>
-                                    )}
                                     </>
                                   );
                                 })() : msg.type === 'POLL' ? (
@@ -2431,11 +2428,11 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                               const otherUserId = selectedChat.otherUserId || selectedChat.recipientId;
                               const isDelivered = showReadStatus && otherUserId
                                 ? (() => {
-                                    const receipt = deliveredReceipts[String(otherUserId)];
-                                    if (!receipt) return false;
-                                    const deliveredIdx = messages.findIndex(item => item.id === receipt.messageId);
-                                    return deliveredIdx >= index;
-                                  })()
+                                  const receipt = deliveredReceipts[String(otherUserId)];
+                                  if (!receipt) return false;
+                                  const deliveredIdx = messages.findIndex(item => item.id === receipt.messageId);
+                                  return deliveredIdx >= index;
+                                })()
                                 : false;
 
                               const showSection = msg.type !== 'TEXT' || showReadStatus;
@@ -2504,18 +2501,18 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                           {!msg.isRecalled && (
                             <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity h-fit ${msg.sender === 'Me' ? 'mr-0.5 flex-row-reverse self-center' : 'ml-0.5 self-center'}`}>
                               {!isSticker && !isAiConversation && (
-                              <div className="relative group/react">
-                                <div className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer text-[13px] select-none leading-none">😊</div>
-                                <div className={`absolute ${msg.sender === 'Me' ? 'right-0' : 'left-0'} bottom-full opacity-0 invisible group-hover/react:opacity-100 group-hover/react:visible transition-all duration-150 flex items-center gap-0.5 bg-[var(--card-bg)] rounded-full px-2 py-1 shadow-xl border border-[var(--border)] z-50 whitespace-nowrap`}>
-                                  {(['👍', '❤️', '😂', '😲', '😭', '😡'] as const).map((emoji) => (
-                                    <button key={emoji} onClick={(e) => { e.stopPropagation(); vm.handleReactMessage(String(msg.id), emoji); }} className="w-7 h-7 text-[20px] hover:scale-125 transition-transform cursor-pointer flex items-center justify-center rounded-full hover:bg-[var(--hover-bg)]">{emoji}</button>
-                                  ))}
+                                <div className="relative group/react">
+                                  <div className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer text-[13px] select-none leading-none">😊</div>
+                                  <div className={`absolute ${msg.sender === 'Me' ? 'right-0' : 'left-0'} bottom-full opacity-0 invisible group-hover/react:opacity-100 group-hover/react:visible transition-all duration-150 flex items-center gap-0.5 bg-[var(--card-bg)] rounded-full px-2 py-1 shadow-xl border border-[var(--border)] z-50 whitespace-nowrap`}>
+                                    {(['👍', '❤️', '😂', '😲', '😭', '😡'] as const).map((emoji) => (
+                                      <button key={emoji} onClick={(e) => { e.stopPropagation(); vm.handleReactMessage(String(msg.id), emoji); }} className="w-7 h-7 text-[20px] hover:scale-125 transition-transform cursor-pointer flex items-center justify-center rounded-full hover:bg-[var(--hover-bg)]">{emoji}</button>
+                                    ))}
+                                  </div>
                                 </div>
-                              </div>
                               )}
 
                               {!isSticker && !isAiConversation && (
-                              <button title={t('chat.actions.forward')} onClick={() => setForwardingMsg({ id: msg.id, text: msg.text, type: msg.type, sender: msg.sender, caption: msg.caption || (msg.type !== 'TEXT' ? msg.text : undefined) })} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 10l5-5 5 5M8 6v8a4 4 0 004 4h9" /></svg></button>
+                                <button title={t('chat.actions.forward')} onClick={() => setForwardingMsg({ id: msg.id, text: msg.text, type: msg.type, sender: msg.sender, caption: msg.caption || (msg.type !== 'TEXT' ? msg.text : undefined) })} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 10l5-5 5 5M8 6v8a4 4 0 004 4h9" /></svg></button>
                               )}
                               <button title={t('chat.actions.more')} onClick={(e) => openContextMenu(e, msg)} className="w-6 h-6 rounded-full bg-[var(--card-bg)]/60 flex items-center justify-center hover:bg-[var(--card-bg)] text-[var(--sub-text)] border border-[var(--border)]/10 shadow-sm transition-all cursor-pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg></button>
                             </div>
