@@ -63,6 +63,10 @@ const replaceS3Urls = (text: string, t?: any): string => {
 
 const parseLastMsgPreview = (text: string, t?: any): string => {
   if (!text) return text;
+
+  // Sticker/IMAGE path: hiển thị "Đã gửi 1 nhãn dán" thay vì raw path
+  if (text.startsWith('/stickers/')) return 'Đã gửi 1 nhãn dán';
+
   const trimmed = text.trim();
   let result = text;
   if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
@@ -86,6 +90,7 @@ const parseLastMsgPreview = (text: string, t?: any): string => {
         const extract = (node: any): string => {
           if (!node) return '';
           if (node.type === 'text') return node.text ?? '';
+          if (node.type === 'zaloEmoji') return node.attrs?.shortcode ?? '';
           if (Array.isArray(node.content)) {
             return node.content.map(extract).join(' ');
           }
@@ -679,7 +684,9 @@ export function ChatDashboardLegacy({ onLogout, userName, initialChatId }: ChatD
 
           const getSnippet = (content: string, type?: string) => {
             switch (type) {
-              case 'IMAGE': return t('chat.snippet.image');
+              case 'IMAGE':
+                if (content && content.includes('/stickers/')) return 'Đã gửi 1 nhãn dán';
+                return t('chat.snippet.image');
               case 'IMAGE_GROUP': return t('chat.snippet.image_group');
               case 'VIDEO': return t('chat.snippet.video');
               case 'MEDIA': return t('chat.snippet.file');

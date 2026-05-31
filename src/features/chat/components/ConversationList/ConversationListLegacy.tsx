@@ -59,6 +59,10 @@ const replaceS3Urls = (text: string, t?: any): string => {
 // and parses TipTap JSON format to plain text.
 const getLastMsgPreviewHtml = (html: string, t?: any): string => {
   if (!html) return '';
+
+  // Sticker/IMAGE path: hiển thị "Đã gửi 1 nhãn dán" thay vì raw path
+  if (html.startsWith('/stickers/')) return 'Đã gửi 1 nhãn dán';
+
   let source = html;
 
   // Nếu content là JSON (TipTap format hoặc JSON array), extract plain text trước
@@ -82,6 +86,7 @@ const getLastMsgPreviewHtml = (html: string, t?: any): string => {
         const extract = (node: any): string => {
           if (!node) return '';
           if (node.type === 'text') return node.text ?? '';
+          if (node.type === 'zaloEmoji') return node.attrs?.shortcode ?? '';
           if (Array.isArray(node.content)) {
             return node.content.map(extract).join(' ');
           }
