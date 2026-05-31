@@ -53,8 +53,13 @@ function CallHistoryMessage({
 }) {
   const isCaller = String(msg.senderId ?? '') === String(currentUserId ?? '') || msg.sender === 'Me';
   const isEnded = msg.type === 'CALL_ENDED';
+  const isMissed = msg.type === 'CALL_MISSED';
+  const isRejected = msg.type === 'CALL_REJECTED';
+
   const cardTitle = isEnded
     ? (isCaller ? t('chat.call.outgoing_video_call') : t('chat.call.incoming_video_call'))
+    : isMissed
+    ? (isCaller ? t('chat.call.missed') : t('chat.call.missed'))
     : (isCaller ? t('chat.call.recipient_busy') : t('chat.call.missed'));
 
   const detailText = isEnded
