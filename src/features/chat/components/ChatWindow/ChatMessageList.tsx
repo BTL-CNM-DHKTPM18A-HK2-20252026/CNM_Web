@@ -2374,7 +2374,7 @@ function ChatMessageListImpl({ vm }: ChatMessageListProps) {
                                             // Only extract URLs from plain text, not HTML content (avoids matching src/href attributes from emoji <img> tags)
                                             const plainDisplayText = getPlainTextFromMessage(displayText);
                                             const isJsonOrHtml = /[a-z][\s\S]*>/i.test(replaceEmojiWithHtml(getMessageHtml(displayText))) || displayText.trim().startsWith('{');
-                                            const urlMatch = !isJsonOrHtml ? plainDisplayText.match(/(https?:\/\/[^\s]+|fruvia\.chat\/g\/[^\s]+)/) : null;
+                                            const urlMatch = plainDisplayText.match(/(https?:\/\/[^\s]+|fruvia\.chat\/g\/[^\s]+)/);
                                             const url = msg.type === 'LINK' ? plainDisplayText : (urlMatch ? urlMatch[0] : null);
 
                                             if (url && url.includes('/g/')) {

@@ -98,7 +98,12 @@ const getLastMsgPreviewHtml = (html: string, t?: any): string => {
           return '';
         };
         const extracted = extract(json).trim();
-        if (extracted) source = extracted;
+        if (extracted) {
+          source = extracted;
+        } else {
+          const hasEmoji = JSON.stringify(json).includes('"zaloEmoji"');
+          if (hasEmoji) source = '😀 Emoji';
+        }
         }
       }
     } catch { /* not valid JSON, continue with original */ }
@@ -1852,7 +1857,12 @@ export function ConversationListLegacy({ conversations, onAddFriend, onCreateGro
                               return '';
                             };
                             const extracted = extract(json).trim();
-                            if (extracted) result = extracted;
+                            if (extracted) {
+                              result = extracted;
+                            } else {
+                              const hasEmoji = JSON.stringify(json).includes('"zaloEmoji"');
+                              if (hasEmoji) result = '😀 Emoji';
+                            }
                           }
                         } catch {
                           result = stripHtml(rawLastMsg);

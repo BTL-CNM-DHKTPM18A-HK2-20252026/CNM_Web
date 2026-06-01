@@ -38,6 +38,10 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
     pinnedMessages,
     handleUnpinMessage,
     handlePinMessage,
+    pinReplaceModalOpen,
+    pendingPinMessageId,
+    handlePinReplace,
+    handleCancelPinReplace,
     confirmDialog,
     handleRecallMessage,
     handleDeleteLocal,
@@ -49,6 +53,7 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
 
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const [contextMenuStyle, setContextMenuStyle] = useState<React.CSSProperties | null>(null);
+  const [selectedReplacePinId, setSelectedReplacePinId] = useState<string | null>(null);
 
   useLayoutEffect(() => {
     if (!contextMenu) {
@@ -415,6 +420,85 @@ export function ChatModalHost({ vm }: ChatModalHostProps) {
                   ));
                 })()}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pin replace modal - shown when limit reached */}
+      {pinReplaceModalOpen && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/40 backdrop-blur-[1px]">
+          <div className="bg-[var(--card-bg)] w-[420px] max-w-[92vw] rounded-lg shadow-2xl overflow-hidden border border-[var(--border)]">
+            <div className="px-5 pt-5 pb-2">
+              <h3 className="text-[16px] font-bold text-[var(--text)] mb-1">
+                Đã đạt giới hạn 5 tin nhắn ghim
+              </h3>
+              <p className="text-[13px] text-[var(--sub-text)]">
+                Vui lòng chọn một tin nhắn ghim cũ để thay thế:
+              </p>
+            </div>
+            <div className="max-h-[240px] overflow-y-auto custom-scrollbar px-2">
+              {pinnedMessages.map((pin: any) => {
+                const previewText = (() => {
+                  const raw = pin.content || '';
+                  try {
+                    const parsed = JSON.parse(raw);
+                    if (parsed.text) return parsed.text;
+                    if (parsed.content) return parsed.content;
+                    return raw;
+                  } catch { return raw; }
+                })();
+                const displayText = previewText.length > 60 ? `${previewText.slice(0, 60)}...` : previewText;
+                const isSelected = selectedReplacePinId === pin.messageId;
+                return (
+                  <button
+                    key={pin.id || pin.messageId}
+                    onClick={() => setSelectedReplacePinId(pin.messageId)}
+                    className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-md mb-1 transition-colors cursor-pointer text-left ${
+                      isSelected ? 'bg-[#0068FF]/10 border border-[#0068FF]/30' : 'hover:bg-[var(--hover-bg)] border border-transparent'
+                    }`}
+                  >
+                    <div className={`shrink-0 w-5 h-5 mt-0.5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                      isSelected ? 'border-[#0068FF] bg-[#0068FF]' : 'border-[var(--border)]'
+                    }`}>
+                      {isSelected && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-medium text-[var(--text)] truncate">
+                        {pin.senderName || pin.pinnedByUserName || 'Người dùng'}
+                      </div>
+                      <div className="text-[12px] text-[var(--sub-text)] truncate mt-0.5">
+                        {displayText || '(Tin nhắn không có nội dung)'}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-[var(--border)]">
+              <button
+                onClick={() => {
+                  setSelectedReplacePinId(null);
+                  handleCancelPinReplace();
+                }}
+                className="px-4 py-2 text-[14px] font-medium text-[var(--sub-text)] hover:bg-[var(--hover-bg)] rounded-md transition-colors cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => {
+                  if (selectedReplacePinId) {
+                    setSelectedReplacePinId(null);
+                    handlePinReplace(selectedReplacePinId);
+                  }
+                }}
+                disabled={!selectedReplacePinId}
+                className="px-4 py-2 text-[14px] font-medium text-white bg-[#0068FF] hover:bg-[#0052CC] disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors cursor-pointer"
+              >
+                Xác nhận
+              </button>
             </div>
           </div>
         </div>

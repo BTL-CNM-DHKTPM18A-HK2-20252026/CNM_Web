@@ -114,31 +114,31 @@ export function MemberProfileModal({ isOpen, onClose, targetUserId, onStartChat,
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/45 animate-in fade-in duration-300" onClick={onClose} />
 
-      <div className="w-full max-w-[420px] bg-white rounded-lg shadow-2xl relative z-[151] animate-in zoom-in-95 duration-200 flex flex-col h-[85vh] max-h-[620px] overflow-hidden">
+      <div className="w-full max-w-[420px] bg-[var(--card-bg)] rounded-lg shadow-2xl relative z-[151] animate-in zoom-in-95 duration-200 flex flex-col h-[85vh] max-h-[620px] overflow-hidden">
         {/* Header */}
-        <div className="h-[48px] border-b border-[#E5E7EB] flex items-center justify-between px-3 shrink-0">
-          <h2 className="text-[16px] font-bold text-[#13233F]">Thông tin tài khoản</h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors cursor-pointer">
+        <div className="h-[48px] border-b border-[var(--border)] flex items-center justify-between px-3 shrink-0">
+          <h2 className="text-[16px] font-bold text-[var(--text)]">Thông tin tài khoản</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center hover:bg-[var(--hover-bg)] rounded-full transition-colors cursor-pointer">
             <XIcon size={20} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto scrollbar-hide bg-white" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <div className="flex-1 overflow-y-auto scrollbar-hide bg-[var(--card-bg)]" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {/* Cover & Avatar */}
-          <div className="h-[140px] w-full relative bg-gray-200">
+          <div className="h-[140px] w-full relative bg-[var(--hover-bg)]">
             <Image src={coverUrl} alt="Cover" fill className="object-cover" unoptimized />
           </div>
 
-          <div className="px-5 pb-5 border-b-8 border-[#F4F5F7]">
+          <div className="px-5 pb-5 border-b-8 border-[var(--border)]">
             <div className="flex items-end gap-4 -mt-10 mb-4 relative z-10">
-              <div className="w-[88px] h-[88px] rounded-full border-4 border-white overflow-hidden bg-white shadow-sm">
+              <div className="w-[88px] h-[88px] rounded-full border-4 border-[var(--card-bg)] overflow-hidden bg-[var(--card-bg)] shadow-sm">
                 <Image src={avatarUrl} width={88} height={88} alt="Avatar" className="w-full h-full object-cover" unoptimized />
               </div>
               <div className="flex-1 pb-1">
                 <div className="flex items-center gap-2">
-                  <h1 className="text-[20px] font-bold text-[#13233F]">{userName}</h1>
-                  <button onClick={() => setShowNicknameModal(true)} className="p-1 hover:bg-gray-100 rounded text-gray-400 cursor-pointer" title="Đặt tên gợi nhớ">
+                  <h1 className="text-[20px] font-bold text-[var(--text)]">{userName}</h1>
+                  <button onClick={() => setShowNicknameModal(true)} className="p-1 hover:bg-[var(--hover-bg)] rounded text-[var(--sub-text)] cursor-pointer" title="Đặt tên gợi nhớ">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
                   </button>
                 </div>
@@ -157,29 +157,29 @@ export function MemberProfileModal({ isOpen, onClose, targetUserId, onStartChat,
           </div>
 
           {/* Personal Info */}
-          <div className="px-5 py-4 border-b-8 border-[#F4F5F7]">
-            <h3 className="text-[15px] font-bold text-[#13233F] mb-4">Thông tin cá nhân</h3>
+          <div className="px-5 py-4 border-b-8 border-[var(--border)]">
+            <h3 className="text-[15px] font-bold text-[var(--text)] mb-4">Thông tin cá nhân</h3>
             <div className="space-y-3.5">
               <div className="flex items-center">
-                <span className="w-[90px] text-[14px] text-[#5A667A]">Giới tính</span>
-                <span className="text-[14px] text-[#13233F]">{gender}</span>
+                <span className="w-[90px] text-[14px] text-[var(--sub-text)]">Giới tính</span>
+                <span className="text-[14px] text-[var(--text)]">{gender}</span>
               </div>
               <div className="flex items-center">
-                <span className="w-[90px] text-[14px] text-[#5A667A]">Ngày sinh</span>
-                <span className="text-[14px] text-[#13233F]">{dobDisplay}</span>
+                <span className="w-[90px] text-[14px] text-[var(--sub-text)]">Ngày sinh</span>
+                <span className="text-[14px] text-[var(--text)]">{dobDisplay}</span>
               </div>
               <div className="flex items-center">
-                <span className="w-[90px] text-[14px] text-[#5A667A]">Điện thoại</span>
-                <span className="text-[14px] text-[#13233F]">**********</span>
+                <span className="w-[90px] text-[14px] text-[var(--sub-text)]">Điện thoại</span>
+                <span className="text-[14px] text-[var(--text)]">**********</span>
               </div>
             </div>
           </div>
 
           {/* Gallery */}
-          <div className="px-5 py-4 border-b-8 border-[#F4F5F7]">
-            <h3 className="text-[15px] font-bold text-[#13233F] mb-6">Hình ảnh</h3>
+          <div className="px-5 py-4 border-b-8 border-[var(--border)]">
+            <h3 className="text-[15px] font-bold text-[var(--text)] mb-6">Hình ảnh</h3>
             <div className="py-8 text-center">
-              <p className="text-[14px] text-[#7589A3]">Chưa có ảnh nào được chia sẻ</p>
+              <p className="text-[14px] text-[var(--sub-text)]">Chưa có ảnh nào được chia sẻ</p>
             </div>
           </div>
 
@@ -190,36 +190,36 @@ export function MemberProfileModal({ isOpen, onClose, targetUserId, onStartChat,
                 <div className="text-[#5A667A]">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
                 </div>
-                <span className="text-[15px] text-[#13233F]">Nhóm chung ({userData?.common_groups_count || 0})</span>
+                <span className="text-[15px] text-[var(--text)]">Nhóm chung ({userData?.common_groups_count || 0})</span>
               </div>
-              <ChevronLeftIcon size={18} className="rotate-180 text-gray-300" />
+              <ChevronLeftIcon size={18} className="rotate-180 text-[var(--sub-text)]" />
             </button>
 
-            <button className="w-full h-12 px-5 flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer">
+            <button className="w-full h-12 px-5 flex items-center justify-between hover:bg-[var(--hover-bg)] transition-colors cursor-pointer">
               <div className="flex items-center gap-3">
-                <div className="text-[#5A667A]">
+                <div className="text-[var(--sub-text)]">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="4" width="18" height="16" rx="2" /><line x1="7" y1="8" x2="17" y2="8" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="7" y1="16" x2="13" y2="16" /></svg>
                 </div>
-                <span className="text-[15px] text-[#13233F]">Chia sẻ danh thiếp</span>
+                <span className="text-[15px] text-[var(--text)]">Chia sẻ danh thiếp</span>
               </div>
             </button>
 
-            <button className="w-full h-12 px-5 flex items-center gap-3 hover:bg-gray-50 transition-colors cursor-pointer">
-              <div className="text-[#5A667A]">
+            <button className="w-full h-12 px-5 flex items-center gap-3 hover:bg-[var(--hover-bg)] transition-colors cursor-pointer">
+              <div className="text-[var(--sub-text)]">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" /></svg>
               </div>
-              <span className="text-[15px] text-[#13233F]">Chặn tin nhắn và cuộc gọi</span>
+              <span className="text-[15px] text-[var(--text)]">Chặn tin nhắn và cuộc gọi</span>
             </button>
 
-            <button className="w-full h-12 px-5 flex items-center gap-3 hover:bg-gray-50 transition-colors cursor-pointer">
-              <div className="text-[#5A667A]">
+            <button className="w-full h-12 px-5 flex items-center gap-3 hover:bg-[var(--hover-bg)] transition-colors cursor-pointer">
+              <div className="text-[var(--sub-text)]">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
               </div>
-              <span className="text-[15px] text-[#13233F]">Báo xấu</span>
+              <span className="text-[15px] text-[var(--text)]">Báo xấu</span>
             </button>
 
             {friendshipStatus === 'ACCEPTED' || friendshipStatus === 'FRIEND' ? (
-              <button className="w-full h-12 px-5 flex items-center gap-3 hover:bg-gray-50 transition-colors cursor-pointer text-red-500">
+              <button className="w-full h-12 px-5 flex items-center gap-3 hover:bg-[var(--hover-bg)] transition-colors cursor-pointer text-red-500">
                 <div className="text-red-500">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
                 </div>
@@ -228,7 +228,7 @@ export function MemberProfileModal({ isOpen, onClose, targetUserId, onStartChat,
             ) : (
               <button
                 onClick={() => onAddFriend?.({ user: { user_id: userId, display_name: userName, avatar_url: avatarUrl } })}
-                className="w-full h-12 px-5 flex items-center gap-3 hover:bg-gray-50 transition-colors cursor-pointer text-[#0068FF]"
+                className="w-full h-12 px-5 flex items-center gap-3 hover:bg-[var(--hover-bg)] transition-colors cursor-pointer text-[#0068FF]"
               >
                 <div className="text-[#0068FF]">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" /></svg>

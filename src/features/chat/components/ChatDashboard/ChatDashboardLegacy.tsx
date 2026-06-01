@@ -109,6 +109,10 @@ const parseLastMsgPreview = (text: string, t?: any): string => {
         } else if (json.url) {
           const seg = json.url.split('/');
           result = `📷 ${seg[seg.length - 1] || 'file'}`;
+        } else if (result === text) {
+          // Fallback: kiểm tra xem có zaloEmoji trong JSON không
+          const hasEmoji = JSON.stringify(json).includes('"zaloEmoji"');
+          if (hasEmoji) result = '😀 Emoji';
         }
         }
       }

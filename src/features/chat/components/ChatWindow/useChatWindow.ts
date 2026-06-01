@@ -699,6 +699,10 @@ export function useChatWindow({
   const pinnedMessagesRef = useRef<PinnedMessage[]>([]);
   useEffect(() => { pinnedMessagesRef.current = pinnedMessages; }, [pinnedMessages]);
   const [showPinnedList, setShowPinnedList] = useState(false);
+  const [pendingPinMessageId, setPendingPinMessageId] = useState<string | null>(null);
+  const pendingPinMessageIdRef = useRef<string | null>(null);
+  useEffect(() => { pendingPinMessageIdRef.current = pendingPinMessageId; }, [pendingPinMessageId]);
+  const [pinReplaceModalOpen, setPinReplaceModalOpen] = useState(false);
 
   const [friendRequestStatus, setFriendRequestStatus] = useState<FriendRequestStatus>('loading');
   const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
@@ -3398,19 +3402,11 @@ export function useChatWindow({
   const handlePinMessage = useCallback(async (messageId: string) => {
     try {
       if (pinnedMessagesRef.current.length >= 5) {
-        const sorted = [...pinnedMessagesRef.current].sort((a, b) => {
-          const timeA = a.pinnedAt ? new Date(a.pinnedAt).getTime() : 0;
-          const timeB = b.pinnedAt ? new Date(b.pinnedAt).getTime() : 0;
-          return timeA - timeB;
-        });
-        const oldestPin = sorted[0];
-        if (oldestPin?.messageId) {
-          try {
-            await apiClient.delete(`/messages/${oldestPin.messageId}/pin`);
-          } catch (unpinErr) {
-            console.error('Failed to auto-unpin oldest message:', unpinErr);
-          }
-        }
+        // Instead of auto-unpinning the oldest, ask user which one to replace
+        setPendingPinMessageId(messageId);
+        setPinReplaceModalOpen(true);
+        setContextMenu(null);
+        return;
       }
 
       await apiClient.post(`/messages/${messageId}/pin`, {});
@@ -3424,6 +3420,30 @@ export function useChatWindow({
     }
     setContextMenu(null);
   }, [fetchPinnedMessages, selectedChat?.id, t]);
+
+  const handlePinReplace = useCallback(async (oldMessageId: string) => {
+    const newMessageId = pendingPinMessageIdRef.current;
+    if (!newMessageId) return;
+    try {
+      await apiClient.delete(`/messages/${oldMessageId}/pin`);
+      await apiClient.post(`/messages/${newMessageId}/pin`, {});
+      toast.success(t('chat.pin.pin_success'));
+      if (selectedChat?.id) {
+        fetchPinnedMessages(String(selectedChat.id));
+      }
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || error?.message || t('chat.pin.pin_error');
+      toast.error(msg);
+    } finally {
+      setPinReplaceModalOpen(false);
+      setPendingPinMessageId(null);
+    }
+  }, [fetchPinnedMessages, selectedChat?.id, t]);
+
+  const handleCancelPinReplace = useCallback(() => {
+    setPinReplaceModalOpen(false);
+    setPendingPinMessageId(null);
+  }, []);
 
   const handleUnpinMessage = useCallback(async (messageId: string) => {
     try {
@@ -3598,6 +3618,10 @@ export function useChatWindow({
     pinnedMessages,
     showPinnedList,
     setShowPinnedList,
+    pendingPinMessageId,
+    setPendingPinMessageId,
+    pinReplaceModalOpen,
+    setPinReplaceModalOpen,
     friendRequestStatus,
     pendingRequestId,
     friendActionLoading,
@@ -3679,6 +3703,8 @@ export function useChatWindow({
     openContextMenu,
     handlePinMessage,
     handleUnpinMessage,
+    handlePinReplace,
+    handleCancelPinReplace,
     handleAcceptFriendRequest,
     handleSendFriendRequest,
     handleNicknameConfirm,
