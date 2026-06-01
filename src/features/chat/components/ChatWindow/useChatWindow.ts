@@ -770,8 +770,13 @@ export function useChatWindow({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const currentConversationIdRef = useRef<typeof selectedChat.id | null>(selectedChat?.id ?? null);
-  currentConversationIdRef.current = selectedChat?.id ?? null;
+
+  // Sync ref in effect to avoid "Cannot access refs during render" warning
+  useEffect(() => {
+    currentConversationIdRef.current = selectedChat?.id ?? null;
+  }, [selectedChat?.id]);
   const prevFetchedConvIdRef = useRef<string | null>(null);
+  const fetchGenerationRef = useRef<number>(0);
 
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const typingTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
@@ -995,7 +1000,7 @@ export function useChatWindow({
     } finally {
       setSmartRepliesLoading(false);
     }
-  }, [selectedChat?.id, selectedChat?.isAi, selectedChat?.isCloud]);
+  }, [selectedChat]);
 
   const dismissSmartReplies = useCallback(() => setSmartReplies([]), []);
 
@@ -1047,9 +1052,7 @@ export function useChatWindow({
     } finally {
       setSummaryLoading(false);
     }
-  }, [selectedChat?.id]);
-
-  const stopRecording = useCallback((discard = false) => {
+  }, [selectedChat]);
     discardRef.current = discard;
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
@@ -2650,7 +2653,8 @@ export function useChatWindow({
 
       const convIdStr = String(selectedChat.id);
       const isConversationChange = prevFetchedConvIdRef.current !== convIdStr;
-      prevFetchedConvIdRef.current = convIdStr;
+      // Don't update ref yet — wait until fetch completes to avoid race on rapid tab switches
+      const fetchGen = ++fetchGenerationRef.current;
 
       try {
         setIsInitialLoading(true);
@@ -2677,8 +2681,8 @@ export function useChatWindow({
             setIsInitialLoading(false);
             setShouldScrollToBottom(true);
           } else if (isConversationChange) {
-            // Only clear messages when switching to a different conversation
-            setMessages([]);
+            // Don't clear messages prematurely — keep existing until API confirms
+            // Previous code: setMessages([]) caused message disappearance on tab switch
           }
         } else {
           setMessages([]);
@@ -2747,6 +2751,11 @@ export function useChatWindow({
 
         // Upsert API results to IndexedDB for future instant loads
         upsertLocalMessages(items).catch(() => { });
+
+        // Reject stale responses from earlier conversation switches
+        if (fetchGenerationRef.current !== fetchGen) return;
+        // Update the ref now that fetch succeeded for this conversation
+        prevFetchedConvIdRef.current = convIdStr;
 
         // Merge: keep any real-time WebSocket messages that arrived during fetch
         setMessages(prev => {
