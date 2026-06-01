@@ -7,6 +7,7 @@ import { friendService } from '@/features/friends';
 import type { FriendRequestResponse } from '@/features/friends';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
+import { apiClient } from '@/lib/http/apiClient';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { websocketService } from '@/lib/realtime/websocketService';
 import { StatusIndicator } from '@/features/user';
@@ -37,9 +38,8 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
   const [receivedInvites, setReceivedInvites] = useState<FriendRequestResponse[]>([]);
   const [sentInvites, setSentInvites] = useState<FriendRequestResponse[]>([]);
   const [friends, setFriends] = useState<UserResponse[]>([]);
+  const [groups, setGroups] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-
-  const groups: any[] = [];
 
   const isFriends = category === 'friends';
   const isInvites = category === 'invites';
@@ -74,6 +74,32 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
   };
 
   /**
+   * Fetch Groups
+   */
+  const fetchGroups = async () => {
+    setIsLoading(true);
+    try {
+      const res = await apiClient.get<any>('/conversations');
+      const all: any[] = Array.isArray(res)
+        ? res
+        : res?.conversations ?? res?.items ?? res?.data ?? [];
+      const groupConvs = all
+        .filter((c: any) => (c.type || c.conversationType) === 'GROUP')
+        .map((c: any) => ({
+          id: c.conversationId || c.id,
+          name: c.name || c.conversationName || 'Nhóm',
+          avatar_url: c.avatarUrl || c.avatar || null,
+          members: c.members?.length ? `${c.members.length} thành viên` : '',
+        }));
+      setGroups(groupConvs);
+    } catch (err) {
+      console.error('Failed to fetch groups:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
    * Fetch Friends
    */
   const fetchFriends = async (force = false) => {
@@ -94,6 +120,8 @@ export function ContactsContent({ category, currentUser, onSelectUser }: Contact
       fetchInvitations();
     } else if (category === 'friends') {
       fetchFriends();
+    } else if (category === 'groups') {
+      fetchGroups();
     }
   }, [category]);
 
