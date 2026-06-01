@@ -1053,6 +1053,8 @@ export function useChatWindow({
       setSummaryLoading(false);
     }
   }, [selectedChat]);
+
+  const stopRecording = useCallback((discard = false) => {
     discardRef.current = discard;
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
