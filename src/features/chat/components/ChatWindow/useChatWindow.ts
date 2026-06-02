@@ -2675,7 +2675,7 @@ export function useChatWindow({
               // On refresh trigger: merge to preserve realtime messages not yet in IndexedDB
               setMessages(prev => {
                 const localIds = new Set(localMapped.map(m => m.id));
-                const realtimeOnly = prev.filter(m => !localIds.has(m.id) && !m.id.startsWith('temp-') && !locallyDeletedMessageIdsRef.current.has(String(m.id)));
+                const realtimeOnly = prev.filter(m => !localIds.has(m.id) && !locallyDeletedMessageIdsRef.current.has(String(m.id)));
                 if (realtimeOnly.length === 0) return localMapped;
                 return [...localMapped, ...realtimeOnly].sort((a, b) => (a.rawDate?.getTime() ?? 0) - (b.rawDate?.getTime() ?? 0));
               });
@@ -2762,7 +2762,7 @@ export function useChatWindow({
         // Merge: keep any real-time WebSocket messages that arrived during fetch
         setMessages(prev => {
           const apiIds = new Set(mapped.map(m => m.id));
-          const realtimeOnly = prev.filter(m => !apiIds.has(m.id) && !m.id.startsWith('temp-') && !locallyDeletedMessageIdsRef.current.has(String(m.id)));
+          const realtimeOnly = prev.filter(m => !apiIds.has(m.id) && !locallyDeletedMessageIdsRef.current.has(String(m.id)));
           if (realtimeOnly.length === 0) return mapped;
           const merged = [...mapped, ...realtimeOnly].sort(
             (a, b) => (a.rawDate?.getTime() ?? 0) - (b.rawDate?.getTime() ?? 0)
@@ -2802,6 +2802,15 @@ export function useChatWindow({
     };
 
     fetchMessages();
+
+    // ── Tab Visibility: re-fetch messages when user returns to tab ──
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && selectedChat?.id && !selectedChat.isNew) {
+        // Small delay to let WebSocket re-establish after tab becomes active
+        setTimeout(() => fetchMessages(), 300);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     let subscription: { unsubscribe?: () => void } | null = null;
 
@@ -3026,6 +3035,7 @@ export function useChatWindow({
 
     return () => {
       subscription?.unsubscribe?.();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [selectedChat?.id, selectedChat?.isNew, currentUser?.id, refreshTrigger, t]);
 
